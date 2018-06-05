@@ -9,7 +9,7 @@ import symmetries as SYM
 
 # Load the data from the cell
 
-class Structure:
+class Structure:    
     def __init__(self):
         self.N_atoms=0
         # Coordinates are always express in chartesian axis
@@ -1301,3 +1301,62 @@ Results
         cell[i + 3] = int(np.arccos(cosangle) * 180 / pi + .5)
 
     return cell
+
+
+
+def DistanceBetweenStructures(strc1, strc2, ApplyTrans=True, ApplyRot=False, Ordered = True):
+    """
+This method computes the distance between two structures.
+It is usefull to check the similarity between two structure.
+
+Note:
+Ordered = False is not yet implemented
+
+Parameters
+----------
+   - strc1 : type(Structure)
+      The first structure. It commutes with the strc2.
+   - strc2 : type(Structure)
+      The second structure.
+   - ApplyTrans: bool, default = False
+      If true both the structures are shifted in a common origin (The first atom).
+      This works only if the atoms are ordered to match properly.
+   - ApplyRot : bool, default = False
+      If true the structure are rotated to reduce the rotational freedom.
+   - Ordered: bool, default = True
+      If true the order in which the atoms appears is supposed to match in the two structures.
+
+
+Results
+-------
+    - Similarities: float
+        Similarity between the two provided structures
+    """
+
+
+    if not Ordered:
+        raise ValueError("Error, Ordered = False not yet implemented. Sorry.")
+
+    if strc1.N_atoms != strc2.N_atoms:
+        print "Strc1 has ", strc1.N_atoms, " atoms"
+        print "Strc2 has ", strc2.N_atoms, " atoms"
+        raise ValueError("Error, the number of atoms are not the same in the given structures.")
+
+    nat = strc1.N_atoms
+    coord1 = zeros(nat*3)
+    coord2 = zeros(nat*3)
+    
+    if ApplyTrans:
+        # Shift both the strcture so that the first atom is in the origin.
+        if Ordered:
+            for i in range(nat):
+                coord1[3*i : 3*i + 3] = strc1.coords[i,:] - strc1.coords[0,:]
+                coord2[3*i : 3*i + 3] = strc2.coords[i,:] - strc2.coords[0,:]
+    else:
+       for i in range(nat):
+           coord1[3*i : 3*i + 3] = strc1.coords[i,:]
+           coord2[3*i : 3*i + 3] = strc2.coords[i,:]
+
+
+    # Compute the distance between the two coordinates
+    return sqrt(sum((coord1 - coord2)**2))
