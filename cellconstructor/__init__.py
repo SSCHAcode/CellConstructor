@@ -13,3 +13,4 @@ from Methods import get_gr
 from Methods import cell2abc_alphabetagamma
 from Methods import DistanceBetweenStructures
 from Methods import LoadXYZTrajectory
+from Methods import QHA_FreeEnergy

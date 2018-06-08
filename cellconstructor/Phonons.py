@@ -9,6 +9,8 @@ import Structure
 import numpy as np
 import os
 
+BOHR_TO_ANGSTROM = 0.52918
+
 class Phonons:
     """
     Phonons
@@ -19,7 +21,7 @@ class Phonons:
     It can be used to show and display dinamical matrices, as well as for operating 
     with them
     """
-    def __init__(self, structure, nqirr = 1):
+    def __init__(self, structure = None, nqirr = 1):
         """
         INITIALIZE PHONONS
         ==================
@@ -61,7 +63,7 @@ class Phonons:
         if (type(structure) == type("hello there!")):
             # Quantum espresso
             self.LoadFromQE(structure, nqirr)
-        else:   
+        elif (type(structure) == type(Structure.Structure())):   
             # Get the structure
             self.structure = structure
             
@@ -76,6 +78,7 @@ class Phonons:
             for i in nqirr:
                 # Create a dynamical matrix
                 self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms)))
+        
                 
     def LoadFromQE(self, fildyn_prefix, nqirr=1):
         """
@@ -83,9 +86,6 @@ class Phonons:
         the fildyn prefix is the prefix of the QE dynamical matrix, that must be followed by numbers from 1 to nqirr.
         All the dynamical matrices are loaded.
         
-        NOTE:
-            for now only gamma calculation are supported.
-            nqirr = 1
         
         Parameters
         ----------
@@ -99,10 +99,8 @@ class Phonons:
         # Check if the nqirr is correct
         if nqirr <= 0:
             raise ValueError("Error, the specified nqirr is not valid: it must be positive!")
-            
-        if nqirr != 1:
-            raise ValueError("Error, up to now only Gamma point calculation (nqirr=1) are supported.")
-            
+
+
         # Initialize the atomic structure
         self.structure = Structure.Structure()
         
@@ -124,15 +122,13 @@ class Phonons:
                 struct_info = dynlines[2].split()
                 
                 # Check if the ibrav is 0
-                print dynlines[2]
-                print struct_info
                 ibrav = int(struct_info[2])
                 if ibrav != 0:
                     raise ValueError("Error, only ibrav 0 supported up to now")
                 
                 nat = int(struct_info[1])
                 ntyp = int(struct_info[0])
-                alat = float(struct_info[3])
+                alat = float(struct_info[3]) * BOHR_TO_ANGSTROM # We want a structure in angstrom
                 
                 # Allocate the coordinates
                 self.structure.N_atoms = nat
@@ -143,7 +139,6 @@ class Phonons:
                 masses_dict = {}
                 for atom_index in range(1, ntyp + 1):
                     atm_line = dynlines[6 + atom_index]
-                    print "ATOM %d / %d :" % (atom_index, ntyp), atm_line
                     atoms_dict[atom_index] = atm_line.split("'")[1].strip()
                     
                     # Get also the atomic mass
@@ -163,9 +158,7 @@ class Phonons:
                 for i in range(nat):
                     # Jump the lines up to the structure
                     line_index = 7 + ntyp + i
-                    print "ATOM %d / %d" % (i, nat),  dynlines[line_index]
                     atom_info = np.array([float(item) for item in dynlines[line_index].split()])
-                    print atoms_dict, atom_info[1]
                     self.structure.atoms.append(atoms_dict[int(atom_info[1])])
                     self.structure.coords[i, :] = atom_info[2:] * alat
                     
@@ -196,9 +189,9 @@ class Phonons:
                     
                 if "q = " in dynlines[index]:
                     #Read the q
-                    dynlines[index].replace("(", ")")
-                    qpoint = np.array([float(item) for item in dynlines[index].split(')')[1].split()])
+                    qpoint = np.array([float(item) for item in dynlines[index].replace("(", ")").split(')')[1].split()])
                     q_star.append(qpoint)
+                    self.q_tot.append(qpoint)
                 elif "ynamical" in dynlines[index]:
                     # Save the dynamical matrix
                     self.dynmats.append(current_dyn.copy())
@@ -218,7 +211,11 @@ class Phonons:
                 
                 # Advance in the reading
                 index += 1
-            
+                
+            # Append the new stars for the irreducible q point
+            self.q_stars.append(q_star)
+        
+        # Ok, the matrix has been initialized
         self.initialized = True
         
     def DyagDinQ(self, iq):
@@ -262,3 +259,22 @@ class Phonons:
         frequencies[f2 < 0] = -np.sqrt(-f2[f2 < 0])
         
         return frequencies, pol_vects
+    
+    def Copy(self):
+        """
+        Return an exact copy of itself. 
+        This will implies copying all the dynamical matricies and structures inside.
+        So take care if the structure is big, because it will overload the memory.
+        """
+        
+        ret = Phonons()
+        ret.structure = self.structure.copy()
+        ret.q_tot = self.q_tot
+        ret.nqirr = self.nqirr
+        ret.initialized = self.initialized
+        ret.q_stars = self.q_stars
+        
+        for i, dyn in enumerate(self.dynmats):
+            ret.dynmats.append(dyn.copy())
+        
+        return ret

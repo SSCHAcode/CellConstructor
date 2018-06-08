@@ -21,8 +21,8 @@ view(ase_iceXI)
 
 # Perform compute the frequency in the second q point
 print "The q point is:"
-print iceXI.q_tot[1]
+print iceXI.q_tot[0]
 print ""
-freq, pol_vect = iceXI.DyagDinQ(1)
+freq, pol_vect = iceXI.DyagDinQ(0)
 print "Frequencies:"
 print np.sort(freq * RyToCm)
