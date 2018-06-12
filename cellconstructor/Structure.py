@@ -5,23 +5,22 @@ Created on Wed Jun  6 10:44:27 2018
 
 @author: pione
 """
-from numpy import *
 import numpy as np
 import ase
-from ase.visualize import view
 import sys, os
-
+import Methods
 
 import symmetries as SYM
 
+__all__ = ["Structure"]
 
 class Structure:    
     def __init__(self):
         self.N_atoms=0
         # Coordinates are always express in chartesian axis
-        self.coords = zeros((self.N_atoms, 3))
+        self.coords = np.zeros((self.N_atoms, 3))
         self.atoms = []
-        self.unit_cell = zeros((3,3))
+        self.unit_cell = np.zeros((3,3))
         self.has_unit_cell = False
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
@@ -81,7 +80,7 @@ class Structure:
         # Check if the input is consistent
         if (alat and not self.has_unit_cell):
             sys.stderr.write("ERROR, alat setted to true, but no unit cell initialized\n")
-            raise ErrorInParameters("Function read_xyz, alat = True but no unit cell.")
+            raise ValueError("Function read_xyz, alat = True but no unit cell.")
         
         ##  Check if the unit cell can be used with alat (only for orthorombic diagonal unit cell)
         # if (alat):
@@ -101,7 +100,7 @@ class Structure:
             
 
         self.N_atoms = int(xyz.readline())
-        self.coords = zeros((self.N_atoms, 3))
+        self.coords = np.zeros((self.N_atoms, 3))
         
         # Read the comment line
         xyz.readline()
@@ -118,12 +117,12 @@ class Structure:
             # Rescale the coordinates with the unit cell if requested
             if alat:
                 # Not shure if the dot product must be done with the transposed unit cell matrix
-                self.coords[i, :] = dot( transpose(self.unit_cell), self.coords[i, :])
+                self.coords[i, :] = np.dot( np.transpose(self.unit_cell), self.coords[i, :])
 
         # Close the xyz file
         xyz.close()
 
-    def read_scf(self, filename):
+    def read_scf(self, filename, alat=1):
         """
         Read the given filename in the quantum espresso format.
         Note:
@@ -133,24 +132,27 @@ class Structure:
         ----------
            - filename : str
                The filename containing the atomic positions
+           - alat : double
+               If present the system will convert both the cell and the atoms position
+               by this factor
         """
         # Check if the specified filename exists
         if not os.path.exists(filename):
-            raise InputError("File %s does not exist" % filename)
+            raise ValueError("File %s does not exist" % filename)
 
         # Read the input filename
         fp = open(filename, "r")
 
         n_atoms = 0
-        good_lines = []
+        #good_lines = []
 
         # First read
         read_cell = False
         cell_index = 0
         read_atoms = True
         cell_present = False
-        atom_index = 0
-        cell = zeros((3,3))
+        #atom_index = 0
+        cell = np.zeros((3,3))
         tmp_coords = []
         for line in fp.readlines():
             line = line.strip()
@@ -177,22 +179,22 @@ class Structure:
             
             
             if read_cell and cell_index < 3:
-                cell[cell_index, :] = [float(v) for v in values]
+                cell[cell_index, :] = [float(v)*alat for v in values]
                 cell_index += 1
             elif cell_index == 3:
                 read_cell = False
 
             if read_atoms:
                 self.atoms.append(values[0])
-                tmp_coords.append([float(v) for v in values[1:4]])
+                tmp_coords.append([float(v)*alat for v in values[1:4]])
                 n_atoms += 1
         fp.close()
             
         # Initialize the structure
-        self.coords = zeros((n_atoms, 3))
+        self.coords = np.zeros((n_atoms, 3))
         self.N_atoms = n_atoms
         for i, coord in enumerate(tmp_coords):
-            self.coords[i,:] = array(coord)
+            self.coords[i,:] = np.array(coord)
         if cell_present:
             self.unit_cell = cell
         
@@ -230,7 +232,7 @@ class Structure:
         """
         
         # Load the unit cell
-        self.unit_cell = loadtxt(filename)
+        self.unit_cell = np.loadtxt(filename)
         self.has_unit_cell = True
 
         if delete_copies:
@@ -252,7 +254,7 @@ class Structure:
         
         """
 
-        savetxt(filename, self.unit_cell, header = "Rows are the unit cell vectors")
+        np.savetxt(filename, self.unit_cell, header = "Rows are the unit cell vectors")
 
     def get_reciprocal_vectors(self):
         """
@@ -269,9 +271,9 @@ class Structure:
         """
 
         if not self.has_unit_cell:
-            raise NoUnitCell("Error: the specified structure has not the unit cell.")
+            raise ValueError("Error: the specified structure has not the unit cell.")
 
-        return transpose(linalg.inv(self.unit_cell)) * 2 * pi
+        return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
         
         
     def delete_copies(self, minimum_dist=1e-6, verbose=False):
@@ -314,10 +316,10 @@ class Structure:
                                 new_z = z1 + z_u * self.unit_cell[i_z, :]
 
                                 # Add the transformed distance
-                                distances.append( sqrt((x-new_x)**2 + (y - new_y)**2 + (z - new_z)**2))
+                                distances.append( np.sqrt((x-new_x)**2 + (y - new_y)**2 + (z - new_z)**2))
                 else:
                     # Get the first distance between atoms
-                    distances.append(sqrt( (x-x1)**2 + (y-y1)**2 + (z-z1)**2 ))
+                    distances.append(np.sqrt( (x-x1)**2 + (y-y1)**2 + (z-z1)**2 ))
                                            
                         
 
@@ -343,7 +345,7 @@ class Structure:
             #print index
             del self.atoms[index]
 
-        self.coords = delete(self.coords, list_pop, axis = 0)
+        self.coords = np.delete(self.coords, list_pop, axis = 0)
         self.N_atoms -= N_rep
             
     def apply_symmetry(self, sym_mat, delete_original = False, thr = 1.e-6):
@@ -366,23 +368,23 @@ class Structure:
         """
 
         if not self.has_unit_cell:
-            raise CellError("The structure has no unit cell!")
+            raise ValueError("The structure has no unit cell!")
 
         #self.N_atoms *= 2
-        new_atoms = zeros( (self.N_atoms, 3))
+        new_atoms = np.zeros( (self.N_atoms, 3))
         for i in range(self.N_atoms):
             # Convert the coordinates into covariant
-            old_coords = covariant_coordinates(self.unit_cell, self.coords[i, :])
+            old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
 
             # Apply the symmetry
             new_coords = sym_mat[:, :3].dot(old_coords)
             new_coords += sym_mat[:, 3]
 
             # Return into the cartesian coordinates
-            coords = dot( transpose(self.unit_cell), new_coords)
+            coords = np.dot( np.transpose(self.unit_cell), new_coords)
 
             # Put the atoms into the unit cell
-            new_atoms[i, :] = put_into_cell(self.unit_cell, coords)
+            new_atoms[i, :] = Methods.put_into_cell(self.unit_cell, coords)
                 
             # Add also the atom type
             if not delete_original:
@@ -393,7 +395,7 @@ class Structure:
             self.coords = new_atoms
         else:
             self.N_atoms *= 2
-            self.coords = concatenate( (self.coords, new_atoms), axis = 0)
+            self.coords = np.concatenate( (self.coords, new_atoms), axis = 0)
 
         self.delete_copies(verbose = False, minimum_dist = thr)
 
@@ -443,7 +445,6 @@ class Structure:
         # Apply all the symmetries
         sym_mats = SYM.get_symmetries_from_ita(group)
         self.ita = group
-        N_sym = len(sym_mats)
 
         for mat in sym_mats:
             self.apply_symmetry(mat)
@@ -471,7 +472,7 @@ class Structure:
         symfile.close()
 
         # Get the symmetries
-        symdata = loadtxt(filename, skiprows = 1)
+        symdata = np.loadtxt(filename, skiprows = 1)
 
         if (progress_bar): print ""
 
@@ -525,7 +526,7 @@ class Structure:
         symfile.close()
         
         # Get the symmetries
-        symdata = loadtxt(filename, skiprows = 1)
+        symdata = np.loadtxt(filename, skiprows = 1)
 
         for i in range(N_sym):
             symmetries.append(symdata[3*i:3*(i+1), :])
@@ -555,7 +556,7 @@ class Structure:
                 sys.stderr.write("Check carefully if the symmetries, the unit cell and the structure are ok.\n")
                 sys.stderr.write("If so try to increase the initial_threshold parameter.\n")
 
-                raise InitialThresold("Initial threshold not satisfied by symmetry %d" % i)
+                raise ValueError("Initial threshold not satisfied by symmetry %d" % i)
             if r < threshold:
                 running = False
             else:
@@ -594,14 +595,14 @@ class Structure:
             for j in range(i+1, self.N_atoms):
                 if j in pop_indices: continue
 
-                if sqrt(sum( (self.coords[i,:] - self.coords[j,:])**2 )) < distance:
+                if np.sqrt(np.sum( (self.coords[i,:] - self.coords[j,:])**2 )) < distance:
                     molecule.append(j)
                     pop_indices.append(j)
 
             molecules.append(molecule)
 
         # Resort the atoms
-        coords = zeros( (self.N_atoms, 3))
+        coords = np.zeros( (self.N_atoms, 3))
         atoms = ["X"] * self.N_atoms
 
         cont = 0
@@ -673,7 +674,7 @@ class Structure:
         fp.write("# Space Group ITA number\n%d\n# Lattice parameters\n" % self.ita)
 
         # Convert the cell into the a,b,c,alpha,beta,gamma format
-        cellbcs = cell2abc_alphabetagamma(self.unit_cell)
+        cellbcs = Methods.cell2abc_alphabetagamma(self.unit_cell)
         fp.write("%.8f %.8f %.8f %3d %3d %3d\n" % (cellbcs[0], cellbcs[1], cellbcs[2],
                                                    cellbcs[3], cellbcs[4], cellbcs[5]))
 
@@ -716,7 +717,7 @@ class Structure:
         fp.write("# [atom type] [number] [WP] [x] [y] [z]\n")
                 
         for i in range(removing_struct.N_atoms):
-            cvect = covariant_coordinates(self.unit_cell, removing_struct.coords[i,:])
+            cvect = Methods.covariant_coordinates(self.unit_cell, removing_struct.coords[i,:])
             vect_str = " ".join(["%.8f" % item for item in cvect])
             fp.write("%2s %3d - %s\n" % (removing_struct.atoms[i], i+1, vect_str))
             
@@ -759,10 +760,10 @@ class Structure:
         """
 
         if not self.has_unit_cell:
-            raise InputError("Error, try to fix the coordinates without the unit cell")
+            raise ValueError("Error, try to fix the coordinates without the unit cell")
 
         for i in range(self.N_atoms):
-            self.coords[i,:] = put_into_cell(self.unit_cell, self.coords[i,:])
+            self.coords[i,:] = Methods.put_into_cell(self.unit_cell, self.coords[i,:])
 
         # Delete duplicate atoms
         self.delete_copies()
@@ -803,15 +804,15 @@ class Structure:
         """
 
         if len(dim) != 3:
-            raise InputError("ERROR, dim must have 3 integers.")
+            raise ValueError("ERROR, dim must have 3 integers.")
 
         if not self.has_unit_cell:
-            raise InputError("ERROR, the specified system has not the unit cell.")
+            raise ValueError("ERROR, the specified system has not the unit cell.")
 
-        total_dim = prod(dim)
+        total_dim = np.prod(dim)
 
         new_N_atoms = self.N_atoms * total_dim
-        new_coords = zeros( (new_N_atoms, 3))
+        new_coords = np.zeros( (new_N_atoms, 3))
         atoms = [None] * new_N_atoms # Create an empty list for the atom's label
 
         # Start the generation of the new supercell
@@ -863,22 +864,22 @@ class Structure:
 
         # Get the covariant components
         cell = self.unit_cell
-        metric_tensor = zeros((3,3))
+        metric_tensor = np.zeros((3,3))
         for i in range(0, 3):
             for j in range(i, 3):
                 metric_tensor[i, j] = metric_tensor[j,i] = cell[i,:].dot(cell[j, :])
 
-        imt = linalg.inv(metric_tensor)
+        imt = np.linalg.inv(metric_tensor)
         
         # Get contravariant components
-        contra_vect = zeros(3)
+        contra_vect = np.zeros(3)
         for i in range(3):
             contra_vect[i] = vector1.dot(cell[i, :]) 
 
         # Invert the metric tensor and obtain the covariant coordinates
         covect1 = imt.dot(contra_vect)
         
-        contra_vect = zeros(3)
+        contra_vect = np.zeros(3)
         for i in range(3):
             contra_vect[i] = vector2.dot(cell[i, :]) 
 
@@ -888,10 +889,10 @@ class Structure:
         covect_distance = covect1 - covect2
 
         # Bring the distance as close as possible to zero
-        covect_distance -= (covect_distance + sign(covect_distance)*.5).astype(int)
+        covect_distance -= (covect_distance + np.sign(covect_distance)*.5).astype(int)
 
         # Compute the distance using the metric tensor
-        return sqrt(covect_distance.dot(metric_tensor.dot(covect_distance)))
+        return np.sqrt(covect_distance.dot(metric_tensor.dot(covect_distance)))
 
 
     def get_brillouin_zone(self, ISO_MESH=10): # NOT WORKING -----
@@ -918,16 +919,16 @@ class Structure:
         # Get the reciprocal lattice vectors
         b_vectors = self.get_reciprocal_vectors()
 
-        b_mod = sum( b_vectors**2, axis = 1)
+        b_mod = np.sum( b_vectors**2, axis = 1)
 
-        metric_tensor = zeros((3,3))
+        metric_tensor = np.zeros((3,3))
         for i in range(0, 3):
             for j in range(i, 3):
                 metric_tensor[i, j] = metric_tensor[j,i] = b_vectors[i,:].dot(b_vectors[j, :])
-        invmt = linalg.inv(metric_tensor)
+        invmt = np.linalg.inv(metric_tensor)
                 
         # Uniformly fill the Reciprocal Unit Cell
-        spacing = linspace(-.5, .5, ISO_MESH)
+        spacing = np.linspace(-.5, .5, ISO_MESH)
 
         vectors = []
 
@@ -942,11 +943,96 @@ class Structure:
                 #     continue
                 
                 for z in [-0.5, 0.5]:
-                    contravect = array([b_mod[0] * x, b_mod[1] * y, b_mod[2] * z])
+                    contravect = np.array([b_mod[0] * x, b_mod[1] * y, b_mod[2] * z])
                     covect = invmt.dot(contravect)
                     vectors.append(covect)
 
         # TODO NOT WORKING
         pass
 
-        return array(vectors)
+        return np.array(vectors)
+    
+    def GetBiatomicMolecules(self, atoms, distance, tollerance=0.01, return_indices = False):
+        """
+        GET BIATOMIC MOLECULE
+        =====================
+        
+        This function allows one to extract from a structure all the biatomic 
+        molecules that contains the two atoms specified and that are at the distance
+        with a given tollerance.
+        This is very usefull to compute some particular average bond length.
+        
+        Parameters
+        ----------
+            - atoms : list (char) (size = 2)
+                The atomic symbols of the molecule
+            - distance : float
+                The average distance between the two atom in the molecule
+            - tollerance : float, default 0.01
+                The tollerance on the distance after which the two atoms are
+                no more consider inside the same molecule.
+            - return_indices : bool, default false
+                If true, per each molecule is returned also the list of the
+                original indices inside the structure.
+            
+        Results
+        -------
+            - Molecules : list
+                List of molecules (Structure) that matches the input.
+                If none is found an empty list is returned
+        """
+        # Check if the atoms is a 2 char list
+        if len(atoms) != 2:
+            raise ValueError("Error, the molecule must be biatomic")
+            
+        for a in atoms:
+            if not a in self.atoms:
+                raise ValueError("Error, the atom %s is not into this structure" % a)
+        
+        # Scroll all the atoms in the list that match the first type.
+        molecules = []
+        original_indices = []
+        for index1 in range(self.N_atoms):
+            atm1 = self.atoms[index1]
+            if atm1 != atoms[0]:
+                continue
+            
+            # Avoid double counting if the molecule is omonuclear
+            starting_index = 0
+            if atoms[0] == atoms[1]:
+                starting_index = index1 + 1
+            
+            for index2 in range(starting_index, self.N_atoms):
+                atm2 = self.atoms[index2]
+                if atm2 != atoms[1]:
+                    continue
+                
+                # Check if the distances between the two atoms matches
+                d = self.get_min_dist(index1, index2)
+                if d > distance - tollerance and d < distance + tollerance:
+                    # Create the structure of the molecule
+                    mol = Structure()
+                    mol.N_atoms = 2
+                    mol.atoms = atoms
+                    mol.coords = np.zeros((2, 3))
+                    
+                    # Translate the molecule in the middle of the cell
+                    if self.has_unit_cell:
+                        for i in range(3):
+                            mol.coords[0,:] += self.unit_cell[i,:] / 2.
+                            mol.coords[1,:] += self.unit_cell[i,:] / 2.
+
+                    mol.coords[1,:] += self.coords[index2,:] - self.coords[index1,:] 
+                    
+                    # If the system has a unit cell, put the second atom inside the cell
+                    if self.has_unit_cell:
+                        mol.coords[1,:] = Methods.put_into_cell(self.unit_cell, mol.coords[1,:])
+                    
+                    # Append the molecule to the structure
+                    molecules.append(mol)
+                    original_indices.append( (index1, index2) )
+        
+        if return_indices:
+            return molecules, original_indices
+        
+        return molecules

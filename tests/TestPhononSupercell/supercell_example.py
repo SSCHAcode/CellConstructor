@@ -7,13 +7,14 @@ This is the ice XI structure of crystalline H2O
 """
 
 import cellconstructor as CC
+import cellconstructor.Phonons
 import numpy as np
 from ase.visualize import view
 
 RyToCm = 109691.40235
 
 # Read the phonons (8 irreducible q points)
-iceXI = CC.Phonons("dynmat", 8)
+iceXI = CC.Phonons.Phonons("dynmat", 8)
 
 # Show the structure
 ase_iceXI = iceXI.structure.get_ase_atoms()

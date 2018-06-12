@@ -6,5 +6,12 @@ setup( name = "CellConstructor",
        url = "https://github.com/mesonepigreco/CellConstructor",
        packages = ["cellconstructor"],
        package_dir = {"cellconstructor": "cellconstructor"},
-       package_data = {"cellconstructor": ["SymData/*.dat"]}
+       package_data = {"cellconstructor": ["SymData/*.dat"]},
+       install_requires = ["numpy", "ase"],
+       license = "MIT",
+       include_package_data = True
        )
+
+def readme():
+    with open("README.md") as f:
+        return f.read()

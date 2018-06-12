@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import cellconstructor as CC
+import cellconstructor.Manipulate
+import cellconstructor.Phonons
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -14,15 +16,15 @@ RyToEv=13.605698
 Ev_AngToGPa=160.21766208
 
 # Import the two phonons
-ph1 = CC.Phonons("V804/dynmat", nqirr = 8)
-ph2 = CC.Phonons("V907/dynmat", nqirr = 8)
+ph1 = CC.Phonons.Phonons("V804/dynmat", nqirr = 8)
+ph2 = CC.Phonons.Phonons("V907/dynmat", nqirr = 8)
 
 
 # Perform the interpolation
 N_points = 100
 N_T = 100
 T = np.linspace(0, 300, N_T)
-free_energy = CC.QHA_FreeEnergy(ph1, ph2, T, N_points)
+free_energy = CC.Manipulate.QHA_FreeEnergy(ph1, ph2, T, N_points)
 
 
 # Get the volumes (The determinant of the unit cell vectors)

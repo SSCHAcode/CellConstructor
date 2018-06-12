@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import cellconstructor as CC
+import cellconstructor.Phonons
 import numpy as np
 from ase.visualize import view
 
@@ -11,7 +12,7 @@ generating both the structure and all the phonon information.
 """
 
 # Load the QE dynmat
-hydrogen_structure = CC.Phonons("hydrogen_dyn")
+hydrogen_structure = CC.Phonons.Phonons("hydrogen_dyn")
 
 # Show the structure with the ASE viewer
 ase_struct = hydrogen_structure.structure.get_ase_atoms()
