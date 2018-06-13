@@ -21,7 +21,7 @@ class Phonons:
     It can be used to show and display dinamical matrices, as well as for operating 
     with them
     """
-    def __init__(self, structure = None, nqirr = 1):
+    def __init__(self, structure = None, nqirr = 1, full_name = False):
         """
         INITIALIZE PHONONS
         ==================
@@ -39,6 +39,9 @@ class Phonons:
                 The number of irreducible q point of the supercell on which you want 
                 to compute the phonons. 
                 Use 1 if you want to perform a Gamma point calculation.
+            - full_name : bool
+                If full_name is True, then the structure is loaded without appending the
+                q point index. This is compatible only with nqirr = 1.
                 
         Results
         -------
@@ -62,7 +65,7 @@ class Phonons:
         # Check whether the structure argument is a path or a Structure
         if (type(structure) == type("hello there!")):
             # Quantum espresso
-            self.LoadFromQE(structure, nqirr)
+            self.LoadFromQE(structure, nqirr, full_name = full_name)
         elif (type(structure) == type(Structure.Structure())):   
             # Get the structure
             self.structure = structure
@@ -80,7 +83,7 @@ class Phonons:
                 self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms)))
         
                 
-    def LoadFromQE(self, fildyn_prefix, nqirr=1):
+    def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False):
         """
         This Function loads the phonons information from the quantum espresso dynamical matrix.
         the fildyn prefix is the prefix of the QE dynamical matrix, that must be followed by numbers from 1 to nqirr.
@@ -94,12 +97,17 @@ class Phonons:
             - nqirr : type(int), default 1
                 Number of irreducible q points in the space group (supercell phonons).
                 If 0 or negative an exception is raised.
+            - full_name : bool, optional
+                If it is True, then the dynamical matrix is loaded without appending the q index.
+                This is compatible only with gamma point matrices.
         """
         
         # Check if the nqirr is correct
         if nqirr <= 0:
             raise ValueError("Error, the specified nqirr is not valid: it must be positive!")
 
+        if full_name and nqirr > 1:
+            raise ValueError("Error, with full_name only gamma matrices are loaded.")
 
         # Initialize the atomic structure
         self.structure = Structure.Structure()
@@ -107,7 +115,11 @@ class Phonons:
         # Start processing the dynamical matrices
         for iq in range(nqirr):
             # Check if the selected matrix exists
-            filepath = "%s%i" % (fildyn_prefix, iq + 1)
+            if not full_name:
+                filepath = "%s%i" % (fildyn_prefix, iq + 1)
+            else:
+                filepath = fildyn_prefix
+                
             if not os.path.isfile(filepath):
                 raise ValueError("Error, file %s does not exist." % filepath)
             
@@ -222,6 +234,10 @@ class Phonons:
         """
         Dyagonalize the dynamical matrix in the given q point index.
         This methods returns both frequencies and polarization vectors.
+        The frequencies and polarization are ordered. Negative frequencies are to
+        be interpreted as instabilities and imaginary frequency, as for QE.
+        
+        They are returned 
         
         Parameters
         ----------
@@ -232,8 +248,10 @@ class Phonons:
         -------
             - frequencies : ndarray (float)
                 The frequencies (square root of the eigenvalues divided by the masses).
-            - pol_vectors : ndarray (N_modes x 3)
-                The polarization vectors for the dynamical matrix
+                These are in Ry units.
+            - pol_vectors : ndarray (N_modes x 3)^2
+                The polarization vectors for the dynamical matrix. They are returned
+                in a Fortran fashon order: pol_vectors[:, i] is the i-th polarization vector.
         """
         
         
@@ -258,6 +276,11 @@ class Phonons:
         frequencies[f2 > 0] = np.sqrt(f2[f2 > 0])
         frequencies[f2 < 0] = -np.sqrt(-f2[f2 < 0])
         
+        # Order the frequencies and the polarization vectors
+        sorting_mask = np.argsort(frequencies)
+        frequencies = frequencies[sorting_mask]
+        pol_vects = pol_vects[:, sorting_mask]
+        
         return frequencies, pol_vects
     
     def Copy(self):
@@ -278,3 +301,161 @@ class Phonons:
             ret.dynmats.append(dyn.copy())
         
         return ret
+    
+    def CheckCompatibility(self, other):
+        """
+        This function checks the compatibility between two dynamical matrices.
+        The check includes the number of atoms and the atomic type.
+
+        Parameters
+        ----------
+            - other : Phonons.Phonons()
+                The other dynamical matrix to check the compatibility.
+                
+        Returns
+        -------
+            bool 
+        """
+        
+        # First of all, check if other is a dynamical matrix:
+        if type(other) != type(self):
+            return False
+        
+        # Check if the two structures shares the same number of atoms:
+        if self.structure.N_atoms != other.structure.N_atoms:
+            return False
+        
+        # Check if they belong to the same supercell:
+        if self.nqirr != other.nqirr:
+            return False
+        
+        # Then they are compatible
+        return True
+    
+    def GetUpsilonMatrix(self, T):
+        """
+        This subroutine returns the inverse of the correlation matrix.
+        It is computed as following
+        
+        .. math::
+            
+            \\Upsilon_{ab} = \\sqrt{M_aM_b}\\sum_\\mu \\frac{2\\omega_\\mu}{(1 + n_\\mu)\\hbar} e_\\mu^a e_\\mu^b
+            
+        It is used to compute the probability of a given atomic displacement.
+        The resulting matrix is a 3N x 3N one ordered as the dynamical matrix here.
+        
+        NOTE: only works for the gamma point.
+        
+        Parameters
+        ----------
+            T : float
+                Temperature of the calculation (Kelvin)
+        
+        Returns
+        -------
+            ndarray(3N x3N)
+                The inverse of the correlation matrix.
+        """
+        K_to_Ry=6.336857346553283e-06
+
+        if T < 0:
+            raise ValueError("Error, T must be posititive (or zero)")
+        
+        if self.nqirr != 1:
+            raise ValueError("Error, this function yet not supports the supercells.")
+        
+        # We need frequencies and polarization vectors
+        w, pols = self.DyagDinQ(0)
+        
+        # Transform the polarization vector into real one
+        pols = np.real(pols)
+        
+        # Discard translations
+        w = w[3:]
+        pols = pols[:, 3:]
+        
+        # Get the bosonic occupation number
+        nw = np.zeros(np.shape(w))
+        if T == 0:
+            nw = 0.
+        else:
+            nw =  1. / (np.exp(w/(K_to_Ry * T)) -1)
+        
+        # Compute the matrix
+        factor = 2 * w / (1. + 2*nw)
+        Upsilon = np.einsum( "i, ji, ki", factor, pols, pols)
+        
+        # Get the masses for the final multiplication
+        mass1 = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            mass1[ 3*i : 3*i + 3] = np.sqrt(self.structure.masses[ self.structure.atoms[i]])
+        
+        _m1_ = np.tile(mass1, (3 * self.structure.N_atoms, 1))
+        _m2_ = np.tile(mass1, (3 * self.structure.N_atoms, 1)).transpose()
+        
+        return Upsilon * _m1_ * _m2_
+    
+    
+    def GetProbability(self, displacement, T, upsilon_matrix = None):
+        """
+        This function, given a particular displacement, returns the probability density
+        of finding the system around that displacement. This in practical computes 
+        density matrix of the system in this way
+        
+        .. math::
+            
+            \\rho(\\vec u) = \\sqrt{\\det(\\Upsilon / 2\\pi)} \\times \\exp\\left[-\\frac 12 \\sum_{ab} u_a \\Upsilon_ab u_b\\right]
+            
+        Where :math:`\\vec u` is the displacement, :math:`\\Upsilon` is the inverse of the covariant matrix
+        computed through the method self.GetUpsilonMatrix().
+        
+        Parameters
+        ----------
+            displacement : ndarray(3xN) or ndarray(N, 3)
+                The displacement on which you want to compute the probability.
+                It can be both an array of dimension 3 x self.structure.N_atoms or
+                a bidimensional array of structure (N_atoms, 3).
+            T : float
+                Temperature (Kelvin) for the calculation. It will be discarded 
+                if a costum upsilon_matrix is provided.
+            upsilon_matrix : ndarray (3xN)^2, optional
+                If you have to compute many times this probability it can be convenient
+                to compute only once the upsilon matrix, and recycle it. If it is
+                None (as default) the upsilon matrix will be recomputed each time.
+                
+        Returns
+        -------
+            float
+                The probability density of finding the system in the given displacement.
+                
+        """
+        
+        disp = np.zeros( 3 * self.structure.N_atoms)
+        
+        # Reshape the displacement
+        if len(np.shape(displacement)) == 2:
+            disp = displacement.reshape( len(disp))
+        else:
+            disp = displacement
+        
+        
+        if upsilon_matrix is None:
+            upsilon_matrix = self.GetUpsilonMatrix(self, T)
+        
+        # Compute the braket
+        braket = np.einsum("i, ij, j", disp, upsilon_matrix, disp)
+        
+#        # Get the normalization
+#        vals = np.linalg.eigvals(upsilon_matrix)
+#        vals = vals[np.argsort(np.abs(vals))]
+#        
+#        vals /= 2*np.pi
+#        det = np.prod(vals[3:])
+        
+        #print "VALS:", vals
+        #print "DET : ", det
+        print "BRAKET : ", braket
+        
+        #norm = np.sqrt( det)
+                
+        return  np.exp(-braket)
