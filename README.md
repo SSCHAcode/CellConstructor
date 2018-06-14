@@ -4,11 +4,11 @@ Welcome to the CellConstructor python package!
 
 ## Requirements
 
-To correnctly install and use the package, you need to have:
-    - python >= 2.7
-    - ASE : Atomic Simulation Environment
-    - numpy
-    - scipy
+To correnctly install and use the package, you need to have
+1. python >= 2.7
+2. ASE : Atomic Simulation Environment
+3. numpy
+4. scipy
 
 ## Installation
 
