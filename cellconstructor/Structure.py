@@ -724,27 +724,53 @@ class Structure:
         fp.close()
 
 
-    def save_scf(self, filename):
+    def save_scf(self, filename, alat = 1, avoid_header=False):
         """
         This methods export the phase in the quantum espresso readable format.
         Of course, only the data reguarding the unit cell and the atomic position will be written.
         The rest of the file must be edited by  the user to start a calculation.
+        
+        Parameters
+        ----------
+            filename : string
+                The name of the file that you want to save.
+            alat : float, optional
+                If different from 1, both the cell and the coordinates are saved in alat units.
+                It must be in Angstrom.
+            avoid_header : bool, optional
+                If true nor the cell neither the ATOMIC_POSITION header is printed.
+                Usefull for the sscha.x code.
         """
 
-        data = []
-        data.append("CELL_PARAMETERS angstrom\n")
-        for i in range(3):
-            data.append("%.16f  %.16f  %.16f\n" % (self.unit_cell[i, 0],
-                                            self.unit_cell[i, 1],
-                                            self.unit_cell[i, 2]))
+        if alat <= 0:
+            raise ValueError("Error, alat must be positive [Angstrom]")
 
-        data.append("\n")
-        data.append("ATOMIC_POSITIONS angstrom\n")
+        data = []
+        if self.has_unit_cell and not avoid_header:
+            unit_cell = np.copy(self.unit_cell)
+            if alat == 1:
+                data.append("CELL_PARAMETERS angstrom\n")
+            else:
+                data.append("CELL_PARAMETERS alat\n")
+            
+            unit_cell /= alat
+                
+            for i in range(3):
+                    data.append("%.16f  %.16f  %.16f\n" % (unit_cell[i, 0],
+                                                           unit_cell[i, 1],
+                                                           unit_cell[i, 2]))
+            data.append("\n")
+            
+            
+        if not avoid_header:
+            data.append("ATOMIC_POSITIONS angstrom\n")
         for i in range(self.N_atoms):
+            coords = np.copy(self.coords)
+            coords /= alat
             data.append("%s    %.16f  %.16f  %.16f\n" % (self.atoms[i],
-                                                       self.coords[i, 0],
-                                                       self.coords[i, 1],
-                                                       self.coords[i, 2]))
+                                                         coords[i, 0],
+                                                         coords[i, 1],
+                                                         coords[i, 2]))
 
         # Write
         fdata = file(filename, "w")

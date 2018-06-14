@@ -454,7 +454,7 @@ class Phonons:
         
         #print "VALS:", vals
         #print "DET : ", det
-        print "BRAKET : ", braket
+        #print "BRAKET : ", braket
         
         #norm = np.sqrt( det)
                 

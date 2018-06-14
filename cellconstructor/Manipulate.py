@@ -227,11 +227,11 @@ def TransformStructure(dyn1, dyn2, T, structures, mode_exchange = None, mode_sig
         mode_exchange : list (3*N_atoms, int), optional
             If present the modes order of dyn1 is exchanged when transforming the 
             structure to dyn2. This is usefull to optimize the transformation along
-            many possible degenerate systems. This is applied after the mode_sign, if any
+            many possible degenerate systems. This is applied before the mode_sign, if any
         mode_sign : list, optional
             If different from none, is a list of length equal 3*N_atoms, containing
             only -1 and 1. The polarization vector of the first dynmat will be changed
-            of sign if requested. This is applied before the mode_exchange
+            of sign if requested. This is applied after the mode_exchange
         
     Returns
     -------
@@ -291,12 +291,12 @@ def TransformStructure(dyn1, dyn2, T, structures, mode_exchange = None, mode_sig
     w0, pol0 = dyn1.DyagDinQ(0)
     w1, pol1 = dyn2.DyagDinQ(0)
     
-    # Change the sign of the polarization vector if required
-    pol0[:, mode_sign == -1] *= -1
-    
     # Exchange modes according to mode exchange
     w0 = w0[mode_exchange]
     pol0 = pol0[:, mode_exchange]
+    
+    # Change the sign of the polarization vector if required
+    pol0[:, mode_sign == -1] *= -1
     
     # Conver the polarization vectors into real one (we are in gamma)
     pol0 = np.real(pol0)
@@ -392,11 +392,11 @@ def GetScalarProductPolVects(dyn1, dyn2, mode_exchange = None, mode_sign = None)
             The dynamical matrix 2
         mode_exchange : ndarray (int)
             The array that shuffle the modes of the first matrix according to
-            its data. This transformation is applied after mode_sign
+            its data. This transformation is applied before mode_sign
         mode_sign : ndarray(int)
             An array made only by int equal to 1 and -1. It changes the sign
             of the corresponding polarization vector of the first dynamical matrix.
-            This transformation is applied before mode_exchange
+            This transformation is applied after mode_exchange
     
     Results
     -------
@@ -442,9 +442,13 @@ def GetScalarProductPolVects(dyn1, dyn2, mode_exchange = None, mode_sign = None)
     w1, pol1 = dyn1.DyagDinQ(0)
     w2, pol2 = dyn2.DyagDinQ(0)
     
+    # Since we are at gamma take only real part of the polarization vectors
+    pol1 = np.real(pol1)
+    pol2 = np.real(pol2)
+    
     # perform the transformation if required
-    pol1[:, mode_sign == -1] *= -1
     pol1 = pol1[:, mode_exchange]
+    pol1[:, mode_sign == -1] *= -1
     
     results = np.zeros( nmodes )
     
@@ -452,3 +456,155 @@ def GetScalarProductPolVects(dyn1, dyn2, mode_exchange = None, mode_sign = None)
         results[i] = pol1[:, i].dot(pol2[:, i])
     
     return results
+
+def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
+    """
+    This subroutine is ment for automatically check the best values for mode_exchange
+    and mode_sign to pass to the TransfromStructure. This is needed if you want to
+    maximize correlation between the structures, because the transformation between two
+    dynamical matrix is not uniquily defined.
+    The algorithm checks exchange the mode and sign to algin at best the polarization vectors.
+    
+    At each step a random moovement is aptented. The first vector to moove is piked with
+    a probability equal to
+    
+    .. math::
+        
+        P_0(\\mu) \\propto 1 - \\left|\\left< e_\\mu^{(0)} | e_\\mu^{(1)}\\right>\\right|
+        
+    Then the second mode is chosen as
+    
+    .. math::
+        
+        P(\\nu | \\mu) \\propto P_0(\\nu) \cdot \\frac{1}{|\\Delta\\omega| + \\eta}
+        
+    Where :math:`\\eta` is a smearing factor to avoid explosion in degenerate modes.
+    The exchange between the two modes is accepted if the total score is increased.
+    The total score is measured as
+    
+    .. math::
+        
+        S = \\sum_\\mu \\left|\\left< e_\\mu^{(0)} | e_\\mu^{(1)}\\right>\\right|
+        
+    
+    
+    NOTE: Works only at Gamma
+    
+    
+    Parameters
+    ----------
+        dyn1 : Phonons.Phonons
+            The starting dynamical matrix
+        dyn2 : Phonons.Phonons
+            The final dynamical matrix
+        small_thr : float, optional
+            If the scalar product for each mode is bigger than this value, then
+            the optimization is considered to be converged
+        n_ref : int, optional
+            A positive integer. Even if small_thr is not converged. After n_ref
+            refused mooves, the system is considered to be converged.
+            
+    Results
+    -------
+        mode_exchange : list
+            The mode_exchange list to be feeded into TransformStructure
+        mode_sign : list
+            The mode_sign list to be feeded into TransformStructure
+    """
+    eta_smearing = 1e-5
+    
+    # Check that the two dyn are compatible
+    if not dyn1.CheckCompatibility(dyn2):
+        raise ValueError("Error, the two dynamical matrices seem not to be compatible.")
+    
+    # Get pol and frequencies
+    w1, pol1 = dyn1.DyagDinQ(0)
+    w2, pol2 = dyn2.DyagDinQ(0)
+    
+    # Count how much time the system can get negative answers
+    refuses_counts = 0
+    nmodes = dyn1.structure.N_atoms * 3
+    
+    # The two starting
+    mode_exchange = np.arange(nmodes)
+    mode_sign = np.ones(nmodes)
+    
+    # Perform the optimization
+    while refuses_counts < n_ref:
+        # Get the scalar product
+        sp = GetScalarProductPolVects(dyn1, dyn2, mode_exchange, mode_sign)
+        _w_ = w1[mode_exchange]
+        
+        # Neglect translations
+        sp = sp[3:]
+        _w_ = _w_[3:]
+        
+        # Check if convergence has been archived
+        if np.min(np.abs(sp)) > small_thr:
+            break
+        
+        # Get the probability P0
+        p0 = 1.0 - np.abs(sp)
+        p0 /= np.sum(p0) # Normalization
+        
+        # get the primitive
+        F0 = np.array([np.sum(p0[:i+1]) for i in range(len(p0))])
+        
+        # Pick randomly
+        x0 = np.random.rand()
+        i0 = np.arange(len(F0))[x0 < F0][0]
+        
+        # Get the difference of energy
+        delta_w = np.abs(_w_ - _w_[i0])
+        
+        # Define the probability of the second one
+        p1 = p0  / (delta_w +  eta_smearing)
+        
+        # Avoid picking two times the same
+        p1[i0] = 0
+        
+        # Normalize the probability and integrate it
+        p1 /= np.sum(p1)
+        F1 = np.array([np.sum(p1[:i+1]) for i in range(len(p1))])
+        
+        # Pick the second index for the exchange
+        x1 = np.random.rand()
+        i1 = np.arange(len(F1))[x1 < F1][0]
+        
+        # Add back the translations
+        i0 += 3
+        i1 += 3
+        
+        # Perform the exchange between the modes
+        new_mode_exchange = np.copy(mode_exchange)
+        tmp = new_mode_exchange[i0]
+        new_mode_exchange[i0] = new_mode_exchange[i1]
+        new_mode_exchange[i1] = tmp
+        
+        #Check the new scalar product if to accept the move
+        new_sp = GetScalarProductPolVects(dyn1, dyn2, new_mode_exchange, mode_sign)
+        if np.sum( np.abs(sp) ) < np.sum( np.abs(new_sp) ):
+            # Accept the move
+            mode_exchange = np.copy(new_mode_exchange)
+            #print "Accepted: old = ", np.sum( np.abs(sp) ), " new = ", np.sum( np.abs(new_sp))
+        else:
+            # Refuse the move
+            refuses_counts += 1
+            
+        
+    # Now the mode have been ordered, change the sign accordingly
+    sp = GetScalarProductPolVects(dyn1, dyn2, mode_exchange, mode_sign)
+    mode_sign[sp < 0] = -1
+
+    # Return the final value
+    return mode_exchange, mode_sign
+        
+        
+        
+        
+    
+    
+    
+    
+    
+    
