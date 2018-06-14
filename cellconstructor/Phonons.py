@@ -55,6 +55,9 @@ class Phonons:
         # Q tot contains the total q points (also those belonging to the same star)
         self.q_tot = []
         
+        # This alat is read just from QE, but not used
+        self.alat = 1
+        
         # If this is true then the dynmat can be used
         self.initialized = False
         
@@ -140,7 +143,7 @@ class Phonons:
                 
                 nat = int(struct_info[1])
                 ntyp = int(struct_info[0])
-                alat = float(struct_info[3]) * BOHR_TO_ANGSTROM # We want a structure in angstrom
+                self.alat = float(struct_info[3]) * BOHR_TO_ANGSTROM # We want a structure in angstrom
                 
                 # Allocate the coordinates
                 self.structure.N_atoms = nat
@@ -161,7 +164,7 @@ class Phonons:
                 # Read the unit cell
                 unit_cell = np.zeros((3,3))
                 for i in range(3):
-                    unit_cell[i, :] = np.array([float(item) for item in dynlines[4 + i].split()]) * alat
+                    unit_cell[i, :] = np.array([float(item) for item in dynlines[4 + i].split()]) * self.alat
                     
                 self.structure.unit_cell = unit_cell
                 self.structure.has_unit_cell = True
@@ -172,7 +175,7 @@ class Phonons:
                     line_index = 7 + ntyp + i
                     atom_info = np.array([float(item) for item in dynlines[line_index].split()])
                     self.structure.atoms.append(atoms_dict[int(atom_info[1])])
-                    self.structure.coords[i, :] = atom_info[2:] * alat
+                    self.structure.coords[i, :] = atom_info[2:] * self.alat
                     
                 
             # From now start reading the dynamical matrix -----------------------

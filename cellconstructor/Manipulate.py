@@ -351,10 +351,14 @@ def TransformStructure(dyn1, dyn2, T, structures, mode_exchange = None, mode_sig
                 
                 # Translate the origin in the middle of the cell
                 for k in range(3):
-                    v1 += dyn1.struct.unit_cell[k,:] * .5
+                    v1 += dyn1.structure.unit_cell[k,:] * .5
                 
                 # Put the displacement now into the unit cell to get the correct one
                 disp[i,:] = Methods.put_into_cell(dyn1.structure.unit_cell, v1)
+                
+                # Translate the origin back to zero
+                for k in range(3):
+                    disp[i,:] -= dyn1.structure.unit_cell[k,:] * .5
                 
         
         # Get the new vector of displacement
