@@ -4,6 +4,7 @@ import cellconstructor as CC
 import numpy as np
 from ase.visualize import view
 import matplotlib.pyplot as plt
+import cellconstructor.Structure
 
 """
 This example will load a quantum espresso structure of phase C2c-24 of
@@ -30,11 +31,13 @@ Mols, indices = HydIII.GetBiatomicMolecules(["H", "H"], distance, tollerance, Tr
 
 print "Found %s molecules:" % len(Mols)
 
+# Now compute the H-H distances between the molecules
 dist = []
 for i, mol in enumerate(Mols):
     d = np.sqrt(np.sum((mol.coords[0,:] - mol.coords[1,:])**2))
     dist.append(d)
 
+print "Here all the H-H distances:"
 print dist
 
 # Use matplotlib to plot a pretty hystogram
