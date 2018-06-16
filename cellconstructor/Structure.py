@@ -13,6 +13,7 @@ import Methods
 import symmetries as SYM
 
 __all__ = ["Structure"]
+BOHR_TO_ANGSTROM=0.529177249
 
 class Structure:    
     def __init__(self):
@@ -134,7 +135,8 @@ class Structure:
                The filename containing the atomic positions
            - alat : double
                If present the system will convert both the cell and the atoms position
-               by this factor
+               by this factor. If it is also specified in the CELL_PARAMETERS line,
+               the one specified in the file will be used.
         """
         # Check if the specified filename exists
         if not os.path.exists(filename):
@@ -151,6 +153,9 @@ class Structure:
         cell_index = 0
         read_atoms = True
         cell_present = False
+        
+        read_crystal = False
+        
         #atom_index = 0
         cell = np.zeros((3,3))
         tmp_coords = []
@@ -171,10 +176,19 @@ class Structure:
                 read_atoms = False
                 self.has_unit_cell = True
                 cell_present = True
+                
+                # Check if the alat value is specified here
+                if "alat=" in line.lower().replace(" ", ""):
+                    value_alat = float(line[ line.find("=") + 1:].strip().replace(")",""))
+                    alat = value_alat * BOHR_TO_ANGSTROM
+                    
                 continue
             if values[0] == "ATOMIC_POSITIONS":
                 read_cell = False
                 read_atoms = True
+                if "crystal" in values[1].lower():
+                    read_crystal = True
+                    
                 continue
             
             
@@ -186,17 +200,34 @@ class Structure:
 
             if read_atoms:
                 self.atoms.append(values[0])
-                tmp_coords.append([float(v)*alat for v in values[1:4]])
+                if not read_crystal:
+                    tmp_coords.append([float(v)*alat for v in values[1:4]])
+                else:
+                    # Read the crystal coordinate without taking care of alat
+                    tmp_coords.append([float(v) for v in values[1:4]])
+
                 n_atoms += 1
         fp.close()
+        
+            
             
         # Initialize the structure
         self.coords = np.zeros((n_atoms, 3))
         self.N_atoms = n_atoms
-        for i, coord in enumerate(tmp_coords):
-            self.coords[i,:] = np.array(coord)
+        
         if cell_present:
             self.unit_cell = cell
+            
+        for i, coord in enumerate(tmp_coords):
+            self.coords[i,:] = np.array(coord)
+            
+            # Transform the coordinates if crystal
+            if read_crystal:
+                if not cell_present:
+                    raise ValueError("Error, read crystal coordinates but no cell given in %s" % filename)
+               
+                self.coords[i,:] = np.einsum("ij, i", self.unit_cell, self.coords[i,:])
+            
         
 
     def read_generic_file(self, filename):

@@ -31,7 +31,7 @@ def get_symmetries_from_ita(ita, red=False):
     """
     
     if ita <= 0:
-        raise InputError("Error, ITA group %d is not valid." % ita)
+        raise ValueError("Error, ITA group %d is not valid." % ita)
       
     filename="%s/SymData/%d.dat" % (CURRENT_DIR, ita)
     if red:
@@ -44,7 +44,7 @@ def get_symmetries_from_ita(ita, red=False):
         print "And just add the %d.dat file into the SymData folder of the current program." % ita
         print "It should take less than five minutes."
         
-        raise InputError("Error, ITA group  %d not yet implemented. Check stdout on how to solve this problem." % ita)
+        raise ValueError("Error, ITA group  %d not yet implemented. Check stdout on how to solve this problem." % ita)
     
     fp = open(filename, "r")
     

@@ -1,0 +1,8 @@
+CELL_PARAMETERS angstrom
+1 0 0
+0 2 0
+3 0 3
+
+ATOMIC_POSITIONS crystal
+H 0.2 0.2 0.2
+O 0 0.5 1
