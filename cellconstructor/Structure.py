@@ -853,10 +853,12 @@ class Structure:
             nexti = (i+1)%3
             otheri = (i+2)%3
             angls[otheri] = np.arccos( np.dot(self.unit_cell[i,:], self.unit_cell[nexti,:]) / 
-                 (np.sqrt(np.dot(self.unit_cell[i,:], self.unit_cell[i,:])) * np.sqrt(np.dot(self.unit_cell[i,:], self.unit_cell[i,:]))))
+                 (np.sqrt(np.dot(self.unit_cell[i,:], self.unit_cell[i,:])) * 
+                  np.sqrt(np.dot(self.unit_cell[nexti,:], self.unit_cell[nexti,:])))) * 180 / np.pi
         
         # Pick the angle that differ the most from 90
         otheri = np.argmax( np.abs( angls - 90))
+        #print angls, otheri
         
         # Now select the two vectors between this angle
         vec1 = self.unit_cell[(otheri + 1) % 3,:].copy()
@@ -866,11 +868,11 @@ class Structure:
         sign = np.sign(np.cos(angls[otheri]))
         
         # Get the new system
-        vec1_prime = 2 * vec1 - sign* vec2
+        vec1_prime = 2 * vec1 + sign* vec2
         
         # Get the new structure
         s_new = self.generate_supercell( (2,2,2) )
-        s_new.unit_cell = self.unit_cell
+        s_new.unit_cell = self.unit_cell.copy()
         s_new.unit_cell[(otheri+1)%3,:] = vec1_prime
         s_new.fix_coords_in_unit_cell()
         
