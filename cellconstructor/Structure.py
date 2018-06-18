@@ -864,16 +864,16 @@ class Structure:
         vec1 = self.unit_cell[(otheri + 1) % 3,:].copy()
         vec2 = self.unit_cell[(otheri + 2) % 3,:].copy()
         
-        # Get the sign between the two angles
-        sign = np.sign(np.cos(angls[otheri]))
-        
         # Get the new system
-        vec1_prime = 2 * vec1 + sign* vec2
+        vec1_prime = vec1 + vec2
+        vec2_prime = vec1 - vec2
         
         # Get the new structure
         s_new = self.generate_supercell( (2,2,2) )
         s_new.unit_cell = self.unit_cell.copy()
         s_new.unit_cell[(otheri+1)%3,:] = vec1_prime
+        s_new.unit_cell[(otheri+2)%3,:] = vec2_prime
+
         s_new.fix_coords_in_unit_cell()
         
         return s_new
