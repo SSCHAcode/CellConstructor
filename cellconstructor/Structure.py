@@ -824,6 +824,57 @@ class Structure:
 
         # Delete duplicate atoms
         self.delete_copies()
+        
+    def get_strct_conventional_cell(self):
+        """
+        This methods, starting from the primitive cell, returns the same structure 
+        in the conventional cell. It picks the angle that mostly differs from 90 deg,
+        and transfrom the axis of the cell accordingly to obtain a bigger cell, but similar
+        to an orthorombic one.
+        The atoms are then replicated and correctly placed inside the new cell.
+        
+        If the structure does not have a unit cell, the method will raise an error.
+        
+        NOTE: The new structure will be returned, but this will not be modified
+        
+        Returns
+        -------
+            Structure.Structure()
+                The structure with the conventional cell
+        """
+        
+        
+        if not self.has_unit_cell:
+            raise ValueError("Error, the given structure does not have a valid unit cell.")
+            
+        # Compute the three angles
+        angls = np.zeros(3)
+        for i in range(3):
+            nexti = (i+1)%3
+            otheri = (i+2)%3
+            angls[otheri] = np.arccos( np.dot(self.unit_cell[i,:], self.unit_cell[nexti,:]) / 
+                 (np.sqrt(np.dot(self.unit_cell[i,:], self.unit_cell[i,:])) * np.sqrt(np.dot(self.unit_cell[i,:], self.unit_cell[i,:]))))
+        
+        # Pick the angle that differ the most from 90
+        otheri = np.argmax( np.abs( angls - 90))
+        
+        # Now select the two vectors between this angle
+        vec1 = self.unit_cell[(otheri + 1) % 3,:].copy()
+        vec2 = self.unit_cell[(otheri + 2) % 3,:].copy()
+        
+        # Get the sign between the two angles
+        sign = np.sign(np.cos(angls[otheri]))
+        
+        # Get the new system
+        vec1_prime = 2 * vec1 - sign* vec2
+        
+        # Get the new structure
+        s_new = self.generate_supercell( (2,2,2) )
+        s_new.unit_cell = self.unit_cell
+        s_new.unit_cell[(otheri+1)%3,:] = vec1_prime
+        s_new.fix_coords_in_unit_cell()
+        
+        return s_new
 
     def get_ase_atoms(self):
         """
