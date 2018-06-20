@@ -7,7 +7,7 @@ setup( name = "CellConstructor",
        packages = ["cellconstructor"],
        package_dir = {"cellconstructor": "cellconstructor"},
        package_data = {"cellconstructor": ["SymData/*.dat"]},
-       install_requires = ["numpy", "ase"],
+       install_requires = ["numpy", "ase", "scipy"],
        license = "MIT",
        include_package_data = True
        )
