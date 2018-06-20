@@ -27,3 +27,7 @@ print ""
 freq, pol_vect = iceXI.DyagDinQ(0)
 print "Frequencies:"
 print np.sort(freq * RyToCm)
+
+
+# Test the saving method
+iceXI.save_qe("New_Dynmat")

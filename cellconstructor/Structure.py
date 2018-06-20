@@ -272,6 +272,34 @@ class Structure:
         if rescale_coords:
             for i in range(self.N_atoms):
                 self.coords[i,:] = self.unit_cell.dot(self.coords[i,:])
+                
+    def change_unit_cell(self, unit_cell):
+        """
+        This method change the unit cell of the structure keeping fixed the crystal coordinates.
+        
+        NOTE: the unit_cell argument will be copied, so if the unit_cell variable is modified, this will not
+        affect the unit cell of this structure.
+        
+        Parameters
+        ----------
+            unit_cell : numpy ndarray (3x3)
+                The new unit cell
+        """
+        if not self.has_unit_cell:
+            raise ValueError("Error, the structure must already have a unit cell initialized.")
+        
+        # Get the crystal coordinates
+        crys_coord = np.zeros(np.shape(self.coords))
+        for i in range(self.N_atoms):
+            crys_coord[i,:] = Methods.covariant_coordinates(self.unit_cell, self.coords[i,:])
+        
+        # Setup the new unit cell
+        self.unit_cell = unit_cell.copy()
+        
+        # Modify the coordinates
+        for i in range(self.N_atoms):
+            self.coords[i,:] = np.einsum("ij, i", self.unit_cell, crys_coord[i,:])
+        
 
     def export_unit_cell(self, filename):
         """
@@ -1146,3 +1174,60 @@ class Structure:
             return molecules, original_indices
         
         return molecules
+    
+    def get_displacement(self, target):
+        """
+        GET THE DISPLACEMENT STRUCTURE
+        ==============================
+        
+        This function will return an array of displacement respect to the target
+        of the current structure. Note that the two structures must be compatible.
+        
+        
+        NOTE: if any the self unit_cell will be considered, otherwise the target one.
+              no unit cell is used only if neither the self nor the target have one.
+        
+        Parameters
+        ----------
+            target : Structure.Structure()
+                The reference atomic positions (also this is a structure)
+        
+        Results
+        -------
+            ndarray N_atoms x 3
+                The displacements (same shape as self.coords)
+        """
+        
+        # Check if the two structures are compatible
+        if self.N_atoms != target.N_atoms:
+            raise ValueError("Error, the target must share the same number of atoms")
+            
+        unit_cell = np.zeros((3,3))
+        easy = False
+        if not self.has_unit_cell:
+            if not target.has_unit_cell:
+                easy = True
+            else:
+                unit_cell = target.unit_cell
+        else:
+            unit_cell = self.unit_cell
+        
+        disp = np.zeros(np.shape(self.coords))
+        disp = self.coords - target.coords
+        if easy:
+            return disp
+        
+        # Check that the cell is good
+        for i in range(self.N_atoms):
+            # Add half of the the unit cell
+            for j in range(3):
+                disp[i,:] += unit_cell[j,:] * .5
+            
+            disp[i,:] = Methods.put_into_cell(unit_cell, disp[i,:])
+            
+            # Remove again the half cell
+            for j in range(3):
+                disp[i,:] -= unit_cell[j,:] * .5
+        
+        return disp
+            

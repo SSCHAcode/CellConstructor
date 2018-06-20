@@ -191,84 +191,9 @@ def get_minimal_orthorombic_cell(euclidean_cell, ita=36):
         last_vector = .5 * euclidean_cell[1,:] + .5 * euclidean_cell[0,:]
         minimal_cell[1,:] = last_vector
     else:
-        raise InputError("Error on input, ITA = %d not yet implemented." % ita)
+        raise ValueError("Error on input, ITA = %d not yet implemented." % ita)
     
     return minimal_cell
-
-    
-def write_dynmat_in_qe_format(struct, dyn_mat, filename):
-    """
-    Write the given dynamical matrix in the quantum espresso format.
-    The system is considered to be a whole unit cell, so only the gamma matrix will be generated
-    
-    Parameters
-    ----------
-        - struct : Structure
-             The structure of the system with the dynamical matrix
-
-        - dyn_mat : float, 3*n_atoms x 3*n_atoms
-             The dynamical matrix in Hartree units.
-
-        - filename : string
-             The path in which the quantum espresso dynamical matrix will be written.
-
-    """
-    
-    fp = file(filename, "w")
-    fp.write("Dynamical matrix file\n")
-
-    # Get the different number of types
-    types = []
-    n_atoms = struct.N_atoms
-    for i in range(n_atoms):
-        if not struct.atoms[i] in types:
-            types.append(struct.atoms[i])
-    n_types = len(types)
-
-    # Assign an integer for each atomic species
-    itau = {}
-    for i in range(n_types):
-        itau[types[i]] = i
-    
-    fp.write("File generated with the build_unit_cell.py by Lorenzo Monacelli\n")
-    fp.write("%d %d %d %.8f %.8f %.8f %.8f %.8f %.8f\n" %
-             (n_types, n_atoms, 0, 1, 0, 0, 0, 0, 0) )
-
-    fp.write("Basis vectors\n")
-    # Get the unit cell
-    for i in range(3):
-        fp.write(" ".join("%12.8f" % x for x in struct.unit_cell[i,:]) + "\n")
-
-    # Set the atom types and masses
-    for i in range(n_types):
-        fp.write("\t%d  '%s '  %.8f\n" % (i +1, types[i], struct.masses[types[i]]))
-
-    # Setup the atomic structure
-    for i in range(n_atoms):
-        fp.write("%5d %5d %15.10f %15.10f %15.10f\n" %
-                 (i +1, itau[struct.atoms[i]], struct.coords[i, 0], struct.coords[i,1], struct.coords[i,2]))
-
-    # Here the dynamical matrix starts
-    fp.write("\n")
-    fp.write("     Dynamical Matrix in cartesian axes\n")
-    fp.write("\n")
-    fp.write("     q = (    %.9f   %.9f   %.9f )\n" % (0,0,0)) # Gamma point
-    fp.write("\n")
-
-    # Now print the dynamical matrix
-    for i in range(n_atoms):
-        for j in range(n_atoms):
-            # Write the atoms
-            fp.write("%5d%5d\n" % (i + 1, j + 1))
-            for x in range(3):
-                line = "%12.8f %12.8f   %12.8f %12.8f   %12.8f %12.8f" % \
-                       ( real(dyn_mat[3*i + x, 3*j]), imag(dyn_mat[3*i + x, 3*j]),
-                         real(dyn_mat[3*i + x, 3*j+1]), imag(dyn_mat[3*i+x, 3*j+1]),
-                         real(dyn_mat[3*i + x, 3*j+2]), imag(dyn_mat[3*i+x, 3*j+2]) )
-
-                fp.write(line +  "\n")
-
-    fp.close()
 
 
 # -------
