@@ -20,3 +20,14 @@ python setup.py install
 ```
 
 while you are located in the same directory as the setup.py script is.
+
+A pip version is also present. You can install it by typing
+
+```bash
+pip install CellConstructor
+```
+
+NOTE:
+If you want to install the package into a system python distribution, the
+installation commands should be executed as a superuser.
+
