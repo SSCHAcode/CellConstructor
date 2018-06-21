@@ -13,6 +13,7 @@ from ase.visualize import view
 import sys, os
 import Structure
  
+BOHR_TO_ANGSTROM = 0.529177249
 
 import symmetries as SYM
 
@@ -268,12 +269,12 @@ Results
             
     # Now get the g(r) from N_r
     N_tot = sum(N_r)
-    V = 4 * pi * r_max**3 / 3.
+    V = 4 * np.pi * r_max**3 / 3.
     rho = N_tot / V
-    g_r = N_r / (4 * pi * real_r * real_dr * rho)
+    g_r = N_r / (4 * np.pi * real_r * real_dr * rho)
 
     # Get the final data and return
-    data = zeros((N_bin, 2))
+    data = np.zeros((N_bin, 2))
     data[:, 0] = real_r
     data[:, 1] = g_r
     return data
@@ -308,7 +309,7 @@ Results
         k = (i + 2) % 3
         cosangle = unit_cell[j,:].dot(unit_cell[k, :]) / (cell[j] * cell[k])
         
-        cell[i + 3] = int(np.arccos(cosangle) * 180 / pi + .5)
+        cell[i + 3] = int(np.arccos(cosangle) * 180 / np.pi + .5)
 
     return cell
 
@@ -353,8 +354,8 @@ Results
         raise ValueError("Error, the number of atoms are not the same in the given structures.")
 
     nat = strc1.N_atoms
-    coord1 = zeros(nat*3)
-    coord2 = zeros(nat*3)
+    coord1 = np.zeros(nat*3)
+    coord2 = np.zeros(nat*3)
     
     if ApplyTrans:
         # Shift both the strcture so that the first atom is in the origin.
@@ -369,5 +370,74 @@ Results
 
 
     # Compute the distance between the two coordinates
-    return sqrt(sum((coord1 - coord2)**2))
+    return np.sqrt(sum((coord1 - coord2)**2))
 
+
+def get_unit_cell_from_ibrav(ibrav, celldm):
+    """
+    OBTAIN THE UNIT CELL WITH QUANTUM ESPRESSO IBRAV
+    ================================================
+    
+    This subroutine reads the quantum espresso variables ibrav and celldm
+    and built the unit cell according to them.
+    
+    NOTE: not all the version are still supported, they will be 
+    added as the developing of the code will go on.
+    
+    
+    Look at quantum espresso pw.x input for a clear explanation
+    on how they works.
+    Note the unit of QE are bohr, so we expect the celldm[0] to be
+    written in bohr. However the output cell will be in angstrom.
+    
+    Parameters
+    ----------
+        ibrav : int
+            This is the ibrav number identification of the cell type.
+            Note if it is a float, it will be rounded to the closest integer.
+            For example, 1 means simple cubic, 13 is the base-centered monoclinic ...
+        
+        celldm : ndarray (float, 6)
+            It contains a list of 6 floats that defines the cell axis length and 
+            angles. Their precise meaning can be found on quantum-espresso documentation.
+            We refer at 6.2.1 version.
+    
+    Results
+    -------
+        unit_cell : ndarray (3x3)
+            The unit cell in angstrom. the i-th cell vector is unit_cell[i,:]
+            
+    """
+    # Avoid trivial problems if the ibrav is a float
+    ibrav = int(ibrav + .5) 
+    
+    SUPPORTED_IBRAV = [13]
+    
+    # Check if the ibrav is in the supported ibrav
+    if not ibrav in SUPPORTED_IBRAV:
+        raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
+        
+    
+    # Check if celldm is of the correct length
+    if len(celldm) != 6:
+        raise ValueError("Error, celldm shoud be an ndarray of size 6")
+    
+    # Get the cell
+    unit_cell = np.zeros((3,3))
+    if ibrav == 13:
+        # Monoclinic base-centered
+        
+        # Create cell
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = a * celldm[1]
+        c = a * celldm[2]
+        cos_ab = celldm[3]
+        sin_ab = np.sqrt(1 - cos_ab**2)
+        
+        unit_cell[0,:] = np.array( [a/2., 0, -c/2.])
+        unit_cell[1,:] = np.array( [b * cos_ab, b*sin_ab, 0])
+        unit_cell[2,:] = np.array( [a/2., 0, c/2.])
+    else:
+        raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
+
+    return unit_cell

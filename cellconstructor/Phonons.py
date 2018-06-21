@@ -141,8 +141,16 @@ class Phonons:
                 
                 # Check if the ibrav is 0
                 ibrav = int(struct_info[2])
-                if ibrav != 0:
-                    raise ValueError("Error, only ibrav 0 supported up to now")
+                celldm = np.zeros(6)
+                celldm[0] = float(struct_info[3])
+                celldm[1] = float(struct_info[4])
+                celldm[2] = float(struct_info[5])
+                celldm[3] = float(struct_info[6])
+                celldm[4] = float(struct_info[7])
+                celldm[5] = float(struct_info[8])
+                
+#                if ibrav != 0:
+#                    raise ValueError("Error, only ibrav 0 supported up to now")
                 
                 nat = int(struct_info[1])
                 ntyp = int(struct_info[0])
@@ -152,6 +160,19 @@ class Phonons:
                 self.structure.N_atoms = nat
                 self.structure.coords = np.zeros((nat, 3))
                 
+                # Read the unit cell
+                unit_cell = np.zeros((3,3))
+                if ibrav == 0:
+                    for i in range(3):
+                        unit_cell[i, :] = np.array([float(item) for item in dynlines[4 + i].split()]) * self.alat
+                else:
+                    unit_cell = Methods.get_unit_cell_from_ibrav(ibrav, celldm)
+                    # Insert 4 lines to match the same number of lines as in ibrav = 0
+                    dynlines.insert(3, "")
+                    dynlines.insert(3, "")
+                    dynlines.insert(3, "")
+                    dynlines.insert(3, "")
+                    
                 # Read the atomic type
                 atoms_dict = {}
                 masses_dict = {}
@@ -164,11 +185,7 @@ class Phonons:
                     
                 self.structure.set_masses(masses_dict)
                 
-                # Read the unit cell
-                unit_cell = np.zeros((3,3))
-                for i in range(3):
-                    unit_cell[i, :] = np.array([float(item) for item in dynlines[4 + i].split()]) * self.alat
-                    
+                
                 self.structure.unit_cell = unit_cell
                 self.structure.has_unit_cell = True
                 
@@ -636,7 +653,7 @@ class Phonons:
         
         .. math::
             
-            \\Phi_{ab} = \\sum_\\mu \\omega_\\mu^2 e_\\mu^a e_\\mu^b \\sqrt{m_a m_b}
+            \\Phi_{ab} = \\sum_\\mu \\omega_\\mu^2 e_\\mu^a e_\\mu^b \\sqrt{M_a M_b}
             
         Where :math:`\\Phi_{ab}` is the force constant matrix between the a-b atoms (also cartesian
         indices), :math:`\\omega_\\mu` is the phonon frequency and :math:`e_\\mu` is the
