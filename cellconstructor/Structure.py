@@ -16,7 +16,7 @@ __all__ = ["Structure"]
 BOHR_TO_ANGSTROM=0.529177249
 
 class Structure:    
-    def __init__(self):
+    def __init__(self, nat=0):
         self.N_atoms=0
         # Coordinates are always express in chartesian axis
         self.coords = np.zeros((self.N_atoms, 3))
@@ -999,6 +999,9 @@ class Structure:
 
         vector1 = self.coords[index_1, :]
         vector2 = self.coords[index_2, :]
+        
+        if not self.has_unit_cell:
+            return np.sqrt( np.sum( (vector1 - vector2)**2))
 
         # Get the covariant components
         cell = self.unit_cell
@@ -1231,3 +1234,205 @@ class Structure:
         
         return disp
             
+    
+    def get_angle(self, index1, index2, index3, rad = False):
+        """
+        GET ANGLE BETWEEN THREE ATOMS
+        =============================
+        
+        This function evaluate the angle between three atoms located
+        in the structure at the correct indices. The unit cell is centered around
+        the second atom to compute correctly the structure.
+        
+        
+        Parameters
+        ----------
+            indexI : int
+                Index of the Ith atom. (The angle is the one between 1-2-3)
+            rad : bool, optional
+                If true, the angle is returned in radiants (otherwise in degrees)
+        
+        Return
+        ------
+            angle : float
+                Value of the angle in degrees (unles rad is specified) between the index1-index2-index3
+                atoms of the structure.
+            
+        """
+        
+        if index1 >= self.N_atoms or index2 >= self.N_atoms or index3 >= self.N_atoms:
+            raise ValueError("Error, the indices must be lower than the number of atoms.")
+        
+        
+        # Get the three vectors
+        v1 = self.coords[index1,:].copy()
+        v2 = self.coords[index2,:].copy()
+        v3 = self.coords[index3,:].copy()
+        
+        # center with respect of v2
+        v1 -= v2
+        v2 -= v2
+        v3 -= v2
+        
+        # Manipulate them if there is an unitcell
+        if self.has_unit_cell:
+            # Sum half of the cell vectors
+            for i in range(3):
+                v1 += self.unit_cell[i,:] * .5
+                v2 += self.unit_cell[i,:] * .5
+                v3 += self.unit_cell[i,:] * .5
+            
+            # Put the vectors in the unit cell
+            v1 = Methods.put_into_cell(self.unit_cell, v1)
+            v2 = Methods.put_into_cell(self.unit_cell, v2)
+            v3 = Methods.put_into_cell(self.unit_cell, v3)
+            
+            # Center again around v2
+            for i in range(3):
+                v1 -= self.unit_cell[i,:] * .5
+                v2 -= self.unit_cell[i,:] * .5
+                v3 -= self.unit_cell[i,:] * .5
+        
+        # Now we can measure the angle
+        angle = np.arccos(np.dot(v1, v3) / np.sqrt(np.dot(v1, v1) * np.dot(v3, v3)))
+        
+        # Degree conversion
+        if not rad:
+            angle *= 180 / np.pi
+        
+        return angle
+                        
+                                    
+    
+    def GetTriatomicMolecules(self, atoms, distance1, distance2, angle, thr_dist=0.01, thr_ang = 1, return_indices = False):
+        """
+        GET TRIATOMIC MOLECULE
+        =====================
+        
+        This function allows one to extract from a structure all the triatomic 
+        molecules that contains the atoms specified and that are at the distance and angle
+        with a given tollerance.
+        This is very usefull to compute some particular average bond length.
+        
+        The two distances are between the first-second and second-third atom, while the angle
+        is between first-second-third atom.
+        
+        Be carefull if the atoms are equal and the distance1 and distance2 are very similar
+        the algorithm can find twice the same molecules.
+        
+        Parameters
+        ----------
+            - atoms : list (char) (size = 3)
+                The atomic symbols of the molecule
+            - distance1 : float
+                The average distance between the first two atom in the molecule
+            - distance2 : float
+                The average distance between the last two atom in the molecule
+            - angle : float
+                Angle (in degree) between the central atom and the other two.
+            - thr_dist: float, default 0.01
+                The tollerance on the distance after which the two atoms are
+                no more consider inside the same molecule.
+            - thr_angle: float, default 1
+                Tollerance for the angle
+            - return_indices : bool, default false
+                If true, per each molecule is returned also the list of the
+                original indices inside the structure.
+            
+        Results
+        -------
+            - Molecules : list
+                List of molecules (Structure) that matches the input.
+                If none is found an empty list is returned
+        """
+        # Check if the atoms is a 3 char list
+        if len(atoms) != 3:
+            raise ValueError("Error, the molecule must be triatomic")
+            
+        for a in atoms:
+            if not a in self.atoms:
+                raise ValueError("Error, the atom %s is not into this structure" % a)
+        
+        # Scroll all the atoms in the list that match the first type.
+        molecules = []
+        original_indices = []
+        for index1 in range(self.N_atoms):
+            atm1 = self.atoms[index1]
+            if atm1 != atoms[0]:
+                continue
+            
+            # Avoid double counting if the molecule is omonuclear
+            starting_index = 0
+            if atoms[0] == atoms[1]:
+                starting_index = index1 + 1
+            
+            for index2 in range(starting_index, self.N_atoms):
+                atm2 = self.atoms[index2]
+                if atm2 != atoms[1]:
+                    continue
+                
+                if index2 == index1:
+                    continue
+                
+                # Check if the distances between the two atoms matches
+                d = self.get_min_dist(index1, index2)
+                #print "1) Selected %d %d => d = %.3f" % (index1, index2, d)
+                if not (d > distance1 - thr_dist and d < distance1 + thr_dist):
+                    continue
+                
+                # Accepted the first two atoms
+                for index3 in range(0, self.N_atoms):
+                    if index3 in [index1, index2]:
+                        continue
+                    
+                    d = self.get_min_dist(index2, index3)
+                    #print "2) Selected %d %d => d = %.3f" % (index2, index3, d)
+                    
+                    if not (d > distance2 - thr_dist and d < distance2 + thr_dist):
+                        continue
+                    
+                    # Ok accepted for distance
+                    # Check also the angle
+                    ang = self.get_angle(index1, index2, index3)
+                    print "A> %d %d %d = %.3f" % (index1, index2, index3, ang)
+                    
+                    if not (ang > angle - thr_ang and ang < angle + thr_ang):
+                        continue
+                    
+                    
+                    # Create the structure of the molecule
+                    mol = Structure()
+                    mol.N_atoms = 3
+                    mol.atoms = atoms
+                    mol.coords = np.zeros((3, 3))
+                    mol.unit_cell = self.unit_cell
+                    mol.has_unit_cell = True
+                    
+                    # Translate the molecule in the middle of the cell
+                    if self.has_unit_cell:
+                        for i in range(3):
+                            mol.coords[0,:] += self.unit_cell[i,:] / 2.
+                            mol.coords[1,:] += self.unit_cell[i,:] / 2.
+                            mol.coords[2,:] += self.unit_cell[i,:] / 2.
+
+
+                    mol.coords[0,:] += self.coords[index1,:] - self.coords[index2,:] 
+                    mol.coords[2,:] += self.coords[index3,:] - self.coords[index2,:] 
+                    
+                    print "1-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2)
+
+                    # If the system has a unit cell, put the second atom inside the cell
+                    if self.has_unit_cell:
+                        for k in range(3):
+                            mol.coords[k,:] = Methods.put_into_cell(self.unit_cell, mol.coords[k,:])
+                    
+                    print "2-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2)
+                    
+                    # Append the molecule to the structure
+                    molecules.append(mol)
+                    original_indices.append( (index1, index2, index3) )
+        
+        if return_indices:
+            return molecules, original_indices
+        
+        return molecules

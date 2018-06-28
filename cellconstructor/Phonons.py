@@ -9,6 +9,7 @@ import Structure
 import numpy as np
 import os
 import scipy, scipy.optimize
+import matplotlib.pyplot as plt
 
 import Methods
 
@@ -785,4 +786,98 @@ class Phonons:
                               np.real(pol_vects[3*i+2, mu]), np.imag(pol_vects[3*i+1,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
-                        
+            
+            
+            
+    def ForcePositiveDefinite(self):
+        """
+        FORCE TO BE POSITIVE DEFINITE
+        =============================
+        
+        This method force the matrix to be positive defined. 
+        Usefull if you want to start with a matrix for a SCHA calculation.
+        
+        It will take the Dynamical matrix and rebuild it as
+        
+        .. math::
+            
+            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} |\omega_\mu^2| e_\\mu^a e_\\mu^b 
+            
+        
+        In this way the dynamical matrix will be always positive definite.
+        """
+        
+        # Prepare the masses matrix
+        mass1 = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+        
+        _m1_ = np.tile(mass1, (3 * self.structure.N_atoms, 1))
+        _m2_ = np.tile(mass1, (3 * self.structure.N_atoms, 1)).transpose()
+        
+        for iq in range(len(self.dynmats)):
+            # Diagonalize the matrix
+            w, pols = self.DyagDinQ(iq)
+            
+            matrix = np.einsum("i, ji, ki", w**2, pols, pols) * np.sqrt(_m1_ * _m2_)
+            self.dynmats[iq] = matrix
+            
+            
+            
+    def ExtractRandomStructures(self, size=1, T=0):
+        """
+        EXTRACT RANDOM STRUCTURES
+        =========================
+        
+        This method is used to extract a pool of random structures according to the current dinamical matrix.
+        
+        NOTE: for now available only at gamma
+        
+        Parameters
+        ----------
+            size : int
+                The number of structures to be generated
+        
+        Returns
+        -------
+            list
+                A list of Structure.Structure()
+        """
+        K_to_Ry=6.336857346553283e-06
+        beta = 1 / (K_to_Ry*T)
+
+        
+        if self.nqirr != 1:
+            raise ValueError("Error, not yet implemented with supercells")
+            
+        # Now extract the values
+        ws, pol_vects = self.DyagDinQ(0)
+        
+        # Remove translations
+        ws = ws[3:]
+        pol_vects = pol_vects[:, 3:]
+        
+        list_str = []
+        
+        n_modes = len(ws)
+        a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) * 2 * ws)
+        
+        # Prepare the coordinates
+        total_coords = np.zeros((size, self.structure.N_atoms,3))
+        
+        # Prepare the random numbers
+        rand = np.random.normal(size = (size, n_modes))
+        
+        # Get the masses for the final multiplication
+        mass1 = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+            
+        total_coords = np.einsum("ij, j, i, kj", pol_vects, a_mu, mass1, rand)
+        
+        # Prepare the structures
+        for i in range(size):
+            tmp_str = self.structure.copy()
+            # Prepare the new atomic positions 
+            pass
+        # TODO to be completed

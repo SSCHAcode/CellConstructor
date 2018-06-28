@@ -20,7 +20,7 @@ HydIII = CC.Structure.Structure()
 HydIII.read_scf("Hydrogen.scf", alat)
 
 # Show the structure
-view(HydIII.get_ase_atoms())
+view(HydIII.get_strct_conventional_cell().get_ase_atoms())
 
 # Extract the hydrogen molecules
 distance = 0.687
@@ -46,4 +46,24 @@ plt.xlabel(r"dist [$\AA$]")
 plt.ylabel(r"freq")
 plt.hist(dist, 20)
 plt.tight_layout()
+
+
+# Now Get info about triatomic molecules
+Mols = HydIII.get_strct_conventional_cell().GetTriatomicMolecules(["H", "H", "H"], 0.71, 1.44, 144, 0.2, 10)
+print "N mols:", len(Mols)
+
+# Print the angle between the molecules
+angls = []
+for i,mol in enumerate(Mols):
+    angls.append( mol.get_angle(0, 1, 2))
+    print "%d) %.3f %.3f %.3f" % (i, mol.get_angle(0, 1, 2), mol.get_angle(1, 2, 0), mol.get_angle(2, 0, 1))
+    #view(mol.get_ase_atoms())
+
+
+plt.title("H-H-H angle histogram")
+plt.xlabel(r"angle [degree]")
+plt.ylabel(r"freq")
+plt.hist(angls, 20)
+plt.tight_layout()
+
 plt.show()
