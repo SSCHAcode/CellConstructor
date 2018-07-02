@@ -970,7 +970,8 @@ class Structure:
         supercell.coords = new_coords
         supercell.N_atoms = new_N_atoms
         supercell.atoms = atoms
-
+        supercell.masses = self.masses.copy()
+        
         # Define the supercell
         supercell.has_unit_cell = True
 
@@ -1436,3 +1437,12 @@ class Structure:
             return molecules, original_indices
         
         return molecules
+    
+    def generate_espresso_input(self, flags):
+        """
+        GENERATE ESPRESSO INPUT
+        =======================
+        
+        This subroutine will generate the input for a quantum espresso calculation
+        """
+        pass

@@ -441,3 +441,204 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
 
     return unit_cell
+
+
+def read_namelist(line_list):
+    """
+    READ NAMELIST
+    =============
+    
+    
+    This function will read the quantum espresso namelist format from a list of lines.
+    The info are returned in a dictionary:
+        
+        &control
+            type_cal = "wrong"
+            ecutrho = 140
+        &end
+    
+    will be converted in a python dictionary
+        dict = {"control" : {"type_cal" : "wrong", "ecutrho" : 140}}
+    
+    Then the dictionary is returned
+    
+    Parameters
+    ----------
+        line_list : list
+            A list of lines read in a file. They should be the row output of f.readlines() function
+            where f is a file obtained as f = open("something", "r")
+    
+    Returns
+    -------
+        dict :
+            The dictionary of the namelist
+    """
+    
+    
+    inside_namespace = False
+    current_namespace = ""
+    namespace = {}
+    total_dict = {}
+    
+    # Start reading
+    for line in line_list:
+        # Clear the line of tailoring white spaces
+        line = line.strip()
+        
+        # Avoid case sensitivity turning everithing in lower case
+        line = line.lower()
+        
+        # Skip if the line is white
+        if len(line) == 0:
+            continue
+        
+        # Check if the line begins with an "&" sign
+        if line[0] == "&":
+            # Check if we are closing an existing namespace
+            if line[1:] == "end":
+                if not inside_namespace:
+                    raise IOError("Error, trying to close a namespace without having open it.")
+                
+                total_dict[current_namespace] = namespace.copy()
+                current_namespace = ""
+                inside_namespace = False
+                namespace.clear()
+                
+                continue
+            
+            # New namelist ---
+            
+            # Check if we already are inside a namespace
+            if inside_namespace:
+                raise IOError("Error, the namespace %s has not been closed." % current_namespace)
+            
+            current_namespace = line[1:]
+            inside_namespace = True
+            
+            # Check if the namespace has a valid name
+            if len(current_namespace) == 0:
+                raise IOError("Error, non valid name for a namespace")
+        else:
+            # Check if the old namespace closure is used
+            if line[0] == "/":
+                if not inside_namespace:
+                    raise IOError("Error, trying to close a namespace without having open it.")
+                
+                total_dict[current_namespace] = namespace.copy()
+                current_namespace = ""
+                inside_namespace = False
+                namespace.clear()
+                continue
+            
+            # Get the name of the variable
+            new_list = line.split("=")
+            
+            if len(new_list) != 2:
+                raise IOError("Error, I do not understand the line %s" % line)
+            
+            variable = new_list[0].strip()
+            value = new_list[1].strip()
+            
+            # If it is a string cancel the " or '
+            value = value.replace("\"", "").replace("'", "")
+            
+            # Convert fortran bool
+            if value == ".true.":
+                value = True
+            elif value == ".false.":
+                value = False
+            elif value.count(" ") >= 1:
+                value = [float(item) for item in value.split()]
+            else:
+                # Check if it is a number
+                try:
+                    value = float(value)
+                except:
+                    pass
+            if inside_namespace:
+                namespace[variable] = value
+            else:
+                total_dict[variable] = value
+
+    # The file has been analyzed
+    if inside_namespace:
+        raise IOError("Error, file endend before %s was closed" % current_namespace)
+    
+    return total_dict
+            
+        
+        
+        
+        
+def write_namelist(total_dict):
+    """
+    WRITE ESPRESSO NAMELIST
+    =======================
+    
+    Given a particular dictionary this subroutine will transform it into an espresso dictionary
+    
+    Parameters
+    ----------
+        total_dict : dict
+            A dictionary of the namespaces in the namelist
+    
+    Results
+    -------
+        list
+            A list of lines that can be written into a file
+    """
+        
+    
+    lines = []
+    for key in total_dict.keys():
+        if type(total_dict[key]) == dict:
+            # Namelist
+            lines.append("&%s\n" % key)
+            for key2 in total_dict[key].keys():
+                value = total_dict[key][key2]
+                valuestr = ""
+                if type(value) == list:
+                    valuestr = " ".join(value)
+                elif type(value) == "ciao":
+                    valuestr = "\"%s\"" % value
+                else:
+                    valuestr = str(value)
+            
+                line = "\t%s = %s\n" % (key2, valuestr)
+                lines.append(line)
+                
+            lines.append("&end\n")
+        else:
+            value = total_dict[key]
+            valuestr = ""
+            if type(value) == list:
+                valuestr = " ".join(value)
+            else:
+                valuestr = str(value)
+        
+            line = "\t%s = %s\n" % (key, valuestr)
+            lines.append(line)
+                
+            
+    return lines
+                
+            
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

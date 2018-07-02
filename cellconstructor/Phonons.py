@@ -59,6 +59,11 @@ class Phonons:
         # Q tot contains the total q points (also those belonging to the same star)
         self.q_tot = []
         
+        # Prepare additional information that can be loaded
+        self.dielectric_tensor = None
+        self.effective_charges = None
+        self.raman_tensor = None
+        
         # This alat is read just from QE, but not used
         self.alat = 1
         
@@ -206,34 +211,111 @@ class Phonons:
             # Pop the beginning of the matrix
             while reading_dyn:      
                 # Pop the file until you reach the dynamical matrix
-                if "Dynamical  Matrix in cartesian axes" in dynlines[0]:
+                if "cartesian axes" in dynlines[0]:
                     reading_dyn = False
                 dynlines.pop(0)
                 
             # Get the small q point
             reading_dyn = True
-            index = 0
+            index = -1
             current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms), dtype = np.complex64)    
             
             # The atom indices
             atm_i = 0
             atm_j = 0
             coordline = 0
+            
+            dielectric_read = 0
+            pol_read = 0
+            
+            # Info about what I'm reading
+            reading_dielectric = False
+            reading_eff_charges = False
+            reading_raman = False
+            
             while reading_dyn:
+                # Advance in the reading
+                index += 1
+                
+                # Setup what I'm reading
                 if "Diagonalizing" in dynlines[index]:
                     reading_dyn = False
+                    self.dynmats.append(current_dyn.copy())
+
+                    continue
+                if "Dielectric" in dynlines[index]:
+                    reading_dielectric = True
+                    reading_eff_charges = False
+                    reading_raman = False
                     
-                if "q = " in dynlines[index]:
+                    # Reset the dielectric tensor
+                    self.dielectric_tensor = np.zeros((3,3))
+                    dielectric_read = 0
+                    
+                    continue
+                elif "Effective" in dynlines[index]:
+                    reading_dielectric = False
+                    reading_eff_charges = True
+                    reading_raman = False
+                
+                    
+                    # Reset the effective charges
+                    self.effective_charges = np.zeros((self.structure.N_atoms, 3, 3))
+                    
+                    continue
+                elif  "Raman" in dynlines[index]:
+                    reading_dielectric = False
+                    reading_eff_charges = False
+                    reading_raman = True
+                    
+                    # Reset the raman tensor
+                    self.raman_tensor = np.zeros((3,3, 3*self.structure.N_atoms))
+                    continue
+                elif "q = " in dynlines[index]:
                     #Read the q
                     qpoint = np.array([float(item) for item in dynlines[index].replace("(", ")").split(')')[1].split()])
                     q_star.append(qpoint)
                     self.q_tot.append(qpoint)
+                    reading_dielectric = False
+                    reading_eff_charges = False
+                    reading_raman = False
+                    continue
                 elif "ynamical" in dynlines[index]:
                     # Save the dynamical matrix
                     self.dynmats.append(current_dyn.copy())
+                    reading_dielectric = False
+                    reading_eff_charges = False
+                    reading_raman = False
+                    continue
+                    
+                
+                # Read what is needed
+                numbers_in_line = dynlines[index].split()
+                if len(numbers_in_line) == 0:
+                    continue
+                
+                if reading_dielectric:
+                    # Reading the dielectric
+                    if len(numbers_in_line) == 3:
+                        self.dielectric_tensor[dielectric_read, :] = np.array([float(x) for x in numbers_in_line])
+                        dielectric_read += 1
+                elif reading_eff_charges:
+                    if numbers_in_line[0].lower() == "atom":
+                        atm_i = int(numbers_in_line[2]) - 1
+                        dielectric_read = 0
+                    elif len(numbers_in_line) == 3:
+                        self.effective_charges[atm_i, dielectric_read,:] = np.array([float(x) for x in numbers_in_line])
+                        dielectric_read += 1
+                elif reading_raman:
+                    if numbers_in_line[0].lower() == "atom":
+                        atm_i = int(numbers_in_line[2]) - 1
+                        pol_read = int(numbers_in_line[4]) - 1
+                        dielectric_read = 0
+                    elif len(numbers_in_line) == 3:
+                        self.raman_tensor[dielectric_read,:, 3*atm_i + pol_read] = np.array([float(x) for x in numbers_in_line])
+                        dielectric_read += 1
                 else:
                     # Read the numbers
-                    numbers_in_line = dynlines[index].split()
                     if (len(numbers_in_line) == 2):
                         # Setup which atoms are 
                         atm_i = int(numbers_in_line[0]) - 1
@@ -245,8 +327,6 @@ class Phonons:
                             current_dyn[3 * atm_i + coordline, 3*atm_j + k] = float(numbers_in_line[2*k]) + 1j*float(numbers_in_line[2*k + 1])
                         coordline += 1
                 
-                # Advance in the reading
-                index += 1
                 
             # Append the new stars for the irreducible q point
             self.q_stars.append(q_star)
@@ -821,6 +901,64 @@ class Phonons:
             
             matrix = np.einsum("i, ji, ki", w**2, pols, pols) * np.sqrt(_m1_ * _m2_)
             self.dynmats[iq] = matrix
+                        
+                        
+    def GetRamanResponce(self, pol_in, pol_out, T = 0):
+        """
+        RAMAN RESPONSE
+        ==============
+        
+        Evaluate the raman response using the Mauri-Lazzeri equation.
+        This subroutine needs the Raman tensor to be defined, and computes the intensity for each mode.
+        It returns a list of intensity associated to each mode.
+        
+        .. math::
+            
+            I_{\\nu} = \\left| \\sum_{xy} \\epsilon_x^{(1)} A^\\nu_{xy} \\epsilon_y^{(2)}\\right|^2 \\frac{n_\\nu + 1}}{\\omega_\\nu}
+    
+        Where :math:`\\epsilon` are the polarization vectors of the incoming/outcoming light, :math:`n_\\nu` is the bosonic
+        occupation number associated to the :math:`\\nu` mode, and :math:`A^\\nu_{xy}` is the Raman tensor in the mode rapresentation
+    
+        Parameters
+        ----------
+            pol_in : ndarray 3
+                The polarization versor of the incominc electric field
+            pol_out : ndarray 3
+                The polarization versor of the outcoming electric field
+            T : float
+                The tempearture of the calculation
+        
+        Results
+        -------
+            ndarray (nmodes)
+                Intensity for each mode of the current dynamical matrix.
+        """
+        
+        K_to_Ry=6.336857346553283e-06
+        
+        
+        if self.raman_tensor == None:
+            raise ValueError("Error, to get the raman responce the raman tensor must be defined")
+        
+        w, pol_vects = self.DyagDinQ(0)
+        
+        # Get the mass array
+        _m_ = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            _m_[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+            
+        
+        # The super sum
+        #print np.shape(self.raman_tensor), np.shape(pol_vects), np.shape(_m_), np.shape(pol_in), np.shape(pol_out)
+        I = np.einsum("ijk, kl, k, i, j", self.raman_tensor, pol_vects, _m_, pol_in, pol_out)
+        
+        # Get the bosonic occupation number
+        n = np.zeros(len(w))
+        if T > 0:            
+            beta = 1 / (K_to_Ry*T)
+            n = 1 / (np.exp(beta * w) - 1.)
+        
+        return np.abs(I**2) * (1. + n) / w
             
             
             

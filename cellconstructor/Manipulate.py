@@ -603,9 +603,57 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
     # Return the final value
     return mode_exchange, mode_sign
         
+
+def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
+    """
+    PLOT HARMONIC RAMAN
+    ===================
+    
+    
+    This function computes the Raman spectrum of the dynamical matrix in the harmonic approximation.
+    Note: it requires that the dynamical matrix to have a Raman spectrum.
+    
+    
+    Parameters
+    ----------
+        w_axis : ndarray
+            The axis of the Raman shift (cm-1)
+        T : float
+            Temperature
+        pol1 : ndarray 3
+            The incident polarization vector
+        pol2 : ndarray 3
+            The scattered polarization vector
+        sigma : float
+            The beam frequency standard deviation
+        dyn : Phonons.Phonons()
+            The dynamical matrix
+            
+    Results
+    -------
+        I(w) : ndarray
+            The intensity for each value of the w_axis in input
+    """
+    RyToCm = 109691.40235
+
+    
+    
+    # Define the scattered intensity
+    def scatter_gauss(w, I):
+        return I/np.sqrt(2 * np.pi * sigma**2) * np.exp( - (w - w_axis)**2 / (2 * sigma**2))
         
+
+    w, pols = dyn.DyagDinQ(0)
+    w *= RyToCm
+    
+    I_new = dyn.GetRamanResponce(pol1, pol2, T)
+    
+    I_w = np.zeros(len(w_axis))
+    
+    for i in range(len(I_new)):
+        I_w += scatter_gauss(w[i], I_new[i])
         
-        
+    return I_w
     
     
     
