@@ -962,7 +962,7 @@ class Phonons:
             
             
             
-    def ExtractRandomStructures(self, size=1, T=0):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = []):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -975,6 +975,12 @@ class Phonons:
         ----------
             size : int
                 The number of structures to be generated
+            T : float
+                The temperature for the generation of the ensemble
+            isolate_atoms : list, optional
+                A list of the atom index. Only the specified atoms are present in the output structure and displaced.
+                This is very usefull if you want to measure properties of a particular region of the structure.
+                By default all the atoms are used.
         
         Returns
         -------
@@ -988,12 +994,19 @@ class Phonons:
         if self.nqirr != 1:
             raise ValueError("Error, not yet implemented with supercells")
             
+            
+        # Check if isolate atoms is good
+        if len(isolate_atoms):
+            if np.max(isolate_atoms) >= self.structure.N_atoms:
+                raise ValueError("Error, index in isolate_atoms out of boundary")
+            
         # Now extract the values
         ws, pol_vects = self.DyagDinQ(0)
         
         # Remove translations
         ws = ws[3:]
         pol_vects = pol_vects[:, 3:]
+        
         
         
         n_modes = len(ws)
@@ -1023,6 +1036,14 @@ class Phonons:
             # Prepare the new atomic positions 
             for k in range(tmp_str.N_atoms):
                 tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] / np.sqrt(self.structure.masses[self.structure.atoms[k]])
+            
+            # Check if you must to pop some atoms:
+            if len (isolate_atoms):
+                
+                tmp_str.N_atoms = len(isolate_atoms)
+                new_coords = tmp_str.coords.copy()
+                for j, x in enumerate(isolate_atoms):
+                    tmp_str.coords[j,:] = new_coords[x,:]
             final_structures.append(tmp_str)
         
         
