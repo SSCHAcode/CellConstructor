@@ -982,7 +982,7 @@ class Phonons:
                 A list of Structure.Structure()
         """
         K_to_Ry=6.336857346553283e-06
-        beta = 1 / (K_to_Ry*T)
+        BOHR_TO_ANG = 0.529177249
 
         
         if self.nqirr != 1:
@@ -995,10 +995,13 @@ class Phonons:
         ws = ws[3:]
         pol_vects = pol_vects[:, 3:]
         
-        list_str = []
         
         n_modes = len(ws)
-        a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) * 2 * ws)
+        if T == 0:
+            a_mu = 1 / np.sqrt(2* ws) * BOHR_TO_ANG
+        else:            
+            beta = 1 / (K_to_Ry*T)
+            a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANG
         
         # Prepare the coordinates
         total_coords = np.zeros((size, self.structure.N_atoms,3))
@@ -1011,11 +1014,16 @@ class Phonons:
         for i in range(self.structure.N_atoms):
             mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
             
-        total_coords = np.einsum("ij, j, i, kj", pol_vects, a_mu, mass1, rand)
+        total_coords = np.einsum("ij, j, kj", np.real(pol_vects), a_mu, rand)
         
         # Prepare the structures
+        final_structures = []
         for i in range(size):
             tmp_str = self.structure.copy()
             # Prepare the new atomic positions 
-            pass
-        # TODO to be completed
+            for k in range(tmp_str.N_atoms):
+                tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] / np.sqrt(self.structure.masses[self.structure.atoms[k]])
+            final_structures.append(tmp_str)
+        
+        
+        return final_structures
