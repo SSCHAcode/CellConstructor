@@ -598,17 +598,27 @@ class Structure:
         running = True
         index = 0
         while running:
-            aux_struct.coords = self.coords.copy()
+            old_coords = self.coords.copy()
             
             for sym in symmetries:
+                aux_struct = self.copy()
                 aux_struct.apply_symmetry(sym, delete_original = True)
+                
+                # Get the equivalent atoms
+                eq_atoms = self.coords.get_equivalent_atoms(aux_struct)
+                
+                # Exchange the atoms in the target structure
+                old_coords += aux_struct.coords[eq_atoms,:]
 
-            r = np.max(np.sqrt(np.sum((aux_struct.coords - self.coords)**2, axis = 1)))
-            print np.sqrt(np.sum((aux_struct.coords - self.coords)**2, axis = 1))
+            # Average
+            old_coords /= len(symmetries)
+            
+            r = np.max(np.sqrt(np.sum((old_coords - self.coords)**2, axis = 1)))
+            print np.sqrt(np.sum((old_coords - self.coords)**2, axis = 1))
             print "Self:"
             print self.coords
-            print "Aux:"
-            print aux_struct.coords
+            print "New:"
+            print old_coords
                 
             if r > initial_threshold:
                 sys.stderr.write("Error on the self consistent algorithm. Initial threshold violated.\n")
@@ -620,7 +630,7 @@ class Structure:
                 running = False
             else:
                 # Mix the coordinates for the next step
-                self.coords = self.coords * (1 - beta) + beta * aux_struct.coords
+                self.coords = old_coords
 
             index += 1
             if (verbose):
@@ -630,7 +640,61 @@ class Structure:
             print "Symmetrization reached in %d steps." % index
         
 
+
+    def get_equivalent_atoms(self, target_structure):
+        """
+        GET EQUIVALENT ATOMS BETWEEN TWO STRUCTURES
+        ===========================================
+        
+        
+        This function returns a list of the aatom index in the target structure that 
+        correspond to the current structure.
+        NOTE: This method assumes that the two structures are equal.
+        
+        
+        Parameters
+        ----------
+            target_structure : Structure()
+                This is the target structure to be used to get the equivalent atoms.
                 
+        Results
+        -------
+            list
+                list of int. Each integer is the atomic index of the target_structure equivalent to the i-th element
+                of the self structure.
+        """
+        
+        # Check if the structures are compatible
+        if self.N_atoms != target_structure.N_atoms:
+            raise ValueError("Error, the target structure must be of the same type of the current one")
+            
+        for typ in self.atoms:
+            if not typ in target_structure.atoms:
+                raise ValueError("Error, the target structure must be of the same type of the current one")
+            if self.atoms.count(typ) != target_structure.atoms.count(typ):
+                raise ValueError("Error, the target structure must be of the same type of the current one")
+        
+        
+        
+        equiv_atoms = []
+        for i in range(self.N_atoms):
+            i_typ = self.atoms[i]
+            
+            # Select the possible equivalent atoms in the target structure
+            target_indices = [x for x in range(self.N_atoms) if target_structure.atoms[x] == i_typ and not (x in equiv_atoms)]
+            
+            # For each possible equivalent atoms get the minimum distance
+            d = []
+            for j in target_indices:
+                d.append(Methods.get_min_dist_into_cell(self.unit_cell, self.coords[i,:], target_structure.coords[j, :]))
+            
+            # Pick the minimum
+            j_min = target_indices[ np.argmin(d) ]
+            
+            # Set the equivalent atom index
+            equiv_atoms.append(j_min)
+        
+        return equiv_atoms
 
 
     def sort_molecules(self, distance = 1.3):

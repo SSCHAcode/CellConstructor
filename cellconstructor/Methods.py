@@ -62,6 +62,59 @@ def covariant_coordinates(basis, vector):
     contra_vect = basis.dot(vector)
     return imt.dot(contra_vect)
     
+
+def get_min_dist_into_cell(unit_cell, v1, v2):
+    """
+    This function obtain the minimum distance between two vector, considering the given unit cell
+    
+    
+    Parameters
+    ----------
+        unit_cell : ndarray 3x3
+            The unit cell
+        v1 : ndarray 3
+            Vector 1
+        v2 : ndarray 3
+            Vector 2
+            
+    Results
+    -------
+        float
+            The minimum distance between the two fector inside the given unit cell
+    """
+    
+    
+    # Get the covariant components
+    metric_tensor = np.zeros((3,3))
+    for i in range(0, 3):
+        for j in range(i, 3):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    imt = np.linalg.inv(metric_tensor)
+    
+    # Get contravariant components
+    contra_vect = np.zeros(3)
+    for i in range(3):
+        contra_vect[i] = v1.dot(unit_cell[i, :]) 
+
+    # Invert the metric tensor and obtain the covariant coordinates
+    covect1 = imt.dot(contra_vect)
+    
+    contra_vect = np.zeros(3)
+    for i in range(3):
+        contra_vect[i] = v2.dot(unit_cell[i, :]) 
+
+    # Invert the metric tensor and obtain the covariant coordinates
+    covect2 = imt.dot(contra_vect)
+
+    covect_distance = covect1 - covect2
+
+    # Bring the distance as close as possible to zero
+    covect_distance -= (covect_distance + np.sign(covect_distance)*.5).astype(int)
+
+    # Compute the distance using the metric tensor
+    return np.sqrt(covect_distance.dot(metric_tensor.dot(covect_distance)))
+
     
     
 def from_dynmat_to_spectrum(dynmat, struct):
