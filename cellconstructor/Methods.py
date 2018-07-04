@@ -675,8 +675,62 @@ def write_namelist(total_dict):
             
     return lines
                 
-            
         
+def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
+    """
+    CONVERT THE SYMMETRIES
+    ======================
+    
+    This module comvert the symmetry fynction from the spglib format.
+    
+    
+    Parameters
+    ----------
+        spglib_sym : dict
+            Result of spglib.get_symmetry( ... ) function
+        regolarize : bool, optional
+            If True it rewrites the translation to be exact. Usefull if you want to
+            constrain the symmetry exactly
+        
+    Returns
+    -------
+        symmetries : list
+            A list of 4x3 matrices containing the symmetry operation
+    """
+    
+    # Check if the type is correct
+    if not spglib_sym.has_key("translations"):
+        raise ValueError("Error, your symmetry dict has no 'translations' key.")
+        
+    if not spglib_sym.has_key("rotations"):
+        raise ValueError("Error, your symmetry dict has no 'rotations' key.")
+    
+    # Get the number of symmetries
+    out_sym = []
+    n_sym = np.shape(spglib_sym["translations"])[0]
+    
+    translations = spglib_sym["translations"]
+    rotations = spglib_sym["rotations"]
+    
+    for i in range(n_sym):
+        # Create the symmetry
+        sym = np.zeros((3,4))
+        sym[:,:3] = rotations[i, :, :]
+        sym[:, 3] = translations[i,:]
+        
+        # Edit the translation
+        if regolarize:
+            sym[:, 3] *= 2
+            sym[:, 3] = np.floor(sym[:, 3] + .5)
+            sym[:, 3] *= .5
+            sym[:, 3] = sym[:,3] % 1
+        
+        out_sym.append(sym)
+    
+    return out_sym
+    
+    
+
         
         
         
