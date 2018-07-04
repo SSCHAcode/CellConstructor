@@ -743,9 +743,3 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
         
         
         
-        
-        
-        
-        
-        
-        

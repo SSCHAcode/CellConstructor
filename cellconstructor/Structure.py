@@ -550,7 +550,7 @@ class Structure:
 
         if (progress_bar): print ""
 
-    def impose_symmetries(self, filename, threshold = 1.0e-6, beta = 1, initial_threshold = 1.0e-2, verbose = True):
+    def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = True):
         """
         This methods impose the list of symmetries found in the given filename.
         It solves a self-consistente equation: Sx = x. If this equation is not satisfied at precision
@@ -558,9 +558,9 @@ class Structure:
         
         Parameters
         ----------
-           - filename : string
-                Path to the file containing the symmetries. It must strat with the number of symmetries
-                and followed with the N 3 rows x 4 columns symmetry operations.
+           - symmetries : list
+                The simmetries to be imposed as a list of 3x4 ndarray matrices. The last column is the
+                fractional translations
            - threshold : float
                 The threshold for the self consistent equation. The algorithm stops when Sx = x is satisfied
                 up to the given threshold value for all the symmetries.
@@ -577,18 +577,6 @@ class Structure:
                 If true the system will print on stdout info about the self-consistent threshold
         
         """
-        symmetries = []
-        
-        # Get the number of symmetries
-        symfile = open(filename)
-        N_sym = int(symfile.readline().strip())
-        symfile.close()
-        
-        # Get the symmetries
-        symdata = np.loadtxt(filename, skiprows = 1)
-
-        for i in range(N_sym):
-            symmetries.append(symdata[3*i:3*(i+1), :])
 
         # An array storing which symmetry operation has reached the threshold
         aux_struct = self.copy()
@@ -598,44 +586,47 @@ class Structure:
         running = True
         index = 0
         while running:
-            old_coords = self.coords.copy()
+            old_coords = np.zeros( np.shape(self.coords))
             
             for sym in symmetries:
                 aux_struct = self.copy()
                 aux_struct.apply_symmetry(sym, delete_original = True)
+                aux_struct.fix_coords_in_unit_cell()
                 
                 # Get the equivalent atoms
-                eq_atoms = self.coords.get_equivalent_atoms(aux_struct)
+                eq_atoms = self.get_equivalent_atoms(aux_struct)
                 
-                # Exchange the atoms in the target structure
-                old_coords += aux_struct.coords[eq_atoms,:]
+                #ase.visualize.view(self.get_ase_atoms())
+                #ase.visualize.view(aux_struct.get_ase_atoms())
+                
+                # Order the atoms
+                aux_struct.atoms = [aux_struct.atoms[item] for item in eq_atoms]
+                aux_struct.coords = aux_struct.coords[eq_atoms,:]
+                
+                # Get the displacements
+                old_coords += self.get_displacement(aux_struct)
 
             # Average
             old_coords /= len(symmetries)
             
-            r = np.max(np.sqrt(np.sum((old_coords - self.coords)**2, axis = 1)))
-            print np.sqrt(np.sum((old_coords - self.coords)**2, axis = 1))
-            print "Self:"
-            print self.coords
-            print "New:"
-            print old_coords
+            r = np.max(np.sqrt(np.sum((old_coords)**2, axis = 1)))
+#            
+#            if verbose:
+#                print np.sqrt(np.sum((old_coords - self.coords)**2, axis = 1))
+#                print "Self:"
+#                print self.coords
+#                print "New:"
+#                print old_coords
                 
-            if r > initial_threshold:
-                sys.stderr.write("Error on the self consistent algorithm. Initial threshold violated.\n")
-                sys.stderr.write("Check carefully if the symmetries, the unit cell and the structure are ok.\n")
-                sys.stderr.write("If so try to increase the initial_threshold parameter.\n")
-
-                raise ValueError("Initial threshold not satisfied by symmetry %d" % i)
+            
+            self.coords -= old_coords
             if r < threshold:
                 running = False
-            else:
-                # Mix the coordinates for the next step
-                self.coords = old_coords
 
             index += 1
             if (verbose):
-                print "Self-consistent iteration %d -> r/threshold = %.3e" % (index, r / threshold)
-
+                print "Self-consistent iteration %d -> r = %.3e | threshold = %.3e" % (index, r, threshold)
+            
         if (verbose):
             print "Symmetrization reached in %d steps." % index
         
@@ -677,6 +668,7 @@ class Structure:
         
         
         equiv_atoms = []
+        effective_distances = []
         for i in range(self.N_atoms):
             i_typ = self.atoms[i]
             
@@ -690,10 +682,12 @@ class Structure:
             
             # Pick the minimum
             j_min = target_indices[ np.argmin(d) ]
+            effective_distances.append(np.min(d))
             
             # Set the equivalent atom index
             equiv_atoms.append(j_min)
         
+        #print "Max distance:", np.max(effective_distances)
         return equiv_atoms
 
 
