@@ -1048,3 +1048,5 @@ class Phonons:
         
         
         return final_structures
+
+        
