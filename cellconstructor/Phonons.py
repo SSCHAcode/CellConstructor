@@ -1048,3 +1048,50 @@ class Phonons:
         
         
         return final_structures
+
+    def get_energy_forces(self, structure):
+        """
+        COMPUTE ENERGY AND FORCES
+        =========================
+        
+        This subroutine computes the harmonic energy and the forces 
+        for the given dynamical matrix at harmonic level.
+        
+        .. math::
+            
+            E = \frac 12 \\sum_{\\alpha\\beta} \\left(r_{\\alpha} - r^0_{\\alpha}\\right)\\Phi_{\\alpha\\beta} \\left(r_\\beta - r^0_\\beta\right)
+            
+            F_\\alpha = \\sum_{\\beta} \\Phi_{\\alpha\\beta} \\left(r_\\beta - r^0_\\beta\right)
+            
+        The energy is given in Rydberg, while the force is given in Ry/Angstrom
+        
+        NOTE: In this very moment it works only with gamma structures (unit cell)
+        
+        Parameters
+        ----------
+            structure : Structure.Structure()
+                A unit cell structure in which energy and forces on atoms are computed
+        
+        Returns
+        -------
+            energy : float
+                The harmonic energy (in Ry) of the structure
+            force : ndarray N_atoms x 3
+                The harmonic forces that acts on each atoms (in Ry / A)
+        """
+        
+        # Convert the displacement vector in bohr
+        A_TO_BOHR=1.889725989
+        
+        # Get the displacement vector (bohr)
+        rv = structure.get_displacement(self.structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
+        
+        # Get the energy
+        energy = 0.5 * rv.dot ( self.dynmats[0].dot(rv))
+        
+        # Get the forces (Ry/ A)
+        forces = self.dynmats[0].dot(rv) * A_TO_BOHR
+        
+        return energy, forces
+        
+        
