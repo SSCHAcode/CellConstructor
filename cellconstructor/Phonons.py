@@ -1048,14 +1048,13 @@ class Phonons:
         
         
         return final_structures
-<<<<<<< HEAD
 
     def get_energy_forces(self, structure):
         """
         COMPUTE ENERGY AND FORCES
         =========================
         
-        This subroutine computes the harmonic energy and the forces 
+        This subroutine computes the harmonic energy and the forces z
         for the given dynamical matrix at harmonic level.
         
         .. math::
@@ -1096,8 +1095,3 @@ class Phonons:
         return energy, forces
         
         
-||||||| merged common ancestors
-=======
-
-        
->>>>>>> 39b33480842a105241b51e775eca7e9d6bd93bc7
