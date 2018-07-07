@@ -1048,6 +1048,7 @@ class Phonons:
         
         
         return final_structures
+<<<<<<< HEAD
 
     def get_energy_forces(self, structure):
         """
@@ -1095,3 +1096,8 @@ class Phonons:
         return energy, forces
         
         
+||||||| merged common ancestors
+=======
+
+        
+>>>>>>> 39b33480842a105241b51e775eca7e9d6bd93bc7

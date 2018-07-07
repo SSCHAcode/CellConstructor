@@ -64,8 +64,98 @@ def LoadXYZTrajectory(fname, max_frames = -1, unit_cell = None):
 
         
     return animation
-    
 
+def SaveXYZTrajectory(fname, atoms, comments = []):
+    """
+    Save the animation on a XYZ file 
+    ================================
+
+    This function save on a file a list of structures containing the frames
+    of the animation in the xyz file from fname.
+
+    Parameters:
+    -----------
+        - fname : string
+            Path to the xyz animation file
+        - atoms : list
+            A list of the Structure() object to be written
+        - comments: list, optional
+            A list of comments for each frame.
+    
+    """
+
+    # Get how many frames there are
+    for i, atms in enumerate(atoms):
+        overwrite = False
+        if i == 0:
+            overwrite = True
+        
+        comment = "%d" % i
+        if len(comments) -1 >= i:
+            comment = comments[i]
+        atms.save_xyz(fname, comment, overwrite)
+            
+
+def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1)):
+    """
+    XYZ VIDEO
+    =========
+    
+    This function save in the filename the XYZ video of the vibration along the chosen mode.
+    
+    
+    NOTE: this functionality is supported only at gamma.
+    
+    Parameters
+    ----------
+        filename : str
+            Path of the filename in which you want to save the video. It is written in the xyz
+            format, so it is recommanded to use the .xyz extension.
+        mode_id : int
+            The number of the mode. Modes are numbered by their frequencies increasing, starting
+            from imaginary (unstable) ones (if any).
+        amplitude : float
+            The amplitude in Angstrom of the vibration per atom. 
+        dt : float
+            The time step between two different steps in femtoseconds.
+        N_t : int
+            The total number of frames.
+        supercell : list of 3 ints
+            The dimension of the supercell to be shown
+        
+    """
+    # Define the conversion between the frequency in Ry and femptoseconds
+    Ry_To_fs = 0.303990284048
+    
+    # Get polarization vectors and frequencies
+    ws, polvects = dynmat.DyagDinQ(0)
+    
+    # Extract the good one
+    w = ws[mode_id]
+    polv = polvects[:, mode_id]
+    
+    # Get the basis structure
+    basis = dynmat.structure.generate_supercell(supercell)
+    
+    # Reproduce the polarization vectors along the number of supercells
+    polv = np.tile(polv, np.prod(supercell))
+    
+    video_list = []
+    times = []
+    for i in range(N_t):
+        # Get the current time step
+        t = dt * i
+        frame = basis.copy()
+        # Move the atoms
+        for j in range(basis.N_atoms):
+            frame.coords[j, :] = basis.coords[j, :] + np.real(polv[3*j : 3*j + 3]) * amplitude *  np.sin(2 * np.pi * w * t / Ry_To_fs)
+        
+        # Add the structure to the video list
+        video_list.append(frame)
+        times.append(" t = %.4f" % t)
+    
+    # Save the video
+    SaveXYZTrajectory(filename, video_list, times)
 
 def QHA_FreeEnergy(ph1, ph2, T, N_points = 2, return_interpolated_dyn = False):
     """

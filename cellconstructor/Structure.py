@@ -731,7 +731,7 @@ class Structure:
         self.atoms = atoms
         self.coords = coords
             
-    def save_xyz(self, filename, comment="Generated with BUC"):
+    def save_xyz(self, filename, comment="Generated with BUC", overwrite = True):
         """
         This function write the structure on the given filename in the xyz file format
         
@@ -742,10 +742,17 @@ class Structure:
             comment : string, optional
                 This line is written in the comment line of the xyz file.
                 NOTE: this string is followed by the unit cell info is present
+            overwrite : bool, optional
+                If true any precedent file will be erased, otherwise the structure is appended
+                on the bottom of the previous one. In this way it is possible to save videos.
+                
         """
 
-        xyz = file(filename, "w")
-
+        if overwrite:
+            xyz = file(filename, "w")
+        else:
+            xyz = file(filename, "a")
+            
         # Write the number of atoms
         xyz.write("%d\n" % self.N_atoms)
 
