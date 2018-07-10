@@ -1049,7 +1049,7 @@ class Phonons:
         
         return final_structures
 
-    def get_energy_forces(self, structure):
+    def get_energy_forces(self, structure, vector1d = False):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -1071,6 +1071,8 @@ class Phonons:
         ----------
             structure : Structure.Structure()
                 A unit cell structure in which energy and forces on atoms are computed
+            vector1d : bool, optional
+                If true the forces are returned in a reshaped 1d vector.
         
         Returns
         -------
@@ -1091,6 +1093,9 @@ class Phonons:
         
         # Get the forces (Ry/ A)
         forces = self.dynmats[0].dot(rv) * A_TO_BOHR
+
+        if not vector1d:
+            forces = forces.reshape( (self.structure.N_atoms, 3))
         
         return energy, forces
         
