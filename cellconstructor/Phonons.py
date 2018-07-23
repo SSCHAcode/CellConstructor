@@ -613,15 +613,15 @@ class Phonons:
         
         # TODO: Improve the method with a much more reliable one
         # In fact the ratio between them is much easier (this can be largely affected by rounding)
-        print "disp1:", disp1
-        print "Ratio1:",  self.GetProbability(disp1, T) , "Ratio2:",  dyn0.GetProbability(disp0, T0)
+        #print "disp1:", disp1
+        #print "Ratio1:",  self.GetProbability(disp1, T) , "Ratio2:",  dyn0.GetProbability(disp0, T0)
 
         b1, v1 =  self.GetProbability(disp1, T, return_braket_vals = True)
         b2, v2 =  dyn0.GetProbability(disp0, T0, return_braket_vals = True)
         new_v = v1[3:] / v2[3:]
         ret =  np.exp(b2- b1) * np.prod(np.sqrt(new_v))
 
-        print "comparison:", ret, self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
+        #print "comparison:", ret, self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
 
         return ret
         
