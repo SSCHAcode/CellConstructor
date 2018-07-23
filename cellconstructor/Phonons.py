@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import Methods
 
 BOHR_TO_ANGSTROM = 0.52918
+__EPSILON__ = 1e-5
 
 class Phonons:
     """
@@ -500,7 +501,7 @@ class Phonons:
         return Upsilon * _m1_ * _m2_
     
     
-    def GetProbability(self, displacement, T, upsilon_matrix = None, normalize = True):
+    def GetProbability(self, displacement, T, upsilon_matrix = None, normalize = True, return_braket_vals = False):
         """
         This function, given a particular displacement, returns the probability density
         of finding the system around that displacement. This in practical computes 
@@ -529,6 +530,9 @@ class Phonons:
             normalize : bool, optional
                 If false (default true) the probability distribution will not be normalized.
                 Useful to check if the exponential weight is the same after some manipulation
+            return_braket_vals : bool, optional
+                If true the value returned is only the <u | Upsilon |u> braket followed by the
+                eigenvalues of the Upsilon matrix.
                 
         Returns
         -------
@@ -536,6 +540,7 @@ class Phonons:
                 The probability density of finding the system in the given displacement.
                 
         """
+
         
         disp = np.zeros( 3 * self.structure.N_atoms)
         
@@ -558,6 +563,9 @@ class Phonons:
         
         vals /= 2*np.pi
         det = np.prod(vals[3:])
+
+        if return_braket_vals:
+            return braket, vals
         
         if normalize:
             return  np.sqrt(det) * np.exp(-braket)
@@ -605,7 +613,19 @@ class Phonons:
         
         # TODO: Improve the method with a much more reliable one
         # In fact the ratio between them is much easier (this can be largely affected by rounding)
-        return self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
+        print "disp1:", disp1
+        print "Ratio1:",  self.GetProbability(disp1, T) , "Ratio2:",  dyn0.GetProbability(disp0, T0)
+
+        b1, v1 =  self.GetProbability(disp1, T, return_braket_vals = True)
+        b2, v2 =  dyn0.GetProbability(disp0, T0, return_braket_vals = True)
+        new_v = v1[3:] / v2[3:]
+        ret =  np.exp(b2- b1) * np.prod(np.sqrt(new_v))
+
+        print "comparison:", ret, self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
+
+        return ret
+        
+        
     
     def GetStrainMatrix(self, new_cell, T = 0):
         """
@@ -625,6 +645,7 @@ class Phonons:
         and from them the new dynamical matrix is computed.
         
         NOTE: This works only at Gamma
+              I think there is a bug if T != 0 in the solver. BE CAREFULL!
         
         Parameters
         ----------
@@ -688,24 +709,51 @@ class Phonons:
         new_w = np.zeros(n_modes)
         new_w[3:] = 1. / (2 * newf[3:])
         
-        # Sort once again
-        sort_mask = np.argsort(new_w)
-        new_w = new_w[sort_mask]
-        new_pols = new_pols[:, sort_mask]
         
         
         # If the temperature is different from zero, we must obtain a new frequency
         # using a numerical nonlinear solver
         if T != 0:
             def opt_func(w):
-                return 2*w*newf - 1./( 1 - np.exp(w / (K_to_Ry * T)))
+                ret = 2*w*newf - 1./( 1 - np.exp(w / (K_to_Ry * T)))
+                if not np.shape(w):
+                    if np.abs(w) < __EPSILON__:
+                        return 0
+                else:
+                    ret[np.abs(w) < __EPSILON__] = 0
+                return ret
+
+            try:
+                for k in range(len(new_w)):
+                    def new_func(x):
+                        _x_ = np.ones(np.shape(newf)) * x
+                        return opt_func(_x_)[k]
+                    if np.abs(new_w[k]) < __EPSILON__:
+                        continue
+                    new_w[k] = scipy.optimize.anderson(new_func, new_w[k], verbose = True) 
             
-            new_w = scipy.optimize.anderson(opt_func, new_w)
-#        
-#        print "Compare frequencies:"
+            except ValueError:
+                print "Error, Nan encountered during the scipy minimization (T != 0)"
+                print "Starting w value:"
+                print new_w
+                print "new_f value:"
+                print newf
+                print "T:", T
+                raise ValueError("Aborting, error in scipy minimization.")
+                
+                
+                #
+                #        print "Compare frequencies:"
 #        for i in range(0,n_modes):
 #            print "New: %e | Old: %e" % (new_w[i], w[i])
-            
+
+
+        # Sort once again
+        sort_mask = np.argsort(new_w)
+        new_w = new_w[sort_mask]
+        new_pols = new_pols[:, sort_mask]
+
+
         # Now we can rebuild the dynamical matrix
         out_dyn = self.Copy()
         out_dyn.structure.change_unit_cell(new_cell)
