@@ -605,25 +605,75 @@ class Phonons:
             float
                 The ratio :math:`w(\\vec u)` between the probabilities.
         """
-        
+        K_to_Ry = 6.336857346553283e-06
+
+        if not self.CheckCompatibility(dyn0):
+            raise ValueError("Error, dyn0 and the current dyn are incompatible")
         
         # Get the displacement respect the two central atomic positions
         disp1 = structure.get_displacement(self.structure)
         disp0 = structure.get_displacement(dyn0.structure)
         
-        # TODO: Improve the method with a much more reliable one
-        # In fact the ratio between them is much easier (this can be largely affected by rounding)
-        #print "disp1:", disp1
-        #print "Ratio1:",  self.GetProbability(disp1, T) , "Ratio2:",  dyn0.GetProbability(disp0, T0)
+        # # TODO: Improve the method with a much more reliable one
+        # # In fact the ratio between them is much easier (this can be largely affected by rounding)
+        # #print "disp1:", disp1
+        # #print "Ratio1:",  self.GetProbability(disp1, T) , "Ratio2:",  dyn0.GetProbability(disp0, T0)
 
-        b1, v1 =  self.GetProbability(disp1, T, return_braket_vals = True)
-        b2, v2 =  dyn0.GetProbability(disp0, T0, return_braket_vals = True)
-        new_v = v1[3:] / v2[3:]
-        ret =  np.exp(b2- b1) * np.prod(np.sqrt(new_v))
+        # b1, v1 =  self.GetProbability(disp1, T, return_braket_vals = True)
+        # b2, v2 =  dyn0.GetProbability(disp0, T0, return_braket_vals = True)
+        # new_v = v1[3:] / v2[3:]
+        # ret =  np.exp(b2- b1) * np.prod(np.sqrt(new_v))
 
-        #print "comparison:", ret, self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
+        # #print "comparison:", ret, self.GetProbability(disp1, T) / dyn0.GetProbability(disp0, T0)
 
-        return ret
+
+        # This should be the fastest way
+        w1, pols1 = self.DyagDinQ(0)
+        w0, pols0 = dyn0.DyagDinQ(0)
+
+        # Remove translations (acustic modes in gamma)
+        tmask1 = Methods.get_translations(pols1)
+        tmask0 = Methods.get_translations(pols0)
+
+        w1 = w1[  ~tmask1 ]
+        pols1 = pols1[:, ~tmask1]
+        w0 = w0[~tmask0]
+        pols0 = pols0[:, ~tmask0]
+
+        #print "TMASK:", tmask0, tmask1
+        
+        
+        _m1_ = np.zeros(self.structure.N_atoms * 3)
+        _m0_ = np.zeros(dyn0.structure.N_atoms * 3)
+
+        for i in range(self.structure.N_atoms):
+            _m1_[3*i : 3*i + 3] = self.structure.masses[self.structure.atoms[i]]
+            _m0_[3*i : 3*i + 3] = dyn0.structure.masses[dyn0.structure.atoms[i]]
+
+        # Get the q values
+        q1 = np.real(np.einsum("i, ij, i", np.sqrt(_m1_), pols1, disp1.reshape(3 * self.structure.N_atoms)))
+        q0 = np.real(np.einsum("i, ij, i", np.sqrt(_m0_), pols0, disp0.reshape(3 * self.structure.N_atoms)))
+
+        a1 = np.zeros(np.shape(w1))
+        a0 = np.zeros(np.shape(w0))
+
+        if T == 0:
+            a1 = 1 / np.sqrt(2* w1)
+        else:
+            beta =  1 / (K_to_Ry*T)
+            a1 = 1 / np.sqrt( np.tanh(beta*w1 / 2) *2* w1)
+
+        if T0 == 0:
+            a0 = 1 / np.sqrt(2* w0)
+        else:
+            beta =  1 / (K_to_Ry*T0)
+            a0 = 1 / np.sqrt( np.tanh(beta*w0 / 2) *2* w0)
+
+        weight = np.prod((a0 / a1) * np.exp(- (q1 / (a1))**2 + (q0 / (a0))**2))
+
+        #print "COMPARISON:", ret, weight
+
+        return weight
         
         
     
@@ -1147,4 +1197,42 @@ class Phonons:
         
         return energy, forces
         
+        
+
+    def ApplySumRule(self):
+        """
+        ACUSTIC SUM RULE
+        ================
+        
+        The acustic sum rule is a way to impose translational symmetries on the dynamical matrix.
+        It affects also the effective charges if any (the total effective charge must be zero).
+
+        For the dynamical matrix it allows to have the self interaction terms:
+
+        .. math::
+        
+            \\Phi_{n_a, n_a}^{x,y} = - \\sum_{n_b \\neq n_a} \\Phi_{n_a,n_b}^{x,y} 
+        
+        """
+
+        # Apply the sum rule on the dynamical matrix
+        nb = np.arange(self.structure.N_atoms) 
+        for i in range(9):
+            x = i / 3
+            y = i % 3
+            for na in range(self.structure.N_atoms):
+                sum_value = np.sum(self.dynmats[0][3 * na + x, 3 * nb[(nb != na)] + y])
+                self.dynmats[0][3 * na + x, 3 * na + y] =  - sum_value
+                    
+
+        # Apply the sum rule on the effective charge
+        if self.effective_charges != None:
+            total_charge = np.sum(self.effective_charges, axis = 0)
+
+            # Subtract to each atom an average of the total charges
+            self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charges / self.structure.N_atoms)
+        
+
+
+    
         

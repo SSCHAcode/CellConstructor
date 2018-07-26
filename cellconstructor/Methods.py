@@ -14,6 +14,7 @@ import sys, os
 import Structure
  
 BOHR_TO_ANGSTROM = 0.529177249
+__EPSILON__ = 1e-6
 
 import symmetries as SYM
 
@@ -729,11 +730,64 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
     
     return out_sym
     
-    
+def get_translations(pols):
+    """
+    GET TRANSLATIONS
+    ================
 
-        
-        
-        
+    This subroutine analyzes the polarization vectors of a dynamical matrix to recognize the translations.
+    It is usefull to carefully remove the translations from the frequencies where w -> 0 gives an error in an equation.
+
+    Parmaeters
+    ----------
+        pols : ndarray 2 rank
+            The polarization vectors as they came out from DyagDinQ(0) method from Phonons.
+
+    Returns
+    -------
+        is_translation_mask : ndarray(3 * N_atoms)
+             A bool array of True if the i-th polarization vectors correspond to a translation, false otherwise.
+
+
+
+    Example
+    -------
+
+    In this example starting from the frequencies, the translations are removed (let dyn to be Phonons()):
+    
+    >>> w, pols = dyn.DyagDinQ(0)
+    >>> t_mask = get_translations(pols)
+    >>> w_without_trans = w[ ~t_mask ]
+    
+    The same, of course, can be applied to polarization vectors:
+
+    >>> pols = pols[ :, ~t_mask ]
+
+    The ~ caracter is used to get the bit not operation over the t_mask array (to mark False the translational modes and True all the others) 
+    """
+
+
+    # Get the number of atoms and the number of polarization vectors
+    n_atoms = len(pols[:, 0]) / 3
+    n_pols = len(pols[0,:])
+
+    # Prepare a mask filled with false
+    is_translation = np.zeros( n_pols).astype (bool)
+
+    for i in range(n_pols):
+        # Check if the polarization vector is oriented in the same way for each atom
+        thr_val = 0
+        for j in range(n_atoms):
+            thr_val += np.sum( np.abs(pols[3 * j : 3 * j + 3, i] - pols[:3, i])**2)
+
+        thr_val = np.sqrt(thr_val)
+            
+        if thr_val < __EPSILON__ :
+            is_translation[i] = True
+
+    return is_translation
+            
+    
         
         
         
