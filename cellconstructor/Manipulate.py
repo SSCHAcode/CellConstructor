@@ -745,9 +745,55 @@ def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
         
     return I_w
     
-    
 
+def apply_symmetry_on_fc(structure, fc_matrix, symmetry):
+    """ 
+    APPLY SYMMETRY ON FC
+    ====================
+    
+    This functio apply the given symmetry on the force constant matrix.
+    The original structure must satisfy the symmetry, and it is used to
+    get the atoms transformed one into the other.
+    
+    The application of the symmetries follow the following rule.
+    
+    The symmetry check is performed by comparing the two force constant matrix within the given threshold.
         
+    .. math::
+        
+        \\Phi_{s(a)s(b)}^{ij} = \\sum_{h,k = 1}^3 S_{ik} S_{jh} \\Phi_{ab}^{kh}
+        
+        \\Phi = S \\Phi S^\\dagger
     
+    where :math:`s(a)` is the atom in which the :math:`a` atom is mapped by the symmetry.
     
+    Note: this work only in the gamma point, no phase for q != 0 are supported.
+    Look at the documentation of the ApplySymmetry in the Phonon package
+    
+    Parameters
+    ----------
+        structure : CC.Structure()
+            The structure satisfying the symmetry, it is used to get the atoms -> S(atoms) mapping
+        fc_matrix : ndarray (3N x 3N)
+            The force constant matrix to be applyed the symmetry on
+        symmetry : ndarray (3x4)
+            The symmetry operation as a 3x3 rotational. The last column is the fractional translation
+            if any.
+            
+    Results
+    -------
+        new_fc : ndarray (3N x 3N)
+            The result of the application of the symmetry on the original dynamical matrix.
+    """
+    
+    # Create a dummy phonons variable
+    ph = Phonons(structure, nqirr = 1)
+    ph.dynmats = [ fc_matrix ]
+     
+    # Call the application of the phonon
+    fc_out = ph.ApplySymmetry(symmetry)
+     
+    return fc_out
+     
+        
     

@@ -1294,7 +1294,7 @@ class Phonons:
         
         # Apply the symmetry to the force constant matrix
         for na in range(n_atoms):
-            for nb in range(na, n_atoms):
+            for nb in range(0, n_atoms):
                 # Get the atoms projection of the symmetries
                 s_na = eq_atoms[na]
                 s_nb = eq_atoms[nb]
@@ -1307,15 +1307,78 @@ class Phonons:
                 
                 # Apply the symmetry
                 new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
+                #new_m_sym =new_m.copy()
                 
                 # Convert back to cartesian coordinates
                 new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell, cryst_to_cart=True)
                 
+                #print "%d -> %d , %d -> %d) COMPARE:" % (na, s_na, nb, s_nb), "d = %.5f" % np.real(np.sqrt(np.sum( (new_m - current_m)**2)))
+                
                 # Write the matrix into the output
                 out_fc[3 * s_na : 3*s_na + 3, 3*s_nb : 3* s_nb + 3] = new_m.copy()
+                #out_fc[3 * s_nb : 3*s_nb + 3, 3*s_na : 3 * s_na + 3] = np.conj(new_m.copy().transpose())
+                
+                
+                #print "Test of the transpose. d = ", np.real(np.sqrt(np.sum( (in_fc[3 * nb : 3*nb + 3, 3*na : 3*na + 3].transpose() - out_fc[3 * nb : 3*nb + 3, 3*na : 3 * na + 3])**2)))
         
         # Return the symmetrized result
+        #print "Total distance:", np.sqrt(np.sum( (out_fc - np.real(in_fc))**2))
         return out_fc
-                
+        
     
         
+    def ForceSymmetries(self, symmetries):
+        """
+        FORCE THE PHONON TO RESPECT THE SYMMETRIES
+        ==========================================
+        
+        This method forces the phonon dynamical matrix to respect
+        the given symmetries.
+        
+        It uses the method ApplySymmetry to manipulate the force constant matrix.
+        
+        Note: This method only affect the force constant matrix, the structure is supposed to respect the symmetries.
+        
+        Note: This works only with gamma matrices (i.e. supercells)
+        
+        Parameters
+        ----------
+            symmetries : list of ndarray 3x4
+                List of the symmetries matrices. The last column is the fractional translation.
+        """
+        
+        
+        
+        
+        # Apply the symmetries
+        new_fc = np.zeros( np.shape(self.dynmats[0]) )
+        self.structure.fix_coords_in_unit_cell()
+        for i, sym in enumerate(symmetries):
+            # Check if the structure satisfy the symmetry
+            if not self.structure.check_symmetry(sym):
+                print sym
+                raise ValueError("Error, the given structure do not satisfy the %d-th symmetry." % (i+1))
+            
+            # Get the force constant
+            current_fc = self.ApplySymmetry(sym)
+            
+            # Try to add the sum rule here
+            #newP = self.Copy()
+            #newP.dynmats[0] = current_fc
+            #newP.ApplySumRule()
+            
+            distance = np.sum( (self.dynmats[0] - current_fc)**2)
+            distance = np.real(np.sqrt(distance))
+            
+            print "%d) d = " % (i+1), distance
+    
+            new_fc += current_fc
+        
+        # Average all the symmetrized structures
+        new_fc /= len(symmetries)
+        
+        print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
+        self.dynmats[0] = new_fc 
+        
+        # Apply the acustic sum rule
+        self.ApplySumRule()

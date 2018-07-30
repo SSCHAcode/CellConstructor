@@ -836,7 +836,7 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
         
     # Perform the transformation
     # M' = g M g^+
-    return metric_tensor.dot( np.dot(matrix, metric_tensor.transpose()))
+    return comp_matrix.dot( np.dot(matrix, comp_matrix.transpose()))
         
         
         

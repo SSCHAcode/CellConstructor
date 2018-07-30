@@ -407,7 +407,7 @@ class Structure:
         self.coords = np.delete(self.coords, list_pop, axis = 0)
         self.N_atoms -= N_rep
             
-    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1.e-6):
+    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1e-6):
         """
         This function apply the symmetry operation to the atoms
         of the current structure.
@@ -431,6 +431,7 @@ class Structure:
 
         #self.N_atoms *= 2
         new_atoms = np.zeros( (self.N_atoms, 3))
+        self.fix_coords_in_unit_cell()
         for i in range(self.N_atoms):
             # Convert the coordinates into covariant
             old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
@@ -456,7 +457,7 @@ class Structure:
             self.N_atoms *= 2
             self.coords = np.concatenate( (self.coords, new_atoms), axis = 0)
 
-        self.delete_copies(verbose = False, minimum_dist = thr)
+            self.delete_copies(verbose = False, minimum_dist = thr)
 
     def check_symmetry(self, sym_mat, thr = 1e-6):
         """
@@ -480,13 +481,27 @@ class Structure:
         new_struct = self.copy()
 
         # Apply the symmetry
-        new_struct.apply_symmetry(sym_mat, thr = thr)
-
-        # Count the number of atoms, if they are the same as before, it is a symmetry
-        if (new_struct.N_atoms != self.N_atoms):
+        new_struct.apply_symmetry(sym_mat, delete_original=True)
+        
+        # Get the equivalence
+        eq_atoms = new_struct.get_equivalent_atoms(self)
+        
+        # Exchange the atoms
+        new_struct.coords[eq_atoms, :] = new_struct.coords.copy()
+        
+        # Fix the structure in the unit cell
+        new_struct.fix_coords_in_unit_cell()
+        
+        # Get the displacements
+        u_vect = self.get_displacement(new_struct)
+        
+        # Get the distance between the structures
+        dist = np.sqrt(np.sum(u_vect ** 2))
+        
+        if dist > thr:
             return False
         return True
-        
+
         
     def set_ita_group(self, group):
         """
