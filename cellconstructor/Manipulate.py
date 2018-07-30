@@ -746,7 +746,8 @@ def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
     return I_w
     
     
-    
+
+        
     
     
     

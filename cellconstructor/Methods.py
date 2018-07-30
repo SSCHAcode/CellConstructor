@@ -788,9 +788,55 @@ def get_translations(pols):
     return is_translation
             
     
+def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
+    """
+    This methods convert the 3x3 matrix into crystalline coordinates using the metric tensor defined by the unit_cell
+    
+    .. math::
+        
+        g_{\\alpha\\beta} = \\left< \\vec v_\\alpha | \\vec v_\\beta\\right>
+        
+        F_{\\alpha\\beta} = g_{\\alpha\\gamma} g_{\\beta\\delta} F^{\\gamma\\delta}
+        
+        F^{\\alpha\\beta} = g^{\\alpha\\gamma} g^{\\beta\\delta} F_{\\gamma\\delta}
+        
+        F_{\\alpha\\beta} = \\frac{\\partial E}{\\partial u^\\alpha \\partial u^\\beta}
+        
+        F^{\\alpha\\beta} = \\frac{\\partial E}{\\partial u_\\alpha \\partial u_\\beta}
+    
+        
+    Parameters
+    ----------
+        matrix : ndarray 3x3
+            The matrix to be converted
+        unit_cell : ndarray 3x3
+            The cell containing the vectors defining the metric (the change between crystalline and cartesian coordinates)
+        cryst_to_cart : bool, optional
+            If False (default) the matrix is assumed in cartesian coordinates and converted to crystalline. If True
+            otherwise.
+            
+    Results
+    -------
+        new_matrix : ndarray(3x3)
+            The converted matrix into the desidered format
+    """
+    
+    
+    # Get the metric tensor from the unit_cell
+    metric_tensor = np.zeros((3,3))
+    for i in range(0, 3):
+        for j in range(i, 3):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    # Choose which conversion perform
+    comp_matrix = metric_tensor
+    if cryst_to_cart:
+        comp_matrix = np.linalg.inv(metric_tensor)
         
         
-        
+    # Perform the transformation
+    # M' = g M g^+
+    return metric_tensor.dot( np.dot(matrix, metric_tensor.transpose()))
         
         
         
