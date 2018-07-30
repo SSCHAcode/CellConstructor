@@ -638,7 +638,7 @@ class Structure:
         ===========================================
         
         
-        This function returns a list of the aatom index in the target structure that 
+        This function returns a list of the atom index in the target structure that 
         correspond to the current structure.
         NOTE: This method assumes that the two structures are equal.
         

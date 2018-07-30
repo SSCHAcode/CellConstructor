@@ -1234,5 +1234,88 @@ class Phonons:
         
 
 
+    def ApplySymmetry(self, symmat):
+        """
+        APPLY SYMMETRY
+        ==============
+        
+        This function apply a symmetry to the force constant matrix
+        The matrix must be a 3 rows x 4 columns array containing the rotation and the subsequent translation of the vectors.
+        
+        The symmetry check is performed by comparing the two force constant matrix within the given threshold.
+        
+        .. math::
+            
+            \\Phi_{s(a)s(b)}^{ij} = \\sum_{h,k = 1}^3 S_{ik} S_{jh} \\Phi_{ab}^{kh}
+            
+            \\Phi = S \\Phi S^\\dagger
+        
+        where :math:`s(a)` is the atom in which the :math:`a` atom is mapped by the symmetry.
+        
+        Note: this works only in supercells at gamma point
+        
+        Parameters
+        ----------
+            symmat : ndarray 3x4
+                The symmetry matrix to be checked. the last column contains the translations. Trans
+            threshold : float
+                The threshold on the distance below which two matrix are considered to be the same.
+                
+        Results
+        -------
+            ndarray 3Nat x 3Nat
+                The new force constant matrix after the application of the symmetries
+        """
+        
+        
+        # Check if the matrix has been initialized
+        if len(self.dynmats) == 0:
+            raise ValueError("Error, the phonon force constant has not been initialized. Please consider loading the phonon info.")
+            
+        if self.nqirr != 1:
+            raise ValueError("Error, this method only works for gamma point calculations")
+            
+            
+        # Get the way atoms are echanged
+        aux_struct = self.structure.copy()
+        aux_struct.apply_symmetry(symmat, delete_original = True)
+        aux_struct.fix_coords_in_unit_cell()
+
+        eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
+        
+        # Get the number of atoms
+        n_atoms = self.structure.N_atoms
+        
+        # Get only the rotational part of the symmetry
+        new_s_mat = symmat[:3, :3]
+        
+        out_fc = np.zeros(np.shape(self.dynmats[0]))
+        in_fc = self.dynmats[0]
+        
+        # Apply the symmetry to the force constant matrix
+        for na in range(n_atoms):
+            for nb in range(na, n_atoms):
+                # Get the atoms projection of the symmetries
+                s_na = eq_atoms[na]
+                s_nb = eq_atoms[nb]
+                
+                # Extract the matrix referring to na and nb atoms
+                current_m = in_fc[3 * na : 3*na + 3, 3*nb : 3*nb + 3]
+                
+                # Conver the matrix in crystalline
+                new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell)
+                
+                # Apply the symmetry
+                new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
+                
+                # Convert back to cartesian coordinates
+                new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell, cryst_to_cart=True)
+                
+                # Write the matrix into the output
+                out_fc[3 * s_na : 3*s_na + 3, 3*s_nb : 3* s_nb + 3] = new_m.copy()
+        
+        # Return the symmetrized result
+        return out_fc
+                
     
         
