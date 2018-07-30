@@ -1152,7 +1152,7 @@ class Phonons:
         COMPUTE ENERGY AND FORCES
         =========================
         
-        This subroutine computes the harmonic energy and the forces z
+        This subroutine computes the harmonic energy and the forces 
         for the given dynamical matrix at harmonic level.
         
         .. math::
