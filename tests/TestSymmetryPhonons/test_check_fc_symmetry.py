@@ -3,7 +3,8 @@
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Phonons
-
+import cellconstructor.Manipulate
+from ase.visualize import view
 
 import numpy as np
 import spglib
@@ -23,7 +24,11 @@ symmetries = spglib.get_symmetry(PH.structure.get_ase_atoms(), 0.01)
 sym_mats = CC.Methods.GetSymmetriesFromSPGLIB(symmetries)
 
 # Impose the symmetries on the structure
+PH.structure.fix_coords_in_unit_cell()
 PH.structure.impose_symmetries(sym_mats)
+
+view(PH.structure.get_ase_atoms())
+
 
 
 # Get frequencies of the original matrix
@@ -48,6 +53,8 @@ for i, sym_mat in enumerate(sym_mats):
     freqs, caiser = np.linalg.eig(new_fc)
     np.sort(freqs)
     
+    PH_new.save_qe("symm_%d" % (i+1), full_name=True)
+    
     # Print the distance between the two matrices
     distance = np.sum( (PH.dynmats[0] - PH_new.dynmats[0])**2)
     distance = np.real(np.sqrt(distance))
@@ -61,8 +68,14 @@ for i, sym_mat in enumerate(sym_mats):
     print "Frequencies of the new symmetry | old frequencies"
     print "\n".join(["%12.2f\t%12.2f   cm-1" % (new_w[k]*RyToCm, w[k] * RyToCm) for k in range(0, len(w))])
     
-    print "Other eigens:"
-    print "\n".join(["%12.2f\t%12.2f   XX" % (np.sort(freqs)[k]*RyToCm, np.sort(ofreqs)[k] * RyToCm) for k in range(0, len(w))])
+    
+    #print "Check corrispondance between eigenvalues and eigenvectors:"
+    #me, ms = CC.Manipulate.ChooseParamForTransformStructure(PH, PH_new, n_max = 100)
+    #print " ".join(["%d" % x for x in me])
+    #print " ".join(["%.2e" % x for x in ms])
+    
+    #print "Other eigens:"
+    #print "\n".join(["%12.2f\t%12.2f   XX" % (np.sort(freqs)[k]*RyToCm, np.sort(ofreqs)[k] * RyToCm) for k in range(0, len(w))])
 
     print ""
     print " Distance between the two matrices:", distance #/ PH.structure.N_atoms ** 2

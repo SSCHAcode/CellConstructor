@@ -1266,6 +1266,7 @@ class Phonons:
             ndarray 3Nat x 3Nat
                 The new force constant matrix after the application of the symmetries
         """
+        A_TO_BOHR = 1.889725989
         
         
         # Check if the matrix has been initialized
@@ -1282,6 +1283,7 @@ class Phonons:
         aux_struct.fix_coords_in_unit_cell()
 
         eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
+        #print eq_atoms
         
         # Get the number of atoms
         n_atoms = self.structure.N_atoms
@@ -1303,20 +1305,24 @@ class Phonons:
                 current_m = in_fc[3 * na : 3*na + 3, 3*nb : 3*nb + 3]
                 
                 # Conver the matrix in crystalline
-                new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell)
+                new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
                 
                 # Apply the symmetry
                 new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
                 #new_m_sym =new_m.copy()
                 
                 # Convert back to cartesian coordinates
-                new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell, cryst_to_cart=True)
+                new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell * A_TO_BOHR, cryst_to_cart=True)
                 
-                #print "%d -> %d , %d -> %d) COMPARE:" % (na, s_na, nb, s_nb), "d = %.5f" % np.real(np.sqrt(np.sum( (new_m - current_m)**2)))
+                #print "%d -> %d , %d -> %d)" % (na, s_na, nb, s_nb)#, "d = %.5f" % np.real(np.sqrt(np.sum( (new_m - current_m)**2)))
                 
                 # Write the matrix into the output
                 out_fc[3 * s_na : 3*s_na + 3, 3*s_nb : 3* s_nb + 3] = new_m.copy()
+               
+                
                 #out_fc[3 * s_nb : 3*s_nb + 3, 3*s_na : 3 * s_na + 3] = np.conj(new_m.copy().transpose())
+                
+                
                 
                 
                 #print "Test of the transpose. d = ", np.real(np.sqrt(np.sum( (in_fc[3 * nb : 3*nb + 3, 3*na : 3*na + 3].transpose() - out_fc[3 * nb : 3*nb + 3, 3*na : 3 * na + 3])**2)))
@@ -1352,6 +1358,9 @@ class Phonons:
         
         # Apply the symmetries
         new_fc = np.zeros( np.shape(self.dynmats[0]) )
+        
+        freqs = np.zeros( (len(symmetries) + 1, 3 * self.structure.N_atoms))
+        
         self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
             # Check if the structure satisfy the symmetry
@@ -1361,6 +1370,8 @@ class Phonons:
             
             # Get the force constant
             current_fc = self.ApplySymmetry(sym)
+            tmp, pol = np.linalg.eig(current_fc)
+            freqs[i, :] = np.sort(tmp)
             
             # Try to add the sum rule here
             #newP = self.Copy()
@@ -1370,15 +1381,24 @@ class Phonons:
             distance = np.sum( (self.dynmats[0] - current_fc)**2)
             distance = np.real(np.sqrt(distance))
             
-            print "%d) d = " % (i+1), distance
+            #print "%d) d = " % (i+1), distance
     
             new_fc += current_fc
         
         # Average all the symmetrized structures
         new_fc /= len(symmetries)
         
-        print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
-        self.dynmats[0] = new_fc 
+        np.savetxt("prova.dat", new_fc)
+        
+        tmp, pols = np.linalg.eig(new_fc)
+        freqs[i+1, :] = np.sort(tmp)
+        
+        #print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
+        self.dynmats[0] = new_fc.copy()
+        
+                    
+        # Print the phonons all toghether
+        #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
         
         # Apply the acustic sum rule
         self.ApplySumRule()

@@ -8,6 +8,7 @@ import numpy as np
 from Structure import Structure
 from Phonons import Phonons
 import Methods
+import warnings
 
 def LoadXYZTrajectory(fname, max_frames = -1, unit_cell = None):
     """
@@ -551,7 +552,7 @@ def GetScalarProductPolVects(dyn1, dyn2, mode_exchange = None, mode_sign = None)
     
     return results
 
-def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
+def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100, n_max = 10000):
     """
     This subroutine is ment for automatically check the best values for mode_exchange
     and mode_sign to pass to the TransfromStructure. This is needed if you want to
@@ -597,6 +598,8 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
         n_ref : int, optional
             A positive integer. Even if small_thr is not converged. After n_ref
             refused mooves, the system is considered to be converged.
+        n_max : int, optional
+            The total number of move, after which the method is stopped even if convergence has not been achieved.
             
     Results
     -------
@@ -617,6 +620,7 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
     
     # Count how much time the system can get negative answers
     refuses_counts = 0
+    iterations= 0
     nmodes = dyn1.structure.N_atoms * 3
     
     # The two starting
@@ -625,6 +629,8 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
     
     # Perform the optimization
     while refuses_counts < n_ref:
+        iterations += 1
+        
         # Get the scalar product
         sp = GetScalarProductPolVects(dyn1, dyn2, mode_exchange, mode_sign)
         _w_ = w1[mode_exchange]
@@ -684,6 +690,11 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100):
         else:
             # Refuse the move
             refuses_counts += 1
+        
+        # Break the cycle
+        if iterations > n_max:
+            warnings.warn("Warning: convergence not reached after %d iterations." % n_max, RuntimeWarning)
+            break
             
         
     # Now the mode have been ordered, change the sign accordingly

@@ -60,6 +60,7 @@ def covariant_coordinates(basis, vector):
             metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
 
     imt = np.linalg.inv(metric_tensor)
+    
     contra_vect = basis.dot(vector)
     return imt.dot(contra_vect)
     
@@ -829,14 +830,14 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
             metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
 
     # Choose which conversion perform
-    comp_matrix = metric_tensor
-    if cryst_to_cart:
-        comp_matrix = np.linalg.inv(metric_tensor)
+    comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
+    if not cryst_to_cart:
+        comp_matrix = np.linalg.inv(comp_matrix)
         
         
     # Perform the transformation
     # M' = g M g^+
-    return comp_matrix.dot( np.dot(matrix, comp_matrix.transpose()))
+    return comp_matrix.transpose().dot( np.dot(matrix, comp_matrix))
         
         
         
