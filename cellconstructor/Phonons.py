@@ -1359,8 +1359,6 @@ class Phonons:
         # Apply the symmetries
         new_fc = np.zeros( np.shape(self.dynmats[0]) )
         
-        freqs = np.zeros( (len(symmetries) + 1, 3 * self.structure.N_atoms))
-        
         self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
             # Check if the structure satisfy the symmetry
@@ -1370,17 +1368,15 @@ class Phonons:
             
             # Get the force constant
             current_fc = self.ApplySymmetry(sym)
-            tmp, pol = np.linalg.eig(current_fc)
-            freqs[i, :] = np.sort(tmp)
             
             # Try to add the sum rule here
             #newP = self.Copy()
             #newP.dynmats[0] = current_fc
-            #newP.ApplySumRule()
-            
-            distance = np.sum( (self.dynmats[0] - current_fc)**2)
-            distance = np.real(np.sqrt(distance))
-            
+#            #newP.ApplySumRule()
+#            
+#            distance = np.sum( (self.dynmats[0] - current_fc)**2)
+#            distance = np.real(np.sqrt(distance))
+#            
             #print "%d) d = " % (i+1), distance
     
             new_fc += current_fc
@@ -1388,10 +1384,6 @@ class Phonons:
         # Average all the symmetrized structures
         new_fc /= len(symmetries)
         
-        np.savetxt("prova.dat", new_fc)
-        
-        tmp, pols = np.linalg.eig(new_fc)
-        freqs[i+1, :] = np.sort(tmp)
         
         #print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
         self.dynmats[0] = new_fc.copy()

@@ -11,6 +11,7 @@ import spglib
 
 """
 This script check the symmetries of a dynamical matrix.
+In the end the symmetry is constrained.
 """
 RyToCm = 109691.40235
 
