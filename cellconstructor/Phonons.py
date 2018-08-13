@@ -91,9 +91,13 @@ class Phonons:
                 raise ValueError("Error, nqirr argument must be a strictly positive number.")
             
             self.dynmats = []
-            for i in nqirr:
+            for i in range(nqirr):
                 # Create a dynamical matrix
                 self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms)))
+                
+                # Initialize the q vectors
+                self.q_stars.append([np.zeros(3)])
+                self.q_tot.append(np.zeros(3))
         
                 
     def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False):
@@ -1230,7 +1234,7 @@ class Phonons:
             total_charge = np.sum(self.effective_charges, axis = 0)
 
             # Subtract to each atom an average of the total charges
-            self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charges / self.structure.N_atoms)
+            self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
         
 
 

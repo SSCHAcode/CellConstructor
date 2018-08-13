@@ -17,7 +17,7 @@ BOHR_TO_ANGSTROM=0.529177249
 
 class Structure:    
     def __init__(self, nat=0):
-        self.N_atoms=0
+        self.N_atoms=nat
         # Coordinates are always express in chartesian axis
         self.coords = np.zeros((self.N_atoms, 3))
         self.atoms = []
