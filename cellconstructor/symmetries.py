@@ -76,14 +76,14 @@ class QE_Symmetry:
             aux_atoms = self.structure.copy()
             aux_atoms.apply_symmetry(sym, delete_original = True)
             aux_atoms.fix_coords_in_unit_cell()
-            eq_atoms = self.structure.get_equivalent_atoms(aux_atoms)
+            eq_atoms = np.array(self.structure.get_equivalent_atoms(aux_atoms), dtype = np.intc)
             
             self.QE_irt[i, :] = eq_atoms + 1
             
             # Get the inverse symmetry
             inv_sym = np.transpose(sym[:, :3])
             for k, other_sym in enumerate(symmetries):
-                if np.sum( (inv_sym - other_sym)**2) < __EPSILON__:
+                if np.sum( (inv_sym - other_sym[:, :3])**2) < __EPSILON__:
                     break
             
             self.QE_invs[i] = k + 1
@@ -101,9 +101,9 @@ class QE_Symmetry:
         if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - q_point)**2) < __EPSILON__:
             # q != -q
             # Get the q vectors in crystal coordinates
-            q = Methods.coovariant_coordinates(b_vectors, q_point)
+            q = Methods.covariant_coordinates(b_vectors, q_point)
             for k, sym in enumerate(self.QE_s):
-                new_q = self.QE_s.dot(q)
+                new_q = self.QE_s[:,:, k].dot(q)
                 if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - new_q)**2) < __EPSILON__:
                     break
                 
