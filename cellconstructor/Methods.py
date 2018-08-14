@@ -16,7 +16,6 @@ import Structure
 BOHR_TO_ANGSTROM = 0.529177249
 __EPSILON__ = 1e-6
 
-import symmetries as SYM
 
 __all__ = ["covariant_coordinates", "from_dynmat_to_spectrum", 
            "put_into_cell", "get_minimal_orthorombic_cell", 
@@ -678,58 +677,6 @@ def write_namelist(total_dict):
     return lines
                 
         
-def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
-    """
-    CONVERT THE SYMMETRIES
-    ======================
-    
-    This module comvert the symmetry fynction from the spglib format.
-    
-    
-    Parameters
-    ----------
-        spglib_sym : dict
-            Result of spglib.get_symmetry( ... ) function
-        regolarize : bool, optional
-            If True it rewrites the translation to be exact. Usefull if you want to
-            constrain the symmetry exactly
-        
-    Returns
-    -------
-        symmetries : list
-            A list of 4x3 matrices containing the symmetry operation
-    """
-    
-    # Check if the type is correct
-    if not spglib_sym.has_key("translations"):
-        raise ValueError("Error, your symmetry dict has no 'translations' key.")
-        
-    if not spglib_sym.has_key("rotations"):
-        raise ValueError("Error, your symmetry dict has no 'rotations' key.")
-    
-    # Get the number of symmetries
-    out_sym = []
-    n_sym = np.shape(spglib_sym["translations"])[0]
-    
-    translations = spglib_sym["translations"]
-    rotations = spglib_sym["rotations"]
-    
-    for i in range(n_sym):
-        # Create the symmetry
-        sym = np.zeros((3,4))
-        sym[:,:3] = rotations[i, :, :]
-        sym[:, 3] = translations[i,:]
-        
-        # Edit the translation
-        if regolarize:
-            sym[:, 3] *= 2
-            sym[:, 3] = np.floor(sym[:, 3] + .5)
-            sym[:, 3] *= .5
-            sym[:, 3] = sym[:,3] % 1
-        
-        out_sym.append(sym)
-    
-    return out_sym
     
 def get_translations(pols):
     """
@@ -841,6 +788,53 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
         
         
         
+def convert_fc(fc_matrix, unit_cell, cryst_to_cart = False):
+    """
+    This method converts the force constant matrix from cartesian to crystal and the opposite.
+    Check the method convert_matrix_cart_cryst to see more details.
+    
+    Parameters
+    ----------
+        fc_matrix : ndarray (3 nat x 3 nat)
+            The original force constant matrix
+        unit_cell : ndarray (3x3)
+            The unit cell of the system
+        cryst_to_cart : bool, optional, default False
+            If true convert from crystal to cartesian, the opposite otherwise.
+            
+    Results
+    -------
+        new_fc_matrix : ndarray (shape(fc_matrix))
+            The new force constant matrix after the conversion.
+    """
+    
+    # Check if the fc_matrix is a good candidate
+    if np.shape(fc_matrix)[0] != np.shape(fc_matrix)[1]:
+        raise ValueError("Error, the force constant matrix must be a square array")
+    
+    if len(np.shape(fc_matrix)) != 2:
+        raise ValueError("Error, the fc_matrix must be a matrix.")
+    
+    n_indices = np.shape(fc_matrix)[0]
+    
+    if n_indices %3 != 0:
+        raise ValueError("Error, the size of the force constant matrix must be a multiple of 3")
         
-        
+    # Get the number of atoms
+    nat = n_indices / 3
+    
+    # Prepare the output matrix
+    new_fc_matrix = np.zeros(np.shape(fc_matrix))
+    for na in range(nat):
+        for nb in range(na, nat):
+            # Convert the single matrix
+            in_mat = fc_matrix[3 * na : 3*(na+1), 3*nb : 3*(nb+1)] 
+            out_mat = convert_matrix_cart_cryst(in_mat, unit_cell, cryst_to_cart)
+            new_fc_matrix[3 * na : 3*(na+1), 3*nb : 3*(nb+1)] = out_mat
+            
+            # Apply hermitianity
+            if na != nb:
+                new_fc_matrix[3 * nb : 3*(nb+1), 3*na : 3*(na+1)] = np.conjugate(out_mat.transpose())
+            
+    return new_fc_matrix
         

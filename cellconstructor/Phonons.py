@@ -1389,7 +1389,7 @@ class Phonons:
         new_fc /= len(symmetries)
         
         
-        #print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
+        print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
         self.dynmats[0] = new_fc.copy()
         
                     
