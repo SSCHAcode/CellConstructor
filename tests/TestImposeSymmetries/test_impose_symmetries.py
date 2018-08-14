@@ -3,7 +3,7 @@
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Phonons
-import cellconstructor.Methods
+import cellconstructor.symmetries
 
 try:
     import spglib
@@ -12,7 +12,7 @@ except:
     
     
 """
-This code load a dynamical matrix with the structure that barely 
+This code loads a dynamical matrix with the structure that barely 
 satisfy a C2/c monoclinic group (with a 0.04 threshold) and
 constrain the symmetries to allow programs like quantum espresso
 to detect symmetries correctly.
@@ -33,8 +33,7 @@ print "Space group with low threshold:", GROUP
 symmetries = spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.04)
 
 # Transform the spglib symmetries into the CellConstructor data type
-sym_mats = CC.Methods.GetSymmetriesFromSPGLIB(symmetries, True)
-print [t[:,3] for t in sym_mats]
+sym_mats = CC.symmetries.GetSymmetriesFromSPGLIB(symmetries, True)
 # Force the symmetrization
 dyn.structure.impose_symmetries(sym_mats)
 

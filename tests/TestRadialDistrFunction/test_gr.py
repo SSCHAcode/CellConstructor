@@ -2,7 +2,7 @@
 
 """
 This example uses the harmonic dynamical matrix to generate
-an ensemble of configuration, and than to compute the radial distribution function.
+an ensemble of configuration, and then to compute the radial distribution function.
 """
 
 import cellconstructor as CC
