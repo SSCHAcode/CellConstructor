@@ -217,7 +217,7 @@ class QE_Symmetry:
         
         
         for i, sym in enumerate(symmetries):
-            self.QE_s[:,:, i] = sym[:, :3]
+            self.QE_s[:,:, i] = np.transpose(sym[:, :3])
             
             # Get the atoms correspondence
             aux_atoms = self.structure.copy()

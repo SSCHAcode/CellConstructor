@@ -60,14 +60,14 @@ dynmat.ApplySumRule()
 
 # Initialize the symmetries using the QE module
 qe_sym = CC.symmetries.QE_Symmetry(dynmat.structure)
-qe_sym.SetupQPoint(np.array([0,0,0]))
-#qe_sym.InitFromSymmetries(symmetries, np.array( [0,0,0] ))
+#qe_sym.SetupQPoint(np.array([0,0,0]))
+qe_sym.InitFromSymmetries(symmetries, np.array( [0,0,0] ))
 syms =  qe_sym.GetSymmetries()
 
 
 # Parse the force constant matrix
-#qe_sym.SymmetrizeDynQ(dynmat.dynmats[0], np.array([0,0,0]))
-dynmat.ForceSymmetries(syms)
+qe_sym.SymmetrizeDynQ(dynmat.dynmats[0], np.array([0,0,0]))
+#dynmat.ForceSymmetries(syms)
 
 # Write the dynamical matrix
 dynmat.save_qe("RockSalt.dyn_end", True)
