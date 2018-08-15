@@ -1312,7 +1312,9 @@ class Phonons:
                 new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
                 
                 # Apply the symmetry
-                new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
+                #new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
+                new_m_sym = new_s_mat.transpose().dot(new_m.dot( new_s_mat))
+
                 #new_m_sym =new_m.copy()
                 
                 # Convert back to cartesian coordinates
