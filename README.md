@@ -10,6 +10,7 @@ To correnctly install and use the package, you need to have
 3. numpy
 4. scipy
 5. A fortran compiler
+6. Lapack
 
 The fortran compiler is required to compile the fortran libraries 
 from Quantum ESPRESSO.
