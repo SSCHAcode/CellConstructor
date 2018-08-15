@@ -45,14 +45,17 @@ print "Symmetry group: ", spglib.get_spacegroup(ase_atoms)
 symmetries = CC.symmetries.GetSymmetriesFromSPGLIB( spglib.get_symmetry(ase_atoms))
 
 # Prepare the Force constant matrix
-dynmat = CC.Phonons.Phonons(structure = struc)
+#dynmat = CC.Phonons.Phonons(structure = struc)
 
 # Setup a random hermitian force constant matrix 
-dynmat.dynmats[0] = np.random.normal(size = (6,6))
-dynmat.dynmats[0] += np.transpose(dynmat.dynmats[0])
+#dynmat.dynmats[0] = np.random.normal(size = (6,6))
+#dynmat.dynmats[0] += np.transpose(dynmat.dynmats[0])
+
+# Load 
+dynmat = CC.Phonons.Phonons("RockSalt.dyn", full_name = True)
 
 ## Apply the symmetries
-dynmat.ApplySumRule()
+#dynmat.ApplySumRule()
 #dynmat.ForceSymmetries(symmetries)
 
 # Initialize the symmetries using the QE module
@@ -63,4 +66,4 @@ qe_sym.InitFromSymmetries(symmetries, np.array( [0,0,0] ))
 qe_sym.SymmetrizeDynQ(dynmat.dynmats[0], np.array([0,0,0]))
 
 # Write the dynamical matrix
-dynmat.save_qe("RockSalt.dyn", True)
+dynmat.save_qe("RockSalt.dyn_end", True)

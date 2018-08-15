@@ -56,6 +56,35 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
   ! Define the 2pi constant
   double precision :: tpi
   tpi = 6.283185307179586
+
+
+  ! Print all the input variables
+  print *, "-------------------------------------"
+  print *, "xq:", xq
+  print *, "PHI:"
+  do na = 1, nat
+     do nb = 1, nat
+        print *, na, nb
+        do jpol = 1, 3
+           print *, phi(:, jpol, na, nb)
+        end do
+     end do
+  end do
+  print *, "N sym:", nsymq
+  print *, "Symmetries:"
+  do isymq = 1, nsymq
+     print *, "  ", isymq
+     do jpol = 1, 3
+        print *, s(:, jpol, isymq)
+     end do
+     print *, "irt:", irt(isymq, :)
+  end do
+  print *, "INVS:"
+  print *, invs(:)
+  print *, "MINUS Q:", minus_q, "IROTMQ:", irotmq
+  print *, "-------------------------------------"
+          
+  
   
   ! work space, phase factors
   !
@@ -154,18 +183,18 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
               enddo
            enddo
 
-           ! Print the Phi matrix
-           print "(A10, I8,A10,I8)", "NA = ", na, "NB =", nb
-           print *, "Phi:"
-           print *, phi(:, 1, na, nb)
-           print *, phi(:, 2, na, nb)
-           print *, phi(:, 3, na, nb)
+           ! ! Print the Phi matrix
+           ! print "(A10, I8,A10,I8)", "NA = ", na, "NB =", nb
+           ! print *, "Phi:"
+           ! print *, phi(:, 1, na, nb)
+           ! print *, phi(:, 2, na, nb)
+           ! print *, phi(:, 3, na, nb)
 
-           print *, ""
-           print *, "Work:"
-           print *, work(:, 1)
-           print *, work(:, 2)
-           print *, work(:, 3)
+           ! print *, ""
+           ! print *, "Work:"
+           ! print *, work(:, 1)
+           ! print *, work(:, 2)
+           ! print *, work(:, 3)
            
            do isymq = 1, nsymq
               irot = isymq
@@ -186,12 +215,21 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
               iflb (sna, snb) = 1
            enddo
 
-           ! Print the new Phi
-           print *, "New Phi:"
-           
         endif
      enddo
   enddo
   phi (:, :, :, :) = phi (:, :, :, :) / DBLE(nsymq)
+
+  
+  print *, "OUT PHI:"
+  do na = 1, nat
+     do nb = 1, nat
+        print *, na, nb
+        do jpol = 1, 3
+           print *, phi(:, jpol, na, nb)
+        end do
+     end do
+  end do
+  
   return
 end subroutine symdynph_gq_new

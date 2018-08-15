@@ -81,7 +81,7 @@ class QE_Symmetry:
             self.QE_irt[i, :] = eq_atoms + 1
             
             # Get the inverse symmetry
-            inv_sym = np.transpose(sym[:, :3])
+            inv_sym = np.linalg.inv(sym[:, :3])
             for k, other_sym in enumerate(symmetries):
                 if np.sum( (inv_sym - other_sym[:, :3])**2) < __EPSILON__:
                     break
@@ -98,17 +98,16 @@ class QE_Symmetry:
         
         # Get the minus_q operation
         self.QE_minusq = False
-        if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - q_point)**2) < __EPSILON__:
-            # q != -q
-            # Get the q vectors in crystal coordinates
-            q = Methods.covariant_coordinates(b_vectors, q_point)
-            for k, sym in enumerate(self.QE_s):
-                new_q = self.QE_s[:,:, k].dot(q)
-                if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - new_q)**2) < __EPSILON__:
-                    break
-                
-            self.QE_minusq = True
-            self.QE_irotmq = k + 1
+        
+        # q != -q
+        # Get the q vectors in crystal coordinates
+        q = Methods.covariant_coordinates(b_vectors, q_point)
+        for k, sym in enumerate(self.QE_s):
+            new_q = self.QE_s[:,:, k].dot(q)
+            if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - new_q)**2) < __EPSILON__:
+                self.QE_minus_q = True
+                self.QE_irotmq = k + 1
+                break
                 
                 
     def SymmetrizeDynQ(self, dyn_matrix, q_point):
