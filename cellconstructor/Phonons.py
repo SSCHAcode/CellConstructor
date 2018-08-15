@@ -1368,6 +1368,9 @@ class Phonons:
             # Check if the structure satisfy the symmetry
             if not self.structure.check_symmetry(sym):
                 print sym
+                new_sym = sym.copy()
+                new_sym[:, :3] = np.transpose( sym[:, :3])
+                print "Satisfy transpose?", self.structure.check_symmetry(new_sym)
                 raise ValueError("Error, the given structure do not satisfy the %d-th symmetry." % (i+1))
             
             # Get the force constant

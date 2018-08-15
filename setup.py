@@ -1,7 +1,9 @@
 from numpy.distutils.core import setup, Extension
 
 symph_ext = Extension(name = "symph",
-                      sources = ["FModules/symdynph_gq_new.f90, FModules/symm_base.f90"],
+                      sources = ["FModules/symdynph_gq_new.f90", "FModules/symm_base.f90", 
+                                 "FModules/sgam_ph.f90", "FModules/invmat.f90"],
+                      libraries= ["lapack", "blas"]
                       )
 
 
@@ -13,7 +15,7 @@ setup( name = "CellConstructor",
        packages = ["cellconstructor"],
        package_dir = {"cellconstructor": "cellconstructor"},
        package_data = {"cellconstructor": ["SymData/*.dat"]},
-       install_requires = ["numpy", "ase", "scipy"],
+       install_requires = ["numpy", "ase", "scipy", "gfortran", "lapack"],
        license = "MIT",
        include_package_data = True,
        ext_modules = [symph_ext]

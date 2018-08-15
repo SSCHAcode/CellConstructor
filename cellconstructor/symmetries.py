@@ -20,7 +20,7 @@ CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 __EPSILON__ = 1e-5
 
 class QE_Symmetry:
-    def __init__(self, structure, threshold = 1e-5):
+    def __init__(self, structure, threshold = 1e-1):
         """
         Quantum ESPRESSO Symmetry class
         ===============================
@@ -44,11 +44,14 @@ class QE_Symmetry:
                 
         """
         
-        if not self.structure.has_unit_cell:
+        if not structure.has_unit_cell:
             raise ValueError("Error, symmetry operation can be initialize only if the structure has a unit cell")
         
         self.structure = structure
         self.threshold = np.float64(threshold)
+        
+        # Setup the threshold 
+        symph.symm_base.set_accep_threshold(self.threshold)
         
         nat = structure.N_atoms
         
@@ -58,6 +61,7 @@ class QE_Symmetry:
         self.QE_irt = np.zeros( (48, nat), dtype = np.intc, order = "F")
         self.QE_invs = np.zeros( (48), dtype = np.intc, order = "F")
         self.QE_rtau = np.zeros( (3, 48, nat), dtype = np.float64, order = "F")
+        self.QE_ft = np.zeros( (3, 48), dtype = np.float64, order = "F")
         
         
         self.QE_minus_q = np.bool( False )
@@ -77,7 +81,7 @@ class QE_Symmetry:
                 symbs[atm] = counter
                 counter += 1
             
-            self.QE_ityp = symbs[atm]
+            self.QE_ityp[i] = symbs[atm]
             for j in range(3):
                 self.QE_tau[j, i] = structure.coords[i, j]
                 
@@ -85,18 +89,20 @@ class QE_Symmetry:
         self.QE_at = np.zeros( (3,3), dtype = np.float64, order = "F")
         self.QE_bg = np.zeros( (3,3), dtype = np.float64, order = "F")
         
-        bg = structure.get_recpirocal_vectors()
+        bg = structure.get_reciprocal_vectors()
         for i in range(3):
             for j in range(3):
                 self.QE_at[i,j] = structure.unit_cell[j,i]   
-                self.QE_bg[i,j] = bg[j,i]
+                self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
 
         
     def ChangeThreshold(self, threshold):
         self.threshold = np.float64(threshold)
+        symph.symm_base.set_accep_threshold(self.threshold)
+
         
         
-    def SetupQPoint(self, q_point):
+    def SetupQPoint(self, q_point, verbose = False):
         """
         Get symmetries of the small group of q
         
@@ -106,15 +112,95 @@ class QE_Symmetry:
         ----------
             q_point : ndarray
                 The q vector in reciprocal space (NOT in crystal axes)
+            verbose : bool
+                If true the number of symmetries found for the bravais lattice, 
+                the crystal and the small group of q are written in stdout
         """
+        # Convert the q point in Fortran
+        if len(q_point) != 3:
+            raise ValueError("Error, the q point must be a 3d vector")
+        
+        aq = np.ones(3, dtype = np.float64) * Methods.covariant_coordinates(self.QE_bg.transpose(), q_point)
         
         # Setup the bravais lattice
-        symph.set_at_bg(self.QE_at, self.QE_bg)
+        symph.symm_base.set_at_bg(self.QE_at, self.QE_bg)
         
         # Prepare the symmetries
-        symph.set_sym_bl()
-        #TODO: TO BE CONTINUED 
-    
+        symph.symm_base.set_sym_bl()
+        
+        if verbose:
+            print "Symmetries of the bravais lattice:", symph.symm_base.nrot
+        
+        
+        # Now copy all the work initialized on the symmetries inside python
+        self.QE_s = np.copy(symph.symm_base.s)
+        self.QE_ft = np.copy(symph.symm_base.ft)
+        self.QE_nsymq =  symph.symm_base.nrot
+        
+        # Prepare a dummy variable for magnetic spin
+        m_loc = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")
+        
+        # Find the symmetries of the crystal
+        symph.symm_base.find_sym(self.QE_tau, self.QE_ityp, 6, 6, 6, False, m_loc)
+        
+        if verbose:
+            print "Symmetries of the crystal:", symph.symm_base.nsym
+        
+        
+        
+        # Now copy all the work initialized on the symmetries inside python
+        self.QE_s = np.copy(symph.symm_base.s)
+        self.QE_ft = np.copy(symph.symm_base.ft)
+        
+        
+        # Prepare the symmetries of the small group of q
+        syms = np.zeros( (48), dtype = np.intc)
+        
+        # Initialize to true the symmetry of the crystal
+        syms[:symph.symm_base.nsym] = np.intc(1)
+        
+        self.QE_minus_q = symph.symm_base.smallg_q(aq, 0, syms)
+        self.QE_nsymq = symph.symm_base.copy_sym(symph.symm_base.nsym, syms)
+        
+        # Recompute the inverses
+        symph.symm_base.inverse_s()
+        
+        if verbose:
+            print "Symmetries of the small group of q:", self.QE_nsymq
+        
+        # Assign symmetries
+        self.QE_s = np.copy(symph.symm_base.s)
+        self.QE_invs = np.copy(symph.symm_base.invs)
+        self.QE_ft = np.copy(symph.symm_base.ft)
+        self.QE_irt = np.copy(symph.symm_base.irt)
+        
+        # Compute the additional shift caused by fractional translations
+        self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 
+                                         self.QE_irt, self.QE_tau, self.QE_nat)
+        
+        
+        # If minus q check which is the symmetry
+        if self.QE_minus_q:
+            syms = self.GetSymmetries()
+            
+            # Fix in the Same BZ
+            for i in range(3):
+                aq[i] = aq[i] - int(aq[i])
+                if aq[i] < 0:
+                    aq[i] += 1
+                    
+            for k, sym in enumerate(syms):
+                new_q = sym[:,:3].dot(aq)
+                # Fix in the Same BZ
+                for i in range(3):
+                    new_q[i] = new_q[i] - int(new_q[i])
+                    if new_q[i] < 0:
+                        new_q[i] += 1
+                
+                if np.sum( (new_q - aq)**2) < __EPSILON__:
+                    self.QE_irotmq = k + 1
+                    break
+                
     def InitFromSymmetries(self, symmetries, q_point):
         """
         This function initialize the QE symmetries from the symmetries expressed in the
@@ -170,6 +256,30 @@ class QE_Symmetry:
                 self.QE_irotmq = k + 1
                 break
                 
+    def GetSymmetries(self):
+        """
+        GET SYMMETRIES FROM QE
+        ======================
+        
+        This method returns the symmetries in the CellConstructor format from
+        the ones elaborated here.
+        
+        Results
+        -------
+            list :
+                List of 3x4 ndarray representing all the symmetry operations
+        """
+        
+        syms = []
+        for i in range(self.QE_nsymq):
+            s_rot = np.zeros( (3, 4))
+            s_rot[:, :3] = np.transpose(self.QE_s[:, :, i])
+            s_rot[:, 3] = self.QE_ft[:, i]
+            
+            syms.append(s_rot)
+        
+        return syms
+            
                 
     def SymmetrizeDynQ(self, dyn_matrix, q_point):
         """
@@ -203,8 +313,8 @@ class QE_Symmetry:
                 QE_dyn[:, :, na, nb] = Methods.convert_matrix_cart_cryst(fc, self.structure.unit_cell, False)
         
         # Prepare the xq variable
-        xq = np.zeros(3, dtype = np.float64)
-        xq[:] = q_point
+        xq = np.ones(3, dtype = np.float64)
+        xq *= q_point
         
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 

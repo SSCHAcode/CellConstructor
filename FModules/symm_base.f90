@@ -117,7 +117,7 @@ CONTAINS
               found = .TRUE.
            END IF
         END DO
-        IF ( .NOT.found) CALL errore ('inverse_s', ' Not a group', 1)
+        IF ( .NOT.found) stop "ERROR, not a group"
      END DO
      !
    END SUBROUTINE inverse_s 
@@ -259,7 +259,7 @@ subroutine set_sym_bl ( )
   !
   !    then its inverse (rot is used as work space)
   !
-  call invmat (3, rot, overlap, value)
+  call invmat (3, rot, overlap)
 
   nrot = 1
   do irot = 1,32
@@ -368,7 +368,7 @@ SUBROUTINE find_sym ( nat, tau, ityp, nr1, nr2, nr3, magnetic_sym, m_loc )
   nsym = copy_sym ( nrot, sym )
   !
   IF ( .not. is_group ( ) ) THEN
-     CALL infomsg ('find_sym', 'Not a group! symmetry disabled')
+     print *, "find_sym: Not a group! symmetry disabled"
      nsym = 1
   END IF
   !
@@ -429,9 +429,13 @@ subroutine sgam_at ( nat, tau, ityp, nr1, nr2, nr3, sym )
   !     Compute the coordinates of each atom in the basis of
   !     the direct lattice vectors
   !
+  
   do na = 1, nat
      xau(:,na) = bg(1,:) * tau(1,na) + bg(2,:) * tau(2,na) + bg(3,:) * tau(3,na)
   enddo
+
+
+  
   !
   !      check if the identity has fractional translations
   !      (this means that the cell is actually a supercell).
@@ -468,21 +472,20 @@ subroutine sgam_at ( nat, tau, ityp, nr1, nr2, nr3, sym )
 ! *********************************************************************
   nsym_ns = 0 
   do irot = 1, nrot
-     !
-     ! check that the grid is compatible with the S rotation
-     !
-     if ( mod (s (2, 1, irot) * nr1, nr2) /= 0 .or. &
-          mod (s (3, 1, irot) * nr1, nr3) /= 0 .or. &
-          mod (s (1, 2, irot) * nr2, nr1) /= 0 .or. &
-          mod (s (3, 2, irot) * nr2, nr3) /= 0 .or. &
-          mod (s (1, 3, irot) * nr3, nr1) /= 0 .or. &
-          mod (s (2, 3, irot) * nr3, nr2) /= 0 ) then
-        sym (irot) = .false.
-        print *, '(5x,"warning: symmetry operation # ",i2, &
-             &         " not compatible with FFT grid. ")') irot
-        print  '(3i4)', ( (s (i, j, irot) , j = 1, 3) , i = 1, 3)
-        goto 100
-     endif
+     ! COMMENTED BY LORENZO MONACELLI
+     ! !
+     ! ! check that the grid is compatible with the S rotation
+     ! !
+     ! if ( mod (s (2, 1, irot) * nr1, nr2) /= 0 .or. &
+     !      mod (s (3, 1, irot) * nr1, nr3) /= 0 .or. &
+     !      mod (s (1, 2, irot) * nr2, nr1) /= 0 .or. &
+     !      mod (s (3, 2, irot) * nr2, nr3) /= 0 .or. &
+     !      mod (s (1, 3, irot) * nr3, nr1) /= 0 .or. &
+     !      mod (s (2, 3, irot) * nr3, nr2) /= 0 ) then
+     !    sym (irot) = .false.
+     !    print  '(3i4)', ( (s (i, j, irot) , j = 1, 3) , i = 1, 3)
+     !    goto 100
+     ! endif
 
      do na = 1, nat
         ! rau = rotated atom coordinates
@@ -617,8 +620,9 @@ subroutine sgam_at_mag ( nat, m_loc, sym )
         do na = 1, nat
            !
            nb = irt (irot,na)
-           if ( nb < 1 .or. nb > nat ) call errore ('check_mag_sym', &
-               'internal error: out-of-bound atomic index', na) 
+           if ( nb < 1 .or. nb > nat ) then
+              stop "check_mag_sym: internal error: out-of-bound atomic index"
+           end if
            !
            t1 = ( abs(mrau(1,na) - mxau(1,nb)) +       &
                   abs(mrau(2,na) - mxau(2,nb)) +       &
@@ -676,7 +680,7 @@ SUBROUTINE set_sym(nat, tau, ityp, nspin_mag, m_loc, nr1, nr2, nr3)
   RETURN
   END SUBROUTINE set_sym
 !
-!-----------------------------------------------------------------------
+  
 INTEGER FUNCTION copy_sym ( nrot_, sym ) 
 !-----------------------------------------------------------------------
   !
@@ -819,7 +823,7 @@ logical function checksym ( irot, nat, ityp, xau, rau, ft_ )
   ! ft_: fractionary translation (as above)
   !
   integer :: na, nb
-  logical, external :: eqvect
+
   ! the testing function
   !
   do na = 1, nat
@@ -879,10 +883,11 @@ subroutine checkallsym ( nat, tau, ityp, nr1, nr2, nr3 )
      sy = matmul ( transpose ( sx ), sx )
      ! sy = s*transpose(s) = I
      do i = 1, 3
-        sy (i,i) = sy (i,i) - 1.0_dp
+        sy (i,i) = sy (i,i) - 1.0d0
      end do
      if (any (abs (sy) > eps1 ) ) &
-         call errore ('checkallsym', 'not orthogonal operation', isym)
+          !call errore ('checkallsym', 'not orthogonal operation', isym)
+          stop "Checkallsym not orthogonal operation"
   enddo
   !
   !     Compute the coordinates of each atom in the basis of the lattice
@@ -916,14 +921,15 @@ subroutine checkallsym ( nat, tau, ityp, nr1, nr2, nr3 )
   deallocate(xau)
   !
   do isym = 1,nsym
-     if (.not.loksym (isym) ) call errore ('checkallsym', &
-          'the following symmetry operation is not satisfied  ', -isym)
+     if (.not.loksym (isym) ) then
+        stop "chgeckallsym: the symmetry operation is not satisfied"
+     end if
+
   end do
   if (ANY (.not.loksym (1:nsym) ) ) then
       !call symmetrize_at (nsym, s, invs, ft, irt, nat, tau, at, bg, &
       !                    alat, omega)
-      call errore ('checkallsym', &
-           'some of the original symmetry operations not satisfied ',1)
+      stop "checkallsym some of the original symmetry operations not satisfied"
   end if
   !
   return
@@ -949,4 +955,98 @@ subroutine s_axis_to_cart ( )
   !
  end subroutine s_axis_to_cart
 
+
+ subroutine smallg_q (aq, modenum, sym, minus_q)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine selects, among the symmetry matrices of the point group
+  ! of a crystal, the symmetry operations which leave q unchanged.
+  ! Furthermore it checks if one of the above matrices send q --> -q+G.
+  ! In this case minus_q is set true.
+  !
+  !  input-output variables
+  !
+  implicit none
+
+  double precision, intent(in) :: aq (3)
+  ! input: the q point of the crystal
+  !        IN CRYSTAL UNITS (REMEMBER TO CONVERT IT)
+
+  integer, intent(in) :: modenum
+  ! input: main switch of the program, used for
+  !        q<>0 to restrict the small group of q
+  !        to operation such that Sq=q (exactly,
+  !        without G vectors) when iswitch = -3.
+  ! Note, initialize it with true up to the crystal symmetry
+  logical, intent(inout) :: sym (48)
+  logical, intent(out) :: minus_q
+  ! input-output: .true. if symm. op. S q = q + G
+  ! output: .true. if there is an op. sym.: S q = - q + G
+  !
+  !  local variables
+  !
+
+  double precision :: raq (3), zero (3)
+  ! q vector in crystal basis
+  ! the rotated of the q vector
+  ! the zero vector
+
+  integer :: irot, ipol, jpol
+  ! counter on symmetry op.
+  ! counter on polarizations
+  ! counter on polarizations
+
+  ! logical function, check if two vectors are equa
+  !
+  ! return immediately (with minus_q=.true.) if xq=(0,0,0)
+  !
+  minus_q = .true.
+  if ( (aq (1) == 0.d0) .and. (aq (2) == 0.d0) .and. (aq (3) == 0.d0) ) &
+       return
+  !
+  !   Set to zero some variables
+  !
+  minus_q = .false.
+  zero(:) = 0.d0
+  !
+  !   Transform xq to the crystal basis
+  !
+  ! aq = xq
+  ! call cryst_to_cart (1, aq, at, - 1)
+  ! !
+  !   Test all symmetries to see if this operation send Sq in q+G or in -q+G
+  !
+  do irot = 1, nrot
+     if (.not.sym (irot) ) goto 100
+     raq(:) = 0.d0
+     do ipol = 1, 3
+        do jpol = 1, 3
+           raq(ipol) = raq(ipol) + DBLE( s(ipol,jpol,irot) ) * aq( jpol)
+        enddo
+     enddo
+     sym (irot) = eqvect (raq, aq, zero)
+     !
+     !  if "iswitch.le.-3" (modenum.ne.0) S must be such that Sq=q exactly !
+     !
+     if (modenum.ne.0 .and. sym(irot) ) then
+        do ipol = 1, 3
+           sym(irot) = sym(irot) .and. (abs(raq(ipol)-aq(ipol)) < 1.0d-5)
+        enddo
+     endif
+     if (.not.minus_q) then ! ION ERREA's change
+!     if (sym(irot).and..not.minus_q) then
+        raq = - raq
+        minus_q = eqvect (raq, aq, zero)
+     endif
+100  continue
+  enddo
+  !
+  !  if "iswitch.le.-3" (modenum.ne.0) time reversal symmetry is not included !
+  !
+  if (modenum.ne.0) minus_q = .false.
+  !
+  return
+end subroutine smallg_q
+
+ 
 END MODULE symm_base
