@@ -20,7 +20,7 @@ CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 __EPSILON__ = 1e-5
 
 class QE_Symmetry:
-    def __init__(self, structure):
+    def __init__(self, structure, threshold = 1e-5):
         """
         Quantum ESPRESSO Symmetry class
         ===============================
@@ -31,14 +31,24 @@ class QE_Symmetry:
         Starting from a set of symmetry operation and the structure of the system, it
         builds all the QE symmetry operations.
         
+        NOTE:
+            Use always the provided methods to change the self variables, as they are
+            handled to properly cast the fortran types and array alignment.
+        
         Parameters
         ----------
             structure : CC.Structure.Structure()
                 The structure to which the symmetries refer to.
+            threshold : float
+                The threshold of the symmetry operation.
                 
         """
         
+        if not self.structure.has_unit_cell:
+            raise ValueError("Error, symmetry operation can be initialize only if the structure has a unit cell")
+        
         self.structure = structure
+        self.threshold = np.float64(threshold)
         
         nat = structure.N_atoms
         
@@ -49,10 +59,61 @@ class QE_Symmetry:
         self.QE_invs = np.zeros( (48), dtype = np.intc, order = "F")
         self.QE_rtau = np.zeros( (3, 48, nat), dtype = np.float64, order = "F")
         
+        
         self.QE_minus_q = np.bool( False )
         self.QE_irotmq = np.intc(0)
         self.QE_nsymq = np.intc( 0 )
         
+        # Prepare the QE structure
+        self.QE_tau = np.zeros((3, nat), dtype = np.float64, order = "F")
+        self.QE_ityp = np.zeros(nat, dtype = np.intc)
+        
+        symbs = {}
+        counter = 1
+        for i in range(nat):
+            # Rank the atom number
+            atm = structure.atoms[i]
+            if not atm in symbs.keys():
+                symbs[atm] = counter
+                counter += 1
+            
+            self.QE_ityp = symbs[atm]
+            for j in range(3):
+                self.QE_tau[j, i] = structure.coords[i, j]
+                
+            
+        self.QE_at = np.zeros( (3,3), dtype = np.float64, order = "F")
+        self.QE_bg = np.zeros( (3,3), dtype = np.float64, order = "F")
+        
+        bg = structure.get_recpirocal_vectors()
+        for i in range(3):
+            for j in range(3):
+                self.QE_at[i,j] = structure.unit_cell[j,i]   
+                self.QE_bg[i,j] = bg[j,i]
+
+        
+    def ChangeThreshold(self, threshold):
+        self.threshold = np.float64(threshold)
+        
+        
+    def SetupQPoint(self, q_point):
+        """
+        Get symmetries of the small group of q
+        
+        Setup the symmetries in the small group of Q.
+        
+        Parameters
+        ----------
+            q_point : ndarray
+                The q vector in reciprocal space (NOT in crystal axes)
+        """
+        
+        # Setup the bravais lattice
+        symph.set_at_bg(self.QE_at, self.QE_bg)
+        
+        # Prepare the symmetries
+        symph.set_sym_bl()
+        #TODO: TO BE CONTINUED 
     
     def InitFromSymmetries(self, symmetries, q_point):
         """

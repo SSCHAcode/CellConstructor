@@ -1,7 +1,7 @@
 from numpy.distutils.core import setup, Extension
 
 symph_ext = Extension(name = "symph",
-                      sources = ["FModules/symdynph_gq_new.f90"],
+                      sources = ["FModules/symdynph_gq_new.f90, FModules/symm_base.f90"],
                       )
 
 
