@@ -59,6 +59,25 @@ class Structure:
         """
 
         self.masses = masses
+    
+    def get_masses_array(self):
+        """
+        Convert the masses of the current structure 
+        in a numpy array of size N_atoms
+        
+        NOTE: This method will rise an exception if the masses are not initialized well
+        
+        Results
+        -------
+            masses : ndarray (size self.N_atoms)
+                The array containing the mass for each atom of the system.
+        """
+        
+        masses = np.zeros( self.N_atoms)
+        for i in range(self.N_atoms):
+            masses[i] = self.masses[ self.atoms[i] ]
+        
+        return masses
 
     def read_xyz(self, filename, alat = False, epsilon = 1e-8, frame_id = 0):
         """

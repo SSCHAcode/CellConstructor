@@ -636,8 +636,9 @@ class Phonons:
         w0, pols0 = dyn0.DyagDinQ(0)
 
         # Remove translations (acustic modes in gamma)
-        tmask1 = Methods.get_translations(pols1)
-        tmask0 = Methods.get_translations(pols0)
+        tmask1 = Methods.get_translations(pols1, self.structure.get_masses_array())
+        tmask0 = Methods.get_translations(pols0, dyn0.structure.get_masses_array())
+        
 
         w1 = w1[  ~tmask1 ]
         pols1 = pols1[:, ~tmask1]

@@ -678,7 +678,7 @@ def write_namelist(total_dict):
                 
         
     
-def get_translations(pols):
+def get_translations(pols, masses):
     """
     GET TRANSLATIONS
     ================
@@ -690,6 +690,8 @@ def get_translations(pols):
     ----------
         pols : ndarray 2 rank
             The polarization vectors as they came out from DyagDinQ(0) method from Phonons.
+        masses : ndarray (size nat)
+            The mass of each atom. 
 
     Returns
     -------
@@ -713,6 +715,10 @@ def get_translations(pols):
 
     The ~ caracter is used to get the bit not operation over the t_mask array (to mark False the translational modes and True all the others) 
     """
+    
+    # Check if the masses array is good
+    if len(masses) * 3 != np.size(pols[:,0]):
+        raise ValueError("Error, the size of the two array masses and pols are not compatible.")
 
 
     # Get the number of atoms and the number of polarization vectors
@@ -726,7 +732,8 @@ def get_translations(pols):
         # Check if the polarization vector is oriented in the same way for each atom
         thr_val = 0
         for j in range(n_atoms):
-            thr_val += np.sum( np.abs(pols[3 * j : 3 * j + 3, i] - pols[:3, i])**2)
+            thr_val += np.sum( np.abs(pols[3 * j : 3 * j + 3, i]/np.sqrt(masses[j]) - 
+                                      pols[:3, i] / np.sqrt(masses[0]))**2)
 
         thr_val = np.sqrt(thr_val)
             
