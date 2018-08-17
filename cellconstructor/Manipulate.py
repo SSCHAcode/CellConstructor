@@ -10,6 +10,61 @@ from Phonons import Phonons
 import Methods
 import warnings
 
+
+def GetQ_vectors(structures, dynmat):
+    """
+    Q VECTOR
+    ========
+
+    The q vector is a vector of the displacement respect to the
+    polarization basis.
+    It is computed as
+
+    .. math ::
+
+        q_\\mu = \\sum_\\alpha \\sqrt{M_\\alpha} u_\\alpha e_\\mu^{\\alpha}
+
+    where :math:`M_\\alpha` is the atomic mass, :math:`u_\\alpha` the 
+    displacement of the structure respect to the equilibrium and 
+    :math:`e_\\mu^\\alpha` is the :math:`\\mu`-th polarization vector
+    in the supercell.
+
+    Parameters
+    ----------
+        structures : list
+            The list of structures to compute q
+        dynmat : Phonons()
+            The dynamical matrix from which the polarization vectors and
+            the reference structure are computed.
+    
+    Results
+    -------
+        q_vectors : ndarray (M x 3N)
+            A fortran array of the q_vectors for each of the M structures
+            dtype = numpy.float64
+    """
+
+    # Prepare the polarization vectors
+    w, pols = dynmat.DyagDinQ(0)
+
+    # Prepare the masses
+    nat = dynmat.structure.N_atoms
+    _m_ = np.zeros(3 * nat)
+    for i in range(nat):
+        _m_[3 *i : 3*i + 3] = dynmat.structure.get_masses_array()[i]
+
+    # Delete the translations
+    pols = pols[ :, ~ Methods.get_translations(pols, dynmat.structure.get_masses_array()) ]
+
+    q_vects = np.zeros( (len(structures), len(pols[0,:])), dtype = np.float64)
+    for i, struc in enumerate( structures):
+        # Get the displacements
+        u_disp =  struc.get_displacement(dynmat.structure).reshape(3 * nat)
+        q_vects[i, :] = np.einsum("i, ij, i", np.sqrt(_m_), pols, u_disp)
+
+    return q_vects
+
+
 def LoadXYZTrajectory(fname, max_frames = -1, unit_cell = None):
     """
     Load the XYZ file containing an animation

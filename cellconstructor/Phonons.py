@@ -593,6 +593,9 @@ class Phonons:
         Where :math:`D_1` is the current dynamical matrix, while :math:`D_0` is the
         dynamical matrix that has been actually used to generate dyn0
         
+        TODO: It seems to return wrong results
+        NOTE: This subroutine seems to return fake results, please be carefull.
+        
         Parameters
         ----------
             structure : Structure.Structure()
@@ -722,7 +725,7 @@ class Phonons:
         # Get the polarization vectors and frequencies
         w, pol_vects = self.DyagDinQ(0)
         
-        n_modes = len(w)
+        n_modes = len(w) 
         
         # Strain the polarization vectors
         new_vect = np.zeros(np.shape(pol_vects))
@@ -1152,6 +1155,8 @@ class Phonons:
         
         return final_structures
 
+    
+    
     def get_energy_forces(self, structure, vector1d = False):
         """
         COMPUTE ENERGY AND FORCES
