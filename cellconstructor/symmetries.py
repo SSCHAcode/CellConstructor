@@ -20,7 +20,7 @@ CURRENT_DIR = os.path.dirname(CURRENT_PATH)
 __EPSILON__ = 1e-5
 
 class QE_Symmetry:
-    def __init__(self, structure, threshold = 1e-1):
+    def __init__(self, structure, threshold = 1e-5):
         """
         Quantum ESPRESSO Symmetry class
         ===============================

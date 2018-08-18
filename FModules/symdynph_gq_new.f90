@@ -24,7 +24,7 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
   !    The dummy variables
   !
   integer, intent(in) :: nat, nsymq, irotmq
-  integer, intent(in) :: s (3, 3, nsymq), irt (nsymq, nat), invs (nsymq)
+  integer, intent(in) :: s (3, 3, 48), irt (48, nat), invs (48)
   ! input: the number of atoms
   ! input: the symmetry matrices
   ! input: the rotated of each vector
@@ -32,7 +32,7 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
   ! input: the inverse of each matrix
   ! input: the order of the small gro
   ! input: the rotation sending q ->
-  double precision, intent(in) :: xq (3), rtau (3, nsymq, nat)
+  double precision, intent(in) :: xq (3), rtau (3, 48, nat)
   ! input: the q point
   ! input: the R associated at each t
 

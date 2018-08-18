@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 
 import Methods
 
-BOHR_TO_ANGSTROM = 0.52918
+A_TO_BOHR = np.float64(1.889725989)
+BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
 __EPSILON__ = 1e-5
 
 class Phonons:
@@ -165,7 +166,7 @@ class Phonons:
                 
                 nat = int(struct_info[1])
                 ntyp = int(struct_info[0])
-                self.alat = float(struct_info[3]) * BOHR_TO_ANGSTROM # We want a structure in angstrom
+                self.alat = np.float64(struct_info[3]) * BOHR_TO_ANGSTROM # We want a structure in angstrom
                 
                 # Allocate the coordinates
                 self.structure.N_atoms = nat
@@ -175,7 +176,7 @@ class Phonons:
                 unit_cell = np.zeros((3,3))
                 if ibrav == 0:
                     for i in range(3):
-                        unit_cell[i, :] = np.array([float(item) for item in dynlines[4 + i].split()]) * self.alat
+                        unit_cell[i, :] = np.array([np.float64(item) for item in dynlines[4 + i].split()]) * self.alat
                 else:
                     unit_cell = Methods.get_unit_cell_from_ibrav(ibrav, celldm)
                     # Insert 4 lines to match the same number of lines as in ibrav = 0
@@ -192,7 +193,7 @@ class Phonons:
                     atoms_dict[atom_index] = atm_line.split("'")[1].strip()
                     
                     # Get also the atomic mass
-                    masses_dict[atoms_dict[atom_index]] = float(atm_line.split("'")[-1].strip())
+                    masses_dict[atoms_dict[atom_index]] = np.float64(atm_line.split("'")[-1].strip())
                     
                 self.structure.set_masses(masses_dict)
                 
@@ -204,7 +205,7 @@ class Phonons:
                 for i in range(nat):
                     # Jump the lines up to the structure
                     line_index = 7 + ntyp + i
-                    atom_info = np.array([float(item) for item in dynlines[line_index].split()])
+                    atom_info = np.array([np.float64(item) for item in dynlines[line_index].split()])
                     self.structure.atoms.append(atoms_dict[int(atom_info[1])])
                     self.structure.coords[i, :] = atom_info[2:] * self.alat
                     
@@ -223,7 +224,7 @@ class Phonons:
             # Get the small q point
             reading_dyn = True
             index = -1
-            current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms), dtype = np.complex64)    
+            current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms), dtype = np.complex128)    
             
             # The atom indices
             atm_i = 0
@@ -302,14 +303,14 @@ class Phonons:
                 if reading_dielectric:
                     # Reading the dielectric
                     if len(numbers_in_line) == 3:
-                        self.dielectric_tensor[dielectric_read, :] = np.array([float(x) for x in numbers_in_line])
+                        self.dielectric_tensor[dielectric_read, :] = np.array([np.float64(x) for x in numbers_in_line])
                         dielectric_read += 1
                 elif reading_eff_charges:
                     if numbers_in_line[0].lower() == "atom":
                         atm_i = int(numbers_in_line[2]) - 1
                         dielectric_read = 0
                     elif len(numbers_in_line) == 3:
-                        self.effective_charges[atm_i, dielectric_read,:] = np.array([float(x) for x in numbers_in_line])
+                        self.effective_charges[atm_i, dielectric_read,:] = np.array([np.float64(x) for x in numbers_in_line])
                         dielectric_read += 1
                 elif reading_raman:
                     if numbers_in_line[0].lower() == "atom":
@@ -317,7 +318,7 @@ class Phonons:
                         pol_read = int(numbers_in_line[4]) - 1
                         dielectric_read = 0
                     elif len(numbers_in_line) == 3:
-                        self.raman_tensor[dielectric_read,:, 3*atm_i + pol_read] = np.array([float(x) for x in numbers_in_line])
+                        self.raman_tensor[dielectric_read,:, 3*atm_i + pol_read] = np.array([np.float64(x) for x in numbers_in_line])
                         dielectric_read += 1
                 else:
                     # Read the numbers
@@ -329,7 +330,7 @@ class Phonons:
                     elif(len(numbers_in_line) == 6):
                         # Read the dynmat
                         for k in range(3):
-                            current_dyn[3 * atm_i + coordline, 3*atm_j + k] = float(numbers_in_line[2*k]) + 1j*float(numbers_in_line[2*k + 1])
+                            current_dyn[3 * atm_i + coordline, 3*atm_j + k] = np.float64(numbers_in_line[2*k]) + 1j*np.float64(numbers_in_line[2*k + 1])
                         coordline += 1
                 
                 
@@ -857,7 +858,7 @@ class Phonons:
                 where IQ is an integer between 0 and self.nqirr will be generated.
                 filename0 will contain all the information about the Q points and the supercell.
         """
-        A_TO_BOHR = 1.889725989
+        #A_TO_BOHR = 1.889725989
         RyToCm=109737.37595
         RyToTHz=3289.84377
         
@@ -893,7 +894,7 @@ class Phonons:
             
             # Write the comment line
             fp.write("File generated with the CellConstructor by Lorenzo Monacelli\n")
-            fp.write("%d %d %d %.8f %.8f %.8f %.8f %.8f %.8f\n" %
+            fp.write("%d %d %d %22.16f %22.16f %22.16f %22.16f %22.16f %22.16f\n" %
                      (n_types, n_atoms, 0, self.alat * A_TO_BOHR, 0, 0, 0, 0, 0) )
         
             # Write the basis vector
@@ -910,7 +911,7 @@ class Phonons:
             for i in range(n_atoms):
                 # Convert the coordinates in alat
                 coords = self.structure.coords[i,:] / self.alat
-                fp.write("%5d %5d %15.10f %15.10f %15.10f\n" %
+                fp.write("%5d %5d %22.16f %22.16f %22.16f\n" %
                          (i +1, itau[self.structure.atoms[i]], 
                           coords[0], coords[1], coords[2]))
         
@@ -1191,17 +1192,28 @@ class Phonons:
         """
         
         # Convert the displacement vector in bohr
-        A_TO_BOHR=1.889725989
+        #A_TO_BOHR=np.float64(1.889725989)
         
         # Get the displacement vector (bohr)
         rv = structure.get_displacement(self.structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
         
         # Get the energy
-        energy = 0.5 * rv.dot ( self.dynmats[0].dot(rv))
+        energy = 0.5 * rv.dot ( self.dynmats[0]).dot(rv)
         
-        # Get the forces (Ry/ A)
-        forces = self.dynmats[0].dot(rv) * A_TO_BOHR
-
+        
+        # Get the forces (Ry/ bohr)
+        forces = - self.dynmats[0].dot(rv) 
+#        
+#        print ""
+#        print " ===== DYNMAT ====="
+#        print self.dynmats[0]
+#        print " === END DYNMAT ==="
+#        
+#        print "EXTRACTING SCHA FORCE:"
+#        print "     u = ", rv, "force = ", forces
+        
+        # Translate the force in Ry / A
+        forces *= A_TO_BOHR
         if not vector1d:
             forces = forces.reshape( (self.structure.N_atoms, 3))
         
@@ -1276,7 +1288,7 @@ class Phonons:
             ndarray 3Nat x 3Nat
                 The new force constant matrix after the application of the symmetries
         """
-        A_TO_BOHR = 1.889725989
+        #A_TO_BOHR = 1.889725989
         
         
         # Check if the matrix has been initialized

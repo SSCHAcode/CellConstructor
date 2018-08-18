@@ -19,7 +19,7 @@ class Structure:
     def __init__(self, nat=0):
         self.N_atoms=nat
         # Coordinates are always express in chartesian axis
-        self.coords = np.zeros((self.N_atoms, 3))
+        self.coords = np.zeros((self.N_atoms, 3), dtype = np.float64)
         self.atoms = []
         self.unit_cell = np.zeros((3,3))
         self.has_unit_cell = False
@@ -78,7 +78,32 @@ class Structure:
             masses[i] = self.masses[ self.atoms[i] ]
         
         return masses
+    
+    def get_atomic_types(self):
+        """
+        Get an array of integer, starting from 1, for each atom of the structure,
+        so that two equal atoms share the same index. 
+        
+        This is how different types are stored in Quantum ESPRESSO and it
+        is usefull for the wrapping Fortran => Python.
+        
+        Result
+        ------
+            ityp : ndarray dtype=(numpy.intc)
+                The type array
+        """
+        
+        ityp = []
+        cont = 1
+        for i, atm in enumerate(self.atoms):
+            ityp.append(cont)
+            
+            if atm not in self.atoms[:i]:
+                cont += 1
 
+        # For fortran and C compatibility parse the array
+        return np.array(ityp, dtype = np.intc)
+        
     def read_xyz(self, filename, alat = False, epsilon = 1e-8, frame_id = 0):
         """
         This function reads the atomic position from a xyz file format.
@@ -130,9 +155,9 @@ class Structure:
             atom, x, y, z = line.split()
 
             self.atoms.append(atom)
-            self.coords[i,0] = float(x)
-            self.coords[i,1] = float(y)
-            self.coords[i,2] = float(z)
+            self.coords[i,0] = np.float64(x)
+            self.coords[i,1] = np.float64(y)
+            self.coords[i,2] = np.float64(z)
 
             # Rescale the coordinates with the unit cell if requested
             if alat:
@@ -176,7 +201,7 @@ class Structure:
         read_crystal = False
         
         #atom_index = 0
-        cell = np.zeros((3,3))
+        cell = np.zeros((3,3), dtype = np.float64)
         tmp_coords = []
         for line in fp.readlines():
             line = line.strip()
@@ -198,7 +223,7 @@ class Structure:
                 
                 # Check if the alat value is specified here
                 if "alat=" in line.lower().replace(" ", ""):
-                    value_alat = float(line[ line.find("=") + 1:].strip().replace(")",""))
+                    value_alat = np.float64(line[ line.find("=") + 1:].strip().replace(")",""))
                     alat = value_alat * BOHR_TO_ANGSTROM
                     
                 continue
@@ -212,7 +237,7 @@ class Structure:
             
             
             if read_cell and cell_index < 3:
-                cell[cell_index, :] = [float(v)*alat for v in values]
+                cell[cell_index, :] = [np.float64(v)*alat for v in values]
                 cell_index += 1
             elif cell_index == 3:
                 read_cell = False
@@ -220,10 +245,10 @@ class Structure:
             if read_atoms:
                 self.atoms.append(values[0])
                 if not read_crystal:
-                    tmp_coords.append([float(v)*alat for v in values[1:4]])
+                    tmp_coords.append([np.float64(v)*alat for v in values[1:4]])
                 else:
                     # Read the crystal coordinate without taking care of alat
-                    tmp_coords.append([float(v) for v in values[1:4]])
+                    tmp_coords.append([np.float64(v) for v in values[1:4]])
 
                 n_atoms += 1
         fp.close()
@@ -231,14 +256,14 @@ class Structure:
             
             
         # Initialize the structure
-        self.coords = np.zeros((n_atoms, 3))
+        self.coords = np.zeros((n_atoms, 3), dtype = np.float64)
         self.N_atoms = n_atoms
         
         if cell_present:
             self.unit_cell = cell
             
         for i, coord in enumerate(tmp_coords):
-            self.coords[i,:] = np.array(coord)
+            self.coords[i,:] = np.array(coord, dtype = np.float64)
             
             # Transform the coordinates if crystal
             if read_crystal:
@@ -921,7 +946,10 @@ class Structure:
             
             
         if not avoid_header:
-            data.append("ATOMIC_POSITIONS angstrom\n")
+            if alat == 1:
+                data.append("ATOMIC_POSITIONS angstrom\n")
+            else:
+                data.append("ATOMIC_POSITIONS alat\n")
         for i in range(self.N_atoms):
             coords = np.copy(self.coords)
             coords /= alat
@@ -1278,7 +1306,7 @@ class Structure:
         
         return molecules
     
-    def get_displacement(self, target):
+    def get_displacement(self, target, dtype = np.float64):
         """
         GET THE DISPLACEMENT STRUCTURE
         ==============================
@@ -1294,6 +1322,8 @@ class Structure:
         ----------
             target : Structure.Structure()
                 The reference atomic positions (also this is a structure)
+            dtype : type
+                The type to be cast the result. By default is the double precision
         
         Results
         -------
@@ -1316,7 +1346,7 @@ class Structure:
             unit_cell = self.unit_cell
         
         disp = np.zeros(np.shape(self.coords))
-        disp = self.coords - target.coords
+        disp = np.float64(self.coords - target.coords)
         if easy:
             return disp
         

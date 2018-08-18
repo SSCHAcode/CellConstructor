@@ -5,9 +5,12 @@ import cellconstructor.Structure
 import cellconstructor.Phonons
 import cellconstructor.Manipulate
 from ase.visualize import view
+import cellconstructor.symmetries
 
 import numpy as np
+import matplotlib.pyplot as plt
 import spglib
+import time
 
 """
 This script check the symmetries of a dynamical matrix.
@@ -22,7 +25,7 @@ PH = CC.Phonons.Phonons("hydrogen_dyn", nqirr = 1)
 symmetries = spglib.get_symmetry(PH.structure.get_ase_atoms(), 0.01)
 
 # Convert the spglib symmetries into the cellconstructor format
-sym_mats = CC.Methods.GetSymmetriesFromSPGLIB(symmetries)
+sym_mats = CC.symmetries.GetSymmetriesFromSPGLIB(symmetries)
 
 # Impose the symmetries on the structure
 PH.structure.fix_coords_in_unit_cell()
@@ -93,3 +96,27 @@ PH.ForceSymmetries(sym_mats)
 new_w, new_pols = PH.DyagDinQ(0)
 print "Frequencies of the new symmetry | old frequencies"
 print "\n".join(["%12.2f\t%12.2f   cm-1" % (new_w[k]*RyToCm, w[k] * RyToCm) for k in range(0, len(w))])
+
+
+# Get the QE symmetry group
+# Test the generators
+q_point = np.array([0,0,0])
+qe_sym = CC.symmetries.QE_Symmetry(PH.structure)
+qe_sym.SetupQPoint( q_point, verbose = True)
+nat = PH.structure.N_atoms
+for i in range(0, nat * 3):
+    for j in range(0, nat * 3):
+        fc_start = np.zeros((3*nat, 3*nat))
+        fc_start[i, j] = 1
+        
+        # Perform the symmetrization
+        qe_sym.SymmetrizeDynQ(fc_start, q_point)
+        
+        # Display the matrix
+        plt.title("%d , %d" % (i, j))
+        plt.imshow(fc_start, interpolation = "nearest")
+        plt.colorbar()
+        plt.show()
+        print "%d, %d" % (i,j)
+        
+        
