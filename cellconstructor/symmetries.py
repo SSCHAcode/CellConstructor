@@ -99,7 +99,63 @@ class QE_Symmetry:
     def ChangeThreshold(self, threshold):
         self.threshold = np.float64(threshold)
         symph.symm_base.set_accep_threshold(self.threshold)
-
+        
+        
+    def ImposeSumRule(self, force_constant, asr = "crystal", axis = 1, zeu = None):
+        """
+        QE SUM RULE
+        ===========
+        
+        This subroutine imposes on the given force constant matrix the acustic sum rule
+        
+        Parameters
+        ----------
+            force_constnat : 3xnat , 3xnat
+                The force constant matrix, it is overwritten with the new one
+                after the sum rule has been applied.
+            asr : string, optional, default = 'crystal'
+                One of 'simple', 'crystal', 'one-dim' or 'zero-dim'. For a detailed
+                explanation look at the Quantum ESPRESSO documentation.
+            axis : int, optional
+                If asr = 'one-dim' you must set the rotational axis: 1 for x, 2 for
+                y and 3 for z. Ohterwise it is unused.
+            zeu : ndarray (N_atoms, 3, 3), optional
+                If different from None, it is the effective charge array. 
+                As the force_constant, it is updated.
+        
+        """
+        
+        QE_fc = np.zeros( (3, 3, self.QE_nat, self.QE_nat), order ="F", dtype = np.complex128)
+        
+        # Fill the effective charges if required
+        if zeu is not None:
+            # Convert in the correct indexing and use the fortran order
+            f_zeu = np.einsum("ijk -> kji", zeu, order = "F", dtype = np.float64)
+        else:    
+            f_zeu = np.zeros( (3, 3, self.QE_nat), order = "F", dtype = np.float64)
+            
+        # Prepare the force constant
+        for na in range(self.QE_nat):
+            for nb in range(self.QE_nat):
+                QE_fc[:, :, na, nb] = force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3]
+#        
+#        print "ASR:", asr
+#        print "AXIS:", axis
+#        print "NAT:", self.QE_nat
+#        print "TAU SHAPE:", np.shape(self.QE_tau)
+#        print "QE_FC SHAPE:", np.shape(self.QE_fc)
+        
+        # Call the qe ASR subroutine
+        symph.set_asr(asr, axis, self.QE_tau, QE_fc, f_zeu)
+        
+        # Copy the new value on output
+        for na in range(self.QE_nat):
+            if zeu is not None:
+                zeu[na, :,:] = f_zeu[:,:, na]
+            
+            for nb in range(self.QE_nat):
+                force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = QE_fc[:,:, na, nb]
+        
         
         
     def SetupQPoint(self, q_point, verbose = False):
