@@ -156,9 +156,10 @@ class QE_Symmetry:
             for nb in range(self.QE_nat):
                 force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = QE_fc[:,:, na, nb]
         
+    
+    
         
-        
-    def SetupQPoint(self, q_point, verbose = False):
+    def SetupQPoint(self, q_point = np.zeros(3), verbose = False):
         """
         Get symmetries of the small group of q
         
@@ -336,6 +337,36 @@ class QE_Symmetry:
         
         return syms
             
+    
+    def SymmetrizeVector(self, vector):
+        """
+        SYMMETRIZE A VECTOR
+        ===================
+        
+        This is the easier symmetrization of a generic vector.
+        Note, fractional translation and generic translations are not imposed.
+        This is because this simmetrization acts on displacements.
+        
+        Parameters
+        ----------
+            vector : ndarray(natoms, 3)
+                This is the vector to be symmetrized, it will be overwritten
+                with the symmetrized version
+        """
+        
+        # Prepare the real vector
+        tmp_vector = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")
+        
+        for i in range(self.QE_nat):
+            tmp_vector[:, i] = vector[i,:]
+        
+        symph.symvector(self.QE_nat, self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
+                        tmp_vector)
+        
+        
+        for i in range(self.QE_nat):
+            vector[i, :] = tmp_vector[:,i]
+        
                 
     def SymmetrizeDynQ(self, dyn_matrix, q_point):
         """
