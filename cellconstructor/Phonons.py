@@ -406,6 +406,7 @@ class Phonons:
         ret.nqirr = self.nqirr
         ret.initialized = self.initialized
         ret.q_stars = self.q_stars
+        ret.alat = self.alat
         
         for i, dyn in enumerate(self.dynmats):
             ret.dynmats.append(dyn.copy())

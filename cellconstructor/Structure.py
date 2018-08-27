@@ -200,6 +200,8 @@ class Structure:
         
         read_crystal = False
         
+        #print "ALAT:", alat
+        
         #atom_index = 0
         cell = np.zeros((3,3), dtype = np.float64)
         tmp_coords = []
@@ -260,6 +262,7 @@ class Structure:
         self.N_atoms = n_atoms
         
         if cell_present:
+            self.has_unit_cell = True
             self.unit_cell = cell
             
         for i, coord in enumerate(tmp_coords):
@@ -271,7 +274,8 @@ class Structure:
                     raise ValueError("Error, read crystal coordinates but no cell given in %s" % filename)
                
                 self.coords[i,:] = np.einsum("ij, i", self.unit_cell, self.coords[i,:])
-            
+        
+        #print "COORDS:", self.coords
         
 
     def read_generic_file(self, filename):
