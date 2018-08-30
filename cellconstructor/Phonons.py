@@ -15,6 +15,7 @@ import Methods
 
 A_TO_BOHR = np.float64(1.889725989)
 BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
+RY_TO_CM = 109691.40235
 __EPSILON__ = 1e-5
 
 class Phonons:
@@ -454,6 +455,7 @@ class Phonons:
             
         It is used to compute the probability of a given atomic displacement.
         The resulting matrix is a 3N x 3N one ordered as the dynamical matrix here.
+        The result is in bohr^-2, please be carefull.
         
         NOTE: only works for the gamma point.
         
@@ -519,6 +521,8 @@ class Phonons:
             
         Where :math:`\\vec u` is the displacement, :math:`\\Upsilon` is the inverse of the covariant matrix
         computed through the method self.GetUpsilonMatrix().
+        
+        NOTE: I think there is an error in the implementation, in fact the Upsilon matrix is in bohr^-2 while displacements are in Angstrom.
         
         Parameters
         ----------
