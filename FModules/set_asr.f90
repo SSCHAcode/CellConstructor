@@ -180,8 +180,8 @@ subroutine set_asr ( asr, axis, nat, tau, dyn, zeu )
      !
      zeu_new(:,:,:)=zeu_new(:,:,:) - zeu_w(:,:,:)
      call sp_zeu(zeu_w,zeu_w,nat,norm2)
-     write(6,'(5x,"Acoustic Sum Rule: || Z*(ASR) - Z*(orig)|| = ",E15.6)') &
-          SQRT(norm2)
+     !write(6,'(5x,"Acoustic Sum Rule: || Z*(ASR) - Z*(orig)|| = ",E15.6)') &
+     !     SQRT(norm2)
      !
      ! Check projection
      !
@@ -411,8 +411,8 @@ subroutine set_asr ( asr, axis, nat, tau, dyn, zeu )
      !
      dynr_new(1,:,:,:,:)=dynr_new(1,:,:,:,:) - w(:,:,:,:)
      call sp1(w,w,nat,norm2)
-     write(6,'(5x,"Acoustic Sum Rule: ||dyn(ASR) - dyn(orig)||= ",E15.6)') &
-          DSQRT(norm2)
+     !write(6,'(5x,"Acoustic Sum Rule: ||dyn(ASR) - dyn(orig)||= ",E15.6)') &
+     !     DSQRT(norm2)
      !
      ! Check projection
      !

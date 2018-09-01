@@ -344,7 +344,8 @@ SUBROUTINE find_sym ( nat, tau, ityp, nr1, nr2, nr3, magnetic_sym, m_loc )
   logical :: sym (48)
   ! if true the corresponding operation is a symmetry operation
   !
-  IF ( .NOT. ALLOCATED(irt) ) ALLOCATE( irt( 48, nat ) )
+  IF ( ALLOCATED(irt) ) DEALLOCATE(irt)
+  ALLOCATE( irt( 48, nat ) )
   irt( :, : ) = 0
   !
   !    Here we find the true symmetries of the crystal

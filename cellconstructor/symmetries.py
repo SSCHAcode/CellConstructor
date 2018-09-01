@@ -198,7 +198,9 @@ class QE_Symmetry:
         m_loc = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")
         
         # Find the symmetries of the crystal
+        #print "TAU:", np.shape(self.QE_tau)
         symph.symm_base.find_sym(self.QE_tau, self.QE_ityp, 6, 6, 6, False, m_loc)
+        #print "IRT NOW:", np.shape(symph.symm_base.irt)
         
         if verbose:
             print "Symmetries of the crystal:", symph.symm_base.nsym
@@ -230,6 +232,8 @@ class QE_Symmetry:
         self.QE_invs = np.copy(symph.symm_base.invs)
         self.QE_ft = np.copy(symph.symm_base.ft)
         self.QE_irt = np.copy(symph.symm_base.irt)
+
+        print np.shape(self.QE_irt)
         
         # Compute the additional shift caused by fractional translations
         self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 
@@ -358,10 +362,12 @@ class QE_Symmetry:
         tmp_vector = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")
         
         for i in range(self.QE_nat):
-            tmp_vector[:, i] = vector[i,:]
+            tmp_vector[0, i] = vector[i,0]
+            tmp_vector[1, i] = vector[i,1]
+            tmp_vector[2,i] = vector[i,2]
         
-        symph.symvector(self.QE_nat, self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
-                        tmp_vector)
+        symph.symvector(self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
+                        tmp_vector, self.QE_nat)
         
         
         for i in range(self.QE_nat):
