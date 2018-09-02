@@ -606,7 +606,7 @@ def read_namelist(line_list):
             else:
                 # Check if it is a number
                 try:
-                    value = float(value)
+                    value = float(value.replace("d", "e"))
                 except:
                     pass
             if inside_namespace:

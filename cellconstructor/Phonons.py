@@ -1203,11 +1203,11 @@ class Phonons:
         rv = structure.get_displacement(self.structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
         
         # Get the energy
-        energy = 0.5 * rv.dot ( self.dynmats[0]).dot(rv)
+        energy = 0.5 * rv.dot ( np.real(self.dynmats[0])).dot(rv)
         
         
         # Get the forces (Ry/ bohr)
-        forces = - self.dynmats[0].dot(rv) 
+        forces = - np.real(self.dynmats[0]).dot(rv) 
 #        
 #        print ""
 #        print " ===== DYNMAT ====="
