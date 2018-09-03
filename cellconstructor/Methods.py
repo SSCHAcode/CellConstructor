@@ -514,7 +514,7 @@ def read_namelist(line_list):
     will be converted in a python dictionary
         dict = {"control" : {"type_cal" : "wrong", "ecutrho" : 140}}
     
-    Then the dictionary is returned
+    Then the dictionary is returned. Comments must start as in fortran with the '!'
     
     Parameters
     ----------
@@ -536,11 +536,16 @@ def read_namelist(line_list):
     
     # Start reading
     for line in line_list:
-        # Clear the line of tailoring white spaces
-        line = line.strip()
-        
         # Avoid case sensitivity turning everithing in lower case
         line = line.lower()
+        
+        # Delete the line after the comment
+        if line.find("!") != -1:
+            # Delete the comment
+            line = line[:line.find("!")]
+                
+        # Clear the line of tailoring white spaces
+        line = line.strip()
         
         # Skip if the line is white
         if len(line) == 0:
