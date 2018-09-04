@@ -233,7 +233,7 @@ class QE_Symmetry:
         self.QE_ft = np.copy(symph.symm_base.ft)
         self.QE_irt = np.copy(symph.symm_base.irt)
 
-        print np.shape(self.QE_irt)
+        #print np.shape(self.QE_irt)
         
         # Compute the additional shift caused by fractional translations
         self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 

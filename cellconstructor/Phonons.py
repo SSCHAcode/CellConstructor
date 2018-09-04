@@ -1350,10 +1350,6 @@ class Phonons:
                
                 
                 #out_fc[3 * s_nb : 3*s_nb + 3, 3*s_na : 3 * s_na + 3] = np.conj(new_m.copy().transpose())
-                
-                
-                
-                
                 #print "Test of the transpose. d = ", np.real(np.sqrt(np.sum( (in_fc[3 * nb : 3*nb + 3, 3*na : 3*na + 3].transpose() - out_fc[3 * nb : 3*nb + 3, 3*na : 3 * na + 3])**2)))
         
         # Return the symmetrized result
