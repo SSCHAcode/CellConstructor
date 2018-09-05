@@ -1056,7 +1056,7 @@ class Structure:
         atm.set_cell(self.unit_cell)
         return atm
 
-    def generate_supercell(self, dim):
+    def generate_supercell(self, dim, itau = None):
         """
         This method generate a supercell of specified dimension, replicating the system
         on the n-th neighbours unit cells.
@@ -1065,6 +1065,9 @@ class Structure:
         ----------
             - dim : list, size(3), integer
                   A list that specifies the number of cells for each dimension.
+            - itau : ndarray of int, size(Natoms * supercell_size)
+                  An array of integer. If it is of the correct shape and type it will be filled
+                  with the correspondance of each new vector to the corresponding one in the unit cell
 
         Results
         -------
@@ -1083,18 +1086,27 @@ class Structure:
         new_N_atoms = self.N_atoms * total_dim
         new_coords = np.zeros( (new_N_atoms, 3))
         atoms = [None] * new_N_atoms # Create an empty list for the atom's label
+        
+        # Check if itau is passed
+        if itau is not None:
+            try:
+                itau[:] = np.zeros(new_N_atoms, dtype = np.intc)
+            except:
+                raise ValueError("Error, itau passed to generate_supercell does not match the required shape\nRequired %d, passed %d"% (new_N_atoms, len(itau)))    
 
         # Start the generation of the new supercell
-        for i_x in range(dim[2]):
+        for i_z in range(dim[2]):
             for i_y in range(dim[1]):
-                for i_z in range(dim[0]):
-                    basis_index = self.N_atoms * (i_z + dim[0] * i_y + dim[0]*dim[1] * i_x)
+                for i_x in range(dim[0]):
+                    basis_index = self.N_atoms * (i_x + dim[0] * i_y + dim[0]*dim[1] * i_z)
                     for i_atm in range(self.N_atoms):
                         new_coords[basis_index + i_atm, :] = self.coords[i_atm, :] + \
                                                              i_z * self.unit_cell[2, :] + \
                                                              i_y * self.unit_cell[1, :] + \
                                                              i_x * self.unit_cell[0, :]
                         atoms[i_atm + basis_index] = self.atoms[i_atm]
+                        if itau is not None:
+                            itau[i_atm + basis_index] = i_atm
                         
         # Define the new structure
         supercell = Structure()
