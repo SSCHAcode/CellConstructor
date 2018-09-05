@@ -15,6 +15,7 @@ dyn = CC.Phonons.Phonons(SUPER_DYN, NQIRR)
 
 
 fc = dyn.GetRealSpaceFC(SUPERCELL)
+fc_new = fc.copy()
 
 
 print "Real space:"
@@ -57,5 +58,9 @@ print "Freq:"
 print "\n".join ( [" %.5f vs %.5f" % (w_tot[i] * CC.Phonons.RY_TO_CM, w_old[i] * CC.Phonons.RY_TO_CM) for i in range (len(w_tot))])
 
 
+# Try to revert the code
+
+dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), SUPERCELL, dyn.structure.unit_cell)
+print np.sqrt(np.sum( (dynmats_new[1,:,:] - dyn.dynmats[1])**2 ))
 
 #print "\n".join ( ["RATIO: %.5f " % (w_tot[i] / w_old[i] ) for i in range (len(w_tot))])

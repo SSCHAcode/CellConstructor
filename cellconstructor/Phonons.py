@@ -1597,21 +1597,16 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
 
 def GetDynQFromFCSupercell(fc_supercell, q_tot, supercell_array, unit_cell):
     """
-    GET THE REAL SPACE FORCE CONSTANT 
-    =================================
+    GET THE DYNAMICAL MATRICES
+    ==========================
     
-    This subroutine uses the fourier transformation to get the real space force constant,
-    starting from the fourer space matrix.
-    
-    .. math::
-        
-        C_{k\\alpha,k'\\beta}(0, b) = \\frac{1}{N_q} \\sum_q \\tilde C_{k\\alpha k'\\beta}(q) e^{i\\vec q \\cdot \\vec R_b}
-        
-    Then the translationa property is applied.
+    This subroutine uses the fourier transformation to get the dynamical matrices,
+    starting from the real space force constant.
     
     .. math::
         
-        C_{k\\alpha,k'\\beta}(a, b) = C_{k\\alpha,k'\\beta}(0, b-a)
+        \\tilde C_{k\\alpha k'\\beta}(q) = \\sum_{b}C_{k\\alpha,k'\\beta}(0, b)e^{i\\vec q \\cdot \\vec R_b}
+        
         
     Here :math:`k` is the atom index in the unit cell, :math:`a` is the supercell index, :math:`\\alpha` is the
     cartesian indices.
@@ -1663,12 +1658,10 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, supercell_array, unit_cell):
     
     # For now, to test, just the unit cell
     for i in range(nq):
-        start_index = 3 * nat * i
-        for j in range(nq):
-            end_index = 3 * nat * j                
-            q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[j,:] - R_vectors_cart[i,:])
-            #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
-            dynmat[:,:,:] += np.einsum("bc, a->abc", fc_supercell[start_index : start_index + 3*nat, end_index : end_index + 3*nat], np.exp(-1j* 2 * np.pi* q_dot_R)) / nq
+        start_index = 3 * nat * i   
+        q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[i,:])
+        #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
+        dynmat[:,:,:] += np.einsum("bc, a->abc", fc_supercell[:3 *nat, start_index : start_index + 3*nat], np.exp(1j* 2 * np.pi* q_dot_R))
         
     
     return dynmat
