@@ -1592,3 +1592,84 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
     print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
     
     return fc
+
+
+
+def GetDynQFromFCSupercell(fc_supercell, q_tot, supercell_array, unit_cell):
+    """
+    GET THE REAL SPACE FORCE CONSTANT 
+    =================================
+    
+    This subroutine uses the fourier transformation to get the real space force constant,
+    starting from the fourer space matrix.
+    
+    .. math::
+        
+        C_{k\\alpha,k'\\beta}(0, b) = \\frac{1}{N_q} \\sum_q \\tilde C_{k\\alpha k'\\beta}(q) e^{i\\vec q \\cdot \\vec R_b}
+        
+    Then the translationa property is applied.
+    
+    .. math::
+        
+        C_{k\\alpha,k'\\beta}(a, b) = C_{k\\alpha,k'\\beta}(0, b-a)
+        
+    Here :math:`k` is the atom index in the unit cell, :math:`a` is the supercell index, :math:`\\alpha` is the
+    cartesian indices.
+    
+    
+    Parameters
+    ----------
+        fc_supercell : ndarray 3nat_sc x 3nat_sc
+            The dynamical matrix at each q point. Note nq must be complete, not only the irreducible.
+        q_tot : ndarray ( nq, 3)
+            The q vectors in Angstrom^-1
+        supercell_array : ndarray(3)
+            The supercell size on each cell vector
+        unit_cell : ndarray(3x3)
+            The unit cell of the cristal in Angstrom (rows are the vectors)
+
+    Returns
+    -------
+        dynmat : ndarray (nq, 3nat, 3nat, dtype = np.complex128) 
+            The force constant matrix in the supercell.
+    
+    """
+    
+    # Define the number of q points, atoms and unit cell atoms
+    nq = np.shape(q_tot)[0]
+    nat_sc = np.shape(fc_supercell)[0]/3
+    nat = nat_sc / nq
+    
+    # Check if the supercell array matches the number of q points
+    if np.prod(supercell_array) != nq:
+        raise ValueError("Error, the number of supercell %d must match the number of q points %d." % (np.prod(supercell_array), nq))
+    
+    #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
+    dynmat = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
+    
+    print "NQ:", nq
+    
+    R_vectors_cart = np.zeros((nq,3), dtype = np.float64, order = "F")
+    
+    # Fill the dynamical matrix
+    for i in range(nq):
+        
+        a_x = i % supercell_array[0]
+        a_y = (i / supercell_array[0]) % supercell_array[1]
+        a_z = i / (supercell_array[0] * supercell_array[1])
+        R_vectors_cart[i,:] = a_x * unit_cell[0,:] + a_y * unit_cell[1,:] + a_z * unit_cell[2,:]
+        
+        
+    
+    # For now, to test, just the unit cell
+    for i in range(nq):
+        start_index = 3 * nat * i
+        for j in range(nq):
+            end_index = 3 * nat * j                
+            q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[j,:] - R_vectors_cart[i,:])
+            #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
+            dynmat[:,:,:] += np.einsum("bc, a->abc", fc_supercell[start_index : start_index + 3*nat, end_index : end_index + 3*nat], np.exp(-1j* 2 * np.pi* q_dot_R)) / nq
+        
+    
+    return dynmat
+
