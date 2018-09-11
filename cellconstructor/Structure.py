@@ -1122,6 +1122,112 @@ class Structure:
             supercell.unit_cell[i, :] = self.unit_cell[i,:] * dim[i]
 
         return supercell
+    
+    def reorder_atoms_supercell(self, reference_structure):
+        """
+        ORDER THE ATOMS
+        ===============
+        
+        This subroutines order the atoms to match the same order as in the 
+        generate_supercell method.
+        The self structure is supposed to be a structure that belongs to a supercell 
+        of the given unit_cell, then it is reordered so that each atom in any different 
+        supercell are consequent and the order of the supercell matches the one
+        created by generate supercell. The code will work even if the structures 
+        do not match exactly the supercell generation. In this case, the closest
+        unit cell atom of the correct type is used as reference.
+        
+        Parameters
+        ----------
+            - reference_structure : Structure()
+                The cell and coordinates that must be used as a reference
+                to reorder the atoms
+                
+        Results
+        -------
+            - itau : ndarray of int
+                The shuffling array to order any array of this list
+                
+        """
+        if not reference_structure.has_unit_cell:
+            raise ValueError("Error, the reference structure must have a unit cell")
+        
+        if not self.has_unit_cell:
+            raise ValueError("Error, the self structure must have a unit cell")
+        
+        unit_cell = reference_structure.unit_cell
+        reference_coords = reference_structure.coords
+        
+        # Get the supercell size
+        sx  = self.unit_cell[0,:].dot(reference_structure.unit_cell[0,:]) / np.sqrt(reference_structure.unit_cell[0,:].dot(reference_structure.unit_cell[0,:]))
+        sy  = self.unit_cell[1,:].dot(reference_structure.unit_cell[1,:]) / np.sqrt(reference_structure.unit_cell[1,:].dot(reference_structure.unit_cell[1,:]))
+        sz  = self.unit_cell[2,:].dot(reference_structure.unit_cell[2,:]) / np.sqrt(reference_structure.unit_cell[2,:].dot(reference_structure.unit_cell[2,:]))
+        
+        supercell_size = (int(sx + .5), int(sy + .5), int(sz + .5))
+        
+        # Atoms in the unit cell
+        nat_uc = np.shape(reference_coords)[0]
+        
+        # Check if they match the given structure
+        if self.N_atoms % nat_uc != 0:
+            raise ValueError("Error, the number of atoms in this structure %d is not a multiple of %d (the reference structure)" % (self.N_atoms, nat_uc))
+            
+        # The shuffling array
+        itau = np.arange(self.N_atoms)
+        
+        # Get cristal coordinates
+        for i in range(self.N_atoms):
+            cov = Methods.covariant_coordinates(unit_cell, self.coords[i,:])
+        
+            # Identify the cell
+            i_x = int(cov[0] + .5)
+            i_y = int(cov[1] + .5)
+            i_z = int(cov[2] + .5)
+            
+            # Get the index of the cell
+            basis_index = nat_uc * (i_x + supercell_size[0] * i_y + supercell_size[0] * supercell_size[1] * i_z)
+            
+            # Identify the atom
+            d = np.zeros(nat_uc, dtype = np.float32)
+            mask_good = np.zeros(nat_uc, dtype = bool)
+            for j in range(nat_uc):
+                if self.atoms[i] == reference_structure.atoms[j]:
+                    mask_good[j] = True
+                    d[j] = Methods.get_min_dist_into_cell(unit_cell, self.coords[i,:], reference_coords[j])
+                
+            # Avoid to pick a wrong atom type
+            d[~mask_good] = np.max(d) + 1
+            
+            # Avoid that two atoms point to the same position
+            process = True
+            while process:
+                
+                # Get the atom corresponding to the minimum distance
+                atm_index = np.argmin(d)
+                index = basis_index + atm_index
+                
+                # Check if another atom already matched this one
+                if index in itau[:i]:
+                    d[atm_index] = np.max(d) + 1
+                else:
+                    process = False
+                
+            
+            itau[i] = index
+        
+        # Now shuffle the current structure
+        self.coords = self.coords[itau, :]
+        
+        # Now shuffle the atom types
+        new_atoms = []
+        for i in range(self.N_atoms):
+            new_atoms.append(self.atoms[itau[i]])
+        self.atoms = new_atoms
+            
+        # Return the shuffling array
+        return itau
+            
+        
 
     def get_min_dist(self, index_1, index_2):
         """
