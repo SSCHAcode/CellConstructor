@@ -338,6 +338,7 @@ class Phonons:
             # Append the new stars for the irreducible q point
             self.q_stars.append(q_star)
         
+        
         # Ok, the matrix has been initialized
         self.initialized = True
         
@@ -444,7 +445,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T):
+    def GetUpsilonMatrix(self, T, iq = 0):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -457,36 +458,46 @@ class Phonons:
         The resulting matrix is a 3N x 3N one ordered as the dynamical matrix here.
         The result is in bohr^-2, please be carefull.
         
-        NOTE: only works for the gamma point.
+        NOTE: Tested only for the gamma point.
         
         Parameters
         ----------
             T : float
                 Temperature of the calculation (Kelvin)
+            iq : int, optional
+                the q point index of the calculation, default is Gamma.
         
         Returns
         -------
-            ndarray(3N x3N)
+            ndarray(3N x3N), dtype = np.complex128
                 The inverse of the correlation matrix.
         """
         K_to_Ry=6.336857346553283e-06
 
         if T < 0:
             raise ValueError("Error, T must be posititive (or zero)")
-        
-        if self.nqirr != 1:
-            raise ValueError("Error, this function yet not supports the supercells.")
+#        
+#        if self.nqirr != 1:
+#            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
-        w, pols = self.DyagDinQ(0)
-        
+        w, pols = self.DyagDinQ(iq)
+        pols_conj = np.conj(pols)
         # Transform the polarization vector into real one
-        pols = np.real(pols)
+        #pols = np.real(pols)
         
-        # Discard translations
-        w = w[3:]
-        pols = pols[:, 3:]
-        
+        # Remove translations if we are at Gamma
+        type_cal = np.complex128
+        if iq == 0:
+            no_trans = ~Methods.get_translations(pols, self.structure.get_masses_array())
+            
+            # Discard translations
+            w = w[no_trans]
+            pols = np.real(pols[:, no_trans])
+            type_cal = np.float64
+            
+            pols_conj = pols
+            
         # Get the bosonic occupation number
         nw = np.zeros(np.shape(w))
         if T == 0:
@@ -496,7 +507,7 @@ class Phonons:
         
         # Compute the matrix
         factor = 2 * w / (1. + 2*nw)
-        Upsilon = np.einsum( "i, ji, ki", factor, pols, pols)
+        Upsilon = np.einsum( "i, ji, ki", factor, pols_conj, pols, dtype = type_cal)
         
         # Get the masses for the final multiplication
         mass1 = np.zeros( 3*self.structure.N_atoms)
@@ -1072,7 +1083,36 @@ class Phonons:
         
         return np.abs(I**2) * (1. + n) / w
             
-            
+    
+    def GenerateSupercellDyn(self, supercell_size):
+        """
+        GENERATE SUPERCEL DYN
+        =====================
+        
+        This method returns a Phonon structure as it was computed directly in the supercell.
+        
+        
+        NOTE: For now this neglects bohr effective charges
+        
+        Parameters
+        ----------
+            supercell_size : array int (size=3)
+                the dimension of the cell on which you want to generate the new 
+                Phonon
+        
+        Results
+        -------
+            dyn_supercell : Phonons()
+                A Phonons class of the supercell
+        
+        """
+        super_struct = self.structure.generate_supercell(supercell_size)
+        
+        dyn_supercell = Phonons(super_struct, nqirr = 1)
+        
+        dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size)
+        
+        return dyn_supercell
             
     def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = []):
         """
@@ -1081,7 +1121,7 @@ class Phonons:
         
         This method is used to extract a pool of random structures according to the current dinamical matrix.
         
-        NOTE: for now available only at gamma
+        NOTE: for now available only at gamma. To execute it in a supercell generate a supercell dynamical matrix
         
         Parameters
         ----------
@@ -1100,7 +1140,6 @@ class Phonons:
                 A list of Structure.Structure()
         """
         K_to_Ry=6.336857346553283e-06
-        BOHR_TO_ANG = 0.529177249
 
         
         if self.nqirr != 1:
@@ -1123,10 +1162,10 @@ class Phonons:
         
         n_modes = len(ws)
         if T == 0:
-            a_mu = 1 / np.sqrt(2* ws) * BOHR_TO_ANG
+            a_mu = 1 / np.sqrt(2* ws) * BOHR_TO_ANGSTROM
         else:            
             beta = 1 / (K_to_Ry*T)
-            a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANG
+            a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANGSTROM
         
         # Prepare the coordinates
         total_coords = np.zeros((size, self.structure.N_atoms,3))
@@ -1163,7 +1202,7 @@ class Phonons:
 
     
     
-    def get_energy_forces(self, structure, vector1d = False):
+    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1)):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -1179,7 +1218,7 @@ class Phonons:
             
         The energy is given in Rydberg, while the force is given in Ry/Angstrom
         
-        NOTE: In this very moment it works only with gamma structures (unit cell)
+        NOTE: In this very moment it has been tested only at Gamma (unit cell)
         
         Parameters
         ----------
@@ -1187,6 +1226,16 @@ class Phonons:
                 A unit cell structure in which energy and forces on atoms are computed
             vector1d : bool, optional
                 If true the forces are returned in a reshaped 1d vector.
+            real_space_fc : ndarray 3nat_sc x 3nat_sc, optional (default None)
+                If provided the real space force constant matrix is not recomputed each time the
+                method is called. Usefull if you have to repeat this calculation many times.
+                You can get the real_space_fc using the method GetRealSpaceFC. 
+            super_structure : Structure.Structure()
+                Optional, not required. If given is the superstructure used to compute the distance from the
+                target one. You can pass it to avoid regenerating it each time this subroutine is called.
+                If you do not pass it, you must provide the supercell size (if different than the unit cell)
+            super_cell : list of 3 items
+                This is the supercell on which compute the energy and force. 
         
         Returns
         -------
@@ -1198,16 +1247,21 @@ class Phonons:
         
         # Convert the displacement vector in bohr
         #A_TO_BOHR=np.float64(1.889725989)
+        if super_structure is None:
+            super_structure = self.structure.generate_supercell(supercell)
         
         # Get the displacement vector (bohr)
-        rv = structure.get_displacement(self.structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
+        rv = structure.get_displacement(super_structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
+        
+        if real_space_fc is None:
+            real_space_fc = self.GetRealSpaceFC(supercell)
         
         # Get the energy
-        energy = 0.5 * rv.dot ( np.real(self.dynmats[0])).dot(rv)
+        energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
         
         
         # Get the forces (Ry/ bohr)
-        forces = - np.real(self.dynmats[0]).dot(rv) 
+        forces = - real_space_fc.dot(rv) 
 #        
 #        print ""
 #        print " ===== DYNMAT ====="
@@ -1220,7 +1274,7 @@ class Phonons:
         # Translate the force in Ry / A
         forces *= A_TO_BOHR
         if not vector1d:
-            forces = forces.reshape( (self.structure.N_atoms, 3))
+            forces = forces.reshape( (super_structure.N_atoms, 3))
         
         return energy, forces
         

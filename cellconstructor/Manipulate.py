@@ -35,7 +35,7 @@ def GetQ_vectors(structures, dynmat):
             The list of structures to compute q
         dynmat : Phonons()
             The dynamical matrix from which the polarization vectors and
-            the reference structure are computed.
+            the reference structure are computed. This must be in the supercell
     
     Results
     -------
