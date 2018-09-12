@@ -1279,7 +1279,7 @@ class Phonons:
         return energy, forces
         
     
-    def GetRealSpaceFC(self, supercell_array = (1,1,1)):
+    def GetRealSpaceFC(self, supercell_array = (1,1,1), super_structure = None):
         """
         GET THE REAL SPACE FORCE CONSTANT 
         =================================
@@ -1306,19 +1306,31 @@ class Phonons:
         -------
             fc_supercell : ndarray 3nat_sc x 3nat_sc
                 The force constant matrix in the supercell.
+                If it is a supercell structure, it is use that structure to determine the supercell array
+            super_structure : Structure()
+                If given, it is used to generate the supercell. Note that in this
+                case the supercell_array argument is ignored
         
         """
         
         nq = len(self.q_tot)
         nat = self.structure.N_atoms
+        nat_sc = nat * nq
         
+        if super_structure is None:
+            super_structure = self.structure.generate_supercell(supercell_array)
+
+        # Check the consistency of the argument with the number of q point
+        if nat_sc != super_structure.N_atoms:
+            raise ValueError("Error, the super_structure number of atoms %d does not match %d computed from the q points." % (nat_sc, super_structure.N_atoms))
+            
         dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
         
         # Fill the dynamical matrix
         for i, q in enumerate(self.q_tot):
             dynmat[i, :,:] = self.dynmats[i]
             
-        return GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), supercell_array, self.structure.unit_cell)
+        return GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), self.structure, super_structure)
         
 #        
 #        # Define the number of q points, atoms and unit cell atoms
@@ -1566,7 +1578,7 @@ class Phonons:
         self.ApplySumRule()
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================
@@ -1594,10 +1606,14 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
             The dynamical matrix at each q point. Note nq must be complete, not only the irreducible.
         q_tot : ndarray ( nq, 3)
             The q vectors in Angstrom^-1
-        supercell_array : ndarray(3)
-            The supercell size on each cell vector
-        unit_cell : ndarray(3x3)
-            The unit cell of the cristal in Angstrom (rows are the vectors)
+        unit_cell_structure : Structure()
+            The reference structure of the unit cell.
+        supercell_structure : Structure()
+            The reference structure of the supercell. It is used to keep the same indices of the atomic positions.
+            Note, it is required that consecutive atoms are placed sequently
+        itau : Ndarray(nat_sc) , optional
+            the correspondance between the supercell atoms and the unit cell one.
+            If None is recomputed
 
     Returns
     -------
@@ -1610,47 +1626,50 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
     nq = len(q_tot)
     nat = np.shape(dynmat)[1] /3
     nat_sc = nq*nat
-    
-    
-    # Check if the supercell array matches the number of q points
-    if np.prod(supercell_array) != nq:
-        raise ValueError("Error, the number of supercell %d must match the number of q points %d." % (np.prod(supercell_array), nq))
+
+        
+    if itau is None:
+        itau = supercell_structure.get_itau(unit_cell_structure)-1
     
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
     
     print "NQ:", nq
     
-    R_vectors_cart = np.zeros((nq,3), dtype = np.float64, order = "F")
     
-    # Fill the dynamical matrix
-    for i in range(nq):
-        
-        a_x = i % supercell_array[0]
-        a_y = (i / supercell_array[0]) % supercell_array[1]
-        a_z = i / (supercell_array[0] * supercell_array[1])
-        R_vectors_cart[i,:] = a_x * unit_cell[0,:] + a_y * unit_cell[1,:] + a_z * unit_cell[2,:]
-        
-        
     
-    # For now, to test, just the unit cell
-    for i in range(nq):
-        start_index = 3 * nat * i
-        for j in range(nq):
-            end_index = 3 * nat * j                
-            q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[j,:] - R_vectors_cart[i,:])
-            #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
-            fc[end_index: end_index + 3*nat,  start_index: start_index + 3*nat ] += np.einsum("abc, a", dynmat, np.exp(1j* 2 * np.pi* q_dot_R)) / nq
-        
+    for i in range(nat_sc):
+        i_uc = itau[i]
+        for j in range(nat_sc):
+            j_uc = itau[j]
+            R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
+            R -= supercell_structure.coords[j, :] - unit_cell_structure.coords[j_uc,:]
+            
+            # q_dot_R is 1d array that for each q contains the scalar product with R
+            q_dot_R = q_tot.dot(R)
+            
+            fc[3*i : 3*i + 3, 3*j : 3*j + 3] += np.einsum("abc, a", dynmat[:, 3*i_uc : 3*i_uc + 3, 3*j_uc: 3*j_uc + 3], np.exp(1j * 2*np.pi * q_dot_R)) / nq
+            
+#    
+#    # For now, to test, just the unit cell
+#    for i in range(nq):
+#        start_index = 3*nat*i
+#        for j in range(nq):
+#            end_index = 3*nat*j
+#            
+#            q_dot_R = np.sum(q_tot[i,:] * R_vectors_cart[j,:])
+#        
+#            fc[end_index: end_index + 3*nat,  start_index: start_index + 3*nat ] += dynmat[i,:,:] *  np.exp(1j* 2 * np.pi* q_dot_R) / nq
+#        
         
         #np.sum(dynmat * np.exp(), axis = 0) / nq
-    print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
+    #print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
     
     return fc
 
 
 
-def GetDynQFromFCSupercell(fc_supercell, q_tot, supercell_array, unit_cell):
+def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure, itau = None):
     """
     GET THE DYNAMICAL MATRICES
     ==========================
@@ -1690,33 +1709,47 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, supercell_array, unit_cell):
     nat_sc = np.shape(fc_supercell)[0]/3
     nat = nat_sc / nq
     
-    # Check if the supercell array matches the number of q points
-    if np.prod(supercell_array) != nq:
-        raise ValueError("Error, the number of supercell %d must match the number of q points %d." % (np.prod(supercell_array), nq))
+    if itau is None:
+        itau = supercell_structure.get_itau(unit_cell_structure)-1
+    
     
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     dynmat = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     
-    print "NQ:", nq
+    #print "NQ:", nq
     
-    R_vectors_cart = np.zeros((nq,3), dtype = np.float64, order = "F")
     
-    # Fill the dynamical matrix
-    for i in range(nq):
-        
-        a_x = i % supercell_array[0]
-        a_y = (i / supercell_array[0]) % supercell_array[1]
-        a_z = i / (supercell_array[0] * supercell_array[1])
-        R_vectors_cart[i,:] = a_x * unit_cell[0,:] + a_y * unit_cell[1,:] + a_z * unit_cell[2,:]
-        
+    for i in range(nat_sc):
+        i_uc = itau[i]
+        for j in range(nat_sc):
+            j_uc = itau[j]
+            R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
+            R -= supercell_structure.coords[j, :] - unit_cell_structure.coords[j_uc,:]
+            
+            # q_dot_R is 1d array that for each q contains the scalar product with R
+            q_dot_R = q_tot.dot(R)
+            
+            dynmat[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc_supercell[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+            
+#    
+#    # Fill the dynamical matrix
+#    for i in range(nq):
+#        
+#        a_x = i % supercell_array[0]
+#        a_y = (i / supercell_array[0]) % supercell_array[1]
+#        a_z = i / (supercell_array[0] * supercell_array[1])
+#        R_vectors_cart[i,:] = a_x * unit_cell[0,:] + a_y * unit_cell[1,:] + a_z * unit_cell[2,:]
+#        
+#        
+#    
+#    # For now, to test, just the unit cell
+#    for i in range(nq):
+#        start_index = 3 * nat * i   
+#        q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[i,:])
+#        #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
+#        dynmat[:,:,:] += np.einsum("bc, a->abc", fc_supercell[:3 *nat, start_index : start_index + 3*nat], np.exp(1j* 2 * np.pi* q_dot_R))
         
     
-    # For now, to test, just the unit cell
-    for i in range(nq):
-        start_index = 3 * nat * i   
-        q_dot_R = np.einsum("ab, b", q_tot, R_vectors_cart[i,:])
-        #print "%d, %d => q dot R = " % (i, j), np.exp(1j * q_dot_R)
-        dynmat[:,:,:] += np.einsum("bc, a->abc", fc_supercell[:3 *nat, start_index : start_index + 3*nat], np.exp(1j* 2 * np.pi* q_dot_R))
         
     
     return dynmat

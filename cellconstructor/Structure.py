@@ -1056,6 +1056,34 @@ class Structure:
         atm = ase.Atoms(atm_list)
         atm.set_cell(self.unit_cell)
         return atm
+    
+    def get_itau(self, unit_cell_structure):
+        """
+        GET ITAU
+        ========
+        
+        This subroutine (called by a supercell structure), returns the array
+        of the corrispondence between its atoms and those in the unit cell.
+        
+        Parameters
+        ----------
+            - unit_cell_structure : Structure()
+                The structure of the unit cell used to generate this supercell structure.
+                
+        """
+        
+        itau = np.zeros( self.N_atoms, dtype = np.intc)
+        
+        for i in range(self.N_atoms):
+            
+            v1 = Methods.put_into_cell(unit_cell_structure.unit_cell, self.coords[i,:])
+            d = np.zeros(unit_cell_structure.N_atoms)
+            for j in range(unit_cell_structure.N_atoms):
+                d[j] = Methods.get_min_dist_into_cell(unit_cell_structure.unit_cell, v1, unit_cell_structure.coords[j,:])
+            
+            itau[i] = np.argmin(d) + 1
+            
+        return itau
 
     def generate_supercell(self, dim, itau = None, QE_convention = True):
         """
@@ -1152,8 +1180,6 @@ class Structure:
             # Fill the atom
             symph.set_tau(at_sc, at, tau_sc, tau, ityp_sc, ityp, itau, new_N_atoms, self.N_atoms)
             
-            print "NEW:", tau_sc
-            print "ITAU:", itau
             
             supercell.coords[:,:] = tau_sc.transpose()
             supercell.atoms = [self.atoms[x - 1] for x in itau] 

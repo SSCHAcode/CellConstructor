@@ -51,7 +51,7 @@ subroutine fc_supercell_from_dyn (phitot, q, tau, tau_sc, itau, phitot_sc, nat, 
             print *, '        are complex. This is not possible.              '
             print *, '        Stopping...                                     '
             print *, ' 2 '             
-            stop
+            !stop
           end if
           phitot_sc(alpha,beta,i,j) = real(complex_number)
         end do

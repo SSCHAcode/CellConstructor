@@ -26,25 +26,20 @@ print dyn.dynmats[0]
 
 
 print "Distances"
-m = dyn.structure.get_masses_array()
+super_structure =  dyn.structure.generate_supercell(SUPERCELL)
+m =super_structure.get_masses_array()
+nq = np.prod(SUPERCELL)
+nat_sc = dyn.structure.N_atoms *nq
 
-nat = dyn.structure.N_atoms
-_m_ = np.zeros(3*nat)
-for i in range(nat):
+_m_ = np.zeros(3*nat_sc)
+for i in range(nat_sc):
     _m_[3 * i : 3*i + 3] = m[i]
     
 m_mat = np.outer(1 / np.sqrt(_m_), 1 / np.sqrt(_m_))
-print m_mat
-nq = len(dyn.q_tot)
 
-for i in range(nq):
-    s1 = 3 * nat * i
-    for j in range(nq):
-        s2 = 3*nat * j
-        
-        fc[s1 : s1 + 3*nat, s2:s2 + 3*nat] *= m_mat
+fc *= m_mat
 
-w_tot = np.sqrt(np.real(np.linalg.eigvals(fc)))
+w_tot = np.sqrt(np.abs(np.real(np.linalg.eigvals(fc))))
 w_tot.sort()
 
 w_old = np.zeros(len(w_tot))
@@ -60,7 +55,7 @@ print "\n".join ( [" %.5f vs %.5f" % (w_tot[i] * CC.Phonons.RY_TO_CM, w_old[i] *
 
 # Try to revert the code
 
-dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), SUPERCELL, dyn.structure.unit_cell)
+dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), dyn.structure, super_structure)
 print np.sqrt(np.sum( (dynmats_new[2,:,:] - dyn.dynmats[2])**2 ))
 
 #print "\n".join ( ["RATIO: %.5f " % (w_tot[i] / w_old[i] ) for i in range (len(w_tot))])
