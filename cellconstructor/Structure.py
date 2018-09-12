@@ -10,6 +10,7 @@ import ase
 import sys, os
 import Methods
 
+import symph
 import symmetries as SYM
 
 __all__ = ["Structure"]
@@ -1056,7 +1057,7 @@ class Structure:
         atm.set_cell(self.unit_cell)
         return atm
 
-    def generate_supercell(self, dim, itau = None):
+    def generate_supercell(self, dim, itau = None, QE_convention = True):
         """
         This method generate a supercell of specified dimension, replicating the system
         on the n-th neighbours unit cells.
@@ -1068,12 +1069,16 @@ class Structure:
             - itau : ndarray of int, size(Natoms * supercell_size)
                   An array of integer. If it is of the correct shape and type it will be filled
                   with the correspondance of each new vector to the corresponding one in the unit cell
+            - QE_convention : bool, optional
+                  If true (default) the quantum espresso set_tau subroutine is used to determine
+                  the order of how the atoms in the supercell are generated
 
         Results
         -------
             - supercell : Structure
                   This structure is the supercell of the system.
         """
+        
 
         if len(dim) != 3:
             raise ValueError("ERROR, dim must have 3 integers.")
@@ -1087,6 +1092,10 @@ class Structure:
         new_coords = np.zeros( (new_N_atoms, 3))
         atoms = [None] * new_N_atoms # Create an empty list for the atom's label
         
+        
+        # Get the new data
+        
+        
         # Check if itau is passed
         if itau is not None:
             try:
@@ -1095,18 +1104,19 @@ class Structure:
                 raise ValueError("Error, itau passed to generate_supercell does not match the required shape\nRequired %d, passed %d"% (new_N_atoms, len(itau)))    
 
         # Start the generation of the new supercell
-        for i_z in range(dim[2]):
-            for i_y in range(dim[1]):
-                for i_x in range(dim[0]):
-                    basis_index = self.N_atoms * (i_x + dim[0] * i_y + dim[0]*dim[1] * i_z)
-                    for i_atm in range(self.N_atoms):
-                        new_coords[basis_index + i_atm, :] = self.coords[i_atm, :] + \
-                                                             i_z * self.unit_cell[2, :] + \
-                                                             i_y * self.unit_cell[1, :] + \
-                                                             i_x * self.unit_cell[0, :]
-                        atoms[i_atm + basis_index] = self.atoms[i_atm]
-                        if itau is not None:
-                            itau[i_atm + basis_index] = i_atm
+        if not QE_convention:
+            for i_z in range(dim[2]):
+                for i_y in range(dim[1]):
+                    for i_x in range(dim[0]):
+                        basis_index = self.N_atoms * (i_x + dim[0] * i_y + dim[0]*dim[1] * i_z)
+                        for i_atm in range(self.N_atoms):
+                            new_coords[basis_index + i_atm, :] = self.coords[i_atm, :] + \
+                                                                 i_z * self.unit_cell[2, :] + \
+                                                                 i_y * self.unit_cell[1, :] + \
+                                                                 i_x * self.unit_cell[0, :]
+                            atoms[i_atm + basis_index] = self.atoms[i_atm]
+                            if itau is not None:
+                                itau[i_atm + basis_index] = i_atm
                         
         # Define the new structure
         supercell = Structure()
@@ -1120,6 +1130,36 @@ class Structure:
 
         for i in range(3):
             supercell.unit_cell[i, :] = self.unit_cell[i,:] * dim[i]
+            
+        
+        if QE_convention:
+            # Prepare the variables
+            tau = np.array(self.coords.transpose(), dtype = np.float64, order = "F")
+            tau_sc = np.zeros((3, new_N_atoms), dtype = np.float64, order = "F")
+            ityp_sc = np.zeros( new_N_atoms, dtype = np.intc)
+            ityp = self.get_atomic_types()
+            
+            at_sc = np.array( supercell.unit_cell.transpose(), dtype = np.float64, order = "F")
+            at = np.array( self.unit_cell.transpose(), dtype = np.float64, order = "F")
+            
+            itau = np.zeros(new_N_atoms, dtype = np.intc)
+#            
+#            print "AT SC:", at_sc
+#            print "AT:", at
+#            print "TAU SC:", tau_sc
+#            print "TAU:", tau
+#            
+            # Fill the atom
+            symph.set_tau(at_sc, at, tau_sc, tau, ityp_sc, ityp, itau, new_N_atoms, self.N_atoms)
+            
+            print "NEW:", tau_sc
+            print "ITAU:", itau
+            
+            supercell.coords[:,:] = tau_sc.transpose()
+            supercell.atoms = [self.atoms[x - 1] for x in itau] 
+            
+            
+        
 
         return supercell
     
@@ -1137,6 +1177,8 @@ class Structure:
         do not match exactly the supercell generation. In this case, the closest
         unit cell atom of the correct type is used as reference.
         
+        TODO: THIS DOES NOT WORK!!!!
+        
         Parameters
         ----------
             - reference_structure : Structure()
@@ -1149,6 +1191,8 @@ class Structure:
                 The shuffling array to order any array of this list
                 
         """
+        #raise ValueError("Subroutine still not working...")
+        
         if not reference_structure.has_unit_cell:
             raise ValueError("Error, the reference structure must have a unit cell")
         
@@ -1159,11 +1203,13 @@ class Structure:
         reference_coords = reference_structure.coords
         
         # Get the supercell size
-        sx  = self.unit_cell[0,:].dot(reference_structure.unit_cell[0,:]) / np.sqrt(reference_structure.unit_cell[0,:].dot(reference_structure.unit_cell[0,:]))
-        sy  = self.unit_cell[1,:].dot(reference_structure.unit_cell[1,:]) / np.sqrt(reference_structure.unit_cell[1,:].dot(reference_structure.unit_cell[1,:]))
-        sz  = self.unit_cell[2,:].dot(reference_structure.unit_cell[2,:]) / np.sqrt(reference_structure.unit_cell[2,:].dot(reference_structure.unit_cell[2,:]))
+        sx  = self.unit_cell[0,:].dot(unit_cell[0,:]) / unit_cell[0,:].dot(unit_cell[0,:])
+        sy  = self.unit_cell[1,:].dot(unit_cell[1,:]) / unit_cell[1,:].dot(unit_cell[1,:])
+        sz  = self.unit_cell[2,:].dot(unit_cell[2,:]) / unit_cell[2,:].dot(unit_cell[2,:])
         
         supercell_size = (int(sx + .5), int(sy + .5), int(sz + .5))
+        
+        print "SUPERCELL:", supercell_size
         
         # Atoms in the unit cell
         nat_uc = np.shape(reference_coords)[0]
@@ -1183,6 +1229,8 @@ class Structure:
             i_x = int(cov[0] + .5)
             i_y = int(cov[1] + .5)
             i_z = int(cov[2] + .5)
+            
+            print cov[0], cov[1], cov[2], i_x, i_y, i_z
             
             # Get the index of the cell
             basis_index = nat_uc * (i_x + supercell_size[0] * i_y + supercell_size[0] * supercell_size[1] * i_z)
@@ -1205,6 +1253,8 @@ class Structure:
                 # Get the atom corresponding to the minimum distance
                 atm_index = np.argmin(d)
                 index = basis_index + atm_index
+                
+                #print "Chosen %d -> %d" % (i, index), "ITAU:", itau[:i]
                 
                 # Check if another atom already matched this one
                 if index in itau[:i]:

@@ -1598,9 +1598,6 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
             The supercell size on each cell vector
         unit_cell : ndarray(3x3)
             The unit cell of the cristal in Angstrom (rows are the vectors)
-        itau : ndarray (int, size N_atoms in the supercell)
-            The correspondence between the supercell atom index and the equivalent
-            unit cell one.
 
     Returns
     -------
@@ -1613,6 +1610,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, supercell_array, unit_cell):
     nq = len(q_tot)
     nat = np.shape(dynmat)[1] /3
     nat_sc = nq*nat
+    
     
     # Check if the supercell array matches the number of q points
     if np.prod(supercell_array) != nq:
