@@ -67,6 +67,7 @@ class QE_Symmetry:
         self.QE_minus_q = np.bool( False )
         self.QE_irotmq = np.intc(0)
         self.QE_nsymq = np.intc( 0 )
+        self.QE_nsym = np.intc(0)
         
         # Prepare the QE structure
         self.QE_tau = np.zeros((3, nat), dtype = np.float64, order = "F")
@@ -94,9 +95,168 @@ class QE_Symmetry:
             for j in range(3):
                 self.QE_at[i,j] = structure.unit_cell[j,i]   
                 self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
+                
+    def ApplyQStar(self, fcq, q_point_group):
+        """
+        APPLY THE Q STAR SYMMETRY
+        =========================
+        
+        Given the fc matrix at each q in the star, it applies the symmetries in between them.
+        
+        Parameters
+        ----------
+            - fcq : ndarray(nq, 3xnat, 3xnat) 
+                The dynamical matrices for each q point in the star
+            - q_point_group : ndarray(nq, 3)
+                The q vectors that belongs to the same star
+        """
+        
+        nq = np.shape(q_point_group)[0]
+        final_fc = np.zeros(np.shape(fcq), dtype = np.complex128)
+        
+        # Setup all the symmetries
+        self.SetupQPoint()
+        
+        new_dyn = np.zeros( (3 * self.QE_nat, 3*self.QE_nat), dtype = np.complex128, order = "F")
+        
+        
+        
+        
+        for i in range(nq):
+            # Get the q points order
+            nq_new, sxq, isq, imq = symph.star_q(q_point_group[i,:], self.QE_at, self.QE_bg, 
+                                                 self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+            
+            # Check if the q star is correct
+            if nq_new != nq:
+                print "Reciprocal lattice vectors:"
+                print self.QE_bg.transpose() 
+                print "Passed q star:"
+                print q_point_group
+                print "QE q star:"
+                print sxq[:, :nq_new].transpose()
+                raise ValueError("Error, the passed q star does not match the one computed by QE")
+            
+            # Print the star 
+            print "q point:", q_point_group[i,:]
+            print "Point in the stars:", nq_new
+            print "Star of q:"
+            print sxq[:, :nq_new].transpose()
+            
+            print np.shape(fcq)
+            print "AT:", np.shape(self.QE_at)
+            print "BG:", np.shape(self.QE_bg)
+            print "S:", np.shape(self.QE_s)
+            print "QE_INVS:", np.shape(self.QE_invs)
+            print "IRT:", np.shape(self.QE_irt)
+            
+            new_dyn[:,:] = fcq[i,:,:]
+        
+            # Get the new matrix
+            dyn_star = symph.q2qstar_out(new_dyn, self.QE_at, self.QE_bg, self.QE_nsymq, 
+                                         self.QE_s, self.QE_invs, self.QE_irt, self.QE_rtau,
+                                         nq_new, sxq, isq, imq, nq, self.QE_nat)
+            
+            # Now to perform the match bring the star in the same BZ as the q point
+            # This facilitate the comparison between q points
+            current_q = q_point_group[i,:]
+#            for xq in range(nq):
+#                tmp = Methods.put_into_cell(self.QE_bg, sxq[:, xq])
+#                sxq[:, xq] = tmp
+#                current_q = Methods.put_into_cell(self.QE_bg, current_q )
+#            
+            # Print the order of the q star
+            sorting_q = np.arange(nq)
+            for xq in range(nq):
+                count = 0 # Debug (avoid no or more than one identification)
+                for yq in range(nq_new):
+                    if symph.eqvect(sxq[:, yq], q_point_group[xq, :], np.zeros(3, dtype = np.float64)):
+                        sorting_q[xq] = yq
+                        count += 1
+                
+                if count != 1:
+                    print "Original star:"
+                    print q_point_group
+                    print "Reciprocal lattice vectors:"
+                    print self.QE_bg.transpose() 
+                    print "STAR:"
+                    print sxq[:, :nq_new].transpose()    
+                    pta = q_point_group[xq,:]
+                    raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
+                                                                                                                 count))
+            print "Sorting array:"
+            print sorting_q
+                    
+                        
+            # Copy the matrix in the new one
+            for xq in range(nq):
+                for xat in range(self.QE_nat):
+                    for yat in range(self.QE_nat):
+                        final_fc[xq, 3*xat: 3*xat + 3, 3*yat : 3*yat + 3] += dyn_star[sorting_q[xq], :,:, xat, yat] 
+            
+        
+        # Now divide the matrix per the xq value
+        final_fc /= nq
+            
+        # Overwrite the matrix
+        fcq[:,:,:] = final_fc
+        
+        
+    def SymmetrizeFCQ(self, fcq, q_stars, verbose = False):
+        """
+        Use the current structure to impose symmetries on a complete dynamical matrix
+        in q space. Also the simple sum rule at Gamma is imposed
+        
+        Parameters
+        ----------
+            - fcq : ndarray(nq, 3xnat, 3xnat)
+                The q space force constant matrix to be symmetrized (it will be overwritten)
+            - q_stars : list of list of q points
+                The list of q points divided by stars, the fcq must follow the order
+                of the q points in the q_stars array
+        """
+        
+        nqirr = len(q_stars)
+        nq = np.sum([len(x) for x in q_stars])
+        
+        # Get the q_points vector
+        q_points = np.zeros( (nq, 3), dtype = np.float64)
+        sigma = 0
+        for i in range(nqirr):
+            for q_vec in q_stars[i]:
+                q_points[sigma, :] = q_vec
+                sigma += 1
+        
+        if nq != np.shape(fcq)[0]:
+            raise ValueError("Error, the force constant number of q point %d does not match with the %d given q_points" % (np.shape(fcq)[0], nq))
+            
+        
+        for iq in range(nq):
+            # Prepare the symmetrization
+            if verbose:
+                print "Symmetries in q = ", q_points[iq, :]
+            self.SetupQPoint(q_points[iq,:], verbose)
+            
+            # Proceed with the sum rule if we are at Gamma
+            if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
+                self.ImposeSumRule(fcq[iq,:,:], asr = "simple")
+            
+            # Symmetrize the matrix
+            self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
+        
+        
+        # For each star perform the symmetrization over that star
+        q0_index = 0
+        for i in range(nqirr):
+            q_len = len(q_stars[i])
+            self.ApplyQStar(fcq[q0_index : q0_index + q_len, :,:], np.array(q_stars[i]))
+            q0_index += q_len
 
         
     def ChangeThreshold(self, threshold):
+        """
+        Change the symmetry threshold sensibility
+        """
         self.threshold = np.float64(threshold)
         symph.symm_base.set_accep_threshold(self.threshold)
         
@@ -192,7 +352,7 @@ class QE_Symmetry:
         # Now copy all the work initialized on the symmetries inside python
         self.QE_s = np.copy(symph.symm_base.s)
         self.QE_ft = np.copy(symph.symm_base.ft)
-        self.QE_nsymq =  symph.symm_base.nrot
+        self.QE_nsym =  symph.symm_base.nrot
         
         # Prepare a dummy variable for magnetic spin
         m_loc = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")
@@ -523,3 +683,10 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
     
     return out_sym
 
+def ApplySymmetryToVector(symmetry, vector):
+    """
+    Apply the symmetry to the given vector. Translations are neglected.
+    """
+    
+    # TODO:
+    pass
