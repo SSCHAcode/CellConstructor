@@ -139,7 +139,7 @@ def from_dynmat_to_spectrum(dynmat, struct):
     n_atoms = struct.N_atoms
     
     # Construct the matrix to be diagonalized
-    new_phi = zeros(shape(dynmat))
+    new_phi = np.zeros(np.shape(dynmat))
     for i in range(n_atoms):
         M_i = struct.masses[struct.atoms[i]]
         for j in range(n_atoms):
@@ -148,10 +148,10 @@ def from_dynmat_to_spectrum(dynmat, struct):
 
     
     # Diagonalize the matrix
-    eigval, eigvect = linalg.eig(new_phi)
+    eigval, eigvect = np.linalg.eig(new_phi)
     eigval *= 220000. # conversion to cm-1
 
-    return sort(eigval)
+    return np.sort(eigval)
         
 
         
@@ -177,18 +177,18 @@ def put_into_cell(cell, vector):
     # To do this, just obtain the covariant vector coordinates.
 
     # Get the metric tensor
-    metric_tensor = zeros((3,3))
+    metric_tensor = np.zeros((3,3))
     for i in range(0, 3):
         for j in range(i, 3):
             metric_tensor[i, j] = metric_tensor[j,i] = cell[i,:].dot(cell[j, :])
 
     # Get contravariant components
-    contra_vect = zeros(3)
+    contra_vect = np.zeros(3)
     for i in range(3):
         contra_vect[i] = vector.dot(cell[i, :]) 
 
     # Invert the metric tensor and obta
-    covect = linalg.inv(metric_tensor).dot(contra_vect)
+    covect = np.linalg.inv(metric_tensor).dot(contra_vect)
 
     # print ""
     # print "Translating into the unit cell:"
@@ -208,7 +208,7 @@ def put_into_cell(cell, vector):
     
     
     # Go back
-    final_vect = zeros(3)
+    final_vect = np.zeros(3)
     for i in range(3):
         final_vect += covect[i] * cell[i,:]
         

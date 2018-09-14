@@ -136,40 +136,40 @@ class QE_Symmetry:
                 print "QE q star:"
                 print sxq[:, :nq_new].transpose()
                 raise ValueError("Error, the passed q star does not match the one computed by QE")
-            
-            # Print the star 
-            print "q point:", q_point_group[i,:]
-            print "Point in the stars:", nq_new
-            print "Star of q:"
-            print sxq[:, :nq_new].transpose()
-            
-            print "NEW_DYN:", np.shape(new_dyn)
-            print "AT:", np.shape(self.QE_at)
-            print "BG:", np.shape(self.QE_bg)
-            print "N SYM:", self.QE_nsymq
-            print "S:", np.shape(self.QE_s)
-            print "QE_INVS:", np.shape(self.QE_invs)
-            print "IRT:", np.shape(self.QE_irt)
-            print "RTAU:", np.shape(self.QE_rtau)
-            print "NQ_NEW:", nq_new
-            print "SXQ:", np.shape(sxq)
-            print "ISQ:", np.shape(isq)
-            print "IMQ:", imq
-            print "NAT:", self.QE_nat
+#            
+#            # Print the star 
+#            print "q point:", q_point_group[i,:]
+#            print "Point in the stars:", nq_new
+#            print "Star of q:"
+#            print sxq[:, :nq_new].transpose()
+#            
+#            print "NEW_DYN:", np.shape(new_dyn)
+#            print "AT:", np.shape(self.QE_at)
+#            print "BG:", np.shape(self.QE_bg)
+#            print "N SYM:", self.QE_nsymq
+#            print "S:", np.shape(self.QE_s)
+#            print "QE_INVS:", np.shape(self.QE_invs)
+#            print "IRT:", np.shape(self.QE_irt)
+#            print "RTAU:", np.shape(self.QE_rtau)
+#            print "NQ_NEW:", nq_new
+#            print "SXQ:", np.shape(sxq)
+#            print "ISQ:", np.shape(isq)
+#            print "IMQ:", imq
+#            print "NAT:", self.QE_nat
             
             new_dyn[:,:] = fcq[i,:,:]
-            print "new dyn ready"
+            #print "new dyn ready"
         
             # Get the new matrix
             dyn_star = symph.q2qstar_out(new_dyn, self.QE_at, self.QE_bg, self.QE_nsymq, 
                               self.QE_s, self.QE_invs, self.QE_irt, self.QE_rtau,
                               nq_new, sxq, isq, imq, self.QE_nat)
-            print "Fake"
+            #print "Fake"
             
             # Now to perform the match bring the star in the same BZ as the q point
             # This facilitate the comparison between q points
             current_q = q_point_group.copy()
-            print "Fake2"
+            #print "Fake2"
 #            for xq in range(nq):
 #                tmp = Methods.put_into_cell(self.QE_bg, sxq[:, xq])
 #                sxq[:, xq] = tmp
@@ -196,8 +196,8 @@ class QE_Symmetry:
                     pta = current_q[xq,:]
                     raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
                                                                                                                  count))
-            print "Sorting array:"
-            print sorting_q
+            #print "Sorting array:"
+            #print sorting_q
                     
                         
             # Copy the matrix in the new one
