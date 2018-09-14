@@ -945,7 +945,7 @@ class Phonons:
                 fp.write("     Dynamical Matrix in cartesian axes\n")
                 fp.write("\n")
                 fp.write("     q = (    %.9f   %.9f   %.9f )\n" % 
-                         (q_star[jq][0] , q_star[jq][1], q_star[jq][2] ))
+                         (q_star[jq][0] * self.alat , q_star[jq][1]*self.alat, q_star[jq][2]*self.alat ))
                 fp.write("\n")
             
                 # Now print the dynamical matrix
@@ -969,7 +969,7 @@ class Phonons:
             fp.write("     Diagonalizing the dynamical matrix\n")
             fp.write("\n")
             fp.write("     q = (    %.9f   %.9f   %.9f )\n" % 
-                     (q_star[0][0] , q_star[0][1] , q_star[0][2] ))
+                     (q_star[0][0] *self.alat , q_star[0][1] *self.alat, q_star[0][2] *self.alat))
             fp.write("\n")
             fp.write("*" * 75 + "\n")
             

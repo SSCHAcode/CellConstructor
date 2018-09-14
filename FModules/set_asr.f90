@@ -214,7 +214,7 @@ subroutine set_asr ( asr, axis, nat, tau, dyn, zeu )
               do nb=1,nat
                  if (na.ne.nb) sum=sum + DBLE (dyn(i,j,na,nb))
               end do
-              print *, "FILLING WITH:", sum, "BEFORE:", dyn(i,j, na,na)
+              !print *, "FILLING WITH:", sum, "BEFORE:", dyn(i,j, na,na)
               dyn(i,j,na,na) = COMPLEX(-sum, 0.d0)
            end do
         end do

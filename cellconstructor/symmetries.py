@@ -119,7 +119,7 @@ class QE_Symmetry:
         
         new_dyn = np.zeros( (3 * self.QE_nat, 3*self.QE_nat), dtype = np.complex128, order = "F")
         
-        
+        dyn_star = np.zeros( (nq, 3, 3, self.QE_nat, self.QE_nat), dtype = np.complex128, order = "F")
         
         
         for i in range(nq):
@@ -143,45 +143,57 @@ class QE_Symmetry:
             print "Star of q:"
             print sxq[:, :nq_new].transpose()
             
-            print np.shape(fcq)
+            print "NEW_DYN:", np.shape(new_dyn)
             print "AT:", np.shape(self.QE_at)
             print "BG:", np.shape(self.QE_bg)
+            print "N SYM:", self.QE_nsymq
             print "S:", np.shape(self.QE_s)
             print "QE_INVS:", np.shape(self.QE_invs)
             print "IRT:", np.shape(self.QE_irt)
+            print "RTAU:", np.shape(self.QE_rtau)
+            print "NQ_NEW:", nq_new
+            print "SXQ:", np.shape(sxq)
+            print "ISQ:", np.shape(isq)
+            print "IMQ:", imq
+            print "NAT:", self.QE_nat
             
             new_dyn[:,:] = fcq[i,:,:]
+            print "new dyn ready"
         
             # Get the new matrix
             dyn_star = symph.q2qstar_out(new_dyn, self.QE_at, self.QE_bg, self.QE_nsymq, 
-                                         self.QE_s, self.QE_invs, self.QE_irt, self.QE_rtau,
-                                         nq_new, sxq, isq, imq, nq, self.QE_nat)
+                              self.QE_s, self.QE_invs, self.QE_irt, self.QE_rtau,
+                              nq_new, sxq, isq, imq, self.QE_nat)
+            print "Fake"
             
             # Now to perform the match bring the star in the same BZ as the q point
             # This facilitate the comparison between q points
-            current_q = q_point_group[i,:]
+            current_q = q_point_group.copy()
+            print "Fake2"
 #            for xq in range(nq):
 #                tmp = Methods.put_into_cell(self.QE_bg, sxq[:, xq])
 #                sxq[:, xq] = tmp
-#                current_q = Methods.put_into_cell(self.QE_bg, current_q )
+#                current_q[xq,:] = Methods.put_into_cell(self.QE_bg, current_q [xq,:])
 #            
             # Print the order of the q star
             sorting_q = np.arange(nq)
             for xq in range(nq):
                 count = 0 # Debug (avoid no or more than one identification)
                 for yq in range(nq_new):
-                    if symph.eqvect(sxq[:, yq], q_point_group[xq, :], np.zeros(3, dtype = np.float64)):
+                    if Methods.get_min_dist_into_cell(self.QE_bg, sxq[:, yq], current_q[xq,:]) < __EPSILON__: 
                         sorting_q[xq] = yq
                         count += 1
                 
                 if count != 1:
                     print "Original star:"
                     print q_point_group
+                    print "Reshaped star:"
+                    print current_q
                     print "Reciprocal lattice vectors:"
                     print self.QE_bg.transpose() 
                     print "STAR:"
                     print sxq[:, :nq_new].transpose()    
-                    pta = q_point_group[xq,:]
+                    pta = current_q[xq,:]
                     raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
                                                                                                                  count))
             print "Sorting array:"

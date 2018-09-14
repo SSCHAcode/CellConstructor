@@ -17,18 +17,19 @@ subroutine rotate_and_add_dyn (phi, phi2, nat, isym, s, invs, irt, &
   implicit none
   ! input variables
 
-  integer :: nat, isym, s (3, 3, 48), invs (48), irt (48, nat)
+  integer, intent(in) :: nat, isym, s (3, 3, 48), invs (48), irt (48, nat)
   ! number of atoms in the unit cell
   ! index of the symm.op.
   ! the symmetry operations
   ! index of the inverse operations
   ! index of the rotated atom
 
-  double complex :: phi (3, 3, nat, nat), phi2 (3, 3, nat, nat)
+  double complex, intent(in) :: phi (3, 3, nat, nat)
+  double complex, intent(out) :: phi2 (3, 3, nat, nat)
   ! the input dyn.mat. in crystal coordinates
   ! the rotated dyn.mat. in crystal coordinates
 
-  double precision :: rtau (3, 48, nat), sxq (3)
+  double precision, intent(in) :: rtau (3, 48, nat), sxq (3)
   ! for eaxh atom and rotation gives the R vector
   !involved
   ! the rotated q involved in this sym.op.
