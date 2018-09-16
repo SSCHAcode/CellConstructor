@@ -68,7 +68,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
         nb = (j - 1) / 3 + 1
         jcar = j - 3 * (nb - 1)
         phi (icar, jcar, na, nb) = dyn (i, j)
-        print *, "PHI1:", icar, jcar, na,nb, phi(icar, jcar, na, nb)
+        !print *, "PHI1:", icar, jcar, na,nb, phi(icar, jcar, na, nb)
      enddo
   enddo
   !

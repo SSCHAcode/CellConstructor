@@ -214,7 +214,7 @@ class QE_Symmetry:
         fcq[:,:,:] = final_fc
         
         
-    def SymmetrizeFCQ(self, fcq, q_stars, verbose = False):
+    def SymmetrizeFCQ(self, fcq, q_stars, verbose = False, asr = "simple"):
         """
         Use the current structure to impose symmetries on a complete dynamical matrix
         in q space. Also the simple sum rule at Gamma is imposed
@@ -250,8 +250,13 @@ class QE_Symmetry:
             self.SetupQPoint(q_points[iq,:], verbose)
             
             # Proceed with the sum rule if we are at Gamma
-            if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
-                self.ImposeSumRule(fcq[iq,:,:], asr = "simple")
+            if asr == "simple":
+                if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
+                    self.ImposeSumRule(fcq[iq,:,:], asr)
+            elif asr == "crystal":
+                self.ImposeSumRule(fcq[iq, :,:], asr = asr)
+            else:
+                raise ValueError("Error, only 'simple' or 'crystal' asr are supported, given %s" % asr)
             
             # Symmetrize the matrix
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])

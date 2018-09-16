@@ -1322,7 +1322,7 @@ class Phonons:
 
         # Check the consistency of the argument with the number of q point
         if nat_sc != super_structure.N_atoms:
-            raise ValueError("Error, the super_structure number of atoms %d does not match %d computed from the q points." % (nat_sc, super_structure.N_atoms))
+            raise ValueError("Error, the super_structure number of atoms %d does not match %d computed from the q points." % (super_structure.N_atoms, nat_sc))
             
         dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
         
@@ -1634,7 +1634,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
     
-    print "NQ:", nq
+    #print "NQ:", nq
     
     
     
