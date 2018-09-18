@@ -1057,6 +1057,34 @@ class Structure:
         atm.set_cell(self.unit_cell)
         return atm
     
+    def get_ityp(self):
+        """
+        GET THE TYPE ATOMS
+        ==================
+        
+        This is for fortran compatibility. 
+        Get the ityp array for the structure. 
+        Pass it + 1 to the fortran subroutine to match also the difference
+        between python and fortran indices
+        
+        Results
+        -------
+            ityp : ndarray of int
+                The type of the atom in integer (starting from 0)
+        """
+        
+        if self.masses is None:
+            raise ValueError("Error, to return the ityp the masses must be initialized.")
+        
+        ityp = np.zeros(self.N_atoms, dtype = np.intc)
+        
+        for i in range(self.N_atoms):
+            # Rank the atom number
+            
+            ityp[i] = self.masses.keys().index(self.atoms[i])
+        
+        return ityp
+    
     def get_itau(self, unit_cell_structure):
         """
         GET ITAU
