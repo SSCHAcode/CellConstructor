@@ -1692,10 +1692,10 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
             The dynamical matrix at each q point. Note nq must be complete, not only the irreducible.
         q_tot : ndarray ( nq, 3)
             The q vectors in Angstrom^-1
-        supercell_array : ndarray(3)
-            The supercell size on each cell vector
-        unit_cell : ndarray(3x3)
-            The unit cell of the cristal in Angstrom (rows are the vectors)
+        unit_cell_structure : Structure()
+            The structure of the unit cell
+        supercell_structure : Structure()
+            The structure of the supercell
 
     Returns
     -------
