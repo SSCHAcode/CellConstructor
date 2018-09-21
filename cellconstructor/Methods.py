@@ -561,7 +561,7 @@ def read_namelist(line_list):
     # Start reading
     for line in line_list:
         # Avoid case sensitivity turning everithing in lower case
-        line = line.lower()
+        #line = line.lower()
         
         # Delete the line after the comment
         if line.find("!") != -1:
@@ -578,7 +578,7 @@ def read_namelist(line_list):
         # Check if the line begins with an "&" sign
         if line[0] == "&":
             # Check if we are closing an existing namespace
-            if line[1:] == "end":
+            if line[1:].lower() == "end":
                 if not inside_namespace:
                     raise IOError("Error, trying to close a namespace without having open it.")
                 
@@ -595,7 +595,7 @@ def read_namelist(line_list):
             if inside_namespace:
                 raise IOError("Error, the namespace %s has not been closed." % current_namespace)
             
-            current_namespace = line[1:]
+            current_namespace = line[1:].lower()
             inside_namespace = True
             
             # Check if the namespace has a valid name
@@ -626,16 +626,16 @@ def read_namelist(line_list):
             value = value.replace("\"", "").replace("'", "")
             
             # Convert fortran bool
-            if value == ".true.":
+            if value.lower() == ".true.":
                 value = True
-            elif value == ".false.":
+            elif value.lower() == ".false.":
                 value = False
             elif value.count(" ") >= 1:
                 value = [float(item) for item in value.split()]
             else:
                 # Check if it is a number
                 try:
-                    value = float(value.replace("d", "e"))
+                    value = float(value.lower().replace("d", "e"))
                 except:
                     pass
             if inside_namespace:
