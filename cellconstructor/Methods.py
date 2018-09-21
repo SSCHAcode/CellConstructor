@@ -465,11 +465,11 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
     # Avoid trivial problems if the ibrav is a float
     ibrav = int(ibrav + .5) 
     
-    SUPPORTED_IBRAV = [13]
+    #SUPPORTED_IBRAV = [13]
     
     # Check if the ibrav is in the supported ibrav
-    if not ibrav in SUPPORTED_IBRAV:
-        raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
+    #if not ibrav in SUPPORTED_IBRAV:
+    #    raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
         
     
     # Check if celldm is of the correct length
@@ -478,7 +478,31 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
     
     # Get the cell
     unit_cell = np.zeros((3,3))
-    if ibrav == 13:
+    if ibrav == 1:
+        # Simple cubic
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        unit_cell[0,:] = np.array([1, 0, 0]) * a
+        unit_cell[1,:] = np.array([0, 1, 0]) * a 
+        unit_cell[2,:] = np.array([0, 0, 1]) * a
+    elif ibrav == 2:
+        # Cubic fcc
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        unit_cell[0,:] = np.array([-1, 0, 1]) * a / 2
+        unit_cell[1,:] = np.array([0, 1, 1]) * a /2
+        unit_cell[2,:] = np.array([-1, 1, 0]) * a/2
+    elif ibrav == 3:
+        # Cubic bcc
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        unit_cell[0,:] = np.array([1, 1, 1]) * a / 2
+        unit_cell[1,:] = np.array([-1, 1, 1]) * a /2
+        unit_cell[2,:] = np.array([-1, -1, 1]) * a/2
+    elif ibrav == -3:
+        # Cubic bcc other kind
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        unit_cell[0,:] = np.array([-1, 1, 1]) * a / 2
+        unit_cell[1,:] = np.array([1, -1, 1]) * a /2
+        unit_cell[2,:] = np.array([1, 1, -1]) * a/2
+    elif ibrav == 13:
         # Monoclinic base-centered
         
         # Create cell
