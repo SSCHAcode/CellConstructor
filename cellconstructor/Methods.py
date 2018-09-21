@@ -502,6 +502,14 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0,:] = np.array([-1, 1, 1]) * a / 2
         unit_cell[1,:] = np.array([1, -1, 1]) * a /2
         unit_cell[2,:] = np.array([1, 1, -1]) * a/2
+    elif ibrav == 4:
+        # Hexagonal
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        c = celldm[2] * a
+        
+        unit_cell[0, :] = np.array([1, 0, 0]) * a
+        unit_cell[1, :] = np.array([-0.5, np.sqrt(3)/2, 0]) * a
+        unit_cell[2, :] = np.array([0, 0, 1]) * c
     elif ibrav == 13:
         # Monoclinic base-centered
         
