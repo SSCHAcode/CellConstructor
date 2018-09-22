@@ -39,6 +39,18 @@ pip install CellConstructor
 ```
 In this way you will not install the last developing version.
 
+If the compilation of the modules fails and you are using
+an anaconda module on a 64bit machine, you have to install the conda gcc version.
+You can do this by typing (on Linux):
+
+```bash
+conda install gxx_linux-64
+```
+or (on MacOS):
+```bash
+conda install clangxx_osx-64
+```
+
 
 NOTE:
 If you want to install the package into a system python distribution, the
