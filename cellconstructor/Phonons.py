@@ -933,7 +933,7 @@ class Phonons:
         
             # Iterate over all the q points in the star
             nqstar = len(self.q_stars[iq])
-            q_star = self.q_stars[iq] * self.alat
+            q_star = self.q_stars[iq] #* self.alat
             
             # Store the first matrix index of the star
             # This will be used to dyagonalize the matrix in the end of the file
