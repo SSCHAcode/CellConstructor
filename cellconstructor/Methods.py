@@ -510,6 +510,24 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0, :] = np.array([1, 0, 0]) * a
         unit_cell[1, :] = np.array([-0.5, np.sqrt(3)/2, 0]) * a
         unit_cell[2, :] = np.array([0, 0, 1]) * c
+    elif ibrav == 9:
+        # Orthorombinc base centered
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+        
+        unit_cell[0, :] = np.array([a/2, b/2, 0])
+        unit_cell[1, :] = np.array([-a/2, b/2, 0])
+        unit_cell[2, :] = np.array([0, 0, c])
+    elif ibrav == -9:
+        # Orthorombinc base centered (the same but change the first two vectors)
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+        
+        unit_cell[0, :] = np.array([-a/2, b/2, 0])
+        unit_cell[1, :] = np.array([a/2, b/2, 0])
+        unit_cell[2, :] = np.array([0, 0, c])
     elif ibrav == 13:
         # Monoclinic base-centered
         
@@ -630,7 +648,11 @@ def read_namelist(line_list):
             variable = new_list[0].strip()
             value = new_list[1].strip()
             
-            # If it is a string cancel the " or '
+            # Remove ending comma and otehr tailoring space
+            if value[-1] == ",":
+                value = value[:-1].strip()
+            
+            # If it is a string cancel the " or ' or ,
             value = value.replace("\"", "").replace("'", "")
             
             # Convert fortran bool

@@ -349,7 +349,9 @@ class Phonons:
         The frequencies and polarization are ordered. Negative frequencies are to
         be interpreted as instabilities and imaginary frequency, as for QE.
         
-        They are returned 
+        They are returned.
+        
+        NOTE: The normalization is forced, as it is problematic for degenerate modes
         
         Parameters
         ----------
@@ -379,9 +381,9 @@ class Phonons:
 
         real_dyn *= self.dynmats[iq]
         
-        eigvals, pol_vects = np.linalg.eig(real_dyn)
+        eigvals, pol_vects = np.linalg.eigh(real_dyn)
         
-        f2 = np.real(eigvals)
+        f2 = eigvals
         
         # Check for imaginary frequencies (unstabilities) and return them as negative
         frequencies = np.zeros(len(f2))
@@ -392,6 +394,10 @@ class Phonons:
         sorting_mask = np.argsort(frequencies)
         frequencies = frequencies[sorting_mask]
         pol_vects = pol_vects[:, sorting_mask]
+        
+        # Force normalization
+        for i in range(3 * self.structure.N_atoms):
+            pol_vects[:, i] /= np.sqrt(pol_vects[:, i].dot(pol_vects[:, i]))
         
         return frequencies, pol_vects
     
