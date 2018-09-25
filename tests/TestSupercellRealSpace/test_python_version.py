@@ -56,6 +56,9 @@ print "\n".join ( [" %.5f vs %.5f" % (w_tot[i] * CC.Phonons.RY_TO_CM, w_old[i] *
 # Try to revert the code
 
 dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), dyn.structure, super_structure)
-print np.sqrt(np.sum( (dynmats_new[2,:,:] - dyn.dynmats[2])**2 ))
+
+dyn_sc_new = CC.Phonons.GetSupercellFCFromDyn(dynmats_new, np.array(dyn.q_tot), dyn.structure, super_structure)
+
+print "Distance reverted:", np.sqrt(np.sum((dyn_sc_new - fc_new)**2) / np.sum(dyn_sc_new**2))
 
 #print "\n".join ( ["RATIO: %.5f " % (w_tot[i] / w_old[i] ) for i in range (len(w_tot))])

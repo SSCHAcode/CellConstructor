@@ -12,6 +12,7 @@ import scipy, scipy.optimize
 import matplotlib.pyplot as plt
 
 import Methods
+import symph
 
 A_TO_BOHR = np.float64(1.889725989)
 BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
@@ -1582,6 +1583,67 @@ class Phonons:
         
         # Apply the acustic sum rule
         self.ApplySumRule()
+
+
+def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure, itau = None):
+    """
+    IMPOSE TRANSLATION IN THE SUPERCELL
+    ===================================
+    
+    This subroutine imposes the unit cell translations of the supercell force constant matrix.
+    Note that it is very different from the acustic sum rule.
+    
+    .. math::
+        
+        C_{k\\alpha,k'\\beta}(a,b) = C_{k\\alpha,k'\\beta}(0, b-a)
+        
+    
+    This is obtained by averaging the result
+    
+    .. math::
+        
+        C_{k\\\alpha, k'\\beta}(a,b) = \\sum_{c \\in }
+    
+    Parameters
+    ----------
+        fc_supercell : ndarray (3nat_sc x 3nat_sc)
+            The input-output force constant matrix in real space.
+        unit_cell_structure: Structure()
+            The structure in the unit cell
+        supercell_structure : Structure()
+            The structure of the supercell
+        itau : optional, ndarray (int)
+            The equivalence between unit_cell and supercell atoms. If None it is 
+            extracted by the given structures. Note it must be in fortran language
+    """
+    
+    
+    if itau is None:
+        # Get the fortran one
+        itau = supercell_structure.get_itau(unit_cell_structure)
+        
+    nat_sc = supercell_structure.N_atoms
+    fc_tmp = np.zeros( (3,3, nat_sc, nat_sc), dtype = np.float64, order = "F")
+    tau_sc_cryst = np.zeros( (3, nat_sc), dtype = np.float64, order = "F")
+    
+    for i in range(nat_sc):   
+        tau_sc_cryst[:,i] = Methods.covariant_coordinates(supercell_structure.unit_cell, supercell_structure.coords[i, :])
+    
+    # Fill the force constant matrix
+    for i in range(nat_sc):
+        for j in range(nat_sc):
+            fc_tmp[:,:, i, j] = fc_supercell[3*i : 3*i + 3, 3*j: 3*j+3]
+    
+    # Call the fortran suboruitne
+    symph.impose_trans_sc(fc_tmp, tau_sc_cryst, itau, nat_sc)
+    
+    #Revert it in the original force constant matrix
+    for i in range(nat_sc):
+        for j in range(nat_sc):
+            fc_supercell[3*i : 3*i + 3, 3*j: 3*j+3] = fc_tmp[:,:, i, j]
+    
+    
+    
         
 
 def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None):

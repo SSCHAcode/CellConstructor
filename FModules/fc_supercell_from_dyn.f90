@@ -31,16 +31,16 @@ subroutine fc_supercell_from_dyn (phitot, q, tau, tau_sc, itau, phitot_sc, nat, 
 
   do i = 1, natsc
     do j = 1, natsc
-      latvec(:) = tau_sc(:,i) - tau(:,itau(i)) - tau_sc(:,j) + tau(:,itau(j))
+      latvec(:) = -( tau_sc(:,i) - tau(:,itau(i)) - tau_sc(:,j) + tau(:,itau(j)))
       do alpha = 1, 3
         do beta = 1, 3
           complex_number = (0.0d0,0.0d0)
           do qtot = 1, nq
-            print * , "THE Q POINT", qtot, "IS", q(:, qtot), &
-                      "THE LATTICE VECTOR", i,j, "IS", latvec(:)
+            !print * , "THE Q POINT", qtot, "IS", q(:, qtot), &
+            !          "THE LATTICE VECTOR", i,j, "IS", latvec(:)
              
             complex_number = complex_number +  &
-                             exp( im * twopi * dot_product(q(:,qtot),latvec)) * &
+                             exp( - im * twopi * dot_product(q(:,qtot),latvec)) * &
                              phitot(qtot,alpha,beta,itau(i),itau(j)) / &
                              dble(nq) 
           end do 
@@ -61,9 +61,92 @@ subroutine fc_supercell_from_dyn (phitot, q, tau, tau_sc, itau, phitot_sc, nat, 
 
 end subroutine fc_supercell_from_dyn
 
-
-
+!
+!logical function eqvect1 (x, y)
+!  !-----------------------------------------------------------------------
+!  !
+!  !   This function test if the difference x-y-f is an integer.
+!  !   x, y = 3d vectors in crystal axis, f = fractionary translation
+!  !
+!  implicit none
+!  double precision, intent(in) :: x (3), y (3)
+!  double precision, parameter :: accep = 1.0d-4 ! acceptance parameter
+!
+!  !
+!  !
+!  eqvect1 = abs( x(1)-y(1) - nint(x(1)-y(1)) ) < accep .and. &
+!           abs( x(2)-y(2) - nint(x(2)-y(2) )) < accep .and. &
+!           abs( x(3)-y(3) - nint(x(3)-y(3) ) ) < accep
+!  !
+!  return
+!end function eqvect1
 ! 
+
+! by Lorenzo Monacelli
+! This subrouitne impose the translation in the supercell
+! for the force constant matrix.
+! Tau_sc must be in crystal coordinates with respect to the supercell basis!
+subroutine impose_trans_sc(fc_sc, tau_sc_cryst, itau, nat_sc)
+    implicit none
+    
+    
+    integer, intent(in) :: nat_sc
+    double precision, dimension(3, 3, nat_sc, nat_sc), intent(inout) :: fc_sc
+    double precision, dimension(3, nat_sc), intent(in) :: tau_sc_cryst
+    integer, dimension(nat_sc), intent(in) :: itau
+    
+    ! ----- HERE THE CODE -----
+    double precision, dimension(3, 3) :: fc_tmp
+    double precision, dimension(3, 3, nat_sc, nat_sc) :: fc_new
+
+    double precision, dimension(3) :: latvec_1, latvec_2, zero_vec
+    integer :: i, j, h, k, counter
+    double precision, parameter :: small_value = 1d-6
+    logical :: is_equivalent
+    
+    fc_new = 0.0d0
+    do i = 1, nat_sc
+        do j = 1, nat_sc
+        
+            ! Average the force constant matrix for all lattice vectors in the supercell.
+            counter = 0
+            fc_tmp = 0.0d0
+            do h = 1, nat_sc
+                if (itau(h) /= itau(i)) cycle ! Check if they are the same atom
+                ! Get the lattice vector
+                latvec_1 = tau_sc_cryst(:, i) - tau_sc_cryst(:, h)
+                
+                do k = 1, nat_sc
+                    if (itau(k) /= itau(j)) cycle ! Check if they are the same atom
+                    
+                    ! Get the second lattice vector
+                    latvec_2 = tau_sc_cryst(:, j) - tau_sc_cryst(:, k)
+                    
+                    zero_vec = latvec_1 - latvec_2
+                    !print *, "DISTANCE:", zero_vec
+                    
+                    ! Check if the two lattice vectors are the same apart from
+                    ! an unit cell vector
+                    ! In that case the fc should be equal
+                    is_equivalent = abs( latvec_1(1)-latvec_2(1) - nint(latvec_1(1)-latvec_2(1)) ) < small_value .and. &
+                       abs( latvec_1(2)-latvec_2(2) - nint(latvec_1(2)-latvec_2(2) )) < small_value .and. &
+                       abs( latvec_1(3)-latvec_2(3) - nint(latvec_1(3)-latvec_2(3) ) ) < small_value
+                    if ( is_equivalent ) then
+                         fc_tmp = fc_tmp + fc_sc(:, :, h, k)
+                         counter  = counter + 1
+                         print *, "ATOMS EQ TO:", i, j, "ARE:", h, k
+                    end if
+                end do
+            end do
+            
+            ! Copy the symmetrized matrix into the original one
+            print *, "COUNTER:", counter
+            fc_new(:, :, i, j) = fc_tmp / counter
+        end do
+    end do
+    fc_sc = fc_new
+end subroutine impose_trans_sc          
+    
 ! The following subroutine instead perform the inverse transform
 subroutine dyn_from_fc ( phitot_sc, q, tau, tau_sc, itau, dyn, nq, nat) 
 
@@ -120,14 +203,14 @@ subroutine dyn_from_fc ( phitot_sc, q, tau, tau_sc, itau, dyn, nq, nat)
         do alpha = 1, 3
           do beta = 1, 3
             complex_number = (0.0d0,0.0d0)
-            do R = 1, nq
+            do R = 1, ka
               ! Check what the atom in the supercell is
               do k = 1, natsc
-                vecaux = tau(:,i) + latvec(R,:) - tau_sc(:,k)
+                vecaux = tau(:,j) + latvec(R,:) - tau_sc(:,k)
                 if ( sqrt(dot_product(vecaux,vecaux)) .lt. prec ) then
                   complex_number = complex_number +  &
-                                  exp( - im * twopi * dot_product(q(:,qtot),latvec(R,:))) * &
-                                  phitot_sc(alpha,beta,k,j)
+                                  exp(  im * twopi * dot_product(q(:,qtot),latvec(R,:))) * &
+                                  phitot_sc(alpha,beta,i,k)
                 end if
               end do
             end do
@@ -139,20 +222,3 @@ subroutine dyn_from_fc ( phitot_sc, q, tau, tau_sc, itau, dyn, nq, nat)
   end do
 
 end subroutine dyn_from_fc
-
-!
-!function dot_product(v1, v2) result x
-!    implicit none
-!    double precision, dimension(:), intent(in) :: v1
-!    double precision, dimension(:), intent(in) :: v2
-!    double precision :: x 
-!    
-!    integer n, i
-!    
-!    n = size(v1)
-!    
-!    x = 0.0d0
-!    do i = 1, n
-!        x = x + v1(i) * v2(i)
-!    end do
-!end function dot_product
