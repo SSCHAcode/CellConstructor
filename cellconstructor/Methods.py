@@ -566,6 +566,10 @@ def read_namelist(line_list):
     
     Then the dictionary is returned. Comments must start as in fortran with the '!'
     
+    NOTE: Fotran is not case sensitive, therefore all the keys are converted in lower case
+    
+    
+    
     Parameters
     ----------
         line_list : list
@@ -645,7 +649,7 @@ def read_namelist(line_list):
             if len(new_list) != 2:
                 raise IOError("Error, I do not understand the line %s" % line)
             
-            variable = new_list[0].strip()
+            variable = new_list[0].strip().lower()
             value = new_list[1].strip()
             
             # Remove ending comma and otehr tailoring space

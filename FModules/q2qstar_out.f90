@@ -60,7 +60,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   ! Writes dyn.mat. dyn(3*nat,3*nat) on the 4-index array phi(3,3,nat,nta)
   !
   
-  print *, "Start phi : q = ", sxq(:, 1)
+  !print *, "Start phi : q = ", sxq(:, 1)
   do i = 1, 3 * nat
      na = (i - 1) / 3 + 1
      icar = i - 3 * (na - 1)
@@ -74,7 +74,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   !
   ! Go to crystal coordinates
   !
-  print *, "Transforming in crystal"
+  !print *, "Transforming in crystal"
   do na = 1, nat
      do nb = 1, nat
         call trntnsc (phi (:, :, na, nb), at, bg, - 1)
@@ -84,7 +84,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   ! If -q is in the list impose first of all the conditions coming from
   ! time reversal symmetry
   !
-  print *, "Apply time reversal symmetry"
+  !print *, "Apply time reversal symmetry"
   if (imq /= 0) then
      phi2 (:,:,:,:) = (0.d0, 0.d0)
      isym = 1
@@ -128,10 +128,10 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   !
   ! For each q of the star rotates phi with the appropriate sym.op. -> phi
   !
-  print *, "Generate the star"
+  !print *, "Generate the star"
   do iq = 1, nq
      print *, " --> IQ:", iq
-     call flush()
+     !call flush()
      phi2 (:,:,:,:) = (0.d0, 0.d0)
      do isym = 1, nsym
         if (isq (isym) == iq) then
@@ -143,7 +143,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
      !
      ! Back to cartesian coordinates
      !
-     print *, " --> back to cartesian..."
+     !print *, " --> back to cartesian..."
      do na = 1, nat
         do nb = 1, nat
            call trntnsc (phi2 (:, :, na, nb), at, bg, + 1)
@@ -153,15 +153,15 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
      ! Writes the dynamical matrix in cartesian coordinates on file
      !
      counter=counter+1
-     print *, " --> copy in the output..."
+     !print *, " --> copy in the output..."
      ! included by ION ERREA
      dynqstar(counter,:,:,:,:) = phi2
      if (imq == 0) then
         !
         ! if -q is not in the star recovers its matrix by time reversal
         !
-        print *, " --> apply time reversal for the -iq ..."
-        call flush()
+        !print *, " --> apply time reversal for the -iq ..."
+        !call flush()
         do na = 1, nat
            do nb = 1, nat
               do i = 1, 3
@@ -174,18 +174,18 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
         !
         ! and writes it (changing temporarily sign to q)
         !
-        print *, " --> saving..."
-        call flush()
+        !print *, " --> saving..."
+        !call flush()
         counter=counter+1
         ! included by ION ERREA
         dynqstar(counter,:,:,:,:) = phi2
         print *, " --> saved."
-        call flush()
+        !call flush()
      endif
      !
   enddo
   
-  print *, "Escaping from q2qstar_out"
+  !print *, "Escaping from q2qstar_out"
 !  do na = 1, nat
 !      do nb = 1, nat
 !          print "(I7, I7)", na, nb
@@ -194,6 +194,6 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
 !          end do
 !      end do
 !  end do
-  call flush()
+  !call flush()
   
 end subroutine q2qstar_out

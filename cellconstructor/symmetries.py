@@ -255,6 +255,8 @@ class QE_Symmetry:
                     self.ImposeSumRule(fcq[iq,:,:], asr)
             elif asr == "crystal":
                 self.ImposeSumRule(fcq[iq, :,:], asr = asr)
+            elif asr == "no":
+                pass
             else:
                 raise ValueError("Error, only 'simple' or 'crystal' asr are supported, given %s" % asr)
             
