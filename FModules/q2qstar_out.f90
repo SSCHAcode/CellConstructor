@@ -130,7 +130,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   !
   !print *, "Generate the star"
   do iq = 1, nq
-     print *, " --> IQ:", iq
+     !print *, " --> IQ:", iq
      !call flush()
      phi2 (:,:,:,:) = (0.d0, 0.d0)
      do isym = 1, nsym
@@ -179,7 +179,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
         counter=counter+1
         ! included by ION ERREA
         dynqstar(counter,:,:,:,:) = phi2
-        print *, " --> saved."
+        !print *, " --> saved."
         !call flush()
      endif
      !
