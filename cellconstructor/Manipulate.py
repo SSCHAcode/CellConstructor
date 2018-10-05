@@ -11,6 +11,13 @@ import Methods
 import warnings
 
 
+# Check if parallelization is available
+try:
+    from mpi4py import MPI
+    __MPI__ = True
+except:
+    __MPI__ = False
+
 def GetQ_vectors(structures, dynmat):
     """
     Q VECTOR
@@ -860,6 +867,109 @@ def apply_symmetry_on_fc(structure, fc_matrix, symmetry):
     fc_out = ph.ApplySymmetry(symmetry)
      
     return fc_out
-     
+
+
+def MeasureProtonTransfer(structures, list_mol, verbose = False):
+    """
+    MEASURE THE PROTON TRANSFER
+    ===========================
+    
+    This subroutine measures the proton transfer distribution from a
+    list of structures. It requires the user to indentify the indices
+    for the giving and the accemtping molecule.
+    
+    The proton transfer coordinate is defined as
+    .. math::
+        
+        \\nu = d(X Y) - d(Y Z)
+        
+    Then the proton transfer ratio is defined as:
+        
+        \\int_0^\\infty P(\\nu) d\\nu
+        
+    That is the overall probability of finding the Proton that belongs to the molecule
+    X closer to the molecule Z. This function returns a list of the :math:`\\nu`
+    coordinates, then the user can plot an histogram or measure the proton transfer
+    ratio as the simple ration of :math:`\\nu > 0` over the total.
+    
+    NOTE: This subroutine will exploit MPI if available.
+    NOTE: UNTESTED
+    
+    Parameters
+    ----------
+        structures : list of Structure()
+            The ensemble used to measure the proton transfer
+        list_mols : list of (X,Y, Z)
+            A list of truples. Here X is the index of the donor ion, Y 
+            is the proton involved in the proton transfer and Z is the 
+            acceptor
+        verbose : bool
+            If true (default is False) it prints some debugging stuff (like the
+            number of processors thorugh which the process is spanned)
+    Results
+    -------
+        proton_transfers : list of floats
+            list of the :math:`\\nu` proton transfer coordinates.
+    """
+    
+    
+     # Initialize MPI if any
+    if __MPI__:
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+        if verbose:
+            print "Parallel ambient found: %d processes." % size
+    else:
+        if verbose:
+            print "No parallelization found."
+        rank = 0
+        size = 1
+        
+    # Setup the number of total coordinates
+    n_coord_per_conf = len(list_mol)
+    
+    # Check if the structures can be divided in a perfect pool
+    n_struct_partial = len(structures) / size
+    
+    # Setup the number of initial coordinate
+    n_coords_tot = n_coord_per_conf * n_struct_partial
+    
+    coord_part = np.zeros(n_coords_tot, dtype = np.float64)
+    
+    # Start the parallel analysis
+    j = 0
+    for i in range(n_struct_partial):
+        index = rank + size * i
+        
+        struct = structures[index]
+        for pt in list_mol:
+            v1 = struct.get_min_dist(pt[0], pt[1])
+            v2 = struct.get_min_dist(pt[1], pt[2])
+            coord_part[j] = v1 - v2
+            j += 1
+            
+    # All gather into the main
+    if __MPI__:
+        tot_coords = np.zeros(n_coord_per_conf * len(structures), dtype = np.float64)
+        comm.Allgather([coord_part, MPI.DOUBLE], [tot_coords, MPI.DOUBLE])
+        
+        if verbose:
+            print "On rank %d tot = " % rank, tot_coords
+    else:
+        tot_coords = coord_part
+    
+    # Complete the remaining structure
+    j *= size
+    for i in range(n_struct_partial * size, len(structures)):
+        struct = structures[i]
+        
+        for pt in list_mol:
+            v1 = struct.get_min_dist(pt[0], pt[1])
+            v2 = struct.get_min_dist(pt[1], pt[2])
+            tot_coords[j] = v1 - v2
+            j += 1
+    
+    return tot_coords
         
     
