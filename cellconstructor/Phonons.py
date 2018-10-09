@@ -1067,7 +1067,7 @@ class Phonons:
         K_to_Ry=6.336857346553283e-06
         
         
-        if self.raman_tensor == None:
+        if self.raman_tensor is None:
             raise ValueError("Error, to get the raman responce the raman tensor must be defined")
         
         w, pol_vects = self.DyagDinQ(0)

@@ -1801,3 +1801,33 @@ class Structure:
         This subroutine will generate the input for a quantum espresso calculation
         """
         pass
+
+    def IsolateAtoms(self, atoms_indices):
+        """
+        This subroutine returns a Structure() with only the atoms indices identified
+        by the provided list.
+        
+        Parameters
+        ----------
+            atoms_indices : list of int
+                List of the atoms that you want to isolate
+        
+        Returns
+        -------
+            new_structure : Structure()
+                A structure with only the isolated atoms.
+        """
+        
+        
+        new_struct = self.copy()
+        nat = len(atoms_indices)
+        new_struct.N_atoms = nat
+        
+        new_struct.coords = np.zeros( (nat, 3), dtype = np.float64)
+        new_struct.atoms = [None] * nat
+        
+        for i, x in enumerate(atoms_indices):
+            new_struct.coords[i,:] = self.coords[x,:]
+            new_struct.atoms[i] = self.atoms[x]
+        
+        return new_struct
