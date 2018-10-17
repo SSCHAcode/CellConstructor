@@ -250,7 +250,7 @@ class QE_Symmetry:
             self.SetupQPoint(q_points[iq,:], verbose)
             
             # Proceed with the sum rule if we are at Gamma
-            if asr == "simple":
+            if asr == "simple" or asr == "custom":
                 if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
                     self.ImposeSumRule(fcq[iq,:,:], asr)
             elif asr == "crystal":
@@ -258,7 +258,7 @@ class QE_Symmetry:
             elif asr == "no":
                 pass
             else:
-                raise ValueError("Error, only 'simple' or 'crystal' asr are supported, given %s" % asr)
+                raise ValueError("Error, only 'simple', 'crystal', 'custom' or 'no' asr are supported, given %s" % asr)
             
             # Symmetrize the matrix
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
@@ -280,7 +280,7 @@ class QE_Symmetry:
         symph.symm_base.set_accep_threshold(self.threshold)
         
         
-    def ImposeSumRule(self, force_constant, asr = "crystal", axis = 1, zeu = None):
+    def ImposeSumRule(self, force_constant, asr = "simple", axis = 1, zeu = None):
         """
         QE SUM RULE
         ===========
@@ -292,9 +292,11 @@ class QE_Symmetry:
             force_constnat : 3xnat , 3xnat
                 The force constant matrix, it is overwritten with the new one
                 after the sum rule has been applied.
-            asr : string, optional, default = 'crystal'
-                One of 'simple', 'crystal', 'one-dim' or 'zero-dim'. For a detailed
+            asr : string, optional, default = 'custom'
+                One of 'custom', 'simple', 'crystal', 'one-dim' or 'zero-dim'. For a detailed
                 explanation look at the Quantum ESPRESSO documentation.
+                The custom one, default, is implemented in python as CustomASR.
+                No ASR is imposed on the effective charges in this case.
             axis : int, optional
                 If asr = 'one-dim' you must set the rotational axis: 1 for x, 2 for
                 y and 3 for z. Ohterwise it is unused.
@@ -314,26 +316,29 @@ class QE_Symmetry:
             f_zeu = np.zeros( (3, 3, self.QE_nat), order = "F", dtype = np.float64)
             
         # Prepare the force constant
-        for na in range(self.QE_nat):
-            for nb in range(self.QE_nat):
-                QE_fc[:, :, na, nb] = force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3]
-#        
+        if asr != "custom":
+            for na in range(self.QE_nat):
+                for nb in range(self.QE_nat):
+                    QE_fc[:, :, na, nb] = force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3]
+    #        
 #        print "ASR:", asr
 #        print "AXIS:", axis
 #        print "NAT:", self.QE_nat
 #        print "TAU SHAPE:", np.shape(self.QE_tau)
 #        print "QE_FC SHAPE:", np.shape(self.QE_fc)
         
-        # Call the qe ASR subroutine
-        symph.set_asr(asr, axis, self.QE_tau, QE_fc, f_zeu)
-        
-        # Copy the new value on output
-        for na in range(self.QE_nat):
-            if zeu is not None:
-                zeu[na, :,:] = f_zeu[:,:, na]
+                
+            symph.set_asr(asr, axis, self.QE_tau, QE_fc, f_zeu)
             
-            for nb in range(self.QE_nat):
-                force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = QE_fc[:,:, na, nb]
+            # Copy the new value on output
+            for na in range(self.QE_nat):
+                if zeu is not None:
+                    zeu[na, :,:] = f_zeu[:,:, na]
+                
+                for nb in range(self.QE_nat):
+                    force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = QE_fc[:,:, na, nb]
+        else:
+            CustomASR(force_constant)
         
     
     
@@ -701,6 +706,44 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
         out_sym.append(sym)
     
     return out_sym
+
+def CustomASR(fc_matrix):
+    """
+    APPLY THE SUM RULE
+    ==================
+    
+    This function applies a particular sum rule. It projects out the translations
+    exactly.
+    
+    Parameters
+    ----------
+        fc_matrix : ndarray(3nat x 3nat)
+            The force constant matrix. The sum rule is applied on that.
+    """
+    
+    shape = np.shape(fc_matrix)
+    if shape[0] != shape[1]:
+        raise ValueError("Error, the provided matrix is not square: (%d, %d)" % (shape[0], shape[1]))
+    
+    nat = np.shape(fc_matrix)[0] / 3
+    if nat*3 != shape[0]:
+        raise ValueError("Error, the matrix must have a dimension divisible by 3: %d" % shape[0])
+    
+    
+    dtype = type(fc_matrix[0,0])
+    
+    trans = np.eye(3*nat, dtype = dtype)
+    for i in range(3):
+        v1 = np.zeros(nat*3, dtype = dtype)
+        v1[3*np.arange(nat) + i] = 1
+        v1 /= np.sqrt(v1.dot(v1))
+        
+        trans -= np.outer(v1, v1)
+        
+    #print trans
+
+    fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
+    
 
 def ApplySymmetryToVector(symmetry, vector):
     """
