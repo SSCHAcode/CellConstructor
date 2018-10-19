@@ -180,7 +180,7 @@ class QE_Symmetry:
             for xq in range(nq):
                 count = 0 # Debug (avoid no or more than one identification)
                 for yq in range(nq_new):
-                    if Methods.get_min_dist_into_cell(self.QE_bg, sxq[:, yq], current_q[xq,:]) < __EPSILON__: 
+                    if Methods.get_min_dist_into_cell(self.QE_bg.transpose(), sxq[:, yq], current_q[xq,:]) < __EPSILON__: 
                         sorting_q[xq] = yq
                         count += 1
                 
@@ -194,6 +194,9 @@ class QE_Symmetry:
                     print "STAR:"
                     print sxq[:, :nq_new].transpose()    
                     pta = current_q[xq,:]
+                    print "Distances of xq in the QE star:"
+                    for yq in range(nq_new):
+                        print "%.4f %.4f %.4f  => " % (sxq[0, yq], sxq[1, yq], sxq[2, yq]), Methods.get_min_dist_into_cell(self.QE_bg, sxq[:, yq], current_q[xq,:])
                     raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
                                                                                                                  count))
             #print "Sorting array:"
