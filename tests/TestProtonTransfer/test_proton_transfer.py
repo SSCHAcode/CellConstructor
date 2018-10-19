@@ -33,7 +33,7 @@ except:
 from ase.visualize import view
 
 # Size of the ensemble and temperature
-N_SIZE = 10000
+N_SIZE = 100000
 T = 0
 # Setup the atoms involved in the proton transfers
 # These atoms are the OH-O  where OH is the covalent bond, 
@@ -66,6 +66,10 @@ if rank == 0:
     print "Plotting the results..."
 h, be = np.histogram(pt_coords, 100)
 x_axis = be[:-1] + np.diff(be) / 2
+
+# Get the ratio probability of a proton transfer to occurr
+if rank == 0:
+    print "Probability of Proton transfer: ", sum((pt_coords >= 0).astype(int)) / float(len(pt_coords))
 
 if rank == 0:
     plt.figure()

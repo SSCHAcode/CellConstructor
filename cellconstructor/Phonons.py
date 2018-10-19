@@ -14,6 +14,12 @@ import matplotlib.pyplot as plt
 import Methods
 import symph
 
+try:
+    from mpi4py import MPI
+    __MPI__ = True
+except:
+    __MPI__ = False
+
 A_TO_BOHR = np.float64(1.889725989)
 BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
 RY_TO_CM = 109691.40235
