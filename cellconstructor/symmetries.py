@@ -251,7 +251,10 @@ class QE_Symmetry:
                     mask = work != 0
                     naverage = np.sum( mask.astype(int))
 
-                    err_new[i,j] = np.sqrt(np.sum( err[mask]**2)) / naverage
+                    if naverage == 0:
+                        err_new[i,j] = 0
+                    else:
+                        err_new[i,j] = np.sqrt(np.sum( err[mask]**2)) / naverage
             err[:,:] = err_new
         matrix[:,:] = mat_f
 
