@@ -216,7 +216,7 @@ class QE_Symmetry:
         # Overwrite the matrix
         fcq[:,:,:] = final_fc
         
-    def ApplySymmetryToMatrix(self, matrix):
+    def ApplySymmetryToMatrix(self, matrix, err = None):
         """
         Apply the symmetries to the 3x3 matrix.
         It can be a stress tensor, a dielectric tensor and so on.
@@ -233,7 +233,26 @@ class QE_Symmetry:
 
         # Perform the symmetrization
         mat_f = np.array(matrix, order = "F", dtype = np.float64)
+    
         symph.symmatrix(mat_f, self.QE_s, self.QE_nsymq, self.QE_at, self.QE_bg)
+
+        # To compute the error we count which element
+        # of the stress tensor are summed togheter to obtain any element.
+        # Then we propagate the error only on these.
+        if err is not None:
+            err_new = err.copy()
+            for i in range(3):
+                for j in range(3):
+                    work = np.zeros( (3,3), dtype = np.float64, order = "F")
+                    work[i,j] = 1
+
+                    # Apply the symmetry
+                    symph.symmatrix(work, self.QE_s, self.QE_nsymq, self.QE_at, self.QE_bg)
+                    mask = work != 0
+                    naverage = np.sum( mask.astype(int))
+
+                    err_new[i,j] = np.sqrt(np.sum( err[mask]**2)) / naverage
+            err[:,:] = err_new
         matrix[:,:] = mat_f
 
         
