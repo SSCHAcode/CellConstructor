@@ -216,6 +216,27 @@ class QE_Symmetry:
         # Overwrite the matrix
         fcq[:,:,:] = final_fc
         
+    def ApplySymmetryToMatrix(self, matrix):
+        """
+        Apply the symmetries to the 3x3 matrix.
+        It can be a stress tensor, a dielectric tensor and so on.
+
+        Parameters
+        ----------
+            matrix : a 3x3 matrix
+                The matrix to which you want to apply the symmetrization.
+                The matrix is overwritten with the output.
+        """
+
+        # Setup the symmetries in the Gamma point
+        self.SetupQPoint()
+
+        # Perform the symmetrization
+        mat_f = np.array(matrix, order = "F", dtype = np.float64)
+        symph.symmatrix(mat_f, self.QE_s, self.QE_nsymq, self.QE_at, self.QE_bg)
+        matrix[:,:] = mat_f
+
+        
         
     def SymmetrizeFCQ(self, fcq, q_stars, verbose = False, asr = "simple"):
         """
