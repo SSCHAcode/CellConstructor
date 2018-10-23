@@ -248,7 +248,7 @@ class QE_Symmetry:
 
                     # Apply the symmetry
                     symph.symmatrix(work, self.QE_s, self.QE_nsymq, self.QE_at, self.QE_bg)
-                    mask = work != 0
+                    mask = (np.abs(work) > __EPSILON__)
                     naverage = np.sum( mask.astype(int))
 
                     if naverage == 0:
