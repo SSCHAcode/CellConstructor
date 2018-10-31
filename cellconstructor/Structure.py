@@ -21,7 +21,7 @@ class Structure:
         self.N_atoms=nat
         # Coordinates are always express in chartesian axis
         self.coords = np.zeros((self.N_atoms, 3), dtype = np.float64)
-        self.atoms = []
+        self.atoms = ["H"] * nat
         self.unit_cell = np.zeros((3,3))
         self.has_unit_cell = False
         self.masses = {}
@@ -628,16 +628,7 @@ class Structure:
            - threshold : float
                 The threshold for the self consistent equation. The algorithm stops when Sx = x is satisfied
                 up to the given threshold value for all the symmetries.
-           - beta : float
-                This is the mixing parameter for the self-consistent evolution. The next point is chosen as:
-           .. math::
-
-                  x_{n+1} = (1 - \\beta) x_n + \\beta S x_n
-
-           - initial_threshold : float
-                This is the required initial threshold for the algorithm. If the self consistent equation Sx = x
-                is not satisfied at the begining up to the initial_threshold, the algorithm stops raising an exception.
-           - progress_bar : bool
+           - verbose : bool
                 If true the system will print on stdout info about the self-consistent threshold
         
         """

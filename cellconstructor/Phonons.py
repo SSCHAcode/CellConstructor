@@ -7,7 +7,7 @@ Created on Wed Jun  6 10:29:32 2018
 """
 import Structure
 import numpy as np
-import os
+import os, sys
 import scipy, scipy.optimize
 import matplotlib.pyplot as plt
 
@@ -404,7 +404,20 @@ class Phonons:
         
         # Force normalization
         for i in range(3 * self.structure.N_atoms):
-            pol_vects[:, i] /= np.sqrt(pol_vects[:, i].dot(pol_vects[:, i]))
+            # Check the normalization 
+            norm = np.sqrt(pol_vects[:, i].dot(np.conj(pol_vects[:, i])))
+            if abs(norm - 1) > __EPSILON__:
+                sys.stderr.write("WARNING: Phonon mode %d at q point %d not normalized!\n" % (i, iq))
+                print "WARNING: Normalization of the phonon %d mode at %d q = %16.8f" % (i, iq, norm)
+                
+                # Check if it is an eigenvector
+                not_eigen = np.sqrt(np.sum( (real_dyn.dot(pol_vects[:, i]) - eigvals[i] * pol_vects[:, i])**2))
+                
+                if not_eigen > 1e-2:
+                    sys.stderr.write("WARNING: Phonon mode %d at q point %d not an eigenvector!\n" % (i, iq))
+                    print "WARNING: Error of the phonon %d mode eigenvector %d q = %16.8f" % (i, iq, not_eigen)
+                    
+                pol_vects[:, i] /= norm
         
         return frequencies, pol_vects
     

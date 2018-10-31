@@ -95,7 +95,43 @@ class QE_Symmetry:
             for j in range(3):
                 self.QE_at[i,j] = structure.unit_cell[j,i]   
                 self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
-                
+  
+    
+    def ForceSymmetry(self, structure):
+        """ 
+        FORCE SYMMETRY
+        ==============
+        
+        Force the symmetries found at a given threshold to
+        be satisfied also in a lower threshold.
+        
+        This use the irt trick
+        """
+        if self.QE_nsymq == 0:
+            raise ValueError("Error, initialize the symmetries with SetupQPoint.")
+        
+        coords = np.zeros( (3, structure.N_atoms), order = "F", dtype = np.float64)
+        coords[:,:] = structure.coords.transpose()
+        
+        # Transform in crystal coordinates
+        symph.cryst_to_cart(coords, self.QE_bg, -1)
+        
+        new_coords = np.zeros( (3, structure.N_atoms), order = "F", dtype = np.float64)
+        for s_i in range(self.QE_nsymq):
+            for i in range(structure.N_atoms):
+                new_coords[:, self.QE_irt[s_i, i]-1 ] += self.QE_s[:,:,s_i].dot(coords[:,i])
+                new_coords[:, self.QE_irt[s_i, i]-1 ] += self.QE_ft[:, s_i]
+        
+        new_coords /= self.QE_nsymq
+        
+        # Transform back into cartesian coordinates
+        symph.cryst_to_cart(new_coords, self.QE_at, 1)
+        
+        # Save in the structure
+        structure.coords[:,:] = new_coords.transpose()
+            
+        
+    
     def ApplyQStar(self, fcq, q_point_group):
         """
         APPLY THE Q STAR SYMMETRY
@@ -244,7 +280,7 @@ class QE_Symmetry:
             for i in range(3):
                 for j in range(3):
                     work = np.zeros( (3,3), dtype = np.float64, order = "F")
-                    work[i,j] = 1
+                    work[i,j] = np.float64(1)
 
                     # Apply the symmetry
                     symph.symmatrix(work, self.QE_s, self.QE_nsymq, self.QE_at, self.QE_bg)
