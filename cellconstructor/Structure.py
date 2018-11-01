@@ -26,6 +26,24 @@ class Structure:
         self.has_unit_cell = False
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
+        
+    def generate_from_ase_atoms(self, atoms):
+        """
+        This subroutines generate the current structure
+        from the ASE Atoms object
+        
+        Parameters
+        ----------
+            atoms : the ASE Atoms object
+        
+        """
+        
+        self.unit_cell = atoms.get_cell()
+        self.has_unit_cell = True
+        self.atoms = atoms.get_chemical_symbols()
+        self.N_atoms = len(self.atoms)
+        self.coords = atoms.positions.copy()
+        
 
     def copy(self):
         """

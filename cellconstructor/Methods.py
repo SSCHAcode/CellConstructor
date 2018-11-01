@@ -572,15 +572,25 @@ def read_namelist(line_list):
     
     Parameters
     ----------
-        line_list : list
+        line_list : list or string (path)
             A list of lines read in a file. They should be the row output of f.readlines() function
-            where f is a file obtained as f = open("something", "r")
+            where f is a file obtained as f = open("something", "r"). You can also directly pass
+            a string to path
     
     Returns
     -------
         dict :
             The dictionary of the namelist
     """
+    
+    if isinstance(line_list, str):
+        if not os.path.exists(line_list):
+            raise IOError("Error, file %s not found." % line_list)
+        
+        # Read the file
+        fread = open(line_list, "r")
+        line_list = fread.readlines()
+        fread.close()
     
     
     inside_namespace = False
