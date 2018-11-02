@@ -832,5 +832,75 @@ def ApplySymmetryToVector(symmetry, vector):
     Apply the symmetry to the given vector. Translations are neglected.
     """
     
+    raise NotImplementedError("Error, ApplySymmetryToVector method not yet implemented, use the one in QE_Symmetry")
+    
     # TODO:
     pass
+
+
+def PrepareISOTROPYFindSymInput(structure, path_to_file = "findsym.in",
+                                title = "Prepared with Cellconstructor",
+                                latticeTolerance = 1e-5, atomicPositionTolerance = 0.001):
+    """
+    Prepare a FIND SYM input file
+    =============================
+    
+    This method can be used to prepare a suitable input file for the ISOTROPY findsym program.
+    
+    Parameters
+    ----------
+        path_to_file : string
+            A valid path to write the findsym input.
+        title : string, optional
+            The title of the job
+    """
+    
+    lines = GetISOTROPYFindSymInput(structure, title, latticeTolerance, atomicPositionTolerance)
+    
+    fp = open(path_to_file, "w")
+    fp.writelines(lines)
+    fp.close()
+    
+    
+def GetISOTROPYFindSymInput(structure, title = "Prepared with Cellconstructor",
+                            latticeTolerance = 1e-5, atomicPositionTolerance = 0.001):
+    """
+    As the method PrepareISOTROPYFindSymInput, but the input is returned as a list of string (lines).
+    
+    """
+    # Check if the structure has a unit cell
+    if not structure.has_unit_cell:
+        raise ValueError("Error, the given structure has not a valid unit cell.")
+    
+    # Prepare the standard input
+    lines = []
+    lines.append("!useKeyWords\n")
+    lines.append("!title\n")
+    lines.append(title + "\n")
+    lines.append("!latticeTolerance\n")
+    lines.append("%.8f\n" % latticeTolerance)
+    lines.append("!atomicPositionTolerance\n")
+    lines.append("%.8f\n" % atomicPositionTolerance)
+    lines.append("!latticeBasisVectors\n")
+    for i in range(3):
+        lines.append("%16.8f %16.8f %16.8f\n" % (structure.unit_cell[i, 0],
+                                                 structure.unit_cell[i, 1],
+                                                 structure.unit_cell[i, 2]))
+    
+    lines.append("!atomCount\n")
+    lines.append("%d\n" % structure.N_atoms)
+    lines.append("!atomType\n")
+    lines.append(" ".join(structure.atoms) + "\n")
+    lines.append("!atomPosition\n")
+    for i in range(structure.N_atoms):
+        # Get the crystal coordinate
+        new_vect = Methods.covariant_coordinates(structure.unit_cell, structure.coords[i, :])
+        lines.append("%16.8f %16.8f %16.8f\n" % (new_vect[0],
+                                                 new_vect[1],
+                                                 new_vect[2]))
+        
+    return lines
+    
+    
+    
+

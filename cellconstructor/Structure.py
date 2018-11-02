@@ -27,6 +27,7 @@ class Structure:
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
         
+        
     def generate_from_ase_atoms(self, atoms):
         """
         This subroutines generate the current structure
