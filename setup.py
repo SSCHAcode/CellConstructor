@@ -10,7 +10,8 @@ symph_ext = Extension(name = "symph",
                                  "FModules/recips.f90", "FModules/q2qstar_out.f90",
                                  "FModules/rotate_and_add_dyn.f90", "FModules/trntnsc.f90",
                                  "FModules/star_q.f90", "FModules/eqvect.f90",
-                                 "FModules/symm_matrix.f90"],
+                                 "FModules/symm_matrix.f90", "FModules/from_matdyn.f90",
+                                 "FModules/interp.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )

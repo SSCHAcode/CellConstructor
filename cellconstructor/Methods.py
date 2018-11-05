@@ -8,8 +8,6 @@ Created on Wed Jun  6 10:45:50 2018
 
 from numpy import *
 import numpy as np
-import ase
-from ase.visualize import view
 import sys, os
 import Structure
  

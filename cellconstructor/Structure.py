@@ -6,7 +6,12 @@ Created on Wed Jun  6 10:44:27 2018
 @author: pione
 """
 import numpy as np
-import ase
+try:
+    __ASE__ = True
+    import ase
+except:
+    __ASE__ = False
+    
 import sys, os
 import Methods
 
@@ -304,6 +309,11 @@ class Structure:
         Any ASE accepted file is welcome.
         This very simple reader uses the ase environment.
         """
+        
+        if not __ASE__:
+            print "ASE library not found."
+            raise ImportError("Error, ASE library is required to read generic file.")
+            
         atoms = ase.io.read(filename)
 
         # Now obtain all the information
@@ -1057,6 +1067,10 @@ class Structure:
             - atoms : ase.Atoms()
                   The ase.Atoms class containing the self structure.
         """
+        
+        if not __ASE__:
+            print "ASE library not found"
+            raise ImportError("Error, ASE library not found")
 
         # Get thee atom list
         atm_list = []

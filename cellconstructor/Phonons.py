@@ -1841,3 +1841,98 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     
     return dynmat
 
+
+def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_structure, q_point):
+    """
+    INTERPOLATE FORCE CONSTANT MATRIX
+    =================================
+    
+    Interpolate the real space force constant matrix in a bigger supercell. 
+    This can be used to obtain a dynamical matrix in many other q points.
+    This function uses the quantum espresso matdyn.x subroutines.
+    
+    Parameters
+    ----------
+        starting_fc : ndarray(size=(3*natsc , 3*natsc), dtype = float64)
+            Array of the force constant matrix in real space.
+        coarse_grid : ndarray(size=3, dtype=int)
+            The dimension of the supercell that defines the starting_fc.
+        unit_cell_structure : Structure()
+            The structure in the unit cell
+        super_cell_structure : Structure()
+            The structure in the super cell
+        q_point : ndarray(size=3, dtype=float64)
+            The q point in which you want to interpolate the dynamical matrix.
+    
+    Results
+    -------
+        dyn_mat : ndarray(size=(3*nat, 3*nat), dtype = complex128)
+            The interpolated dynamical matrix in the provided q point.
+    """
+    # Get some info about the size
+    supercell_size = np.prod(coarse_grid)
+    natsc = np.shape(starting_fc)[0]  / 3
+    nat = natsc / supercell_size
+    
+    #print "nat:", nat
+    #print "natsc:", natsc
+    
+    
+    # Get the force constant in an appropriate supercell
+    QE_frc = np.zeros((coarse_grid[0], coarse_grid[1], coarse_grid[2], 3, 3, nat, nat), dtype = np.float64, order = "F")
+    QE_fc = np.zeros((3,3,natsc, natsc), dtype = np.float64, order = "F")
+    QE_itau = super_cell_structure.get_itau(unit_cell_structure)
+    QE_tau = np.zeros((3, nat), dtype = np.float64, order = "F")
+    QE_tau_sc = np.zeros((3, natsc), dtype = np.float64, order = "F")
+    QE_at = np.zeros((3,3), dtype = np.float64, order = "F")
+    QE_at_sc = np.zeros((3,3), dtype = np.float64, order = "F")
+    
+    for i in range(natsc):
+        for j in range(natsc):
+            QE_fc[:,:, i, j] = starting_fc[3*i : 3*(i+1), 3*j : 3*(j+1)]
+
+    
+    QE_at[:,:] = unit_cell_structure.unit_cell.transpose()
+    QE_at_sc[:,:] = super_cell_structure.unit_cell.transpose()
+    QE_tau[:,:] = unit_cell_structure.coords.transpose()
+    QE_tau_sc[:,:] = super_cell_structure.coords.transpose()
+    
+    #print "ENTERING IN GET_FRC"
+    QE_frc[:,:,:,:,:,:,:] = symph.get_frc(QE_fc, QE_tau, QE_tau_sc, QE_at, QE_itau, 
+          coarse_grid[0], coarse_grid[1], coarse_grid[2], nat, natsc)
+    #print "EXITING IN GET_FRC"
+    
+    # Initialize the interpolation
+    nrwsx = 200
+    QE_rws = np.zeros((4, nrwsx), dtype = np.float64, order = "F")
+    #print "ENTERING IN WSINIT"
+    nrws = symph.wsinit(QE_rws, QE_at_sc, nrwsx)
+    #print "EXTING FROM WSINIT"
+    
+    # Perform the interpolation
+    QE_q = np.array(q_point, dtype = np.float64)
+    #print "ENTERING:"
+    #print "TAU SHAPE:", np.shape(QE_tau)
+    #print "FRC SHAPE:", np.shape(QE_frc)
+    new_dyn = symph.frc_blk(QE_q, QE_tau, QE_frc, QE_at, QE_rws, nrws, nat,
+                            coarse_grid[0], coarse_grid[1], coarse_grid[2])
+    
+    # Conver the dynamical matrix in the Cellconstructor format
+    output_dyn = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+    for i in range(nat):
+        for j in range(nat):
+            output_dyn[3*i : 3*(i+1), 3*j: 3*(j+1)]= new_dyn[:,:, i, j]
+            
+    return output_dyn
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

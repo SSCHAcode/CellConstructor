@@ -5,8 +5,8 @@ Welcome to the CellConstructor python package!
 ## Requirements
 
 To correnctly install and use the package, you need to have
-1. python >= 2.7
-2. ASE : Atomic Simulation Environment
+1. python >= 2.7 and < 3
+2. ASE : Atomic Simulation Environment (suggested but not mandatory)
 3. numpy
 4. scipy
 5. A fortran compiler
@@ -15,10 +15,15 @@ To correnctly install and use the package, you need to have
 The fortran compiler is required to compile the fortran libraries 
 from Quantum ESPRESSO.
 
-Suggested, but not required, is the installation of spglib. 
+Suggested, but not required, is the installation of ASE and spglib. 
+The presence of a valid ASE installation will enable some more features, 
+like the possibility to load structures by any ASE supported file format, 
+or the possibility to export the structures into a valid ASE Atoms class.
 This library is able to compute symmetries from the structure, 
 and inside the symmetry module there is a convertor to let CellConstructure 
-dealing with symmetries extracted with spglib.
+dealing with symmetries extracted with spglib. 
+However, for a more carefull symmetry analisys, we suggest the use of external tools like ISOTROPY.
+This package can generate ISOTROPY input files for more advanced symmetry detection.
 
 
 ## Installation
@@ -62,5 +67,5 @@ To test if the installation runned properly, run the examples reported
 in the test directory. The python code in these tests should be
 almost self explaining and introduce you to the potentiality of this library.
 
-Please, note that all the function of the library have a proper numpy style
+Please, note that all the functions of the library have a proper numpy style
 docstring.
