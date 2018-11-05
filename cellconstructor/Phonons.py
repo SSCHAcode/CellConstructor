@@ -378,7 +378,7 @@ class Phonons:
         
         
         # First of all get correct dynamical matrix by dividing per the masses.
-        real_dyn = np.zeros((3* self.structure.N_atoms, 3*self.structure.N_atoms), dtype = np.complex64)
+        real_dyn = np.zeros((3* self.structure.N_atoms, 3*self.structure.N_atoms), dtype = np.complex128)
         for i, atm_type1 in enumerate(self.structure.atoms):
             m1 = self.structure.masses[atm_type1]
             for j, atm_type2 in enumerate(self.structure.atoms):
