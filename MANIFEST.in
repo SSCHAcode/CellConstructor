@@ -2,3 +2,5 @@ include README.md
 include LICENSE.md
 include test/*
 include cellconstructor/SymData/*
+include cellconstructor/*.py
+include FModules/*.f90

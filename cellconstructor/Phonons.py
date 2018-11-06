@@ -102,7 +102,7 @@ class Phonons:
             self.dynmats = []
             for i in range(nqirr):
                 # Create a dynamical matrix
-                self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms)))
+                self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms), dtype = np.complex128))
                 
                 # Initialize the q vectors
                 self.q_stars.append([np.zeros(3)])
@@ -1048,7 +1048,7 @@ class Phonons:
             # Diagonalize the matrix
             w, pols = self.DyagDinQ(iq)
             
-            matrix = np.einsum("i, ji, ki", w**2, pols, pols) * np.sqrt(_m1_ * _m2_)
+            matrix = np.einsum("i, ji, ki", w**2, pols, np.conj(pols)) * np.sqrt(_m1_ * _m2_)
             self.dynmats[iq] = matrix
                         
                         
