@@ -76,7 +76,7 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,rws,nrws, nrwsx)
                           dyn(ipol,jpol,na,nb) =                 &
                                dyn(ipol,jpol,na,nb) +            &
                                frc(m1,m2,m3,ipol,jpol,na,nb)     &
-                               *COMPLEX(COS(arg),-SIN(arg))*weight
+                               *DCMPLX(COS(arg),-SIN(arg))*weight
                        END DO
                     END DO
                  END IF
