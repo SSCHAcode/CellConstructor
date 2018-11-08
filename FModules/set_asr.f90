@@ -215,7 +215,7 @@ subroutine set_asr ( asr, axis, nat, tau, dyn, zeu )
                  if (na.ne.nb) sum=sum + DBLE (dyn(i,j,na,nb))
               end do
               !print *, "FILLING WITH:", sum, "BEFORE:", dyn(i,j, na,na)
-              dyn(i,j,na,na) = COMPLEX(-sum, 0.d0)
+              dyn(i,j,na,na) = DCMPLX(-sum, 0.d0)
            end do
         end do
      end do
@@ -437,7 +437,7 @@ subroutine set_asr ( asr, axis, nat, tau, dyn, zeu )
            do na=1,nat
               do nb=1,nat
                  dyn (i,j,na,nb) = &
-                      COMPLEX(dynr_new(1,i,j,na,nb), dynr_new(2,i,j,na,nb))
+                      DCMPLX(dynr_new(1,i,j,na,nb), dynr_new(2,i,j,na,nb))
               enddo
            enddo
         enddo

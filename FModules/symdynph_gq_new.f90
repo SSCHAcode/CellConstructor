@@ -122,7 +122,7 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
                                               rtau (kpol, irotmq, nb) ) )
                  enddo
                  arg = arg * tpi
-                 fase = COMPLEX(cos (arg), sin (arg))
+                 fase = DCMPLX(cos (arg), sin (arg))
                  do kpol = 1, 3
                     do lpol = 1, 3
                        work (ipol, jpol) = work (ipol, jpol) + &
@@ -169,7 +169,7 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
                                            rtau (ipol, irot, nb) ) )
               enddo
               arg = arg * tpi
-              faseq (isymq) = COMPLEX(cos (arg), sin (arg))
+              faseq (isymq) = DCMPLX(cos (arg), sin (arg))
               do ipol = 1, 3
                  do jpol = 1, 3
                     do kpol = 1, 3
