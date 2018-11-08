@@ -1225,6 +1225,58 @@ class Phonons:
         
         return final_structures
 
+    def GetHarmonicFreeEnergy(self, T):
+        """
+        COMPUTE THE HARMONIC QUANTUM FREE ENERGY
+        ========================================
+        
+        The dynamical matrix can be used to obtain the vibrational contribution
+        to the Free energy.
+        
+        ..math:: 
+            
+            F(\\Phi) = \\sum_\mu \\left[\\frac{\\hbar \\omega_\\mu}{2} + kT \\ln\\left(1 + e^{-\\beta \hbar\\omega_\\mu}\\right)\\right]
+            
+        
+        Acustic modes at Gamma are discarded from the summation. 
+        An exception is raised if there are imaginary frequencies.
+        
+        Parameter
+        ---------
+            T : float
+                Temperature (in K) of the system.
+                
+        Returns
+        -------
+            fe : float
+                Free energy (in Ry) at the given temperature.
+        """
+        
+        K_to_Ry=6.336857346553283e-06
+
+        # Dyagonalize the current dynamical matrix
+        nq = len(self.dynmats)
+        
+        # For each q point
+        free_energy = 0
+        for iq in range(nq):
+            w, pols = self.DyagDinQ(iq)
+            
+            # Remove translations
+            if iq == 0:
+                tmask = Methods.get_translations(pols, self.structure.get_masses_array())
+                w = w[ ~tmask ]
+                
+            if len(w[w < 0]) >= 1:
+                raise ValueError("Error, the dynamical matrix has imaginary frequencies")
+            
+            free_energy += np.sum( w / 2)
+            if T > 0:
+                beta = 1 / (K_to_Ry * T)
+                free_energy += np.sum( 1 / beta * np.log(1 - np.exp(-beta * w)))
+                
+        return free_energy
+        
     
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1)):
@@ -1437,7 +1489,7 @@ class Phonons:
 
             # Subtract to each atom an average of the total charges
             self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
-        
+    
 
 
     def ApplySymmetry(self, symmat):
