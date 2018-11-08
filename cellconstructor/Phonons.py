@@ -9,7 +9,6 @@ import Structure
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
-import matplotlib.pyplot as plt
 
 import Methods
 import symph
