@@ -12,13 +12,14 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
 
   implicit none
 
+  integer, intent(in) :: nat, natsc, size1, size2, size3
   double precision, dimension(3,3,natsc,natsc), intent(in) :: phi_sc
   double precision, dimension(3, nat), intent(in) :: tau
   double precision, dimension(3, natsc), intent(in) :: tau_sc
   double precision, dimension(3,3), intent(in) :: at
   integer, dimension(natsc), intent(in) :: itau  
   double precision, dimension(size1, size2, size3,3,3,nat,nat), intent(out) :: frc
-  integer, intent(in) :: nat, natsc, size1, size2, size3
+  
   
   
   integer :: alpha, beta, i, j, l, m, n, sup1, sup2, sup3
