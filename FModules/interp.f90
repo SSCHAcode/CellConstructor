@@ -8,7 +8,7 @@
 
 ! ------------------ INTERNAL SUBROUTINES --------------------------
 subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
-        s1, s2, s3,nat, natsc)
+        size1, size2, size3,nat, natsc)
 
   implicit none
 
@@ -17,8 +17,8 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
   double precision, dimension(3, natsc), intent(in) :: tau_sc
   double precision, dimension(3,3), intent(in) :: at
   integer, dimension(natsc), intent(in) :: itau  
-  double precision, dimension(s1, s2, s3,3,3,nat,nat), intent(out) :: frc
-  integer, intent(in) :: nat, natsc, s1, s2, s3
+  double precision, dimension(size1, size2, size3,3,3,nat,nat), intent(out) :: frc
+  integer, intent(in) :: nat, natsc, size1, size2, size3
   
   
   integer :: alpha, beta, i, j, l, m, n, sup1, sup2, sup3
@@ -28,9 +28,9 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
 
   !natsc = size(tau_sc(1,:))
   !nat   = size(tau(1,:))
-  supercell_size(1) = s1
-  supercell_size(2) = s2
-  supercell_size(3) = s3
+  supercell_size(1) = size1
+  supercell_size(2) = size2
+  supercell_size(3) = size3
 
   allocate(phi_auxx(nat,nat,supercell_size(1),supercell_size(2),supercell_size(3)))
 
@@ -57,8 +57,6 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
     end do
   end do
   
-  print *, "IM FINISHED"
-  call flush()
 
   deallocate(phi_auxx)
 
