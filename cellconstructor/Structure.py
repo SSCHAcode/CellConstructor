@@ -9,6 +9,7 @@ import numpy as np
 try:
     __ASE__ = True
     import ase
+    import ase.io
 except:
     __ASE__ = False
     
