@@ -6,6 +6,7 @@ Created on Wed Jun  6 10:29:32 2018
 @author: pione
 """
 import Structure
+import symmetries
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
@@ -725,7 +726,44 @@ class Phonons:
 
         return weight
         
+    def AdjustToNewCell(self, new_cell):
+        """
+        ADJUST THE DYNAMICAL MATRIX IN A NEW CELL
+        =========================================
         
+        This method is used, if you want to change the unit cell,
+        to adjust the dynamical matrix, as the q points, in the new cell.
+        
+        The method forces also the symmetrization after the strain
+        
+        Parameters
+        ----------
+            new_cell : ndarray(size=(3,3), dtype=np.float64)
+                The new unit cell
+        """
+        
+        new_qs = symmetries.GetNewQFromUnitCell(self.structure, new_cell, self.q_tot)
+        
+        # Get the new structure
+        self.structure.change_unit_cell(new_cell)
+        
+        # Get the new q points
+        for iq, q in enumerate(new_qs):
+            self.q_tot[iq] = q
+            
+        count = 0
+        for iqirr in range(len(self.q_stars)):
+            for iq in range(len(self.q_stars[iqirr])):
+                self.q_stars[iqirr][iq] = new_qs[count]
+                count += 1
+        
+        # Force the symmetrization in the new structure
+        # NOTE: This will rise an exception if something is wrong        
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        fcq = np.array(self.dynmats, dtype = np.complex128)
+        qe_sym.SymmetrizeFCQ(fcq, self.q_stars)
+        for iq, q in enumerate(self.q_tot):
+            self.dynmats[iq] = fcq[iq, :, :]
     
     def GetStrainMatrix(self, new_cell, T = 0):
         """

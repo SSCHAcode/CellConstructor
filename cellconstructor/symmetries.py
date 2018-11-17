@@ -232,7 +232,7 @@ class QE_Symmetry:
                     pta = current_q[xq,:]
                     print "Distances of xq in the QE star:"
                     for yq in range(nq_new):
-                        print "%.4f %.4f %.4f  => " % (sxq[0, yq], sxq[1, yq], sxq[2, yq]), Methods.get_min_dist_into_cell(self.QE_bg, sxq[:, yq], current_q[xq,:])
+                        print "%.4f %.4f %.4f  => " % (sxq[0, yq], sxq[1, yq], sxq[2, yq]), Methods.get_min_dist_into_cell(self.QE_bg.transpose(), sxq[:, yq], current_q[xq,:])
                     raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
                                                                                                                  count))
             #print "Sorting array:"
@@ -904,3 +904,44 @@ def GetISOTROPYFindSymInput(structure, title = "Prepared with Cellconstructor",
     
     
 
+def GetNewQFromUnitCell(structure, new_cell, old_qs):
+    """
+    GET NEW Q POINTS AFTER A CELL STRAIN
+    ====================================
+    
+    This method returns the new q points after the unit cell is changed.
+    Remember, when changing the cell to mantain the same kind (cubic, orthorombic, hexagonal...)
+    otherwise the star identification will fail.
+    
+    The q point are passed (and returned) in cartesian coordinates.
+    
+    Parameters
+    ----------
+        structure : Structure.Structure()
+            The structure to be changed (with the old unit celll)
+        new_cell : ndarray(size=(3,3), dtype = np.float64)
+            The new unit cell.
+        old_qs : list of ndarray(size=3, dtype = np.float64)
+            The list of q points to be converted
+    
+    Returns
+    -------
+        new_qs : list of ndarray(size=3, dtype = np.float64)
+            The list of the new q points adapted in the new cell.
+    """
+    
+    bg = structure.get_reciprocal_vectors() / (2 * np.pi)
+    new_structure = structure.copy()
+    new_structure.change_unit_cell(new_cell)
+    new_bg = new_structure.get_reciprocal_vectors() / (2 * np.pi)
+    
+    new_qs = []
+    for iq, q in enumerate(old_qs):
+        # Get the q point in crystal coordinates
+        new_qprime = Methods.covariant_coordinates(bg, q)
+        
+        # Convert the crystal coordinates in the new reciprocal lattice vectors
+        new_q = np.einsum("ij, j", new_bg, new_qprime)
+        new_qs.append(new_q)
+    
+    return new_qs
