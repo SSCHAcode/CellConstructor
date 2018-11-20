@@ -1494,7 +1494,8 @@ class Phonons:
 #        
 #        return fc
     
-    def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, support_dyn_fine = None):
+    def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, 
+                    support_dyn_fine = None, symmetrize = True):
         """
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
@@ -1518,6 +1519,9 @@ class Phonons:
                 If given, the fine_grid is read 
                 by the q points of this matrix, and must be compatible
                 with the fine_grid.
+            symmetrize : bool, optional
+                If false deactivate the symmetrization (usefull if the number of
+                q points is really huge)
         
         Results
         -------
@@ -1590,7 +1594,9 @@ class Phonons:
         
         
         new_dynmat.AdjustQStar()
-        new_dynmat.Symmetrize()
+        
+        if symmetrize:
+            new_dynmat.Symmetrize()
         
         return new_dynmat
             
