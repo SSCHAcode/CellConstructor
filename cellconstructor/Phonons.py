@@ -105,8 +105,8 @@ class Phonons:
                 self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms), dtype = np.complex128))
                 
                 # Initialize the q vectors
-                self.q_stars.append([np.zeros(3)])
-                self.q_tot.append(np.zeros(3))
+                self.q_stars.append([np.zeros(3, dtype = np.float64)])
+                self.q_tot.append(np.zeros(3, dtype = np.float64))
         
                 
     def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False):
@@ -1494,6 +1494,152 @@ class Phonons:
 #        
 #        return fc
     
+    def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, support_dyn_fine = None):
+        """
+        INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
+        ==================================================
+        
+        This method interpolates the dynamical matrix in a finer mesh.
+        It is possible to use a different dynamical matrix as a support,
+        then only the difference of the current dynamical matrix 
+        with the support is interpolated. In this way you can easier achieve convergence.
+        
+        Parameters
+        ----------
+            coarse_grid : ndarray(size=3, dtype = int)
+                The current q point mesh size
+            fine_grid : ndarray(size=3, dtype = int)
+                The final q point mesh size
+            support_dyn_coarse : Phonons(), optional
+                A dynamical matrix used as a support in the same q grid as this one.
+                Note that the q points must coincide with the one of this matrix.
+            support_dyn_fine : Phonons(), optional
+                The support dynamical matrix in the finer cell. 
+                If given, the fine_grid is read 
+                by the q points of this matrix, and must be compatible
+                with the fine_grid.
+        
+        Results
+        -------
+            interpolated_dyn : Phonons()
+                The dynamical matrix interpolated.
+        """
+        
+        # Check if the support dynamical matrix is given:
+        is_dync = support_dyn_coarse is not None
+        is_dynf = support_dyn_fine is not None
+        if is_dync != is_dynf:
+            raise ValueError("Error, you must provide both support matrix")
+                
+        nqtot = np.prod(fine_grid)
+        
+        # Get the q list
+        q_list = symmetries.GetQGrid(self.structure.unit_cell, fine_grid)
+        #print "The q list:"
+        #print q_list
+        
+        if is_dync and is_dynf:
+            # Check if the is_dynf has the correct number of q points
+            if nqtot != len(support_dyn_fine.q_tot):
+                raise ValueError("Error, the number of q points of the support must coincide with the fine grid")
+            
+            # Check if the support dyn course q points coincides
+            bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+            for iq, q in enumerate(self.q_tot):
+                if Methods.get_min_dist_into_cell(bg, q, support_dyn_coarse.q_tot[iq]) > __EPSILON__:
+                    print "ERROR, NOT MATCHING Q:"
+                    print "self q1 = ", q
+                    print "support coarse q2 = ", support_dyn_coarse.q_tot[iq]
+                    raise ValueError("Error, the coarse support grid as a q point that does not match the self one")
+        
+            
+            # Overwrite the q list
+            q_list = support_dyn_fine.q_tot.copy()
+        
+        
+        # Prepare the super variables
+        new_dynmat = Phonons(self.structure.copy(), nqtot)
+        super_structure = self.structure.generate_supercell(fine_grid)
+        
+        nat = self.structure.N_atoms
+        fcq = np.zeros( (len(self.q_tot), 3 * nat, 3*nat), dtype = np.complex128)
+        for iq, q in enumerate(self.q_tot):
+            fcq[iq, :, :] = self.dynmats[iq].copy()
+            if is_dync:
+                fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
+                
+        # Get the real space force constant matrix
+        r_fcq = self.GetRealSpaceFC(coarse_grid)
+            
+        new_dynmat.q_stars = [[]]
+        new_dynmat.nqirr = 1
+        q_star_i = 0
+        passed_qstar = 0
+        for iq, q in enumerate(q_list):
+            new_dynmat.q_tot[iq][:] = q
+            
+            # Use the same star as the support matrix
+            if is_dynf:
+                if iq - passed_qstar == len(support_dyn_fine.q_star[q_star_i]):
+                    q_star_i += 1
+                    passed_qstar = iq 
+                    
+            print "WORKING ON:", q
+            new_dynmat.q_stars[q_star_i].append(q)
+            new_dynmat.dynmats[iq] = InterpolateDynFC(r_fcq, coarse_grid, self.structure, self.structure.generate_supercell(coarse_grid), q)
+        
+        
+        new_dynmat.AdjustQStar()
+        new_dynmat.Symmetrize()
+        
+        return new_dynmat
+            
+    
+    def AdjustQStar(self):
+        """
+        ADJUST THE Q STAR
+        =================
+        
+        This function uses the quantum espresso symmetry finder to
+        divide the q points into the proper q stars, reordering the current dynamical matrix
+        """
+        
+        # Initialize the symmetries
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        
+        # Get the q_stars
+        q_stars, q_order = qe_sym.SetupQStar(self.q_tot)
+        
+        # Reorder the dynamical matrix
+        new_dynmats = []
+        q_tot = []
+        for i in range(len(q_order)):
+            iq = q_order[i]
+            q = self.q_tot[iq]
+            new_dynmats.append(self.dynmats[iq])
+        
+        self.dynmats = new_dynmats
+        self.q_stars = q_stars
+        self.nqirr = len(q_stars)
+            
+        
+    def Symmetrize(self):
+        """
+        SYMMETRIZE THE DYNAMICAL MATRIX
+        ===============================
+        
+        This subroutine uses the QE symmetrization procedure to obtain
+        a full symmetrized dynamical matrix.
+        """
+        
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        
+        fcq = np.array(self.dynmats, dtype = np.complex128)
+        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = "custom")
+        
+        for iq,q in enumerate(self.q_tot):
+            self.dynmats[iq] = fcq[iq, :, :]
+    
 
     def ApplySumRule(self):
         """
@@ -1931,6 +2077,7 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     return dynmat
 
 
+
 def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_structure, q_point):
     """
     INTERPOLATE FORCE CONSTANT MATRIX
@@ -1986,23 +2133,23 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     QE_tau[:,:] = unit_cell_structure.coords.transpose()
     QE_tau_sc[:,:] = super_cell_structure.coords.transpose()
     
-    #print "ENTERING IN GET_FRC"
+    print "ENTERING IN GET_FRC"
     QE_frc[:,:,:,:,:,:,:] = symph.get_frc(QE_fc, QE_tau, QE_tau_sc, QE_at, QE_itau, 
           coarse_grid[0], coarse_grid[1], coarse_grid[2], nat, natsc)
-    #print "EXITING IN GET_FRC"
+    print "EXITING IN GET_FRC"
     
     # Initialize the interpolation
     nrwsx = 200
     QE_rws = np.zeros((4, nrwsx), dtype = np.float64, order = "F")
-    #print "ENTERING IN WSINIT"
+    print "ENTERING IN WSINIT"
     nrws = symph.wsinit(QE_rws, QE_at_sc, nrwsx)
-    #print "EXTING FROM WSINIT"
+    print "EXTING FROM WSINIT"
     
     # Perform the interpolation
     QE_q = np.array(q_point, dtype = np.float64)
-    #print "ENTERING:"
-    #print "TAU SHAPE:", np.shape(QE_tau)
-    #print "FRC SHAPE:", np.shape(QE_frc)
+    print "ENTERING:"
+    print "TAU SHAPE:", np.shape(QE_tau)
+    print "FRC SHAPE:", np.shape(QE_frc)
     new_dyn = symph.frc_blk(QE_q, QE_tau, QE_frc, QE_at, QE_rws, nrws, nat,
                             coarse_grid[0], coarse_grid[1], coarse_grid[2])
     

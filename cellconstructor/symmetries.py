@@ -129,8 +129,83 @@ class QE_Symmetry:
         
         # Save in the structure
         structure.coords[:,:] = new_coords.transpose()
-            
         
+            
+    def SetupQStar(self, q_tot):
+        """
+        DIVIDE THE Q POINTS IN STARS
+        ============================
+        
+        This method divides the given q point list into the star.
+        Remember, you need to pass the whole number of q points
+        
+        Parameters
+        ----------
+            q_tot : list
+                List of q vectors to be divided into stars
+        
+        Results
+        -------
+            q_stars : list of lists
+                The list of q_star (list of q point in the same star).
+            sort_mask : ndarray(size=len(q_tot), dtype = int)
+                a mask to sort the q points in order to match the
+                same order than the q_star
+        """
+        
+        # Setup the symmetries
+        self.SetupQPoint()
+        
+        # Lets copy the q list (we are going to pop items from it)
+        q_list = q_tot[:]
+        q_stars = []
+        
+        count_qstar = 0
+        count_q = 0
+        q_indices = np.zeros( len(q_tot), dtype = int)
+        while len(q_list) > 0:
+            q = q_list[0]
+            # Get the star of the current q point
+            _q_ = np.array(q, dtype = np.float64) # Fortran explicit conversion
+        
+            nq_new, sxq, isq, imq = symph.star_q(_q_, self.QE_at, self.QE_bg, 
+                                                 self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+        
+            print "START WITH Q:", q
+            print "FOUND STAR:"
+            for jq in range(nq_new):
+                print sxq[:, jq]
+            print ""
+            
+            print "TELL ME THE BG:"
+            print self.QE_bg.transpose()
+            
+            # Prepare the star
+            q_star = [sxq[:, k] for k in range(nq_new)]
+            q_stars.append(q_star)
+            
+            # Pop out the q_star from the q_list
+            for jq in range(nq_new):
+                # Look for the q point in the star and pop them
+                q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
+                                                         sxq[:, jq], q_point) for q_point in q_list]
+                
+                pop_index = np.argmin(q_dist)            
+                q_list.pop(pop_index)
+                
+                # Use the same trick to identify the q point
+                q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
+                                                         sxq[:, jq], q_point) for q_point in q_tot]
+                
+                q_index = np.argmin(q_dist)
+                print q_indices, count_q, q_index
+                q_indices[count_q] = q_index
+                
+                count_q += 1
+            
+            
+        return q_stars, q_indices
+            
     
     def ApplyQStar(self, fcq, q_point_group):
         """
@@ -900,6 +975,64 @@ def GetISOTROPYFindSymInput(structure, title = "Prepared with Cellconstructor",
                                                  new_vect[2]))
         
     return lines
+    
+
+    
+def GetQGrid(unit_cell, supercell_size):
+    """
+    GET THE Q GRID
+    ==============
+    
+    This method gives back a list of q points given the
+    reciprocal lattice vectors and the supercell size.
+    
+    Parameters
+    ----------
+        unit_cell : ndarray(size=(3,3), dtype = np.float64)
+            The unit cell, rows are the vectors
+        supercell_size : ndarray(size=3, dtype = int)
+            The dimension of the supercell along each unit cell vector.
+    
+    Returns
+    -------
+        q_list : list
+            The list of q points, of type ndarray(size = 3, dtype = np.float64)
+            
+    """
+    
+    q_list = []
+    # Get the recirpocal lattice vectors
+    bg = Methods.get_reciprocal_vectors(unit_cell)
+    
+    # Get the supercell
+    supercell = np.tile(supercell_size, (3, 1)).transpose() * unit_cell
+    
+    # Get the lattice vectors of the supercell
+    bg_s = Methods.get_reciprocal_vectors(supercell)
+    
+    print "SUPERCELL:", supercell_size
+    
+    for ix in range(supercell_size[0]):
+        for iy in range(supercell_size[1]):
+            for iz in range(supercell_size[2]):
+                n_s = np.array( [ix, iy, iz], dtype = np.float64)
+                q_vect = n_s.dot(bg_s)
+                q_vect = Methods.put_into_cell(bg, q_vect)
+                
+                for q in q_list:
+                    if Methods.get_min_dist_into_cell(bg, q_vect, q) < __EPSILON__:
+                        print "The q point in crystal (bg_s):"
+                        print ix, iy, iz
+                        print "The q point:", q_vect
+                        print "Is already present in the list:",
+                        print q_list
+                        raise ValueError("Error, q point found twice.")
+                
+                q_list.append(q_vect)
+                
+    
+    return q_list
+        
     
     
     

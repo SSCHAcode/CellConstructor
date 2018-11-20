@@ -114,7 +114,34 @@ def get_min_dist_into_cell(unit_cell, v1, v2):
     # Compute the distance using the metric tensor
     return np.sqrt(covect_distance.dot(metric_tensor.dot(covect_distance)))
 
+
+def get_reciprocal_vectors(unit_cell):
+    """
+    GET THE RECIPROCAL LATTICE VECTORS
+    ==================================
     
+    Gives back the reciprocal lattice vectors given the
+    unit cell.
+    
+    P.S.
+    The output is in rad / alat^-1 
+    where alat is the unit of measurement of the unit_cell.
+    
+    Parameters
+    ----------
+        unit_cell : ndarray( size = (3,3), dtype = np.float64)
+            The unit cell, rows are the vectors.
+    
+    Results
+    -------
+        reciprocal_vectors : ndarray(size = (3,3), dtype = np.float64)
+            The reciprocal lattice vectors 
+    """
+    
+    reciprocal_vectors = np.zeros( (3,3), dtype = np.float64)
+    reciprocal_vectors[:,:] = np.transpose(np.linalg.inv(unit_cell))
+    return reciprocal_vectors
+
     
 def from_dynmat_to_spectrum(dynmat, struct):
     """
@@ -916,3 +943,4 @@ def convert_fc(fc_matrix, unit_cell, cryst_to_cart = False):
             
     return new_fc_matrix
         
+

@@ -411,7 +411,8 @@ class Structure:
         if not self.has_unit_cell:
             raise ValueError("Error: the specified structure has not the unit cell.")
 
-        return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
+        return Methods.get_reciprocal_vectors(self.unit_cell) * 2 * np.pi
+        #return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
         
         
     def delete_copies(self, minimum_dist=1e-6, verbose=False):
