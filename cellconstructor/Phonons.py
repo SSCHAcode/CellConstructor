@@ -1263,7 +1263,7 @@ class Phonons:
         
         return final_structures
 
-    def GetHarmonicFreeEnergy(self, T):
+    def GetHarmonicFreeEnergy(self, T, allow_imaginary_freq = False):
         """
         COMPUTE THE HARMONIC QUANTUM FREE ENERGY
         ========================================
@@ -1304,6 +1304,10 @@ class Phonons:
             if iq == 0:
                 tmask = Methods.get_translations(pols, self.structure.get_masses_array())
                 w = w[ ~tmask ]
+                
+            # if imaginary frequencies are allowed, put w->0
+            if allow_imaginary_freq:
+                w[w<0] = __EPSILON__
                 
             if len(w[w < 0]) >= 1:
                 raise ValueError("Error, the dynamical matrix has imaginary frequencies")
