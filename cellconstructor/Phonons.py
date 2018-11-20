@@ -1499,7 +1499,7 @@ class Phonons:
 #        return fc
     
     def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, 
-                    support_dyn_fine = None, symmetrize = True):
+                    support_dyn_fine = None, symmetrize = False):
         """
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
@@ -1524,8 +1524,7 @@ class Phonons:
                 by the q points of this matrix, and must be compatible
                 with the fine_grid.
             symmetrize : bool, optional
-                If false deactivate the symmetrization (usefull if the number of
-                q points is really huge)
+                If true activate the symmetrization for the new matrix
         
         Results
         -------
