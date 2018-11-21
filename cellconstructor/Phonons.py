@@ -1561,11 +1561,17 @@ class Phonons:
         
             
             # Overwrite the q list
-            q_list = support_dyn_fine.q_tot.copy()
+            q_list = support_dyn_fine.q_tot[:]
         
         
         # Prepare the super variables
-        new_dynmat = Phonons(self.structure.copy(), nqtot)
+        if not is_dynf:
+            new_dynmat = Phonons(self.structure.copy(), nqtot)
+            new_dynmat.q_stars = [[]]
+            new_dynmat.nqirr = 1
+        else:
+            new_dynmat = support_dyn_fine.Copy()
+            
         super_structure = self.structure.generate_supercell(fine_grid)
         
         nat = self.structure.N_atoms
@@ -1578,8 +1584,7 @@ class Phonons:
         # Get the real space force constant matrix
         r_fcq = self.GetRealSpaceFC(coarse_grid)
             
-        new_dynmat.q_stars = [[]]
-        new_dynmat.nqirr = 1
+            
         q_star_i = 0
         passed_qstar = 0
         for iq, q in enumerate(q_list):
@@ -1587,7 +1592,7 @@ class Phonons:
             
             # Use the same star as the support matrix
             if is_dynf:
-                if iq - passed_qstar == len(support_dyn_fine.q_star[q_star_i]):
+                if iq - passed_qstar == len(support_dyn_fine.q_stars[q_star_i]):
                     q_star_i += 1
                     passed_qstar = iq 
                     
