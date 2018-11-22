@@ -1033,8 +1033,50 @@ def GetQGrid(unit_cell, supercell_size):
     
     return q_list
         
+
+def CheckSupercellQ(unit_cell, supercell_size, q_list):
+    """
+    CHECK THE Q POINTS
+    ==================
     
+    This subroutine checks that the given q points of a dynamical matrix
+    matches the desidered supercell. 
+    It is usefull to spot bugs like the wrong definitions of alat units, 
+    or error not spotted just by the number of q points (confusion between 1,2,2 or 2,1,2 supercell).
     
+    Parameters
+    ----------
+        unit_cell : ndarray(size=(3,3), dtype = np.float64)
+            The unit cell, rows are the vectors
+        supercell_size : ndarray(size=3, dtype = int)
+            The dimension of the supercell along each unit cell vector.
+        q_list : list of vectors
+            The total q point list.
+    Returns
+    -------
+        is_ok : bool
+            True => No error
+            False => Error
+    """
+    # Get the q point list for the given supercell
+    correct_q = GetQGrid(unit_cell, supercell_size)
+    
+    # Get the reciprocal lattice vectors
+    bg = Methods.get_reciprocal_vectors(unit_cell)
+    
+    # Check if the vectors are equivalent or not
+    for iq, q in enumerate(q_list):
+        for jq, qnew in enumerate(correct_q):
+            if Methods.get_min_dist_into_cell(bg, q, qnew) < __EPSILON__:
+                correct_q.pop(jq)
+                break
+    
+    if len(correct_q) > 0:
+        print "[CHECK SUPERCELL]"
+        print " MISSING Q ARE "
+        print "\n".join([" q =%16.8f%16.8f%16.8f " % (q[0], q[1], q[2]) for q in correct_q])
+        return False
+    return True
     
 
 def GetNewQFromUnitCell(structure, new_cell, old_qs):

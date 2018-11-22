@@ -1567,7 +1567,9 @@ class Phonons:
         # Prepare the super variables
         if not is_dynf:
             new_dynmat = Phonons(self.structure.copy(), nqtot)
+            new_dynmat.alat = self.alat
             new_dynmat.q_stars = [[]]
+            new_dynmat.initialized = True
             new_dynmat.nqirr = 1
         else:
             new_dynmat = support_dyn_fine.Copy()
