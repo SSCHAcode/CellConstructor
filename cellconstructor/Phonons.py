@@ -410,14 +410,14 @@ class Phonons:
                 sys.stderr.write("WARNING: Phonon mode %d at q point %d not normalized!\n" % (i, iq))
                 print "WARNING: Normalization of the phonon %d mode at %d q = %16.8f" % (i, iq, norm)
                 
-                # Check if it is an eigenvector
-                not_eigen = np.sqrt(np.sum( (real_dyn.dot(pol_vects[:, i]) - eigvals[i] * pol_vects[:, i])**2))
+            # Check if it is an eigenvector
+            not_eigen = np.sqrt(np.sum( abs(real_dyn.dot(pol_vects[:, i]) - eigvals[i] * pol_vects[:, i])**2))
                 
-                if not_eigen > 1e-2:
-                    sys.stderr.write("WARNING: Phonon mode %d at q point %d not an eigenvector!\n" % (i, iq))
-                    print "WARNING: Error of the phonon %d mode eigenvector %d q = %16.8f" % (i, iq, not_eigen)
+            if not_eigen > 1e-2:
+                sys.stderr.write("WARNING: Phonon mode %d at q point %d not an eigenvector!\n" % (i, iq))
+                print "WARNING: Error of the phonon %d mode eigenvector %d q = %16.8f" % (i, iq, not_eigen)
                     
-                pol_vects[:, i] /= norm
+            pol_vects[:, i] /= norm
         
         return frequencies, pol_vects
     
@@ -508,7 +508,6 @@ class Phonons:
         
         # We need frequencies and polarization vectors
         w, pols = self.DyagDinQ(iq)
-        pols_conj = np.conj(pols)
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
@@ -519,21 +518,29 @@ class Phonons:
             
             # Discard translations
             w = w[no_trans]
-            pols = np.real(pols[:, no_trans])
-            type_cal = np.float64
+            pols = pols[:, no_trans]
+            #type_cal = np.float64
             
-            pols_conj = pols
+            #pols_conj = pols
+            
+        
+        pols_conj = np.conj(pols)
             
         # Get the bosonic occupation number
         nw = np.zeros(np.shape(w))
-        if T == 0:
-            nw = 0.
+        if T < __EPSILON__:
+            nw = np.float64(0)
+            #print "T = 0"
         else:
             nw =  1. / (np.exp(w/(K_to_Ry * T)) -1)
+            #print "T > 0"
         
         # Compute the matrix
         factor = 2 * w / (1. + 2*nw)
-        Upsilon = np.einsum( "i, ji, ki", factor, pols_conj, pols, dtype = type_cal)
+        Upsilon = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
+        
+        _p1_, _p1vect_ = np.linalg.eigh(Upsilon)
+        #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
         # Get the masses for the final multiplication
         mass1 = np.zeros( 3*self.structure.N_atoms)
@@ -980,11 +987,11 @@ class Phonons:
             fp.write("Basis vectors\n")
             # Get the unit cell
             for i in range(3):
-                fp.write(" ".join("%12.8f" % x for x in self.structure.unit_cell[i,:] / self.alat) + "\n")
+                fp.write(" ".join("%22.16f" % x for x in self.structure.unit_cell[i,:] / self.alat) + "\n")
         
             # Set the atom types and masses
             for i in range(n_types):
-                fp.write("\t%d  '%s '  %.8f\n" % (i +1, types[i], self.structure.masses[types[i]]))
+                fp.write("\t%d  '%s '  %22.16f\n" % (i +1, types[i], self.structure.masses[types[i]]))
         
             # Setup the atomic structure
             for i in range(n_atoms):
@@ -1007,7 +1014,7 @@ class Phonons:
                 fp.write("\n")
                 fp.write("     Dynamical Matrix in cartesian axes\n")
                 fp.write("\n")
-                fp.write("     q = (    %.9f   %.9f   %.9f )\n" % 
+                fp.write("     q = (    %.12f   %.12f   %.12f )\n" % 
                          (q_star[jq][0] * self.alat , q_star[jq][1]*self.alat, q_star[jq][2]*self.alat ))
                 fp.write("\n")
             
@@ -1017,7 +1024,7 @@ class Phonons:
                         # Write the atoms
                         fp.write("%5d%5d\n" % (i + 1, j + 1))
                         for x in range(3):
-                            line = "%12.8f%12.8f   %12.8f%12.8f   %12.8f%12.8f" % \
+                            line = "%23.16f%23.16f   %23.16f%23.16f   %23.16f%23.16f" % \
                                    ( np.real(self.dynmats[count_q][3*i + x, 3*j]), np.imag(self.dynmats[count_q][3*i + x, 3*j]),
                                      np.real(self.dynmats[count_q][3*i + x, 3*j+1]), np.imag(self.dynmats[count_q][3*i+x, 3*j+1]),
                                      np.real(self.dynmats[count_q][3*i + x, 3*j+2]), np.imag(self.dynmats[count_q][3*i+x, 3*j+2]) )
@@ -1031,7 +1038,7 @@ class Phonons:
             fp.write("\n")
             fp.write("     Diagonalizing the dynamical matrix\n")
             fp.write("\n")
-            fp.write("     q = (    %.9f   %.9f   %.9f )\n" % 
+            fp.write("     q = (    %.12f   %.12f   %.12f )\n" % 
                      (q_star[0][0] *self.alat , q_star[0][1] *self.alat, q_star[0][2] *self.alat))
             fp.write("\n")
             fp.write("*" * 75 + "\n")
@@ -1321,7 +1328,8 @@ class Phonons:
         
     
     
-    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1)):
+    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
+                          displacement = None):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -1355,6 +1363,10 @@ class Phonons:
                 If you do not pass it, you must provide the supercell size (if different than the unit cell)
             super_cell : list of 3 items
                 This is the supercell on which compute the energy and force. 
+            displacement:
+                The displacements from the self average position to be used. It is not
+                necessary since they can be recomputed, however if provided, the calculation is faster.
+                It must be in Angstrom.
         
         Returns
         -------
@@ -1370,7 +1382,10 @@ class Phonons:
             super_structure = self.structure.generate_supercell(supercell)
         
         # Get the displacement vector (bohr)
-        rv = structure.get_displacement(super_structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
+        if displacement is None:
+            rv = structure.get_displacement(super_structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
+        else:
+            rv = displacement * A_TO_BOHR
         
         if real_space_fc is None:
             real_space_fc = self.GetRealSpaceFC(supercell)
@@ -1567,13 +1582,14 @@ class Phonons:
         # Prepare the super variables
         if not is_dynf:
             new_dynmat = Phonons(self.structure.copy(), nqtot)
-            new_dynmat.alat = self.alat
             new_dynmat.q_stars = [[]]
             new_dynmat.initialized = True
             new_dynmat.nqirr = 1
+            new_dynmat.alat = self.alat
         else:
             new_dynmat = support_dyn_fine.Copy()
-            
+        
+        
         super_structure = self.structure.generate_supercell(fine_grid)
         
         nat = self.structure.N_atoms

@@ -9,6 +9,9 @@ from Structure import Structure
 from Phonons import Phonons
 import Methods
 import warnings
+import Settings
+
+from functools import partial
 
 
 # Check if parallelization is available
@@ -17,8 +20,10 @@ try:
     __MPI__ = True
 except:
     __MPI__ = False
+    
 
-def GetQ_vectors(structures, dynmat):
+
+def GetQ_vectors(structures, dynmat, u_disps = None):
     """
     Q VECTOR
     ========
@@ -43,6 +48,10 @@ def GetQ_vectors(structures, dynmat):
         dynmat : Phonons()
             The dynamical matrix from which the polarization vectors and
             the reference structure are computed. This must be in the supercell
+        u_disps : ndarray(size=(N_structures, 3*nat_sc), dtype = np.float64)
+            The displacements with respect to the average positions. 
+            This is not necessary (if None it is computed), but can speedup a
+            lot the calculation if provided.
     
     Results
     -------
@@ -63,11 +72,18 @@ def GetQ_vectors(structures, dynmat):
     # Delete the translations
     pols = pols[ :, ~ Methods.get_translations(pols, dynmat.structure.get_masses_array()) ]
 
-    q_vects = np.zeros( (len(structures), len(pols[0,:])), dtype = np.float64)
-    for i, struc in enumerate( structures):
+    q_vects = np.zeros((len(structures), len(pols[0,:])), dtype = np.float64)
+    
+    _ms_ = np.sqrt(_m_)
+    
+    
+    for i, struc in enumerate(structures):
         # Get the displacements
-        u_disp =  struc.get_displacement(dynmat.structure).reshape(3 * nat)
-        q_vects[i, :] = np.einsum("i, ij, i", np.sqrt(_m_), pols, u_disp)
+        if u_disps is None:
+            u_disp =  struc.get_displacement(dynmat.structure).reshape(3 * nat)
+        else:
+            u_disp = u_disps[i, :]
+        q_vects[i, :] = np.einsum("i, ij, i", _ms_, pols, u_disp)
 
     return q_vects
 
