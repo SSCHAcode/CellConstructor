@@ -1600,7 +1600,8 @@ class Phonons:
                 fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
                 
         # Get the real space force constant matrix
-        r_fcq = self.GetRealSpaceFC(coarse_grid)
+        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
+        #r_fcq = self.GetRealSpaceFC(coarse_grid)
             
             
         q_star_i = 0
@@ -1616,7 +1617,7 @@ class Phonons:
                     
             print "WORKING ON:", q
             new_dynmat.q_stars[q_star_i].append(q)
-            new_dynmat.dynmats[iq] = InterpolateDynFC(r_fcq, coarse_grid, self.structure, self.structure.generate_supercell(coarse_grid), q)
+            new_dynmat.dynmats[iq] += InterpolateDynFC(r_fcq, coarse_grid, self.structure, self.structure.generate_supercell(coarse_grid), q)
         
         
         new_dynmat.AdjustQStar()
