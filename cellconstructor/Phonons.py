@@ -733,7 +733,7 @@ class Phonons:
 
         return weight
         
-    def AdjustToNewCell(self, new_cell):
+    def AdjustToNewCell(self, new_cell, symmetrize = True):
         """
         ADJUST THE DYNAMICAL MATRIX IN A NEW CELL
         =========================================
@@ -749,7 +749,7 @@ class Phonons:
                 The new unit cell
         """
         
-        new_qs = symmetries.GetNewQFromUnitCell(self.structure, new_cell, self.q_tot)
+        new_qs = symmetries.GetNewQFromUnitCell(self.structure.unit_cell, new_cell, self.q_tot)
         
         # Get the new structure
         self.structure.change_unit_cell(new_cell)
@@ -766,11 +766,12 @@ class Phonons:
         
         # Force the symmetrization in the new structure
         # NOTE: This will rise an exception if something is wrong        
-        qe_sym = symmetries.QE_Symmetry(self.structure)
-        fcq = np.array(self.dynmats, dtype = np.complex128)
-        qe_sym.SymmetrizeFCQ(fcq, self.q_stars)
-        for iq, q in enumerate(self.q_tot):
-            self.dynmats[iq] = fcq[iq, :, :]
+        if symmetrize:
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+            fcq = np.array(self.dynmats, dtype = np.complex128)
+            qe_sym.SymmetrizeFCQ(fcq, self.q_stars)
+            for iq, q in enumerate(self.q_tot):
+                self.dynmats[iq] = fcq[iq, :, :]
     
     def GetStrainMatrix(self, new_cell, T = 0):
         """

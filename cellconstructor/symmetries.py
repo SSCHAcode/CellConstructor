@@ -1079,7 +1079,7 @@ def CheckSupercellQ(unit_cell, supercell_size, q_list):
     return True
     
 
-def GetNewQFromUnitCell(structure, new_cell, old_qs):
+def GetNewQFromUnitCell(old_cell, new_cell, old_qs):
     """
     GET NEW Q POINTS AFTER A CELL STRAIN
     ====================================
@@ -1105,10 +1105,8 @@ def GetNewQFromUnitCell(structure, new_cell, old_qs):
             The list of the new q points adapted in the new cell.
     """
     
-    bg = structure.get_reciprocal_vectors() / (2 * np.pi)
-    new_structure = structure.copy()
-    new_structure.change_unit_cell(new_cell)
-    new_bg = new_structure.get_reciprocal_vectors() / (2 * np.pi)
+    bg = Methods.get_reciprocal_vectors(old_cell) #/ (2 * np.pi)
+    new_bg = Methods.get_reciprocal_vectors(new_cell)# / (2 * np.pi)
     
     new_qs = []
     for iq, q in enumerate(old_qs):
@@ -1116,7 +1114,7 @@ def GetNewQFromUnitCell(structure, new_cell, old_qs):
         new_qprime = Methods.covariant_coordinates(bg, q)
         
         # Convert the crystal coordinates in the new reciprocal lattice vectors
-        new_q = np.einsum("ij, j", new_bg, new_qprime)
+        new_q = np.einsum("ji, j", new_bg, new_qprime)
         new_qs.append(new_q)
     
     return new_qs
