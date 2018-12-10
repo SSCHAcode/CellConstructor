@@ -740,9 +740,11 @@ def read_namelist(line_list):
                 value = True
             elif value.lower() == ".false.":
                 value = False
-            elif '"' in value or "'" in value: # Get a string content
+            elif '"' == value[0]: # Get a string content
                 # If it is a string cancel the " or ' or ,
-                value = value.replace("\"", "").replace("'", "")
+                value = value.replace("\"", "")
+            elif "'" == value[0]:
+                value = value.replace("'", "")
             elif value.count(" ") >= 1:
                 value = [float(item) for item in value.split()]
             else:
