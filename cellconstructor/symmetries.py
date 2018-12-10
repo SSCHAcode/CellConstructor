@@ -5,6 +5,7 @@ Created on Fri Sep 29 11:10:21 2017
 
 @author: darth-vader
 """
+import time
 import os
 import numpy as np
 import Methods
@@ -404,9 +405,14 @@ class QE_Symmetry:
             # Prepare the symmetrization
             if verbose:
                 print "Symmetries in q = ", q_points[iq, :]
+            t1 = time.time()
             self.SetupQPoint(q_points[iq,:], verbose)
+            t2 = time.time()
+            if verbose:
+                print " [SYMMETRIZEFCQ] Time to setup the q point %d" % iq, t2-t1, "s"
             
             # Proceed with the sum rule if we are at Gamma
+            
             if asr == "simple" or asr == "custom":
                 if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
                     self.ImposeSumRule(fcq[iq,:,:], asr)
@@ -417,15 +423,26 @@ class QE_Symmetry:
             else:
                 raise ValueError("Error, only 'simple', 'crystal', 'custom' or 'no' asr are supported, given %s" % asr)
             
+            t1 = time.time()
+            if verbose:
+                print " [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s"
+            
             # Symmetrize the matrix
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
+            t2 = time.time()
+            if verbose:
+                print " [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" 
         
         
         # For each star perform the symmetrization over that star
         q0_index = 0
         for i in range(nqirr):
             q_len = len(q_stars[i])
+            t1 = time.time()
             self.ApplyQStar(fcq[q0_index : q0_index + q_len, :,:], np.array(q_stars[i]))
+            t2 = time.time()
+            if verbose:
+                print " [SYMMETRIZEFCQ] Time to apply the star q_irr = %d:" % i, t2 - t1, "s"
             q0_index += q_len
 
         

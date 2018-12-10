@@ -678,27 +678,41 @@ def read_namelist(line_list):
                 namespace.clear()
                 continue
             
+            # First of all split for quotes
+            value = None
+            new_list_trial = line.split('"')
+            if len(new_list_trial) == 3:
+                value = '"' + new_list_trial[1] + '"'
+            else:                
+                new_list_trial = line.split("'")
+                if len(new_list_trial) == 3:
+                    value = '"' + new_list_trial[1] + '"'
+            
             # Get the name of the variable
             new_list = line.split("=")
             
-            if len(new_list) != 2:
+            if len(new_list) != 2 and value is None:
                 raise IOError("Error, I do not understand the line %s" % line)
-            
+            elif len(new_list) < 2:
+                raise IOError("Error, I do not understand the line %s" % line)
+                
             variable = new_list[0].strip().lower()
-            value = new_list[1].strip()
+            if value is None:
+                value = new_list[1].strip()
             
             # Remove ending comma and otehr tailoring space
             if value[-1] == ",":
                 value = value[:-1].strip()
             
-            # If it is a string cancel the " or ' or ,
-            value = value.replace("\"", "").replace("'", "")
             
             # Convert fortran bool
             if value.lower() == ".true.":
                 value = True
             elif value.lower() == ".false.":
                 value = False
+            elif '"' in value or "'" in value: # Get a string content
+                # If it is a string cancel the " or ' or ,
+                value = value.replace("\"", "").replace("'", "")
             elif value.count(" ") >= 1:
                 value = [float(item) for item in value.split()]
             else:

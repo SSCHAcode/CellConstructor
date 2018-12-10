@@ -478,7 +478,7 @@ class Phonons:
         
         .. math::
             
-            \\Upsilon_{ab} = \\sqrt{M_aM_b}\\sum_\\mu \\frac{2\\omega_\\mu}{(1 + n_\\mu)\\hbar} e_\\mu^a e_\\mu^b
+            \\Upsilon_{ab} = \\sqrt{M_aM_b}\\sum_\\mu \\frac{2\\omega_\\mu}{(1 + 2n_\\mu)\\hbar} e_\\mu^a e_\\mu^b
             
         It is used to compute the probability of a given atomic displacement.
         The resulting matrix is a 3N x 3N one ordered as the dynamical matrix here.
