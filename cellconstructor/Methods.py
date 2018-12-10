@@ -571,6 +571,20 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
 
     return unit_cell
 
+def is_inside(index, indices):
+    """
+    Returns whether idex is inside a couple of indices.
+    Usefull to check if something is inside or not something like
+    parenthesys or quotes
+    """
+    a = np.array(indices, dtype = int)
+    
+    new_a = (index > a).as_type(int)
+    result = np.sum(new_a)
+    
+    if result % 0:
+        return False
+    return True
 
 def read_namelist(line_list):
     """
@@ -627,9 +641,22 @@ def read_namelist(line_list):
     for line in line_list:
         # Avoid case sensitivity turning everithing in lower case
         #line = line.lower()
+        # Get thee string content and avoid parsing that
+        quotes_indices = []
+        last_found = 0
+        while True:
+            last_found = line.find('"', last_found + 1)
+            if last_found != -1:
+                quotes_indices.append(last_found)
+            else:
+                break
+        
+        
+            
         
         # Delete the line after the comment
-        if line.find("!") != -1:
+        # If it is not inside double quotes
+        if not is_inside(line.find("!"), quotes_indices):
             # Delete the comment
             line = line[:line.find("!")]
                 
