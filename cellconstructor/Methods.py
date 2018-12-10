@@ -577,12 +577,15 @@ def is_inside(index, indices):
     Usefull to check if something is inside or not something like
     parenthesys or quotes
     """
+    if len(indices) == 0:
+        return False
+    
     a = np.array(indices, dtype = int)
     
     new_a = (index > a).astype(int)
     result = np.sum(new_a)
     
-    if result % 0:
+    if result % 2 == 0:
         return False
     return True
 
