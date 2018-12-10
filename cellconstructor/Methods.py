@@ -579,7 +579,7 @@ def is_inside(index, indices):
     """
     a = np.array(indices, dtype = int)
     
-    new_a = (index > a).as_type(int)
+    new_a = (index > a).astype(int)
     result = np.sum(new_a)
     
     if result % 0:
