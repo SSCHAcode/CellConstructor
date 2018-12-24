@@ -415,6 +415,9 @@ class QE_Symmetry:
             
             if asr == "simple" or asr == "custom":
                 if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
+                    if verbose:
+                        print "q_point:", q_points[iq,:]
+                        print "Applying sum rule"
                     self.ImposeSumRule(fcq[iq,:,:], asr)
             elif asr == "crystal":
                 self.ImposeSumRule(fcq[iq, :,:], asr = asr)
@@ -428,11 +431,13 @@ class QE_Symmetry:
                 print " [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s"
             
             # Symmetrize the matrix
+            if verbose:
+                old_fcq = fcq[iq, :,:].copy()
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
             t2 = time.time()
             if verbose:
                 print " [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" 
-        
+                print " [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum((old_fcq - fcq[iq, :,:])**2))
         
         # For each star perform the symmetrization over that star
         q0_index = 0
@@ -578,6 +583,8 @@ class QE_Symmetry:
         
         self.QE_minus_q = symph.symm_base.smallg_q(aq, 0, syms)
         self.QE_nsymq = symph.symm_base.copy_sym(symph.symm_base.nsym, syms)
+        self.QE_nsym = symph.symm_base.nsym
+        
         
         # Recompute the inverses
         symph.symm_base.inverse_s()
@@ -597,28 +604,40 @@ class QE_Symmetry:
         self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 
                                          self.QE_irt, self.QE_tau, self.QE_nat)
         
-        
+        #symph.set_irotmq(q_point)
         # If minus q check which is the symmetry
+        
+        syms = self.GetSymmetries()
         if self.QE_minus_q:
-            syms = self.GetSymmetries()
-            
+            self.QE_irotmq = 0
             # Fix in the Same BZ
             for i in range(3):
                 aq[i] = aq[i] - int(aq[i])
                 if aq[i] < 0:
                     aq[i] += 1
                     
-            for k, sym in enumerate(syms):
-                new_q = sym[:,:3].dot(aq)
-                # Fix in the Same BZ
-                for i in range(3):
-                    new_q[i] = new_q[i] - int(new_q[i])
-                    if new_q[i] < 0:
-                        new_q[i] += 1
+            
                 
-                if np.sum( (new_q - aq)**2) < __EPSILON__:
+            #print "VECTOR AQ:", aq
+            
+            # Get the first symmetry: 
+            for k, sym in enumerate(syms):
+                # Skip the identity
+                if k == 0:
+                    continue
+                
+                new_q = sym[:,:3].dot(aq)
+                # Compare new_q with aq
+                dmin = Methods.get_min_dist_into_cell(self.QE_bg.transpose(), -new_q, aq)
+                
+                
+                #print "SYM NUMBER %d, NEWQ:" % (k+1), new_q
+                #print "Distance:",dmin
+                if  dmin < __EPSILON__:
                     self.QE_irotmq = k + 1
                     break
+            
+                       
                 
     def InitFromSymmetries(self, symmetries, q_point):
         """
@@ -690,7 +709,7 @@ class QE_Symmetry:
         """
         
         syms = []
-        for i in range(self.QE_nsymq):
+        for i in range(self.QE_nsym):
             s_rot = np.zeros( (3, 4))
             s_rot[:, :3] = np.transpose(self.QE_s[:, :, i])
             s_rot[:, 3] = self.QE_ft[:, i]
@@ -764,8 +783,8 @@ class QE_Symmetry:
                 QE_dyn[:, :, na, nb] = Methods.convert_matrix_cart_cryst(fc, self.structure.unit_cell, False)
         
         # Prepare the xq variable
-        xq = np.ones(3, dtype = np.float64)
-        xq *= q_point
+        #xq = np.ones(3, dtype = np.float64)
+        xq = np.array(q_point, dtype = np.float64)
         
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 

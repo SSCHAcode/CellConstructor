@@ -1657,19 +1657,27 @@ class Phonons:
         self.nqirr = len(q_stars)
             
         
-    def Symmetrize(self):
+    def Symmetrize(self, verbose = False, asr = "custom"):
         """
         SYMMETRIZE THE DYNAMICAL MATRIX
         ===============================
         
         This subroutine uses the QE symmetrization procedure to obtain
         a full symmetrized dynamical matrix.
+        
+        Parameters
+        ----------
+            verbose : bool
+                If true a lot of info regarding the symmetrization are printed.
+            asr : string
+                The kind of the acustic sum rule. Allowed are 'crystal', 'simple' or 'custom'.
+                for crystal and simple refer to the quantum-espresso guide.
         """
         
         qe_sym = symmetries.QE_Symmetry(self.structure)
         
         fcq = np.array(self.dynmats, dtype = np.complex128)
-        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = "custom")
+        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
         
         for iq,q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
@@ -1767,7 +1775,7 @@ class Phonons:
         # Get only the rotational part of the symmetry
         new_s_mat = symmat[:3, :3]
         
-        out_fc = np.zeros(np.shape(self.dynmats[0]))
+        out_fc = np.zeros(np.shape(self.dynmats[0]), dtype = np.complex128)
         in_fc = self.dynmats[0]
         
         # Apply the symmetry to the force constant matrix
@@ -1807,7 +1815,7 @@ class Phonons:
         
     
         
-    def ForceSymmetries(self, symmetries):
+    def ForceSymmetries(self, symmetries, apply_sum_role = True):
         """
         FORCE THE PHONON TO RESPECT THE SYMMETRIES
         ==========================================
@@ -1831,7 +1839,7 @@ class Phonons:
         
         
         # Apply the symmetries
-        new_fc = np.zeros( np.shape(self.dynmats[0]) )
+        new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
         
         self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
@@ -1870,7 +1878,8 @@ class Phonons:
         #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
         
         # Apply the acustic sum rule
-        self.ApplySumRule()
+        if apply_sum_role:
+            self.ApplySumRule()
 
 
 def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure, itau = None):
