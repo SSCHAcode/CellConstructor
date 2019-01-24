@@ -694,7 +694,7 @@ class QE_Symmetry:
                 self.QE_irotmq = k + 1
                 break
                 
-    def GetSymmetries(self):
+    def GetSymmetries(self, get_irt=False):
         """
         GET SYMMETRIES FROM QE
         ======================
@@ -702,10 +702,20 @@ class QE_Symmetry:
         This method returns the symmetries in the CellConstructor format from
         the ones elaborated here.
         
+        
+        Parameters
+        ----------
+            get_irt : bool
+                If true (default false) also the irt are returned. 
+                They are the corrispondance between atoms for each symmetry operation.
         Results
         -------
             list :
                 List of 3x4 ndarray representing all the symmetry operations
+            irt : ndarray(size=(nsym, nat), dtype = int), optional
+                Returned only if get_irt = True. 
+                It is the corrispondance between atoms after the symmetry operation is applied.
+                irt[x, y] is the atom mapped into y by the x symmetry. 
         """
         
         syms = []
@@ -716,8 +726,12 @@ class QE_Symmetry:
             
             syms.append(s_rot)
         
-        return syms
+        if not get_irt:
+            return syms
+        return syms, self.QE_irt[:self.QE_nsym, :].copy() - 1
             
+        
+        
     
     def SymmetrizeVector(self, vector):
         """
@@ -726,7 +740,7 @@ class QE_Symmetry:
         
         This is the easier symmetrization of a generic vector.
         Note, fractional translation and generic translations are not imposed.
-        This is because this simmetrization acts on displacements.
+        This is because this simmetrization acts on displacements and forces.
         
         Parameters
         ----------
@@ -938,15 +952,47 @@ def CustomASR(fc_matrix):
     fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
     
 
-def ApplySymmetryToVector(symmetry, vector):
+def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     """
-    Apply the symmetry to the given vector. Translations are neglected.
+    APPLY SYMMETRY
+    ==============
+    
+    Apply the symmetry to the given vector of displacements.
+    Translations are neglected.
+    
+    .. math::
+        
+        \\vec {v'} = S \\vec v [irt]
+        
+    
+    Parameters
+    ----------
+        symmetry: ndarray(size = (3,4))
+            The symmetry operation (crystalline coordinates)
+        vector: ndarray(size = (nat, 3))
+            The vector to which apply the symmetry.
+            In cartesian coordinates
+        unit_cell : ndarray( size = (3,3))
+            The unit cell in which the structure is defined
+        irt : ndarray(nat, dtype = int)
+            The index of how the symmetry exchanges the atom.
+        
     """
     
-    raise NotImplementedError("Error, ApplySymmetryToVector method not yet implemented, use the one in QE_Symmetry")
+    # Get the vector in crystalline coordinate
+    nat, dumb = np.shape(vector)
+    work = np.zeros( (nat, 3))
+    sym = symmetry[:, :3]
     
-    # TODO:
-    pass
+    for i in range(nat):
+        # Pass to crystalline coordinates
+        v1 = Methods.covariant_coordinates(unit_cell, vector[irt[i], :])
+        # Apply the symmetry
+        w1 = sym.dot(v1)
+        # Return in cartesian coordinates
+        work[i, :] = np.einsum("ab,a", unit_cell, w1)
+    
+    return work
 
 
 def PrepareISOTROPYFindSymInput(structure, path_to_file = "findsym.in",
