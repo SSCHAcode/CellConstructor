@@ -951,6 +951,31 @@ def CustomASR(fc_matrix):
 
     fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
     
+    
+
+def GetIRT(structure, symmetry):
+    """
+    GET IRT
+    =======
+    
+    Get the irt array. It is the array of the atom index that the symmetry operation
+    swaps.
+    
+    irt[y] is the atom index that is mapped from y by the symmetry operation.
+    
+    Parameters
+    ----------
+        structure: Structure.Structure()
+            The unit cell structure
+        symmetry: list of 3x4 matrices
+            symmetries with frac translations
+    
+    """
+    
+    new_struct = structure.copy()
+    new_struct.apply_symmetry(symmetry, True)
+    irt = structure.get_equivalent_atoms(new_struct)
+    return irt
 
 def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     """
