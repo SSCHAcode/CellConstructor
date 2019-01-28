@@ -609,7 +609,7 @@ class QE_Symmetry:
         
         syms = self.GetSymmetries()
         if self.QE_minus_q:
-            self.QE_irotmq = 0
+            self.QE_irotmq = 1
             # Fix in the Same BZ
             for i in range(3):
                 aq[i] = aq[i] - int(aq[i])
@@ -799,6 +799,20 @@ class QE_Symmetry:
         # Prepare the xq variable
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
+#        print "XQ:", xq
+#        print "NSYMQ:", self.QE_nsymq
+#        print "QE SYM:"
+#        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
+#        print "QE INVS:"
+#        print self.QE_invs[:self.QE_nsymq]
+#        #print "QE RTAU:"
+#        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
+#        print "IROTMQ:",  self.QE_irotmq
+#        print "MINUS Q:", self.QE_minus_q
+#        print "IRT:"
+#        print self.QE_irt[:self.QE_nsymq, :]
+#        print "NAT:", self.QE_nat
+        
         
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 

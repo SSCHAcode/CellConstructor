@@ -19,6 +19,12 @@ try:
     __MPI__ = True
 except:
     __MPI__ = False
+    
+try:
+    import spglib
+    __SPGLIB__ = True
+except:
+    __SPGLIB__ = False
 
 A_TO_BOHR = np.float64(1.889725989)
 BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
@@ -1656,6 +1662,26 @@ class Phonons:
         self.q_stars = q_stars
         self.nqirr = len(q_stars)
             
+    def SymmetrizeSupercell(self, supercell_size):
+        """
+        Testing function, it applies symmetries in the supercell.
+        """
+        
+        if not __SPGLIB__:
+            raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
+        
+        superdyn = self.GenerateSupercellDyn(supercell_size)
+        
+        spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
+        syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
+        
+        superdyn.ForceSymmetries(syms)
+        
+        # Get the dynamical matrix back
+        fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        
+        for iq, q in enumerate(self.q_tot):
+            self.dynmats[iq] = fcq[iq, :, :]
         
     def Symmetrize(self, verbose = False, asr = "custom"):
         """
@@ -1853,6 +1879,8 @@ class Phonons:
             
             # Get the force constant
             current_fc = self.ApplySymmetry(sym)
+            
+            print i
             
             # Try to add the sum rule here
             #newP = self.Copy()
