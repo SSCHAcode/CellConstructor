@@ -540,7 +540,8 @@ class QE_Symmetry:
         if len(q_point) != 3:
             raise ValueError("Error, the q point must be a 3d vector")
         
-        aq = np.ones(3, dtype = np.float64) * Methods.covariant_coordinates(self.QE_bg.transpose(), q_point)
+        aq = np.zeros(3, dtype = np.float64)
+        aq[:] = Methods.covariant_coordinates(self.QE_bg.transpose(), q_point)
         
         # Setup the bravais lattice
         symph.symm_base.set_at_bg(self.QE_at, self.QE_bg)
@@ -604,18 +605,20 @@ class QE_Symmetry:
         self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 
                                          self.QE_irt, self.QE_tau, self.QE_nat)
         
-        #symph.set_irotmq(q_point)
-        # If minus q check which is the symmetry
+        lgamma = 0
+        if np.sqrt(np.sum(q_point**2)) > 0.0001:
+            lgamma = 1
         
+#        self.QE_irotmq = symph.set_irotmq(q_point, self.QE_s, self.QE_nsymq,
+#                                          self.QE_nsym, self.QE_minus_q, 
+#                                          self.QE_bg, self.QE_at, lgamma)
+        # If minus q check which is the symmetry
+#        
         syms = self.GetSymmetries()
         if self.QE_minus_q:
-            self.QE_irotmq = 1
+            self.QE_irotmq = 0
             # Fix in the Same BZ
-            for i in range(3):
-                aq[i] = aq[i] - int(aq[i])
-                if aq[i] < 0:
-                    aq[i] += 1
-                    
+            aq = aq % 1
             
                 
             #print "VECTOR AQ:", aq
@@ -623,20 +626,27 @@ class QE_Symmetry:
             # Get the first symmetry: 
             for k, sym in enumerate(syms):
                 # Skip the identity
-                if k == 0:
-                    continue
+                #if k == 0:
+                #    continue
                 
                 new_q = sym[:,:3].dot(aq)
                 # Compare new_q with aq
-                dmin = Methods.get_min_dist_into_cell(self.QE_bg.transpose(), -new_q, aq)
-                
-                
+                dmin = Methods.get_min_dist_into_cell(np.eye(3), -new_q, aq)
+                #dmin = np.sqrt(np.sum( ((new_q + aq) % 1)**2))
+            
+                print "Symmetry number ", k+1
+                print sym[:, :3]
+                print "q cryst:", aq
+                print "new_q_cryst:", new_q
+            
                 #print "SYM NUMBER %d, NEWQ:" % (k+1), new_q
-                #print "Distance:",dmin
+                print "Distance:", dmin
                 if  dmin < __EPSILON__:
+                    print "CORRECT FOR IROTMQ"
                     self.QE_irotmq = k + 1
                     break
-            
+        if self.QE_irotmq == 0:
+            self.QE_irotmq = 1
                        
                 
     def InitFromSymmetries(self, symmetries, q_point):
@@ -799,19 +809,19 @@ class QE_Symmetry:
         # Prepare the xq variable
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
-#        print "XQ:", xq
-#        print "NSYMQ:", self.QE_nsymq
-#        print "QE SYM:"
-#        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
-#        print "QE INVS:"
-#        print self.QE_invs[:self.QE_nsymq]
-#        #print "QE RTAU:"
-#        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
-#        print "IROTMQ:",  self.QE_irotmq
-#        print "MINUS Q:", self.QE_minus_q
-#        print "IRT:"
-#        print self.QE_irt[:self.QE_nsymq, :]
-#        print "NAT:", self.QE_nat
+        print "XQ:", xq
+        print "NSYMQ:", self.QE_nsymq
+        print "QE SYM:"
+        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
+        print "QE INVS:"
+        print self.QE_invs[:self.QE_nsymq]
+        #print "QE RTAU:"
+        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
+        print "IROTMQ:",  self.QE_irotmq
+        print "MINUS Q:", self.QE_minus_q
+        print "IRT:"
+        print self.QE_irt[:self.QE_nsymq, :]
+        print "NAT:", self.QE_nat
         
         
         # USE THE QE library to perform the symmetrization
