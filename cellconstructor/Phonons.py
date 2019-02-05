@@ -432,14 +432,20 @@ class Phonons:
         Return an exact copy of itself. 
         This will implies copying all the dynamical matricies and structures inside.
         So take care if the structure is big, because it will overload the memory.
+
+        NOTE: For now this will not copy raman or IR tensor.
+        TODO: TO be fixed
         """
         
         ret = Phonons()
         ret.structure = self.structure.copy()
-        ret.q_tot = self.q_tot
+        ret.q_tot = [x.copy() for x in self.q_tot]
         ret.nqirr = self.nqirr
         ret.initialized = self.initialized
-        ret.q_stars = self.q_stars
+        ret.q_stars = []
+        for qstar in self.q_stars:
+            ret.q_stars.append([x.copy() for x in qstar])
+
         ret.alat = self.alat
         
         for i, dyn in enumerate(self.dynmats):
