@@ -1189,6 +1189,13 @@ class Phonons:
                 A Phonons class of the supercell
         
         """
+        # First check if the q vectors are compatible with the supercell
+        if not symmetries.CheckSupercellQ(self.structure.unit_cell, supercell_size, self.q_tot):
+            print("Q points:", self.q_tot)
+            print("Supercell size:", supercell_size)
+            print("Unit cell:", self.structure.unit_cell)
+            raise ValueError("Error, the list of q point does not match the given supercell.")
+
         super_struct = self.structure.generate_supercell(supercell_size)
         
         dyn_supercell = Phonons(super_struct, nqirr = 1)
