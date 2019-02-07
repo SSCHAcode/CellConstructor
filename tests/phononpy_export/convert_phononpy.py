@@ -10,6 +10,6 @@ supercell = (3,3,2)
 dyn = CC.Phonons.Phonons("dynmat", 8)
 
 # Save them into phononpy
-dyn.save_phononpy("FORCE_CONSTANTS", supercell)
+dyn.save_phononpy(supercell)
 
 print "Done"

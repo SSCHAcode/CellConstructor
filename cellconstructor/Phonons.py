@@ -1073,7 +1073,7 @@ class Phonons:
             fp.write("*" * 75 + "\n")
             fp.close()
             
-    def save_phononpy(self, filename, supercell_size = (1,1,1)):
+    def save_phononpy(self, supercell_size = (1,1,1)):
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
         =====================================
@@ -1082,11 +1082,11 @@ class Phonons:
         We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
         this when using Phononpy for the conversion factors.
 
+        It will create a file called FORCE_CONSTANTS, one called unitcell.in
+        with the info on the structure
+
         Parameters
         ----------
-            filename : string
-                The filename in which to store the result. Note, phononpy will
-                load it if it is called FORCE_CONSTANTS.
             supercell_size : list of 3
                 The supercell that defines the dynamical matrix, note phononpy 
                 works in the supercell.
@@ -1095,12 +1095,14 @@ class Phonons:
 
         # Save it into the phononpy in the supercell
         superdyn = self.GenerateSupercellDyn(supercell_size)
+        filename = "FORCE_CONSTANTS"
 
         nat_sc = superdyn.structure.N_atoms
+        nat = self.structure.N_atoms
 
         # This is the text to be written
         lines = []
-        lines.append("%d\n" % nat_sc)
+        lines.append("%d   %d\n" % nat_sc)
         for i in range(nat_sc):
             for j in range(nat_sc):
                 lines.append("%4d\t%4d\n" % (i, j))
@@ -1111,6 +1113,38 @@ class Phonons:
         
         # Write to the file
         f = open(filename, "w")
+        f.writelines(lines)
+        f.close()
+
+        # Produce the unit cell
+        lines = []
+        lines.append("ibrav = 0\n")
+        lines.append("celldm(1) = 1.889726125836928\n")
+        lines.append("nat = %d\n" % self.structure.N_atoms)
+        
+        typs = self.structure.masses.keys()
+        lines.append("ntyp = %d\n" % len(typs))
+
+        # Write the atomic species
+        lines.append("ATOMIC_SPECIES\n")
+        for i in typs:
+            m = self.structure.masses[i]
+            lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
+
+        # Write the unit cell
+        lines.append("CELL_PARAMETERS alat\n")
+        for i in range(3):
+            uc_v = self.structure.unit_cell[i, :] * 1.889726125836928
+            lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
+        
+        lines.append("ATOMIC_POSITIONS crystal\n")
+        for i in range(nat):
+            atm = self.structure.atoms[i]
+            cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
+            lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
+        
+
+        f = open("unitcell.in", "w")
         f.writelines(lines)
         f.close()
 
