@@ -1118,12 +1118,14 @@ class Phonons:
 
         # Produce the unit cell
         lines = []
+        lines.append("&system\n")
         lines.append("ibrav = 0\n")
         lines.append("celldm(1) = 1.889726125836928\n")
         lines.append("nat = %d\n" % self.structure.N_atoms)
         
         typs = self.structure.masses.keys()
         lines.append("ntyp = %d\n" % len(typs))
+        lines.append("&end\n")
 
         # Write the atomic species
         lines.append("ATOMIC_SPECIES\n")
