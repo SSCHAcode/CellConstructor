@@ -1073,6 +1073,47 @@ class Phonons:
             fp.write("*" * 75 + "\n")
             fp.close()
             
+    def save_phononpy(self, filename, supercell_size = (1,1,1)):
+        """
+        EXPORT THE DYN IN THE PHONONPY FORMAT
+        =====================================
+
+        This tool export the dynamical matrix into the PHONONPY plain text format.
+        We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
+        this when using Phononpy for the conversion factors.
+
+        Parameters
+        ----------
+            filename : string
+                The filename in which to store the result. Note, phononpy will
+                load it if it is called FORCE_CONSTANTS.
+            supercell_size : list of 3
+                The supercell that defines the dynamical matrix, note phononpy 
+                works in the supercell.
+
+        """
+
+        # Save it into the phononpy in the supercell
+        superdyn = self.GenerateSupercellDyn(supercell_size)
+
+        nat_sc = superdyn.structure.N_atoms
+
+        # This is the text to be written
+        lines = []
+        lines.append("%d\n" % nat_sc)
+        for i in range(nat_sc):
+            for j in range(nat_sc):
+                lines.append("%4d\t%4d\n" % (i, j))
+                mat = np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3])
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[0,0], mat[0,1], mat[0,2]))
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[1,0], mat[1,1], mat[1,2]))
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[2,0], mat[2,1], mat[2,2]))
+        
+        # Write to the file
+        f = open(filename, "w")
+        f.writelines(lines)
+        f.close()
+
             
             
     def ForcePositiveDefinite(self):
