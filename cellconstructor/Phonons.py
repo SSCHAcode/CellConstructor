@@ -1102,7 +1102,7 @@ class Phonons:
 
         # This is the text to be written
         lines = []
-        lines.append("%d   %d\n" % nat_sc)
+        lines.append("%d   %d\n" % (nat_sc, nat_sc))
         for i in range(nat_sc):
             for j in range(nat_sc):
                 lines.append("%4d\t%4d\n" % (i, j))
@@ -1134,7 +1134,7 @@ class Phonons:
         # Write the unit cell
         lines.append("CELL_PARAMETERS alat\n")
         for i in range(3):
-            uc_v = self.structure.unit_cell[i, :] * 1.889726125836928
+            uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
             lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
         
         lines.append("ATOMIC_POSITIONS crystal\n")
