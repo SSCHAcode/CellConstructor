@@ -18,7 +18,7 @@ dyn = CC.Phonons.Phonons("dynmat", 1)
 w_array = linspace(0, 3000, 10000) / CC.Phonons.RY_TO_CM
 
 # Get the two body DOS at gamma
-Gamma = 0.002
+Gamma = 0.2 / CC.Phonons.RY_TO_CM
 DOS = dyn.get_two_phonon_dos(w_array, Gamma, 100)
 
 # Plot the results
