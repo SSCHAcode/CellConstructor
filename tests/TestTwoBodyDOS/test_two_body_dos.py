@@ -35,7 +35,7 @@ w, pols = dyn.DyagDinQ(0)
 trans = CC.Methods.get_translations(pols, dyn.structure.get_masses_array())
 w = w[~trans]
 # Now we plot a vertical line for each mode (dashed black lines)
-vlines(w, 0, max(DOS)*1.1, ls = "--", color = "k")
+vlines(w, 0, max(DOS)*1.1, linestyles = "--", color = "k")
 
 # Fancy layout
 tight_layout()
