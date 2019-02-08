@@ -1424,6 +1424,97 @@ class Phonons:
         return free_energy
         
     
+    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0):
+        r"""
+        COMPUTE THE TWO PHONON DOS
+        ==========================
+
+        This subroutine compute the two phonon DOS of the given dynamical matrix.
+        It analyzes all possible phonon-phonon scattering and decayment to
+        build the two body density of states. This can be used to get an idea how much 
+        each phonon can interact with the other in presence of anharmonicity just
+        considering energy conservation law and Bose-Einstein statistic.
+
+        The DOS equation is
+        
+        .. math ::
+
+            \rho^{(2)}(q, \omega) = \int d^3k_1d^3k_2\sum_{\mu\nu}\left[(n_\mu + n_\nu + 1)\delta(\omega - \omega_\mu(k_1) - \omega_\nu(k_2))\delta^3(\vec k_1 + \vec k_2 - \vec q)\right.
+       
+            \left.  + 2 (n_\mu - n_\nu)\delta(\omega - \omega_\mu(k_1) + \omega_\nu(k_2))\delta^3(\vec q + \vec k_1 - \vec k_2)\right]
+
+
+        Where the Delta function are replaced by the Lorenzian shape to consider a smearing.
+
+        Parameters
+        ----------
+            w_array : ndarray
+                The frequency of the dos
+            smearing : float
+                The smearing used to compute the DOS. 
+                To converge the smearing you need to study the limit
+                :math:`\lim_{\sigma\rightarrow 0} \lim_{N_q\rightarrow\infty} DOS`
+            q_index : int
+                The q point in which to compute the phonon DOS. 
+                You must pass the index that matches the q_tot list.
+                
+        Results
+        -------
+            dos : ndarray
+                The array of the density of state returned. Same shape as w_array
+        """
+        K_to_Ry=6.336857346553283e-06
+
+
+        q_vector = self.q_tot[q_index]
+        bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+
+        nat = self.structure.N_atoms
+        
+
+        DOS = np.zeros( np.shape(w_array), dtype = np.float64)
+        for k1_i, k1 in enumerate(self.q_tot):
+            # Get the k vectors from the delta relations
+            k2_dists = [Methods.get_min_dist_into_cell(bg, k1, q_vector - x) for x in self.q_tot]
+            k2p_dists = [Methods.get_min_dist_into_cell(bg, k1, x - q_vector) for x in self.q_tot]
+
+            k2_i = np.argmin(k2_dists)
+            k2p_i = np.argmin(k2p_dists)
+
+            k2 = self.q_tot[k2_i]
+            k2p = self.q_tot[k2p_i]
+
+            # Get the frequencies at the correct Q points
+            _wmu_, _pmu_ = self.DyagDinQ(k1_i)
+            _wnu_, _pnu_ = self.DyagDinQ(k2_i)
+            _wnu2_, _pnu2_ = self.DyagDinQ(k2p_i)
+
+            # Sum over mu nu
+            for mu in range(3*nat):
+                w_mu = _wmu_[mu]
+                n_mu = 0
+                if temperature > 0:
+                    n_mu = 1 / (np.exp(w_mu  / (temperature * K_to_Ry)) - 1)
+                for nu in range(3*nat):
+                    w_nu = _wnu_[nu]
+                    n_nu = 0
+                    if temperature > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
+
+                    chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                    chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
+
+                    w_nu = _wnu2_[nu]
+                    if temperature > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
+                    
+                    chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
+                    chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
+                    
+                    DOS += chi1 + chi2
+
+        return DOS
+
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
                           displacement = None):
