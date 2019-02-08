@@ -1424,7 +1424,7 @@ class Phonons:
         return free_energy
         
     
-    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0):
+    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acustic = False):
         r"""
         COMPUTE THE TWO PHONON DOS
         ==========================
@@ -1457,6 +1457,9 @@ class Phonons:
             q_index : int
                 The q point in which to compute the phonon DOS. 
                 You must pass the index that matches the q_tot list.
+            exclude_acustic : bool, default = False
+                If True the acoustic modes at gamma are neglected in the DOS.
+                NOTE: if you have few q points, you will not see the frequencies of the real mode in the DOS!
                 
         Results
         -------
@@ -1489,8 +1492,14 @@ class Phonons:
             _wnu_, _pnu_ = self.DyagDinQ(k2_i)
             _wnu2_, _pnu2_ = self.DyagDinQ(k2p_i)
 
+            trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
+            trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+            trans3 = Methods.get_translations(_pnu2_, self.structure.get_masses_array())
+
             # Sum over mu nu
             for mu in range(3*nat):
+                if exclude_acustic and trans1[mu]:
+                    continue
                 w_mu = _wmu_[mu]
                 n_mu = 0
                 if temperature > 0:
@@ -1501,15 +1510,19 @@ class Phonons:
                     if temperature > 0:
                         n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
 
-                    chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
-                    chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
+                    chi1 = 0
+                    if not (exclude_acustic and trans2[nu]):
+                        chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                        chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
 
                     w_nu = _wnu2_[nu]
                     if temperature > 0:
                         n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
-                    
-                    chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
-                    chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
+
+                    chi2 = 0            
+                    if not (exclude_acustic and trans3[nu]):
+                        chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
+                        chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
                     
                     DOS += chi1 + chi2
 

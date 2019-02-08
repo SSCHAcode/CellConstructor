@@ -12,7 +12,7 @@ on the phonon lifetimes.
 """
 
 # Load the dynamical matrix only at gamma for this test
-dyn = CC.Phonons.Phonons("dynmat", 1)
+dyn = CC.Phonons.Phonons("dynmat", 8)
 dyn.Symmetrize()
 
 # Create the array of frequencies (in Ry)
