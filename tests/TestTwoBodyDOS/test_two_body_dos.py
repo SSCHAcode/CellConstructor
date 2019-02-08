@@ -16,7 +16,7 @@ dyn = CC.Phonons.Phonons("dynmat", 1)
 dyn.Symmetrize()
 
 # Create the array of frequencies (in Ry)
-w_array = linspace(0, 3000, 10000) / CC.Phonons.RY_TO_CM
+w_array = linspace(0, 3500, 10000) / CC.Phonons.RY_TO_CM
 
 # Get the two body DOS at gamma
 Gamma = 10 / CC.Phonons.RY_TO_CM
@@ -38,7 +38,7 @@ trans = CC.Methods.get_translations(pols, dyn.structure.get_masses_array())
 w = w[~trans] * CC.Phonons.RY_TO_CM
 print w
 # Now we plot a vertical line for each mode (dashed black lines)
-vlines(w, 0, max(DOS)*1.1, linestyles = "--", color = "k")
+vlines(w, 0, max(DOS[~isnan(DOS)])*1.1, linestyles = "--", color = "k")
 
 # Fancy layout
 tight_layout()
