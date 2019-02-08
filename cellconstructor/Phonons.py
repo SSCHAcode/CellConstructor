@@ -1424,7 +1424,7 @@ class Phonons:
         return free_energy
         
     
-    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acustic = False):
+    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acustic = True):
         r"""
         COMPUTE THE TWO PHONON DOS
         ==========================
@@ -1514,6 +1514,7 @@ class Phonons:
                     if not (exclude_acustic and trans2[nu]):
                         chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
                         chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
+                        chi1 /= w_mu * w_nu
 
                     w_nu = _wnu2_[nu]
                     if temperature > 0:
@@ -1523,7 +1524,8 @@ class Phonons:
                     if not (exclude_acustic and trans3[nu]):
                         chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
                         chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
-                    
+                        chi2 /= w_mu*w_nu
+
                     DOS += chi1 + chi2
 
         return DOS
