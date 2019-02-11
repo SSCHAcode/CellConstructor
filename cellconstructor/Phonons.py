@@ -1528,7 +1528,7 @@ class Phonons:
 
                     DOS += chi1 + chi2
 
-        return DOS
+        return DOS / 2 # We need a 1/2 factor
 
     def get_phonon_propagator(self, w, T, iq=0, smearing = 1e-5):
         r"""
