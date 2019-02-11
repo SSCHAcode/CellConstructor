@@ -1530,6 +1530,106 @@ class Phonons:
 
         return DOS
 
+    def get_phonon_propagator(self, w, T, iq=0, smearing = 1e-5):
+        r"""
+        GET THE PHONON PROPAGATOR
+        =========================
+
+        This subroutine computes the phononic propagator defined as
+
+        .. math ::
+
+            \chi_{\mu\nu}(z, q) = \frac{1}{\beta} \sum_{kl} G_\mu(i\Omega_l, \vec k) G_\nu(z - i\Omega_l, \vec q - \vec k)
+
+            \chi_{\mu\nu}(z, q) = \frac{\hbar}{2\omega_\mu\omega_\nu}\left[ \frac{(\omega_\nu + \omega_\mu)[1 + n_\nu + n_\mu]}{(\omega_\nu + \omega_\mu)^2 - z^2} - \frac{(\omega_\nu - \omega_\mu)[n_\nu - n_\mu]}{(\omega_\nu - \omega_\mu)^2 -z^2}\right]
+        
+        This is the phonon dynamical bubble. The summation over k is discretized in the
+        current dynamical matrix. To achieve the thermodynamic limit you can use the interpolation in a finer mesh.
+        
+        
+        Parameters
+        ----------
+            w : double
+                The value of the dynamical frequency to compute the phonon propagator.
+            T : float
+                The temperature to compute the bosonic occupation numbers :math:`n_\mu`.
+            iq : int
+                The index that correspond to the specified q point.
+            semaring : float, default = 1e-5
+                The smearing [Ry] to achieve a faster convergence with the k-mesh sampling.
+
+        Result
+        ------
+            chi : ndarray(size=(3*nat, 3*nat), dtype = np.complex128)
+                The bubble phonon propagator
+        """
+
+
+        K_to_Ry=6.336857346553283e-06
+
+        # Get the q vector
+        q_vector = self.q_tot[iq]
+        bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+
+        nat = self.structure.N_atoms
+        
+        ChiMuNu = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+
+        for k1_i, k1 in enumerate(self.q_tot):
+            # Get the k vectors from the delta relations
+            k2_dists = [Methods.get_min_dist_into_cell(bg, k1, q_vector - x) for x in self.q_tot]
+            k2p_dists = [Methods.get_min_dist_into_cell(bg, k1, x - q_vector) for x in self.q_tot]
+
+            k2_i = np.argmin(k2_dists)
+            k2p_i = np.argmin(k2p_dists)
+
+            k2 = self.q_tot[k2_i]
+            k2p = self.q_tot[k2p_i]
+
+            # Get the frequencies at the correct Q points
+            _wmu_, _pmu_ = self.DyagDinQ(k1_i)
+            _wnu_, _pnu_ = self.DyagDinQ(k2_i)
+            _wnu2_, _pnu2_ = self.DyagDinQ(k2p_i)
+
+            trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
+            trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+            trans3 = Methods.get_translations(_pnu2_, self.structure.get_masses_array())
+
+            # Sum over mu nu
+            for mu in range(3*nat):
+                if trans1[mu]:
+                    continue
+                w_mu = _wmu_[mu]
+                n_mu = 0
+                if T > 0:
+                    n_mu = 1 / (np.exp(w_mu  / (T * K_to_Ry)) - 1)
+                for nu in range(3*nat):
+                    w_nu = _wnu_[nu]
+                    n_nu = 0
+                    if T > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (T * K_to_Ry)) - 1)
+
+                    chi1 = 0j
+                    if not (trans2[nu]):
+                        chi1 = (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                        chi1 /= ( (w_mu + w_nu)**2 - w**2 - 2*1j*w*smearing)
+                        chi1 /= 2*w_mu*w_nu
+
+                    w_nu = _wnu2_[nu]
+                    if T > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (T * K_to_Ry)) - 1)
+
+                    chi2 = 0j            
+                    if not trans3[nu]:
+                        # NOTE: it there is a '-': I switched the w_mu w_nu.
+                        chi2 = (w_mu - w_nu) * (n_nu - n_mu)
+                        chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
+                        chi2 /= 2*w_mu*w_nu
+                        
+
+                    ChiMuNu[mu, nu] = chi1 + chi2
+
+        return ChiMuNu
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
                           displacement = None):
