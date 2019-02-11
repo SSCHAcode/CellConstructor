@@ -633,16 +633,16 @@ class QE_Symmetry:
                 # Compare new_q with aq
                 dmin = Methods.get_min_dist_into_cell(np.eye(3), -new_q, aq)
                 #dmin = np.sqrt(np.sum( ((new_q + aq) % 1)**2))
-            
-                print "Symmetry number ", k+1
-                print sym[:, :3]
-                print "q cryst:", aq
-                print "new_q_cryst:", new_q
-            
+#            
+#                print "Symmetry number ", k+1
+#                print sym[:, :3]
+#                print "q cryst:", aq
+#                print "new_q_cryst:", new_q
+#            
                 #print "SYM NUMBER %d, NEWQ:" % (k+1), new_q
-                print "Distance:", dmin
+                #print "Distance:", dmin
                 if  dmin < __EPSILON__:
-                    print "CORRECT FOR IROTMQ"
+                    #print "CORRECT FOR IROTMQ"
                     self.QE_irotmq = k + 1
                     break
         if self.QE_irotmq == 0:
@@ -809,19 +809,19 @@ class QE_Symmetry:
         # Prepare the xq variable
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
-        print "XQ:", xq
-        print "NSYMQ:", self.QE_nsymq
-        print "QE SYM:"
-        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
-        print "QE INVS:"
-        print self.QE_invs[:self.QE_nsymq]
-        #print "QE RTAU:"
-        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
-        print "IROTMQ:",  self.QE_irotmq
-        print "MINUS Q:", self.QE_minus_q
-        print "IRT:"
-        print self.QE_irt[:self.QE_nsymq, :]
-        print "NAT:", self.QE_nat
+#        print "XQ:", xq
+#        print "NSYMQ:", self.QE_nsymq
+#        print "QE SYM:"
+#        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
+#        print "QE INVS:"
+#        print self.QE_invs[:self.QE_nsymq]
+#        #print "QE RTAU:"
+#        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
+#        print "IROTMQ:",  self.QE_irotmq
+#        print "MINUS Q:", self.QE_minus_q
+#        print "IRT:"
+#        print self.QE_irt[:self.QE_nsymq, :]
+#        print "NAT:", self.QE_nat
         
         
         # USE THE QE library to perform the symmetrization

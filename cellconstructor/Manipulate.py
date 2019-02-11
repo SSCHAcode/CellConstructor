@@ -988,4 +988,3 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
     
     return tot_coords
         
-    

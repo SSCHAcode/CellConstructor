@@ -4,6 +4,7 @@ import cellconstructor.Methods
 
 from matplotlib.pyplot import *
 from numpy import *
+import numpy as np
 import scipy,scipy.signal
 
 """
@@ -21,7 +22,8 @@ w_array = linspace(0, 4000, 10000) / CC.Phonons.RY_TO_CM
 
 # Get the two body DOS at gamma
 Gamma = 3 / CC.Phonons.RY_TO_CM
-DOS = dyn.get_two_phonon_dos(w_array, Gamma, 50, exclude_acustic = True)
+T = 50
+DOS = dyn.get_two_phonon_dos(w_array, Gamma, T, exclude_acustic = True)
 
 
 # Delete nan
@@ -29,12 +31,21 @@ nan_clean_mask = ~isnan(DOS)
 DOS = DOS[nan_clean_mask]
 w_array = w_array[nan_clean_mask]
 
+# Get the phonon propagator
+w_prop = linspace(0, max(w_array), 1000)
+chi_prop = np.zeros(shape(w_prop), dtype = np.complex128)
+for i, w in enumerate(w_prop):
+    chi_prop[i] = np.sum(dyn.get_phonon_propagator(w, T, 0, Gamma))
+    
+
+    
 # Plot the results
 figure(dpi = 150)
 title("Two body phonon-dos")
 xlabel("Frequency [cm-1]")
 ylabel("DOS")
 plot(w_array * CC.Phonons.RY_TO_CM, DOS, label ="- Imag part")
+plot(w_prop * CC.Phonons.RY_TO_CM, imag(chi_prop), label = "Imag form prop")
 
 # To check for consistency, we add a series of vertical lines to match the vibrational modes
 # First we extract all the frequencies
