@@ -1597,12 +1597,12 @@ class Phonons:
                 continue
             w_mu = _wmu_[mu]
             n_mu = 0
-            if T > 0:
+            if T > __EPSILON__:
                 n_mu = 1 / (np.exp(w_mu  / (T * K_to_Ry)) - 1)
             for nu in range(3*nat):
                 w_nu = _wnu_[nu]
                 n_nu = 0
-                if T > 0:
+                if T > __EPSILON__:
                     n_nu = 1 / (np.exp(w_nu  / (T * K_to_Ry)) - 1)
 
                 chi1 = 0j
@@ -1616,7 +1616,15 @@ class Phonons:
                     chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
                     chi2 /= 2*w_mu*w_nu
                     
-
+                if np.isnan(chi1 + chi2):
+                    print "NaN value found in the propagator."
+                    print "NaN value error details:"
+                    print "chi1: ", chi1
+                    print "chi2: ", chi2
+                    print "mu = %d, nu = %d" % (mu, nu)
+                    print "w_mu = %10.4f, n_mu = %10.4f" % (w_mu * RY_TO_CM, n_mu)
+                    print "w_nu = %10.4f, n_nu = %10.4f" % (w_nu * RY_TO_CM, n_nu)
+                    raise ValueError("Error, the propagator is NAN, check stdout for details.")
                 ChiMuNu[mu, nu] = chi1 + chi2
 
         return ChiMuNu
