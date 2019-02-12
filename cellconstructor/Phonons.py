@@ -1597,8 +1597,10 @@ class Phonons:
                 continue
             w_mu = _wmu_[mu]
             n_mu = 0
+            dn_dw = 0
             if T > __EPSILON__:
                 n_mu = 1 / (np.exp(w_mu  / (T * K_to_Ry)) - 1)
+                dn_dw = -n_mu / (T * K_to_Ry * (1 - np.exp(-w_mu  / (T * K_to_Ry))))
             for nu in range(3*nat):
                 w_nu = _wnu_[nu]
                 n_nu = 0
@@ -1612,9 +1614,12 @@ class Phonons:
                     chi1 /= ( (w_mu + w_nu)**2 - w**2 - 2*1j*w*smearing)
                     chi1 /= 2*w_mu*w_nu
 
-                    chi2 = (w_mu - w_nu) * (n_nu - n_mu)
-                    chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
-                    chi2 /= 2*w_mu*w_nu
+                    if np.abs(w) < __EPSILON__ and np.abs(w_nu - w_mu) < __EPSILON__:
+                        chi2 = - dn_dw / (w_mu*w_nu)
+                    else:
+                        chi2 = (w_mu - w_nu) * (n_nu - n_mu)
+                        chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
+                        chi2 /= 2*w_mu*w_nu
                     
                 if np.isnan(chi1 + chi2):
                     print "NaN value found in the propagator."
