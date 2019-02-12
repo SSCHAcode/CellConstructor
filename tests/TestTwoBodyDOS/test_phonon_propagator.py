@@ -35,7 +35,7 @@ w_array = w_array[nan_clean_mask]
 w_prop = linspace(0, max(w_array), 1000)
 chi_prop = np.zeros(shape(w_prop), dtype = np.complex128)
 for i, w in enumerate(w_prop):
-    chi_prop[i] = np.sum(dyn.get_phonon_propagator(w, T, np.zeros(0,0,0), np.zeros(0,0,0), Gamma))
+    chi_prop[i] = np.sum(dyn.get_phonon_propagator(w, T, np.zeros(3), np.zeros(3), Gamma))
     
 
     
