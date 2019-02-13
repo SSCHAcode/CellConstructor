@@ -1242,8 +1242,38 @@ class Phonons:
             n = 1 / (np.exp(beta * w) - 1.)
         
         return np.abs(I**2) * (1. + n) / w
+
+    def GetRamanVector(self, pol_in, pol_out):
+        r"""
+        GET THE RAMAN VECTOR
+        ====================
+
+        Get the Raman vector. It is the vector obtained from the Raman Tensor:
+
+        .. math::
+
+            v_\nu = \sum_{xy} \epsilon^{(1)}_x \epsilon_y^{(2)} A^{\nu}_{xy}
+
+        This is defined in real space.
+
+        Parameters
+        ----------
+            pol_in : ndarray(size = 3)
+                Incoming polarization
+            pol_out : ndarray(size = 3)
+                Outcoming polarization
+        Results
+        -------
+            vnu : ndarray(size = 3*nat)
+                The raman intensity vector along each atomic displacement.
+        """
+
+        if self.raman_tensor is None:
+            raise ImportError("Error, the raman tensor is not defined.")
             
+        return np.einsum("ija, i, j", self.raman_tensor, pol_in, pol_out)        
     
+
     def GenerateSupercellDyn(self, supercell_size):
         """
         GENERATE SUPERCEL DYN
@@ -1615,7 +1645,7 @@ class Phonons:
                     chi1 /= 2*w_mu*w_nu
 
                     if np.abs(w) < __EPSILON__ and np.abs(w_nu - w_mu) < __EPSILON__:
-                        chi2 = - dn_dw / (w_mu*w_nu)
+                        chi2 = - dn_dw / (2*w_mu*w_nu)
                     else:
                         chi2 = (w_mu - w_nu) * (n_nu - n_mu)
                         chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
