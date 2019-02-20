@@ -834,7 +834,95 @@ class QE_Symmetry:
                 fc = QE_dyn[:, :, na, nb] 
                 dyn_matrix[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = Methods.convert_matrix_cart_cryst(fc, self.structure.unit_cell, True)
                 
+    def GetQStar(self, q_vector):
+        """
+        GET THE Q STAR
+        ==============
 
+        Given a vector in q space, get the whole star.
+        We use the quantum espresso subrouitine.
+
+        Parameters
+        ----------
+            q_vector : ndarray(size= 3, dtype = np.float64)
+                The q vector
+
+        Results
+        -------
+            q_star : ndarray(size = (nq_star, 3), dtype = np.float64)
+                The complete q star
+        """
+        self.SetupQPoint()
+        nq_new, sxq, isq, imq = symph.star_q(q_vector, self.QE_at, self.QE_bg,
+            self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+
+        return sxq[:, :nq_new].transpose()
+
+    def SelectIrreducibleQ(self, q_vectors):
+        """
+        GET ONLY THE IRREDUCIBLE Q POINTS
+        =================================
+
+        This methods selects only the irreducible q points
+        given a list of total q points for the structure.
+
+        Parameters
+        ----------
+            q_vectors : list of q points
+                The list of q points to be polished fromt he irreducible
+        
+        Results
+        -------
+            q_irr : list of q points
+                The q_vectors without the copies by symmetry of the dynamical matrix.
+        """
+
+        qs = np.array(q_vectors)
+        nq = np.shape(qs)[0]
+
+        q_irr = [qs[x, :].copy() for x in range(nq)]
+        for i in range(nq):
+            if i >= len(q_irr):
+                break
+            
+            q_stars = self.GetQStar(q_irr[i])
+            n_star = np.shape(q_stars)[0]
+
+            # Look if the list contains point in the star
+            for j in range(n_star):
+                q_in_star = q_stars[j,:]
+                # Go reverse, in this way if we pop an element we do not have to worry about indices
+                for k in range(len(q_irr)-1, i, -1):
+                    if Methods.get_min_dist_into_cell(self.QE_bg.transpose(), q_in_star, q_irr[k]) < __EPSILON__:
+                        q_irr.pop(k) # Delete the k element
+        
+        return q_irr
+
+    def GetQIrr(self, supercell):
+        """
+        GET THE LIST OF IRREDUCIBLE Q POINTS
+        ====================================
+
+        This method returns a list of irreducible q points given the supercell size.
+
+        Parameters
+        ----------
+            supercell : (X, Y, Z)  where XYZ are int
+                The supercell size along each unit cell vector.
+        
+        Returns
+        -------
+            q_irr_list : list of q vectors
+                The list of irreducible q points in the brilluin zone.
+        """
+
+        # Get all the q points
+        q_points = GetQGrid(self.QE_at.T, supercell)
+
+        # Delete the irreducible ones
+        q_irr = self.SelectIrreducibleQ(q_points)
+
+        return q_irr
 
 def get_symmetries_from_ita(ita, red=False):
     """
@@ -1207,8 +1295,7 @@ def CheckSupercellQ(unit_cell, supercell_size, q_list):
         print " MISSING Q ARE "
         print "\n".join([" q =%16.8f%16.8f%16.8f " % (q[0], q[1], q[2]) for q in correct_q])
         return False
-    return True
-    
+    return True    
 
 def GetNewQFromUnitCell(old_cell, new_cell, old_qs):
     """
