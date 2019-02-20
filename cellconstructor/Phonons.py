@@ -1938,8 +1938,8 @@ class Phonons:
                 fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
                 
         # Get the real space force constant matrix
-        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
-        #r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, superstruct_coarse)
+        #r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
+        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, superstruct_coarse)
 
         #r_fcq = self.GetRealSpaceFC(coarse_grid)
             
