@@ -1859,6 +1859,7 @@ class Phonons:
         It is possible to use a different dynamical matrix as a support,
         then only the difference of the current dynamical matrix 
         with the support is interpolated. In this way you can easier achieve convergence.
+
         
         Parameters
         ----------
@@ -1927,6 +1928,7 @@ class Phonons:
         
         
         super_structure = self.structure.generate_supercell(fine_grid)
+        superstruct_coarse = self.structure.generate_supercell(coarse_grid)
         
         nat = self.structure.N_atoms
         fcq = np.zeros( (len(self.q_tot), 3 * nat, 3*nat), dtype = np.complex128)
@@ -1936,7 +1938,9 @@ class Phonons:
                 fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
                 
         # Get the real space force constant matrix
-        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
+        #r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
+        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, superstruct_coarse)
+
         #r_fcq = self.GetRealSpaceFC(coarse_grid)
             
             
