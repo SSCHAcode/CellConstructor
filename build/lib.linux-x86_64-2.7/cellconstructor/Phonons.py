@@ -431,8 +431,6 @@ class Phonons:
         Return an exact copy of itself. 
         This will implies copying all the dynamical matricies and structures inside.
         So take care if the structure is big, because it will overload the memory.
-
-
         NOTE: For now this will not copy raman or IR tensor.
         TODO: TO be fixed
         """
@@ -1100,21 +1098,16 @@ class Phonons:
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
         =====================================
-
         This tool export the dynamical matrix into the PHONONPY plain text format.
         We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
         this when using Phononpy for the conversion factors.
-
         It will create a file called FORCE_CONSTANTS, one called unitcell.in
         with the info on the structure
-
         Parameters
         ----------
             supercell_size : list of 3
                 The supercell that defines the dynamical matrix, note phononpy 
                 works in the supercell.
-
-
         """
 
         # Save it into the phononpy in the supercell
@@ -1271,15 +1264,10 @@ class Phonons:
         r"""
         GET THE RAMAN VECTOR
         ====================
-
         Get the Raman vector. It is the vector obtained from the Raman Tensor:
-
         .. math::
-
             v_\nu = \sum_{xy} \epsilon^{(1)}_x \epsilon_y^{(2)} A^{\nu}_{xy}
-
         This is defined in real space.
-
         Parameters
         ----------
             pol_in : ndarray(size = 3)
@@ -1482,24 +1470,18 @@ class Phonons:
         r"""
         COMPUTE THE TWO PHONON DOS
         ==========================
-
         This subroutine compute the two phonon DOS of the given dynamical matrix.
         It analyzes all possible phonon-phonon scattering and decayment to
         build the two body density of states. This can be used to get an idea how much 
         each phonon can interact with the other in presence of anharmonicity just
         considering energy conservation law and Bose-Einstein statistic.
-
         The DOS equation is
         
         .. math ::
-
             \rho^{(2)}(q, \omega) = \int d^3k_1d^3k_2\sum_{\mu\nu}\left[(n_\mu + n_\nu + 1)\delta(\omega - \omega_\mu(k_1) - \omega_\nu(k_2))\delta^3(\vec k_1 + \vec k_2 - \vec q)\right.
        
             \left.  + 2 (n_\mu - n_\nu)\delta(\omega - \omega_\mu(k_1) + \omega_\nu(k_2))\delta^3(\vec q + \vec k_1 - \vec k_2)\right]
-
-
         Where the Delta function are replaced by the Lorenzian shape to consider a smearing.
-
         Parameters
         ----------
             w_array : ndarray
@@ -1588,13 +1570,9 @@ class Phonons:
         r"""
         GET THE PHONON PROPAGATOR
         =========================
-
         This subroutine computes the phononic propagator defined as
-
         .. math ::
-
             \chi_{\mu\nu}(z, q) = \frac{1}{\beta} \sum_{l} G_\mu(i\Omega_l, \vec k) G_\nu(z - i\Omega_l, \vec q - \vec k)
-
             \chi_{\mu\nu}(z, q) = \frac{\hbar}{2\omega_\mu\omega_\nu}\left[ \frac{(\omega_\nu + \omega_\mu)[1 + n_\nu + n_\mu]}{(\omega_\nu + \omega_\mu)^2 - z^2} - \frac{(\omega_\nu - \omega_\mu)[n_\nu - n_\mu]}{(\omega_\nu - \omega_\mu)^2 -z^2}\right]
         
         This is the phonon dynamical bubble. The summation over k is discretized in the
@@ -1613,7 +1591,6 @@ class Phonons:
                 The second q vector
             semaring : float, default = 1e-5
                 The smearing [Ry] to achieve a faster convergence with the k-mesh sampling.
-
         Result
         ------
             chi : ndarray(size=(3*nat, 3*nat), dtype = np.complex128)
@@ -1883,7 +1860,6 @@ class Phonons:
         It is possible to use a different dynamical matrix as a support,
         then only the difference of the current dynamical matrix 
         with the support is interpolated. In this way you can easier achieve convergence.
-
         
         Parameters
         ----------
@@ -1952,7 +1928,6 @@ class Phonons:
         
         
         super_structure = self.structure.generate_supercell(fine_grid)
-        superstruct_coarse = self.structure.generate_supercell(coarse_grid)
         
         nat = self.structure.N_atoms
         fcq = np.zeros( (len(self.q_tot), 3 * nat, 3*nat), dtype = np.complex128)
@@ -1962,9 +1937,7 @@ class Phonons:
                 fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
                 
         # Get the real space force constant matrix
-        #r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
-        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, superstruct_coarse)
-
+        r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
         #r_fcq = self.GetRealSpaceFC(coarse_grid)
             
             

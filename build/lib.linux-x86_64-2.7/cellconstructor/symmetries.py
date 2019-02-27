@@ -415,9 +415,6 @@ class QE_Symmetry:
             
             if asr == "simple" or asr == "custom":
                 if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
-                    if verbose:
-                        print "q_point:", q_points[iq,:]
-                        print "Applying sum rule"
                     self.ImposeSumRule(fcq[iq,:,:], asr)
             elif asr == "crystal":
                 self.ImposeSumRule(fcq[iq, :,:], asr = asr)
@@ -431,13 +428,11 @@ class QE_Symmetry:
                 print " [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s"
             
             # Symmetrize the matrix
-            if verbose:
-                old_fcq = fcq[iq, :,:].copy()
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
             t2 = time.time()
             if verbose:
                 print " [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" 
-                print " [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum((old_fcq - fcq[iq, :,:])**2))
+        
         
         # For each star perform the symmetrization over that star
         q0_index = 0
@@ -540,8 +535,7 @@ class QE_Symmetry:
         if len(q_point) != 3:
             raise ValueError("Error, the q point must be a 3d vector")
         
-        aq = np.zeros(3, dtype = np.float64)
-        aq[:] = Methods.covariant_coordinates(self.QE_bg.transpose(), q_point)
+        aq = np.ones(3, dtype = np.float64) * Methods.covariant_coordinates(self.QE_bg.transpose(), q_point)
         
         # Setup the bravais lattice
         symph.symm_base.set_at_bg(self.QE_at, self.QE_bg)
@@ -584,8 +578,6 @@ class QE_Symmetry:
         
         self.QE_minus_q = symph.symm_base.smallg_q(aq, 0, syms)
         self.QE_nsymq = symph.symm_base.copy_sym(symph.symm_base.nsym, syms)
-        self.QE_nsym = symph.symm_base.nsym
-        
         
         # Recompute the inverses
         symph.symm_base.inverse_s()
@@ -605,49 +597,28 @@ class QE_Symmetry:
         self.QE_rtau = symph.sgam_ph_new(self.QE_at, self.QE_bg, symph.symm_base.nsym, self.QE_s, 
                                          self.QE_irt, self.QE_tau, self.QE_nat)
         
-        lgamma = 0
-        if np.sqrt(np.sum(q_point**2)) > 0.0001:
-            lgamma = 1
         
-#        self.QE_irotmq = symph.set_irotmq(q_point, self.QE_s, self.QE_nsymq,
-#                                          self.QE_nsym, self.QE_minus_q, 
-#                                          self.QE_bg, self.QE_at, lgamma)
         # If minus q check which is the symmetry
-#        
-        syms = self.GetSymmetries()
         if self.QE_minus_q:
-            self.QE_irotmq = 0
+            syms = self.GetSymmetries()
+            
             # Fix in the Same BZ
-            aq = aq % 1
-            
-                
-            #print "VECTOR AQ:", aq
-            
-            # Get the first symmetry: 
+            for i in range(3):
+                aq[i] = aq[i] - int(aq[i])
+                if aq[i] < 0:
+                    aq[i] += 1
+                    
             for k, sym in enumerate(syms):
-                # Skip the identity
-                #if k == 0:
-                #    continue
-                
                 new_q = sym[:,:3].dot(aq)
-                # Compare new_q with aq
-                dmin = Methods.get_min_dist_into_cell(np.eye(3), -new_q, aq)
-                #dmin = np.sqrt(np.sum( ((new_q + aq) % 1)**2))
-#            
-#                print "Symmetry number ", k+1
-#                print sym[:, :3]
-#                print "q cryst:", aq
-#                print "new_q_cryst:", new_q
-#            
-                #print "SYM NUMBER %d, NEWQ:" % (k+1), new_q
-                #print "Distance:", dmin
-                if  dmin < __EPSILON__:
-                    #print "CORRECT FOR IROTMQ"
+                # Fix in the Same BZ
+                for i in range(3):
+                    new_q[i] = new_q[i] - int(new_q[i])
+                    if new_q[i] < 0:
+                        new_q[i] += 1
+                
+                if np.sum( (new_q - aq)**2) < __EPSILON__:
                     self.QE_irotmq = k + 1
                     break
-        if self.QE_irotmq == 0:
-            self.QE_irotmq = 1
-                       
                 
     def InitFromSymmetries(self, symmetries, q_point):
         """
@@ -704,7 +675,7 @@ class QE_Symmetry:
                 self.QE_irotmq = k + 1
                 break
                 
-    def GetSymmetries(self, get_irt=False):
+    def GetSymmetries(self):
         """
         GET SYMMETRIES FROM QE
         ======================
@@ -712,36 +683,22 @@ class QE_Symmetry:
         This method returns the symmetries in the CellConstructor format from
         the ones elaborated here.
         
-        
-        Parameters
-        ----------
-            get_irt : bool
-                If true (default false) also the irt are returned. 
-                They are the corrispondance between atoms for each symmetry operation.
         Results
         -------
             list :
                 List of 3x4 ndarray representing all the symmetry operations
-            irt : ndarray(size=(nsym, nat), dtype = int), optional
-                Returned only if get_irt = True. 
-                It is the corrispondance between atoms after the symmetry operation is applied.
-                irt[x, y] is the atom mapped into y by the x symmetry. 
         """
         
         syms = []
-        for i in range(self.QE_nsym):
+        for i in range(self.QE_nsymq):
             s_rot = np.zeros( (3, 4))
             s_rot[:, :3] = np.transpose(self.QE_s[:, :, i])
             s_rot[:, 3] = self.QE_ft[:, i]
             
             syms.append(s_rot)
         
-        if not get_irt:
-            return syms
-        return syms, self.QE_irt[:self.QE_nsym, :].copy() - 1
+        return syms
             
-        
-        
     
     def SymmetrizeVector(self, vector):
         """
@@ -750,7 +707,7 @@ class QE_Symmetry:
         
         This is the easier symmetrization of a generic vector.
         Note, fractional translation and generic translations are not imposed.
-        This is because this simmetrization acts on displacements and forces.
+        This is because this simmetrization acts on displacements.
         
         Parameters
         ----------
@@ -807,22 +764,8 @@ class QE_Symmetry:
                 QE_dyn[:, :, na, nb] = Methods.convert_matrix_cart_cryst(fc, self.structure.unit_cell, False)
         
         # Prepare the xq variable
-        #xq = np.ones(3, dtype = np.float64)
-        xq = np.array(q_point, dtype = np.float64)
-#        print "XQ:", xq
-#        print "NSYMQ:", self.QE_nsymq
-#        print "QE SYM:"
-#        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
-#        print "QE INVS:"
-#        print self.QE_invs[:self.QE_nsymq]
-#        #print "QE RTAU:"
-#        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
-#        print "IROTMQ:",  self.QE_irotmq
-#        print "MINUS Q:", self.QE_minus_q
-#        print "IRT:"
-#        print self.QE_irt[:self.QE_nsymq, :]
-#        print "NAT:", self.QE_nat
-        
+        xq = np.ones(3, dtype = np.float64)
+        xq *= q_point
         
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 
@@ -834,95 +777,7 @@ class QE_Symmetry:
                 fc = QE_dyn[:, :, na, nb] 
                 dyn_matrix[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = Methods.convert_matrix_cart_cryst(fc, self.structure.unit_cell, True)
                 
-    def GetQStar(self, q_vector):
-        """
-        GET THE Q STAR
-        ==============
 
-        Given a vector in q space, get the whole star.
-        We use the quantum espresso subrouitine.
-
-        Parameters
-        ----------
-            q_vector : ndarray(size= 3, dtype = np.float64)
-                The q vector
-
-        Results
-        -------
-            q_star : ndarray(size = (nq_star, 3), dtype = np.float64)
-                The complete q star
-        """
-        self.SetupQPoint()
-        nq_new, sxq, isq, imq = symph.star_q(q_vector, self.QE_at, self.QE_bg,
-            self.QE_nsymq, self.QE_s, self.QE_invs, 0)
-
-        return sxq[:, :nq_new].transpose()
-
-    def SelectIrreducibleQ(self, q_vectors):
-        """
-        GET ONLY THE IRREDUCIBLE Q POINTS
-        =================================
-
-        This methods selects only the irreducible q points
-        given a list of total q points for the structure.
-
-        Parameters
-        ----------
-            q_vectors : list of q points
-                The list of q points to be polished fromt he irreducible
-        
-        Results
-        -------
-            q_irr : list of q points
-                The q_vectors without the copies by symmetry of the dynamical matrix.
-        """
-
-        qs = np.array(q_vectors)
-        nq = np.shape(qs)[0]
-
-        q_irr = [qs[x, :].copy() for x in range(nq)]
-        for i in range(nq):
-            if i >= len(q_irr):
-                break
-            
-            q_stars = self.GetQStar(q_irr[i])
-            n_star = np.shape(q_stars)[0]
-
-            # Look if the list contains point in the star
-            for j in range(n_star):
-                q_in_star = q_stars[j,:]
-                # Go reverse, in this way if we pop an element we do not have to worry about indices
-                for k in range(len(q_irr)-1, i, -1):
-                    if Methods.get_min_dist_into_cell(self.QE_bg.transpose(), q_in_star, q_irr[k]) < __EPSILON__:
-                        q_irr.pop(k) # Delete the k element
-        
-        return q_irr
-
-    def GetQIrr(self, supercell):
-        """
-        GET THE LIST OF IRREDUCIBLE Q POINTS
-        ====================================
-
-        This method returns a list of irreducible q points given the supercell size.
-
-        Parameters
-        ----------
-            supercell : (X, Y, Z)  where XYZ are int
-                The supercell size along each unit cell vector.
-        
-        Returns
-        -------
-            q_irr_list : list of q vectors
-                The list of irreducible q points in the brilluin zone.
-        """
-
-        # Get all the q points
-        q_points = GetQGrid(self.QE_at.T, supercell)
-
-        # Delete the irreducible ones
-        q_irr = self.SelectIrreducibleQ(q_points)
-
-        return q_irr
 
 def get_symmetries_from_ita(ita, red=False):
     """
@@ -1063,73 +918,16 @@ def CustomASR(fc_matrix):
 
     fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
     
-    
 
-def GetIRT(structure, symmetry):
+def ApplySymmetryToVector(symmetry, vector):
     """
-    GET IRT
-    =======
-    
-    Get the irt array. It is the array of the atom index that the symmetry operation
-    swaps.
-    
-    irt[y] is the atom index that is mapped from y by the symmetry operation.
-    
-    Parameters
-    ----------
-        structure: Structure.Structure()
-            The unit cell structure
-        symmetry: list of 3x4 matrices
-            symmetries with frac translations
-    
+    Apply the symmetry to the given vector. Translations are neglected.
     """
     
-    new_struct = structure.copy()
-    new_struct.apply_symmetry(symmetry, True)
-    irt = structure.get_equivalent_atoms(new_struct)
-    return irt
-
-def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
-    """
-    APPLY SYMMETRY
-    ==============
+    raise NotImplementedError("Error, ApplySymmetryToVector method not yet implemented, use the one in QE_Symmetry")
     
-    Apply the symmetry to the given vector of displacements.
-    Translations are neglected.
-    
-    .. math::
-        
-        \\vec {v'} = S \\vec v [irt]
-        
-    
-    Parameters
-    ----------
-        symmetry: ndarray(size = (3,4))
-            The symmetry operation (crystalline coordinates)
-        vector: ndarray(size = (nat, 3))
-            The vector to which apply the symmetry.
-            In cartesian coordinates
-        unit_cell : ndarray( size = (3,3))
-            The unit cell in which the structure is defined
-        irt : ndarray(nat, dtype = int)
-            The index of how the symmetry exchanges the atom.
-        
-    """
-    
-    # Get the vector in crystalline coordinate
-    nat, dumb = np.shape(vector)
-    work = np.zeros( (nat, 3))
-    sym = symmetry[:, :3]
-    
-    for i in range(nat):
-        # Pass to crystalline coordinates
-        v1 = Methods.covariant_coordinates(unit_cell, vector[irt[i], :])
-        # Apply the symmetry
-        w1 = sym.dot(v1)
-        # Return in cartesian coordinates
-        work[i, :] = np.einsum("ab,a", unit_cell, w1)
-    
-    return work
+    # TODO:
+    pass
 
 
 def PrepareISOTROPYFindSymInput(structure, path_to_file = "findsym.in",
@@ -1295,7 +1093,8 @@ def CheckSupercellQ(unit_cell, supercell_size, q_list):
         print " MISSING Q ARE "
         print "\n".join([" q =%16.8f%16.8f%16.8f " % (q[0], q[1], q[2]) for q in correct_q])
         return False
-    return True    
+    return True
+    
 
 def GetNewQFromUnitCell(old_cell, new_cell, old_qs):
     """
