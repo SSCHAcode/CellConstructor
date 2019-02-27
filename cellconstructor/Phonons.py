@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun  6 10:29:32 2018
-
 @author: pione
 """
 import Structure
@@ -19,6 +18,12 @@ try:
     __MPI__ = True
 except:
     __MPI__ = False
+    
+try:
+    import spglib
+    __SPGLIB__ = True
+except:
+    __SPGLIB__ = False
 
 A_TO_BOHR = np.float64(1.889725989)
 BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
@@ -426,14 +431,19 @@ class Phonons:
         Return an exact copy of itself. 
         This will implies copying all the dynamical matricies and structures inside.
         So take care if the structure is big, because it will overload the memory.
+        NOTE: For now this will not copy raman or IR tensor.
+        TODO: TO be fixed
         """
         
         ret = Phonons()
         ret.structure = self.structure.copy()
-        ret.q_tot = self.q_tot
+        ret.q_tot = [x.copy() for x in self.q_tot]
         ret.nqirr = self.nqirr
         ret.initialized = self.initialized
-        ret.q_stars = self.q_stars
+        ret.q_stars = []
+        for qstar in self.q_stars:
+            ret.q_stars.append([x.copy() for x in qstar])
+
         ret.alat = self.alat
         
         for i, dyn in enumerate(self.dynmats):
@@ -445,7 +455,6 @@ class Phonons:
         """
         This function checks the compatibility between two dynamical matrices.
         The check includes the number of atoms and the atomic type.
-
         Parameters
         ----------
             - other : Phonons.Phonons()
@@ -773,7 +782,7 @@ class Phonons:
             for iq, q in enumerate(self.q_tot):
                 self.dynmats[iq] = fcq[iq, :, :]
     
-    def GetStrainMatrix(self, new_cell, T = 0):
+    def GetStrainMatrix(self, new_cell, T,threshold,x_start):
         """
         STRAIN THE DYNAMICAL MATRIX
         ===========================
@@ -806,7 +815,7 @@ class Phonons:
                 A new dynamical matrix strained. Note, the current dynamical matrix will not be modified.
         """
         K_to_Ry=6.336857346553283e-06
-        
+
         if T < 0:
             raise ValueError("Error, the temperature must be positive.")
         
@@ -832,7 +841,7 @@ class Phonons:
             factor[3:] = 1 / (2. * w[3:])
         else:
             n = 1 / (np.exp(w[3:] / (K_to_Ry * T)) - 1)
-            factor[3:] = (1. + n) / (2*w[3:])
+            factor[3:] = (1. + 2*n) / (2*w[3:])
         
         cmat = np.einsum("i, hi,ki", factor, new_vect, new_vect)
         
@@ -860,32 +869,56 @@ class Phonons:
         # If the temperature is different from zero, we must obtain a new frequency
         # using a numerical nonlinear solver
         if T != 0:
-            def opt_func(w):
-                ret = 2*w*newf - 1./( 1 - np.exp(w / (K_to_Ry * T)))
-                if not np.shape(w):
-                    if np.abs(w) < __EPSILON__:
-                        return 0
-                else:
-                    ret[np.abs(w) < __EPSILON__] = 0
-                return ret
+            #def opt_func(w):
+            #    ret = 2*w*newf - 1./( 1 - np.exp(w / (K_to_Ry * T)))
+            #    if not np.shape(w):
+            #        if np.abs(w) < __EPSILON__:
+            #            return 0
+            #    else:
+            #        ret[np.abs(w) < __EPSILON__] = 0
+            #    return ret
 
-            try:
-                for k in range(len(new_w)):
-                    def new_func(x):
-                        _x_ = np.ones(np.shape(newf)) * x
-                        return opt_func(_x_)[k]
-                    if np.abs(new_w[k]) < __EPSILON__:
-                        continue
-                    new_w[k] = scipy.optimize.anderson(new_func, new_w[k], verbose = True) 
+	    
+
+	    
+
+            #try:
+            #    for k in range(len(new_w)):
+            #       def new_func(x):
+            #            _x_ = np.ones(np.shape(newf)) * x
+            #            return opt_func(_x_)[k]
+            #        if np.abs(new_w[k]) < __EPSILON__:
+            #            continue
+            #        new_w[k] = scipy.optimize.anderson(new_func, new_w[k], verbose = True) 
             
-            except ValueError:
-                print "Error, Nan encountered during the scipy minimization (T != 0)"
-                print "Starting w value:"
-                print new_w
-                print "new_f value:"
-                print newf
-                print "T:", T
-                raise ValueError("Aborting, error in scipy minimization.")
+
+  	    for k in range(3,36):
+		def g(w):
+			f1= 2*w*newf[k]-1/mt.tanh(w*0.5/(K_to_Ry*T))
+			return f1
+
+		def g_prime(w):
+			f2=2*newf[k]+0.5/(K_to_Ry*T*(mt.sinh(w*0.5/(K_to_Ry*T)))**2)
+			return f2
+
+		x_old=x_start
+		while True : 
+			x_new=x_old-g(x_old)/g_prime(x_old)
+			if np.abs(g(x_new)) < threshold :
+		  		break
+			else:		
+				x_old=x_new
+		new_w[k]=x_new
+       
+            #except ValueError:
+            #    print "Error, Nan encountered during the scipy minimization (T != 0)"
+            #    print "Starting w value:"
+            #    print new_w
+            #    print "new_f value:"
+            #    print newf
+            #    print "T:", T
+            #    raise ValueError("Aborting, error in scipy minimization.")
+                
                 
                 
                 #
@@ -1061,6 +1094,79 @@ class Phonons:
             fp.write("*" * 75 + "\n")
             fp.close()
             
+    def save_phononpy(self, supercell_size = (1,1,1)):
+        """
+        EXPORT THE DYN IN THE PHONONPY FORMAT
+        =====================================
+        This tool export the dynamical matrix into the PHONONPY plain text format.
+        We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
+        this when using Phononpy for the conversion factors.
+        It will create a file called FORCE_CONSTANTS, one called unitcell.in
+        with the info on the structure
+        Parameters
+        ----------
+            supercell_size : list of 3
+                The supercell that defines the dynamical matrix, note phononpy 
+                works in the supercell.
+        """
+
+        # Save it into the phononpy in the supercell
+        superdyn = self.GenerateSupercellDyn(supercell_size)
+        filename = "FORCE_CONSTANTS"
+
+        nat_sc = superdyn.structure.N_atoms
+        nat = self.structure.N_atoms
+
+        # This is the text to be written
+        lines = []
+        lines.append("%d   %d\n" % (nat_sc, nat_sc))
+        for i in range(nat_sc):
+            for j in range(nat_sc):
+                lines.append("%4d\t%4d\n" % (i, j))
+                mat = np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3])
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[0,0], mat[0,1], mat[0,2]))
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[1,0], mat[1,1], mat[1,2]))
+                lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[2,0], mat[2,1], mat[2,2]))
+        
+        # Write to the file
+        f = open(filename, "w")
+        f.writelines(lines)
+        f.close()
+
+        # Produce the unit cell
+        lines = []
+        lines.append("&system\n")
+        lines.append("ibrav = 0\n")
+        lines.append("celldm(1) = 1.889726125836928\n")
+        lines.append("nat = %d\n" % self.structure.N_atoms)
+        
+        typs = self.structure.masses.keys()
+        lines.append("ntyp = %d\n" % len(typs))
+        lines.append("&end\n")
+
+        # Write the atomic species
+        lines.append("ATOMIC_SPECIES\n")
+        for i in typs:
+            m = self.structure.masses[i]
+            lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
+
+        # Write the unit cell
+        lines.append("CELL_PARAMETERS alat\n")
+        for i in range(3):
+            uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
+            lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
+        
+        lines.append("ATOMIC_POSITIONS crystal\n")
+        for i in range(nat):
+            atm = self.structure.atoms[i]
+            cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
+            lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
+        
+
+        f = open("unitcell.in", "w")
+        f.writelines(lines)
+        f.close()
+
             
             
     def ForcePositiveDefinite(self):
@@ -1153,8 +1259,33 @@ class Phonons:
             n = 1 / (np.exp(beta * w) - 1.)
         
         return np.abs(I**2) * (1. + n) / w
+
+    def GetRamanVector(self, pol_in, pol_out):
+        r"""
+        GET THE RAMAN VECTOR
+        ====================
+        Get the Raman vector. It is the vector obtained from the Raman Tensor:
+        .. math::
+            v_\nu = \sum_{xy} \epsilon^{(1)}_x \epsilon_y^{(2)} A^{\nu}_{xy}
+        This is defined in real space.
+        Parameters
+        ----------
+            pol_in : ndarray(size = 3)
+                Incoming polarization
+            pol_out : ndarray(size = 3)
+                Outcoming polarization
+        Results
+        -------
+            vnu : ndarray(size = 3*nat)
+                The raman intensity vector along each atomic displacement.
+        """
+
+        if self.raman_tensor is None:
+            raise ImportError("Error, the raman tensor is not defined.")
             
+        return np.einsum("ija, i, j", self.raman_tensor, pol_in, pol_out)        
     
+
     def GenerateSupercellDyn(self, supercell_size):
         """
         GENERATE SUPERCEL DYN
@@ -1177,6 +1308,13 @@ class Phonons:
                 A Phonons class of the supercell
         
         """
+        # First check if the q vectors are compatible with the supercell
+        if not symmetries.CheckSupercellQ(self.structure.unit_cell, supercell_size, self.q_tot):
+            print("Q points:", self.q_tot)
+            print("Supercell size:", supercell_size)
+            print("Unit cell:", self.structure.unit_cell)
+            raise ValueError("Error, the list of q point does not match the given supercell.")
+
         super_struct = self.structure.generate_supercell(supercell_size)
         
         dyn_supercell = Phonons(super_struct, nqirr = 1)
@@ -1328,6 +1466,204 @@ class Phonons:
         return free_energy
         
     
+    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acustic = True):
+        r"""
+        COMPUTE THE TWO PHONON DOS
+        ==========================
+        This subroutine compute the two phonon DOS of the given dynamical matrix.
+        It analyzes all possible phonon-phonon scattering and decayment to
+        build the two body density of states. This can be used to get an idea how much 
+        each phonon can interact with the other in presence of anharmonicity just
+        considering energy conservation law and Bose-Einstein statistic.
+        The DOS equation is
+        
+        .. math ::
+            \rho^{(2)}(q, \omega) = \int d^3k_1d^3k_2\sum_{\mu\nu}\left[(n_\mu + n_\nu + 1)\delta(\omega - \omega_\mu(k_1) - \omega_\nu(k_2))\delta^3(\vec k_1 + \vec k_2 - \vec q)\right.
+       
+            \left.  + 2 (n_\mu - n_\nu)\delta(\omega - \omega_\mu(k_1) + \omega_\nu(k_2))\delta^3(\vec q + \vec k_1 - \vec k_2)\right]
+        Where the Delta function are replaced by the Lorenzian shape to consider a smearing.
+        Parameters
+        ----------
+            w_array : ndarray
+                The frequency of the dos
+            smearing : float
+                The smearing used to compute the DOS. 
+                To converge the smearing you need to study the limit
+                :math:`\lim_{\sigma\rightarrow 0} \lim_{N_q\rightarrow\infty} DOS`
+            q_index : int
+                The q point in which to compute the phonon DOS. 
+                You must pass the index that matches the q_tot list.
+            exclude_acustic : bool, default = False
+                If True the acoustic modes at gamma are neglected in the DOS.
+                NOTE: if you have few q points, you will not see the frequencies of the real mode in the DOS!
+                
+        Results
+        -------
+            dos : ndarray
+                The array of the density of state returned. Same shape as w_array
+        """
+        K_to_Ry=6.336857346553283e-06
+
+
+        q_vector = self.q_tot[q_index]
+        bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+
+        nat = self.structure.N_atoms
+        
+
+        DOS = np.zeros( np.shape(w_array), dtype = np.float64)
+        for k1_i, k1 in enumerate(self.q_tot):
+            # Get the k vectors from the delta relations
+            k2_dists = [Methods.get_min_dist_into_cell(bg, k1, q_vector - x) for x in self.q_tot]
+            k2p_dists = [Methods.get_min_dist_into_cell(bg, k1, x - q_vector) for x in self.q_tot]
+
+            k2_i = np.argmin(k2_dists)
+            k2p_i = np.argmin(k2p_dists)
+
+            k2 = self.q_tot[k2_i]
+            k2p = self.q_tot[k2p_i]
+
+            # Get the frequencies at the correct Q points
+            _wmu_, _pmu_ = self.DyagDinQ(k1_i)
+            _wnu_, _pnu_ = self.DyagDinQ(k2_i)
+            _wnu2_, _pnu2_ = self.DyagDinQ(k2p_i)
+
+            trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
+            trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+            trans3 = Methods.get_translations(_pnu2_, self.structure.get_masses_array())
+
+            # Sum over mu nu
+            for mu in range(3*nat):
+                if exclude_acustic and trans1[mu]:
+                    continue
+                w_mu = _wmu_[mu]
+                n_mu = 0
+                if temperature > 0:
+                    n_mu = 1 / (np.exp(w_mu  / (temperature * K_to_Ry)) - 1)
+                for nu in range(3*nat):
+                    w_nu = _wnu_[nu]
+                    n_nu = 0
+                    if temperature > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
+
+                    chi1 = 0
+                    if not (exclude_acustic and trans2[nu]):
+                        chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                        chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
+                        chi1 /= w_mu * w_nu
+
+                    w_nu = _wnu2_[nu]
+                    if temperature > 0:
+                        n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
+
+                    chi2 = 0            
+                    if not (exclude_acustic and trans3[nu]):
+                        chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
+                        chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
+                        chi2 /= w_mu*w_nu
+
+                    DOS += chi1 + chi2
+
+        return DOS / 2 # We need a 1/2 factor
+
+    def get_phonon_propagator(self, w, T, q1, q2, smearing = 1e-5):
+        r"""
+        GET THE PHONON PROPAGATOR
+        =========================
+        This subroutine computes the phononic propagator defined as
+        .. math ::
+            \chi_{\mu\nu}(z, q) = \frac{1}{\beta} \sum_{l} G_\mu(i\Omega_l, \vec k) G_\nu(z - i\Omega_l, \vec q - \vec k)
+            \chi_{\mu\nu}(z, q) = \frac{\hbar}{2\omega_\mu\omega_\nu}\left[ \frac{(\omega_\nu + \omega_\mu)[1 + n_\nu + n_\mu]}{(\omega_\nu + \omega_\mu)^2 - z^2} - \frac{(\omega_\nu - \omega_\mu)[n_\nu - n_\mu]}{(\omega_\nu - \omega_\mu)^2 -z^2}\right]
+        
+        This is the phonon dynamical bubble. The summation over k is discretized in the
+        current dynamical matrix. To achieve the thermodynamic limit you can use the interpolation in a finer mesh.
+        
+        
+        Parameters
+        ----------
+            w : double
+                The value of the dynamical frequency to compute the phonon propagator.
+            T : float
+                The temperature to compute the bosonic occupation numbers :math:`n_\mu`.
+            q1 : ndarray(size=3)
+                The first q vector
+            q2 : ndarray(size=3)
+                The second q vector
+            semaring : float, default = 1e-5
+                The smearing [Ry] to achieve a faster convergence with the k-mesh sampling.
+        Result
+        ------
+            chi : ndarray(size=(3*nat, 3*nat), dtype = np.complex128)
+                The bubble phonon propagator
+        """
+
+
+        K_to_Ry=6.336857346553283e-06
+
+        # Get the q vector
+        bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+
+        nat = self.structure.N_atoms
+        
+        ChiMuNu = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+
+        # Get the k vectors from the delta relations
+        k1_dists = [Methods.get_min_dist_into_cell(bg, q1, x) for x in self.q_tot]
+        k2_dists = [Methods.get_min_dist_into_cell(bg, q2, x) for x in self.q_tot]
+
+        k1_i = np.argmin(k1_dists)
+        k2_i = np.argmin(k2_dists)
+
+        # Get the frequencies at the correct Q points
+        _wmu_, _pmu_ = self.DyagDinQ(k1_i)
+        _wnu_, _pnu_ = self.DyagDinQ(k2_i)
+
+        # Get the translational vectors
+        trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
+        trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+
+        # Sum over mu nu
+        for mu in range(3*nat):
+            if trans1[mu]:
+                continue
+            w_mu = _wmu_[mu]
+            n_mu = 0
+            dn_dw = 0
+            if T > __EPSILON__:
+                n_mu = 1 / (np.exp(w_mu  / (T * K_to_Ry)) - 1)
+                dn_dw = -n_mu / (T * K_to_Ry * (1 - np.exp(-w_mu  / (T * K_to_Ry))))
+            for nu in range(3*nat):
+                w_nu = _wnu_[nu]
+                n_nu = 0
+                if T > __EPSILON__:
+                    n_nu = 1 / (np.exp(w_nu  / (T * K_to_Ry)) - 1)
+
+                chi1 = 0j
+                chi2 = 0j
+                if not (trans2[nu]):
+                    chi1 = (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                    chi1 /= ( (w_mu + w_nu)**2 - w**2 - 2*1j*w*smearing)
+                    chi1 /= 2*w_mu*w_nu
+
+                    if np.abs(w) < __EPSILON__ and np.abs(w_nu - w_mu) < __EPSILON__:
+                        chi2 = - dn_dw / (2*w_mu*w_nu)
+                    else:
+                        chi2 = (w_mu - w_nu) * (n_nu - n_mu)
+                        chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
+                        chi2 /= 2*w_mu*w_nu
+                    
+                if np.isnan(chi1 + chi2):
+                    print "NaN value found in the propagator."
+                    print "NaN value error details:"
+                    print "chi1: ", chi1
+                    print "chi2: ", chi2
+                    print "mu = %d, nu = %d" % (mu, nu)
+                    print "w_mu = %10.4f, n_mu = %10.4f" % (w_mu * RY_TO_CM, n_mu)
+                    print "w_nu = %10.4f, n_nu = %10.4f" % (w_nu * RY_TO_CM, n_nu)
+                    raise ValueError("Error, the propagator is NAN, check stdout for details.")
+                ChiMuNu[mu, nu] = chi1 + chi2
+
+        return ChiMuNu
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
                           displacement = None):
@@ -1656,20 +1992,48 @@ class Phonons:
         self.q_stars = q_stars
         self.nqirr = len(q_stars)
             
+    def SymmetrizeSupercell(self, supercell_size):
+        """
+        Testing function, it applies symmetries in the supercell.
+        """
         
-    def Symmetrize(self):
+        if not __SPGLIB__:
+            raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
+        
+        superdyn = self.GenerateSupercellDyn(supercell_size)
+        
+        spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
+        syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
+        
+        superdyn.ForceSymmetries(syms)
+        
+        # Get the dynamical matrix back
+        fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        
+        for iq, q in enumerate(self.q_tot):
+            self.dynmats[iq] = fcq[iq, :, :]
+        
+    def Symmetrize(self, verbose = False, asr = "custom"):
         """
         SYMMETRIZE THE DYNAMICAL MATRIX
         ===============================
         
         This subroutine uses the QE symmetrization procedure to obtain
         a full symmetrized dynamical matrix.
+        
+        Parameters
+        ----------
+            verbose : bool
+                If true a lot of info regarding the symmetrization are printed.
+            asr : string
+                The kind of the acustic sum rule. Allowed are 'crystal', 'simple' or 'custom'.
+                for crystal and simple refer to the quantum-espresso guide.
         """
         
         qe_sym = symmetries.QE_Symmetry(self.structure)
         
         fcq = np.array(self.dynmats, dtype = np.complex128)
-        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = "custom")
+        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
         
         for iq,q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
@@ -1682,9 +2046,7 @@ class Phonons:
         
         The acustic sum rule is a way to impose translational symmetries on the dynamical matrix.
         It affects also the effective charges if any (the total effective charge must be zero).
-
         For the dynamical matrix it allows to have the self interaction terms:
-
         .. math::
         
             \\Phi_{n_a, n_a}^{x,y} = - \\sum_{n_b \\neq n_a} \\Phi_{n_a,n_b}^{x,y} 
@@ -1767,7 +2129,7 @@ class Phonons:
         # Get only the rotational part of the symmetry
         new_s_mat = symmat[:3, :3]
         
-        out_fc = np.zeros(np.shape(self.dynmats[0]))
+        out_fc = np.zeros(np.shape(self.dynmats[0]), dtype = np.complex128)
         in_fc = self.dynmats[0]
         
         # Apply the symmetry to the force constant matrix
@@ -1807,7 +2169,7 @@ class Phonons:
         
     
         
-    def ForceSymmetries(self, symmetries):
+    def ForceSymmetries(self, symmetries, apply_sum_role = True):
         """
         FORCE THE PHONON TO RESPECT THE SYMMETRIES
         ==========================================
@@ -1831,7 +2193,7 @@ class Phonons:
         
         
         # Apply the symmetries
-        new_fc = np.zeros( np.shape(self.dynmats[0]) )
+        new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
         
         self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
@@ -1845,6 +2207,8 @@ class Phonons:
             
             # Get the force constant
             current_fc = self.ApplySymmetry(sym)
+            
+            print i
             
             # Try to add the sum rule here
             #newP = self.Copy()
@@ -1870,7 +2234,8 @@ class Phonons:
         #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
         
         # Apply the acustic sum rule
-        self.ApplySumRule()
+        if apply_sum_role:
+            self.ApplySumRule()
 
 
 def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure, itau = None):
@@ -1970,7 +2335,6 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
         itau : Ndarray(nat_sc) , optional
             the correspondance between the supercell atoms and the unit cell one.
             If None is recomputed
-
     Returns
     -------
         fc_supercell : ndarray 3nat_sc x 3nat_sc
@@ -2052,7 +2416,6 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
             The structure of the unit cell
         supercell_structure : Structure()
             The structure of the supercell
-
     Returns
     -------
         dynmat : ndarray (nq, 3nat, 3nat, dtype = np.complex128) 
@@ -2194,6 +2557,16 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
             output_dyn[3*i : 3*(i+1), 3*j: 3*(j+1)]= new_dyn[:,:, i, j]
             
     return output_dyn
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
