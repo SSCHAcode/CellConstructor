@@ -14,6 +14,8 @@ from ase.visualize import view
 
 # Ry to cm-1 conversion
 RyToCm=109737.37595
+T = 100
+EPS = 1e-6
 
 # Load the dynamical matrix
 dynmat = CC.Phonons.Phonons("ice.dyn", full_name = True)
@@ -33,7 +35,7 @@ old_config = config.copy()
 config.change_unit_cell(new_cell)
 
 # Strain the dynamical matrix
-new_dyn = dynmat.GetStrainMatrix(new_cell)
+new_dyn = dynmat.GetStrainMatrix(new_cell, T, EPS)
 
 # Compute the two displacements
 disp_old = old_config.get_displacement(dynmat.structure)
@@ -50,8 +52,8 @@ print "New frequencies [cm-1]:"
 new_w, new_pols = new_dyn.DyagDinQ(0)
 print new_w * RyToCm
 print "Relation between the two <u | Upsilon |  u> factors (They should be similar):"
-print "Factor1: %e" % new_dyn.GetProbability(disp_new, 0, normalize= False) 
-print "Factor2: %e" % dynmat.GetProbability(disp_old, 0, normalize= False) 
+print "Factor1: %e" % new_dyn.GetProbability(disp_new, T, normalize= False) 
+print "Factor2: %e" % dynmat.GetProbability(disp_old, T, normalize= False) 
 
 # Save the new dynamical matrix
 new_dyn.save_qe("strained_dyn", True)

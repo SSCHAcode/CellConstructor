@@ -784,7 +784,7 @@ class Phonons:
             for iq, q in enumerate(self.q_tot):
                 self.dynmats[iq] = fcq[iq, :, :]
     
-    def GetStrainMatrix(self, new_cell, T,threshold,x_start):
+    def GetStrainMatrix(self, new_cell, T,threshold=1e-5,x_start = 0.01):
         """
         STRAIN THE DYNAMICAL MATRIX
         ===========================
@@ -810,6 +810,11 @@ class Phonons:
                 The new unit cell after the strain.
             T : float
                 The temperature of the strain (default 0)
+            threshold : float
+                The threshold for the convergence of the newton algorithm to find the 
+                frequencies given the eigenvalues of the upsilon matrix.
+            x_start : float
+                The initial guess for the newton algorithm.
                 
         Results
         -------
@@ -871,6 +876,7 @@ class Phonons:
         # If the temperature is different from zero, we must obtain a new frequency
         # using a numerical nonlinear solver
         if T != 0:
+            
             #def opt_func(w):
             #    ret = 2*w*newf - 1./( 1 - np.exp(w / (K_to_Ry * T)))
             #    if not np.shape(w):
@@ -892,25 +898,24 @@ class Phonons:
             #        if np.abs(new_w[k]) < __EPSILON__:
             #            continue
             #        new_w[k] = scipy.optimize.anderson(new_func, new_w[k], verbose = True) 
-            
-
-  	    for k in range(3,36):
-		def g(w):
-			f1= 2*w*newf[k]-1/mt.tanh(w*0.5/(K_to_Ry*T))
-			return f1
-
-		def g_prime(w):
-			f2=2*newf[k]+0.5/(K_to_Ry*T*(mt.sinh(w*0.5/(K_to_Ry*T)))**2)
-			return f2
-
-		x_old=x_start
-		while True : 
-			x_new=x_old-g(x_old)/g_prime(x_old)
-			if np.abs(g(x_new)) < threshold :
-		  		break
-			else:		
-				x_old=x_new
-		new_w[k]=x_new
+                
+      	    for k in range(3,36):
+    		def g(w):
+    			f1= 2*w*newf[k]-1/np.tanh(w*0.5/(K_to_Ry*T))
+    			return f1
+    
+    		def g_prime(w):
+    			f2=2*newf[k]+0.5/(K_to_Ry*T*(np.sinh(w*0.5/(K_to_Ry*T)))**2)
+    			return f2
+    
+    		x_old=x_start
+    		while True : 
+    			x_new=x_old-g(x_old)/g_prime(x_old)
+    			if np.abs(g(x_new)) < threshold :
+    		  		break
+    			else:		
+    				x_old=x_new
+    		new_w[k]=x_new
        
             #except ValueError:
             #    print "Error, Nan encountered during the scipy minimization (T != 0)"
