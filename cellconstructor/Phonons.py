@@ -1259,10 +1259,13 @@ class Phonons:
         for i in range(self.structure.N_atoms):
             _m_[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
             
+        # Apply translation
+        trans = Methods.get_translations(pol_vects, self.structure.get_masses_array())
+        pol_vects[:, trans] = 0
         
         # The super sum
         #print np.shape(self.raman_tensor), np.shape(pol_vects), np.shape(_m_), np.shape(pol_in), np.shape(pol_out)
-        I = np.einsum("ijk, kl, k, i, j", self.raman_tensor, pol_vects, _m_, pol_in, pol_out)
+        I = np.einsum("ijk, kl, k, i, j", self.raman_tensor, pol_vects, 1/np.sqrt(_m_), pol_in, pol_out)
         
         # Get the bosonic occupation number
         n = np.zeros(len(w))
@@ -1300,7 +1303,18 @@ class Phonons:
         if self.raman_tensor is None:
             raise ImportError("Error, the raman tensor is not defined.")
             
-        return np.einsum("ija, i, j", self.raman_tensor, pol_in, pol_out)        
+        v =  np.einsum("ija, i, j", self.raman_tensor, pol_in, pol_out)        
+        
+        # Take out the translations from v
+        t1 = np.tile(np.array([1,0,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        t2 = np.tile(np.array([0,1,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        t3 = np.tile(np.array([0,0,1], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        
+        v -= t1.dot(v)
+        v -= t2.dot(v)
+        v -= t3.dot(v)
+        
+        return v
     
 
     def GenerateSupercellDyn(self, supercell_size):

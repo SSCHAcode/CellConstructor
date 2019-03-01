@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+#!/usr/bin/env python2
 """
 This module contains the methods that requre to call the classes defined
 into this module.
@@ -783,7 +784,7 @@ def ChooseParamForTransformStructure(dyn1, dyn2, small_thr = 0.8, n_ref = 100, n
     return mode_exchange, mode_sign
         
 
-def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
+def PlotRamanSpectra(w_axis, T, sigma, dyn, pol1=None, pol2=None):
     """
     PLOT HARMONIC RAMAN
     ===================
@@ -792,6 +793,8 @@ def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
     This function computes the Raman spectrum of the dynamical matrix in the harmonic approximation.
     Note: it requires that the dynamical matrix to have a Raman spectrum.
     
+    If Pol1 and pol2 are none the light is chose unpolarized
+    
     
     Parameters
     ----------
@@ -799,14 +802,14 @@ def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
             The axis of the Raman shift (cm-1)
         T : float
             Temperature
-        pol1 : ndarray 3
-            The incident polarization vector
-        pol2 : ndarray 3
-            The scattered polarization vector
         sigma : float
             The beam frequency standard deviation
         dyn : Phonons.Phonons()
             The dynamical matrix
+        pol1 : ndarray 3
+            The incident polarization vector
+        pol2 : ndarray 3
+            The scattered polarization vector
             
     Results
     -------
@@ -822,17 +825,41 @@ def PlotRamanSpectra(w_axis, T, pol1, pol2, sigma, dyn):
         return I/np.sqrt(2 * np.pi * sigma**2) * np.exp( - (w - w_axis)**2 / (2 * sigma**2))
         
 
+    # Dyagonalize the dynamical matrix
     w, pols = dyn.DyagDinQ(0)
+    
+    # Discard the translations
+    trans = Methods.get_translations(pols, dyn.structure.get_masses_array())
+    
+    # Convert in cm-1
     w *= RyToCm
     
-    I_new = dyn.GetRamanResponce(pol1, pol2, T)
     
     I_w = np.zeros(len(w_axis))
     
-    for i in range(len(I_new)):
-        I_w += scatter_gauss(w[i], I_new[i])
+    # Check if the light is unpolarized
+    if pol1 is None and pol2 is None:
+        N_rep = 50
+    else: 
+        N_rep = 1
+    
+    for i_rep in range(N_rep):
         
-    return I_w
+        if N_rep > 1:
+            pol1 = np.random.normal(size = 3)
+            pol1 /= np.sqrt(pol1.dot(pol1))
+            pol2 = np.random.normal(size = 3)
+            pol2 /= np.sqrt(pol1.dot(pol1))
+        
+        I_new = dyn.GetRamanResponce(pol1, pol2, T)
+        #I_new *= w#w**2 / RyToCm**2
+        #I_new[trans] = 0
+        #print "N_ACTIVE:", I_new > np.max(I_new) / 100
+        
+        for i in range(len(I_new)):
+            I_w += scatter_gauss(w[i], I_new[i])
+        
+    return I_w / N_rep
     
 
 def apply_symmetry_on_fc(structure, fc_matrix, symmetry):
@@ -988,3 +1015,70 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
     
     return tot_coords
         
+
+def BondPolarizabilityModel(structure, bonded_atoms, distance, threshold, alpha_l, alpha_p, alpha1_l, alpha1_p):
+    """
+    BOND POLARIZABILITY MODEL
+    =========================
+
+    This method uses an empirical model to obtain the raman tensor of a structure.
+    It is based on the assumption that all the polarizability of the system is encoded in a molecular bond.
+
+    Parameters
+    ----------
+        structure : Structure.Structure()
+            The molecular structure on which you want to build the polarizability
+        bonded_atoms : list of two strings
+            The atomic species that form a bond
+        distance : float
+            The average distance of a bond
+        threshold : float
+            The threshold on the atomic distance to identify two atoms that are bounded
+        alpha_l : float
+            The longitudinal polarization of the bond
+        alpha_p : float
+            The perpendicular polarization of the bond
+        alpha1_l : float
+            The derivative of the longitudinal polarization with respect to the bond length.
+        alpha1_p : float
+            The derivative of the perpendicular polarization with respect to the bond length.
+
+
+    Results
+    -------
+        raman_tensor : ndarray(size = (3,3, 3*nat), dtype = np.float64)
+            The raman tensor for the structure as computed by the bond polarizability model 
+    """
+
+    # Identify the bonds in the structure
+    mols, indices = structure.GetBiatomicMolecules(bonded_atoms, distance, threshold, True)
+    I = np.eye(3, dtype = np.float64)
+
+    raman_tensor = np.zeros((3,3, 3*structure.N_atoms), dtype = np.float64)
+    for i, mol in enumerate(mols):
+        at_1 = indices[i][0]
+        at_2 = indices[i][1]
+
+        r_bond = mol.coords[0,:] - mol.coords[1,:]
+        r_mod = np.sqrt(r_bond.dot(r_bond))
+        r_bond /= r_mod
+
+        Rk = np.zeros((structure.N_atoms, 3), dtype = np.float64)
+        Rk[at_1, :] = r_bond 
+        Rk[at_2, :] = -r_bond
+
+        IRk =  np.einsum("ij,k", I, Rk)
+        RRR = np.einsum("i, j, k", r_bond, r_bond, Rk)
+        dRdK = -np.einsum("j, k", r_bond, Rk)
+        for j in range(3):
+            dRdK[j, 3*at_1 + j] += 1
+            dRdK[j, 3*at_2 + j] -= 1
+        dRdK /= r_mod
+
+        RdRK2 = np.einsum("i, jk->ijk", r_bond, dRdK) + np.einsum("j, ik->ijk", r_bond, dRdK)
+        
+        raman_tensor += (2*alpha1_p + alpha1_l) /3 *IRk
+        raman_tensor += (alpha1_l - alpha1_p) * (RRR - IRk/3)
+        raman_tensor += (alpha_l - alpha_p) * RdRK2
+
+    return raman_tensor
