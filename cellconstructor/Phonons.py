@@ -354,7 +354,7 @@ class Phonons:
         # Ok, the matrix has been initialized
         self.initialized = True
         
-    def DyagDinQ(self, iq):
+    def DyagDinQ(self, iq, force_real_at_gamma = True):
         """
         Dyagonalize the dynamical matrix in the given q point index.
         This methods returns both frequencies and polarization vectors.
@@ -364,11 +364,17 @@ class Phonons:
         They are returned.
         
         NOTE: The normalization is forced, as it is problematic for degenerate modes
+        NOTE: if the q point is gamma, then the matrix is forced to be real
         
         Parameters
         ----------
             - iq : int
                 Tbe index of the q point of the matrix to be dyagonalized.
+            - force_real_at_gamma : bool, optional
+                If True (default) the matrix is forced to be real during the
+                dyagonalization (if q = 0). This assures to have real eigenvectors.
+                This is usefull for supercells.
+
                 
         Results
         -------
@@ -393,7 +399,11 @@ class Phonons:
 
         real_dyn *= self.dynmats[iq]
         
-        eigvals, pol_vects = np.linalg.eigh(real_dyn)
+        q_vec = self.q_tot[iq]
+        if np.sqrt(q_vec.dot(q_vec)) < __EPSILON__:
+            eigvals, pol_vects = np.linalg.eigh(np.real(real_dyn))
+        else:
+            eigvals, pol_vects = np.linalg.eigh(real_dyn)
         
         f2 = eigvals
         
