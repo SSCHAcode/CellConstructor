@@ -431,42 +431,44 @@ class Structure:
         list_pop = []
         for i in range(self.N_atoms-1):
             # Avoid to consider replica atoms already found
-            if (i in list_pop): continue
+            if (i in list_pop): 
+                continue
 
             # If the atom is not a replica, then found if there are its replica missing
             for j in range(i+1, self.N_atoms):
-                if (self.atoms[i] != self.atoms[j]): continue
+                if (self.atoms[i] != self.atoms[j]): 
+                    continue
+                if j in list_pop:
+                    continue 
                 
                 # Get the axis
-                x, y, z = self.coords[i, :]
-                x1, y1, z1 = self.coords[j, :]
+                v1 = self.coords[i, :]
+                v2 = self.coords[j, :]
 
-                
-                # Apply the unit cell if necessary
-                distances = []
+                d = np.sqrt(np.sum( (v1-v2)**2))
                 if (self.has_unit_cell):
-                    # For each vector in the unit cell, add a distance 
-                    shifts = [-1,0,1]
-                    for i_x, x_u in enumerate(shifts):
-                        new_x = x1 + x_u * self.unit_cell[i_x, :]
-                        for i_y, y_u in enumerate(shifts):
-                            new_y = y1 + y_u * self.unit_cell[i_y, :]
-                            for i_z, z_u in enumerate(shifts):
-                                new_z = z1 + z_u * self.unit_cell[i_z, :]
+                    d = Methods.get_min_dist_into_cell(self.unit_cell, v1, v2)
+                
+                # # Apply the unit cell if necessary
+                # distances = []
+                # if (self.has_unit_cell):
+                #     # For each vector in the unit cell, add a distance 
+                #     shifts = [-1,0,1]
+                #     for i_x, x_u in enumerate(shifts):
+                #         new_x = x1 + x_u * self.unit_cell[i_x, :]
+                #         for i_y, y_u in enumerate(shifts):
+                #             new_y = y1 + y_u * self.unit_cell[i_y, :]
+                #             for i_z, z_u in enumerate(shifts):
+                #                 new_z = z1 + z_u * self.unit_cell[i_z, :]
 
-                                # Add the transformed distance
-                                distances.append( np.sqrt((x-new_x)**2 + (y - new_y)**2 + (z - new_z)**2))
-                else:
-                    # Get the first distance between atoms
-                    distances.append(np.sqrt( (x-x1)**2 + (y-y1)**2 + (z-z1)**2 ))
+                #                 # Add the transformed distance
+                #                 distances.append( np.sqrt((x-new_x)**2 + (y - new_y)**2 + (z - new_z)**2))
+                # else:
+                #     # Get the first distance between atoms
+                #     distances.append(np.sqrt( (x-x1)**2 + (y-y1)**2 + (z-z1)**2 ))
                                            
                         
-
-                # Select from all the possible atoms in the unit cell translation the
-                # one that is closer
-                d0 = np.min(distances)
-                
-                if (d0 < minimum_dist):
+                if (d < minimum_dist):
                     # Add the atom as a replica
                     list_pop.append(j)
 
@@ -477,7 +479,7 @@ class Structure:
             print "Found %d replica" % N_rep
 
         # Delete the replica
-        list_pop = list(set(list_pop)) # Avoid duplicate indices
+        #list_pop = list(set(list_pop)) # Avoid duplicate indices
         list_pop.sort(reverse=True)
         #print list_pop, self.N_atoms
         for index in list_pop:

@@ -986,7 +986,7 @@ class Phonons:
                 filename0 will contain all the information about the Q points and the supercell.
         """
         #A_TO_BOHR = 1.889725989
-        RyToCm=109737.37595
+        #RyToCm=109737.37595
         RyToTHz=3289.84377
         
         # Check if all the dynamical matrix must be saved, or only the 
@@ -1090,7 +1090,7 @@ class Phonons:
             for mu in range(nmodes):
                 # Print the frequency
                 fp.write("%7s (%5d) = %14.8f [THz] = %14.8f [cm-1]\n" %
-                         ("freq", mu+1, freqs[mu] * RyToTHz, freqs[mu] * RyToCm))
+                         ("freq", mu+1, freqs[mu] * RyToTHz, freqs[mu] * RY_TO_CM))
                 
                 # Print the polarization vectors
                 for i in range(n_atoms):

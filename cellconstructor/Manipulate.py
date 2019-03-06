@@ -1067,9 +1067,9 @@ def BondPolarizabilityModel(structure, bonded_atoms, distance, threshold, alpha_
         Rk[at_1, :] = r_bond 
         Rk[at_2, :] = -r_bond
 
-        IRk =  np.einsum("ij,k", I, Rk)
-        RRR = np.einsum("i, j, k", r_bond, r_bond, Rk)
-        dRdK = -np.einsum("j, k", r_bond, Rk)
+        IRk =  np.einsum("ij,k", I, Rk.ravel()) #delta_ij R_k
+        RRR = np.einsum("i, j, k", r_bond, r_bond, Rk.ravel())
+        dRdK = -np.einsum("j, k", r_bond, Rk.ravel())
         for j in range(3):
             dRdK[j, 3*at_1 + j] += 1
             dRdK[j, 3*at_2 + j] -= 1
@@ -1082,3 +1082,96 @@ def BondPolarizabilityModel(structure, bonded_atoms, distance, threshold, alpha_
         raman_tensor += (alpha_l - alpha_p) * RdRK2
 
     return raman_tensor
+
+
+def RotationTranslationStretching(structure, molecules, indices, vector):
+    """
+    PROJECT IN ROT TRANS STRETCH
+    ============================
+
+    Project the given atomic vector into the molecular rotation, translations and 
+    stretching. This is an usefull subroutine to analyze the vibrational modes
+    of molecular crystals.
+
+    Parameters
+    ----------
+        structure : Structure
+            The atomic structure.
+        molecules : list of Structure
+            A list of structures that identifies the molecules.
+        indices : list of truples of int
+            A list containing the indices of the atoms in the structure that
+            belong to the respective molecule.
+        vector: ndarray(size = (N_atoms * 3), dtype = float64)
+            The polarization vector that you want to analyze.
+    
+    Results
+    -------
+        rotations : float
+            The fraction of the polarization projected on the molecular rotations
+        translations : float
+            The fraction of the polarization projected on the molecular translations
+        stretching : float
+            The fraction of the polarization projected on the molecular stretching
+    """
+    n_mols = len(molecules)
+    nat = structure.N_atoms
+    projector_trans = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+    projector_stretch = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+    projector_rot = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
+
+    for i in range(n_mols):
+        mol_i = indices[i][0]
+        mol_j = indices[i][1]
+        
+        # Create the translation for the current molecule
+        v1 = np.zeros( (nat, 3), dtype = np.complex128)
+        v2 = np.zeros( (nat, 3), dtype = np.complex128)
+        v3 = np.zeros( (nat, 3), dtype = np.complex128)
+        
+        v1[mol_i,:] = np.array([1,0,0])
+        v2[mol_i,:] = np.array([0,1,0])
+        v3[mol_i,:] = np.array([0,0,1])
+        v1[mol_j,:] = np.array([1,0,0])
+        v2[mol_j,:] = np.array([0,1,0])
+        v3[mol_j,:] = np.array([0,0,1])
+        
+        projector_trans += np.outer(v1.ravel(), v1.ravel()) / np.sqrt(2* n_mols)
+        projector_trans += np.outer(v2.ravel(), v2.ravel()) / np.sqrt(2* n_mols)
+        projector_trans += np.outer(v3.ravel(), v3.ravel()) / np.sqrt(2* n_mols)
+        
+        # Create the stretching
+        # Get the vector that joints the two molecules
+        v_joint = molecules[i].coords[1,:] - molecules[i].coords[0,:]
+        v_joint /= np.sqrt(v_joint.dot(v_joint))
+        
+        v = np.zeros((nat, 3), dtype = np.complex128)
+        v[mol_i,:] = v_joint
+        v[mol_j,:] = -v_joint
+        projector_stretch += np.outer(v.ravel(), v.ravel()) / np.sqrt(2* n_mols)
+        
+        # Now create the rotations
+        v_aux = np.random.uniform(-1, 1, size=3)
+        # Prject out the stretching direction
+        v_aux -= v_aux.dot(v_joint)
+        v_aux /= np.sqrt(v_aux.dot(v_aux))
+        v_aux2 = np.cross(v_aux, v_joint)
+        
+        v1 = np.zeros( (nat, 3), dtype = np.complex128)
+        v2 = np.zeros( (nat, 3), dtype = np.complex128)
+        
+        v1[mol_i, :] = v_aux
+        v1[mol_j, :] = -v_aux
+        v2[mol_i, :] = v_aux2
+        v2[mol_j, :] = -v_aux2
+        
+        projector_rot += np.outer(v1.ravel(), v1.ravel()) / np.sqrt(2 *n_mols)
+        projector_rot += np.outer(v2.ravel(), v2.ravel()) / np.sqrt(2* n_mols)
+
+
+    # Check which modes belong to any group
+    I_trans = np.sum(projector_trans.dot(vector)**2)    
+    I_rot = np.sum(projector_rot.dot(vector)**2)    
+    I_stretch = np.sum(projector_stretch.dot(vector)**2) 
+
+    return I_rot, I_trans, I_stretch   

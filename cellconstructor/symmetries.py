@@ -1084,9 +1084,13 @@ def GetIRT(structure, symmetry):
     
     """
     
+    
     new_struct = structure.copy()
+    new_struct.fix_coords_in_unit_cell()
+    n_struct_2 = new_struct.copy()
+
     new_struct.apply_symmetry(symmetry, True)
-    irt = structure.get_equivalent_atoms(new_struct)
+    irt = n_struct_2.get_equivalent_atoms(new_struct)
     return irt
 
 def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
