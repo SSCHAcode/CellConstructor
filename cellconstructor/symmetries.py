@@ -1233,7 +1233,7 @@ def GetQGrid(unit_cell, supercell_size):
     # Get the lattice vectors of the supercell
     bg_s = Methods.get_reciprocal_vectors(supercell)
     
-    print "SUPERCELL:", supercell_size
+    #print "SUPERCELL:", supercell_size
     
     for ix in range(supercell_size[0]):
         for iy in range(supercell_size[1]):
