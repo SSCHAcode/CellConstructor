@@ -1901,6 +1901,20 @@ class Phonons:
 #        print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
 #        
 #        return fc
+
+    def GetSupercell(self):
+        """
+        GET SUPERCELL
+        =============
+
+        Return the supercell along which this matrix has been generated.
+
+        Results
+        -------
+            supercell : list of 3 int
+                The supercell in each direction.
+        """
+        return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
     
     def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, 
                     support_dyn_fine = None, symmetrize = False):

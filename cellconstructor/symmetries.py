@@ -1340,3 +1340,43 @@ def GetNewQFromUnitCell(old_cell, new_cell, old_qs):
         new_qs.append(new_q)
     
     return new_qs
+
+def GetSupercellFromQlist(q_list, unit_cell):
+    """
+    GET THE SUPERCELL FROM THE LIST OF Q POINTS
+    ===========================================
+
+    This method returns the supercell size from the list of q points
+    and the unit cell of the structure.
+
+    Parameters
+    ----------
+        q_list : list 
+            List of the q points in cartesian coordinates
+        unit_cell : ndarray(3,3)
+            Unit cell of the structure (rows are the unit cell vectors)
+    
+    Results
+    -------
+        supercell_size : list of 3 integers
+            The supercell dimension along each unit cell vector.
+    """
+
+    # Get the bravais lattice
+    bg = Methods.get_reciprocal_vectors(unit_cell) 
+
+    # Convert the q points in crystalline units
+    supercell = [1,1,1]
+
+    for q in q_list:
+        qprime = Methods.covariant_coordinates(bg, q)
+        qprime -= np.floor(qprime)
+        qprime[np.abs(qprime) < __EPSILON__] = 1
+
+        rmax = 1/np.abs(qprime)
+        for j in range(3):
+            if supercell[j] < int(rmax[j] + .5):
+                supercell[j] = int(rmax[j] + .5)
+    
+    return supercell
+        
