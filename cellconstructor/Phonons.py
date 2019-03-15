@@ -1364,7 +1364,7 @@ class Phonons:
         
         return dyn_supercell
             
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = []):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -1405,10 +1405,11 @@ class Phonons:
         ws, pol_vects = self.DyagDinQ(0)
         
         # Remove translations
-        ws = ws[3:]
-        pol_vects = pol_vects[:, 3:]
+        trans_mask = Methods.get_translations(pol_vects, self.structure.get_masses_array())
+        ws = ws[~trans_mask]
+        pol_vects = pol_vects[:, ~trans_mask]
         
-        
+        nat = self.structure.N_atoms
         
         n_modes = len(ws)
         if T == 0:
@@ -1417,18 +1418,28 @@ class Phonons:
             beta = 1 / (K_to_Ry*T)
             a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANGSTROM
         
-        # Prepare the coordinates
-        total_coords = np.zeros((size, self.structure.N_atoms,3))
-        
         # Prepare the random numbers
         rand = np.random.normal(size = (size, n_modes))
         
         # Get the masses for the final multiplication
-        mass1 = np.zeros( 3*self.structure.N_atoms)
-        for i in range(self.structure.N_atoms):
-            mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+        mass1 = np.tile(self.structure.get_masses_array(), (3, 1)).T.ravel()
             
-        total_coords = np.einsum("ij, j, kj", np.real(pol_vects), a_mu, rand)
+        total_coords = np.einsum("ij, i, j, kj->ik", np.real(pol_vects), 1/np.sqrt(mass1), a_mu, rand)
+
+
+        # Project the displacements along the selected modes
+        if not project_on_vectors is None:
+            check, N_proj = np.shape(project_on_vectors)
+            if check != 3*nat:
+                print("Expected nat: " + str(nat) + " project_on_modes nat: " + str(check/3))
+                raise ValueError("Error, the input project_on_modes has a wrong shape")
+            
+            for confid in range(size):
+                new_coords = np.zeros( nat*3, dtype = np.float64)
+                for i in range(N_proj):
+                    new_coords += project_on_vectors[:, i].dot(total_coords[:, confid]) * project_on_vectors[:, i]
+                
+                total_coords[:, confid] = new_coords
         
         # Prepare the structures
         final_structures = []
@@ -1436,7 +1447,7 @@ class Phonons:
             tmp_str = self.structure.copy()
             # Prepare the new atomic positions 
             for k in range(tmp_str.N_atoms):
-                tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] / np.sqrt(self.structure.masses[self.structure.atoms[k]])
+                tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] 
             
             # Check if you must to pop some atoms:
             if len (isolate_atoms):
