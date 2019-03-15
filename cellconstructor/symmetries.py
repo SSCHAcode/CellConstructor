@@ -869,8 +869,17 @@ class QE_Symmetry:
             self.QE_nsymq, self.QE_s, self.QE_invs, 0)
         
         #print ("STAR IMQ:", imq)
+        if imq != 0:
+            total_star = np.zeros( (nq_new, 3), dtype = np.float64)
+        else:
+            total_star = np.zeros( (2*nq_new, 3), dtype = np.float64)
 
-        return sxq[:, :nq_new].transpose()
+        total_star[:nq_new, :] = sxq[:, :nq_new].transpose()
+
+        if imq == 0:
+            total_star[nq_new:, :] = -sxq[:, :nq_new].transpose()
+
+        return total_star
 
     def SelectIrreducibleQ(self, q_vectors):
         """
