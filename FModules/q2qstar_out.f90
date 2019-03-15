@@ -7,7 +7,7 @@
 !
 !-----------------------------------------------------------------------
 subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
-     nq, sxq, isq, imq, dynqstar)
+     nq, sxq, isq, imq, nqtot, dynqstar)
   !-----------------------------------------------------------------------
   ! Generates the dynamical matrices for the star of q and writes them on
   ! disk for later use.
@@ -17,7 +17,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
   implicit none
   ! input variables
   integer, intent(in) :: nat, nsym, s (3, 3, 48), invs (48), irt (48, nat), &
-       nq, isq (48), imq
+       nq, isq (48), imq, nqtot
   ! number of atoms in the unit cell
   ! number of symmetry operations
   ! the symmetry operations
@@ -40,7 +40,7 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
 
   !  output variable written by ION ERREA that collects the 
   !  dynamical matrices in an array
-  double complex, intent(out) :: dynqstar(nq,3,3,nat,nat) 
+  double complex, intent(out) :: dynqstar(nqtot,3,3,nat,nat) 
   
   
   !  local variables

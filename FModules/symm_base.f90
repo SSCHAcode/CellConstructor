@@ -539,17 +539,17 @@ subroutine sgam_at ( nat, tau, ityp, nr1, nr2, nr3, sym )
         ! with the FFT grid, discard sym.op. if not
         ! (needed because ph.x symmetrizes in real space)
         ! COMMENTED BY LORENZO MONACELLI (WE DO NOT NEED THIS CHECK)
-      !   if (abs (ft1 - nint (ft1) ) / nr1 > eps2 .or. &
-      !       abs (ft2 - nint (ft2) ) / nr2 > eps2 .or. &
-      !       abs (ft3 - nint (ft3) ) / nr3 > eps2 ) then
-      !       !     WRITE( stdout, '(5x,"warning: symmetry operation", &
-      !       !          &     " # ",i2," not allowed.   fractional ", &
-      !       !          &     "translation:"/5x,3f11.7,"  in crystal", &
-      !       !          &     " coordinates")') irot, ft_
-      !       sym (irot) = .false.
-      !       nsym_na = nsym_na + 1
-      !       nsym_ns = nsym_ns - 1
-      !    endif
+        if (abs (ft1 - nint (ft1) ) / nr1 > eps2 .or. &
+            abs (ft2 - nint (ft2) ) / nr2 > eps2 .or. &
+            abs (ft3 - nint (ft3) ) / nr3 > eps2 ) then
+            !     WRITE( stdout, '(5x,"warning: symmetry operation", &
+            !          &     " # ",i2," not allowed.   fractional ", &
+            !          &     "translation:"/5x,3f11.7,"  in crystal", &
+            !          &     " coordinates")') irot, ft_
+            sym (irot) = .false.
+            nsym_na = nsym_na + 1
+            nsym_ns = nsym_ns - 1
+         endif
          ftau (1, irot) = nint (ft1)
          ftau (2, irot) = nint (ft2)
          ftau (3, irot) = nint (ft3)

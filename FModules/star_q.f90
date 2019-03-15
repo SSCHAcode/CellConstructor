@@ -110,9 +110,11 @@ subroutine star_q (xq, at, bg, nsym, s, invs, nq, sxq, isq, imq, verbosity )
   WRITE( stdout, '(5x,a,i4)') 'Number of q in the star = ', nq
   WRITE( stdout, '(5x,a)') 'List of q in the star:'
   WRITE( stdout, '(7x,i4,3f14.9)') (iq, (sxq(i,iq), i=1,3), iq=1,nq)
+  call flush()
   if (imq == 0) then
      WRITE( stdout, '(5x,a)') 'In addition there is the -q list: '
      WRITE( stdout, '(7x,i4,3f14.9)') (iq, (-sxq(i,iq), i=1,3), iq=1,nq)
+     call flush()
      !---------INCLUDED BY ION ERREA-------------|
      !nq = nq * 2                                |     
      !do i = 1, nq/2                             |

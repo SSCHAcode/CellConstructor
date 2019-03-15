@@ -7,14 +7,20 @@ import cellconstructor.symmetries
 
 
 # ---- INPUT PARAMETERS -----
-FILDYN = "SnSe.dyn.2x2x2"
-NQIRR = 3
-SUPERCELL = (2,2,1)
+FILDYN = "h.333."
+NQIRR = 6
+SUPERCELL = (3,3,3)
 # ----
 
 
 
 dynmat = CC.Phonons.Phonons(FILDYN, NQIRR)
+
+# # Show the modes for each q point
+# for i,q in enumerate(dynmat.q_tot):
+#     print "Dyagonalizing:", q
+#     w, p = dynmat.DyagDinQ(i)
+#     print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
 
 # Test the symmetrization
 qe_sym = CC.symmetries.QE_Symmetry(dynmat.structure)
@@ -23,7 +29,13 @@ fc_dynmat_start = np.array(dynmat.dynmats)
 
 
 after_sym = fc_dynmat_start.copy()
-qe_sym.SymmetrizeFCQ(after_sym, np.array(dynmat.q_stars))
+qe_sym.SymmetrizeFCQ(after_sym, np.array(dynmat.q_stars), verbose = True)
+
+# # Show the modes for each q point
+# for i,q in enumerate(dynmat.q_tot):
+#     print "After Dyagonalizing:", q
+#     w, p = dynmat.DyagDinQ(i)
+#     print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
 
 # Print the difference between before and after the symmetrization
 print ""
@@ -35,23 +47,23 @@ print ""
 # Now lets try to randomize the matrix
 new_random = np.random.uniform( size = np.shape(fc_dynmat_start)) + 1j*np.random.uniform( size = np.shape(fc_dynmat_start))
 
-print "Saving a not symmetrized random matrix to Random.dyn.IQ, where IQ is the q index"
-# Lets save the new matrix in QE format
-for i, q in enumerate(dynmat.q_tot):
-    dynmat.dynmats[i] = new_random[i, :, :]
-dynmat.save_qe("Random.dyn.")
+# print "Saving a not symmetrized random matrix to Random.dyn.IQ, where IQ is the q index"
+# # Lets save the new matrix in QE format
+# for i, q in enumerate(dynmat.q_tot):
+#     dynmat.dynmats[i] = new_random[i, :, :]
+# dynmat.save_qe("Random.dyn.")
 
-# Lets constrain the symmetries
-# We use asr = crystal to force the existence of the acustic modes in Gamma
-qe_sym.SymmetrizeFCQ(new_random, np.array(dynmat.q_stars), asr = "no")
+# # Lets constrain the symmetries
+# # We use asr = crystal to force the existence of the acustic modes in Gamma
+# qe_sym.SymmetrizeFCQ(new_random, np.array(dynmat.q_stars), asr = "no")
 
-# Lets save the new matrix in QE format
-for i, q in enumerate(dynmat.q_tot):
-    dynmat.dynmats[i] = new_random[i, :, :]
+# # Lets save the new matrix in QE format
+# for i, q in enumerate(dynmat.q_tot):
+#     dynmat.dynmats[i] = new_random[i, :, :]
 
-print "Saving a symmetrized random matrix to Sym.dyn.IQ, where IQ is the q index"
-dynmat.save_qe("Sym.dyn.")
-print ""
+# print "Saving a symmetrized random matrix to Sym.dyn.IQ, where IQ is the q index"
+# dynmat.save_qe("Sym.dyn.")
+# print ""
 
 # Compute the frequencies
 supercell_dyn = dynmat.GenerateSupercellDyn(SUPERCELL)

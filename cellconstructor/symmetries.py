@@ -239,8 +239,12 @@ class QE_Symmetry:
             nq_new, sxq, isq, imq = symph.star_q(q_point_group[i,:], self.QE_at, self.QE_bg, 
                                                  self.QE_nsymq, self.QE_s, self.QE_invs, 0)
             
+
+            #print "Found nq:", nq_new 
+            #print "IMQ?", imq
+
             # Check if the q star is correct
-            if nq_new != nq:
+            if nq_new != nq and imq != 0:
                 print "Reciprocal lattice vectors:"
                 print self.QE_bg.transpose() 
                 print "Passed q star:"
@@ -275,7 +279,7 @@ class QE_Symmetry:
             # Get the new matrix
             dyn_star = symph.q2qstar_out(new_dyn, self.QE_at, self.QE_bg, self.QE_nsymq, 
                               self.QE_s, self.QE_invs, self.QE_irt, self.QE_rtau,
-                              nq_new, sxq, isq, imq, self.QE_nat)
+                              nq_new, sxq, isq, imq, nq, self.QE_nat)
             #print "Fake"
             
             # Now to perform the match bring the star in the same BZ as the q point
@@ -291,8 +295,13 @@ class QE_Symmetry:
             sorting_q = np.arange(nq)
             for xq in range(nq):
                 count = 0 # Debug (avoid no or more than one identification)
-                for yq in range(nq_new):
-                    if Methods.get_min_dist_into_cell(self.QE_bg.transpose(), sxq[:, yq], current_q[xq,:]) < __EPSILON__: 
+                for yq in range(nq):
+                    real_y = yq
+                    dot_f = 1
+                    if imq == 0 and yq >= nq_new:
+                        real_y -= nq_new
+                        dot_f = -1
+                    if Methods.get_min_dist_into_cell(self.QE_bg.transpose(), dot_f* sxq[:, real_y], current_q[xq,:]) < __EPSILON__: 
                         sorting_q[xq] = yq
                         count += 1
                 
@@ -444,6 +453,9 @@ class QE_Symmetry:
         for i in range(nqirr):
             q_len = len(q_stars[i])
             t1 = time.time()
+            if verbose:
+                print ("Applying the q star symmetrization on:")
+                print np.array(q_stars[i])
             self.ApplyQStar(fcq[q0_index : q0_index + q_len, :,:], np.array(q_stars[i]))
             t2 = time.time()
             if verbose:
@@ -809,19 +821,19 @@ class QE_Symmetry:
         # Prepare the xq variable
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
-#        print "XQ:", xq
-#        print "NSYMQ:", self.QE_nsymq
-#        print "QE SYM:"
-#        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
-#        print "QE INVS:"
-#        print self.QE_invs[:self.QE_nsymq]
-#        #print "QE RTAU:"
-#        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
-#        print "IROTMQ:",  self.QE_irotmq
-#        print "MINUS Q:", self.QE_minus_q
-#        print "IRT:"
-#        print self.QE_irt[:self.QE_nsymq, :]
-#        print "NAT:", self.QE_nat
+        print "XQ:", xq
+        print "NSYMQ:", self.QE_nsymq
+        print "QE SYM:"
+        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
+        print "QE INVS:"
+        print self.QE_invs[:self.QE_nsymq]
+        #print "QE RTAU:"
+        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
+        print "IROTMQ:",  self.QE_irotmq
+        print "MINUS Q:", self.QE_minus_q
+        print "IRT:"
+        print self.QE_irt[:self.QE_nsymq, :]
+        print "NAT:", self.QE_nat
         
         
         # USE THE QE library to perform the symmetrization
@@ -855,6 +867,8 @@ class QE_Symmetry:
         self.SetupQPoint()
         nq_new, sxq, isq, imq = symph.star_q(q_vector, self.QE_at, self.QE_bg,
             self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+        
+        #print ("STAR IMQ:", imq)
 
         return sxq[:, :nq_new].transpose()
 
