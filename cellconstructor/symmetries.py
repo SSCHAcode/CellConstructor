@@ -281,7 +281,7 @@ class QE_Symmetry:
                               nq_new, sxq, isq, imq, nq, self.QE_nat)
             #print "Fake"
             
-            print "XQ:", q_point_group[i, :], "NQ_NEW:", nq_new
+            #print "XQ:", q_point_group[i, :], "NQ_NEW:", nq_new
 
             # Now to perform the match bring the star in the same BZ as the q point
             # This facilitate the comparison between q points
@@ -646,13 +646,15 @@ class QE_Symmetry:
                 #if k == 0:
                 #    continue
                 
+                # Position feels the symmetries with S (fortran S is transposed)
+                # While q vector feels the symmetries with S^t (so no .T required for fortran matrix)
                 new_q = self.QE_s[:,:, k].dot(aq)
                 # Compare new_q with aq
                 dmin = Methods.get_min_dist_into_cell(np.eye(3), -new_q, aq)
-                print "Applying %d sym we transform " % (k+1), aq, "into", new_q, "dmin:", dmin
-                print "Vector in cart: ", q_point, "We used symmetry:" 
-                print self.QE_s[:, :, k]
-                print ""
+                #print "Applying %d sym we transform " % (k+1), aq, "into", new_q, "dmin:", dmin
+                #print "Vector in cart: ", q_point, "We used symmetry:" 
+                #print self.QE_s[:, :, k]
+                #print ""
                 #dmin = np.sqrt(np.sum( ((new_q + aq) % 1)**2))
 #            
 #                print "Symmetry number ", k+1
@@ -832,22 +834,22 @@ class QE_Symmetry:
         # Prepare the xq variable
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
-        print "XQ:", xq
-        print "XQ_CRYST:", Methods.covariant_coordinates(self.QE_bg.T, xq)
-        print "NSYMQ:", self.QE_nsymq, "NSYM:", self.QE_nsym
-        print "QE SYM:"
-        print np.einsum("abc->cba", self.QE_s[:, :, :self.QE_nsymq])
-        print "Other syms:"
-        print np.einsum("abc->cba", self.QE_s[:, :, self.QE_nsymq: self.QE_nsym])
-        print "QE INVS:"
-        print self.QE_invs[:self.QE_nsymq]
-        #print "QE RTAU:"
-        #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
-        print "IROTMQ:",  self.QE_irotmq
-        print "MINUS Q:", self.QE_minus_q
-        print "IRT:"
-        print self.QE_irt[:self.QE_nsymq, :]
-        print "NAT:", self.QE_nat
+        # print "XQ:", xq
+        # print "XQ_CRYST:", Methods.covariant_coordinates(self.QE_bg.T, xq)
+        # print "NSYMQ:", self.QE_nsymq, "NSYM:", self.QE_nsym
+        # print "QE SYM:"
+        # print np.einsum("abc->cba", self.QE_s[:, :, :self.QE_nsymq])
+        # print "Other syms:"
+        # print np.einsum("abc->cba", self.QE_s[:, :, self.QE_nsymq: self.QE_nsym])
+        # print "QE INVS:"
+        # print self.QE_invs[:self.QE_nsymq]
+        # #print "QE RTAU:"
+        # #print np.einsum("abc->bca", self.QE_rtau[:, :self.QE_nsymq, :])
+        # print "IROTMQ:",  self.QE_irotmq
+        # print "MINUS Q:", self.QE_minus_q
+        # print "IRT:"
+        # print self.QE_irt[:self.QE_nsymq, :]
+        # print "NAT:", self.QE_nat
 
         # Inibhit minus q
         #self.QE_minus_q = 0
