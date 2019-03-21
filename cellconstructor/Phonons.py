@@ -2077,11 +2077,15 @@ class Phonons:
         """
         Testing function, it applies symmetries in the supercell.
         """
+
         
         if not __SPGLIB__:
             raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
         
         superdyn = self.GenerateSupercellDyn(supercell_size)
+
+        # Apply the sum rule
+        symmetries.CustomASR(superdyn.dynmats[0])
         
         spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
         syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)

@@ -233,7 +233,6 @@ class QE_Symmetry:
         
         dyn_star = np.zeros( (nq, 3, 3, self.QE_nat, self.QE_nat), dtype = np.complex128, order = "F")
         
-        
         for i in range(nq):
             # Get the q points order
             nq_new, sxq, isq, imq = symph.star_q(q_point_group[i,:], self.QE_at, self.QE_bg, 
@@ -282,6 +281,8 @@ class QE_Symmetry:
                               nq_new, sxq, isq, imq, nq, self.QE_nat)
             #print "Fake"
             
+            print "XQ:", q_point_group[i, :], "NQ_NEW:", nq_new
+
             # Now to perform the match bring the star in the same BZ as the q point
             # This facilitate the comparison between q points
             current_q = q_point_group.copy()
@@ -439,15 +440,19 @@ class QE_Symmetry:
             if verbose:
                 print " [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s"
             
-            # Symmetrize the matrix
+            # # Symmetrize the matrix
             if verbose:
                 old_fcq = fcq[iq, :,:].copy()
+                w_old = np.linalg.eigvals(fcq[iq, :, :])
+                print "FREQ BEFORE SYM:", w_old 
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
             t2 = time.time()
             if verbose:
                 print " [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" 
-                print " [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum((old_fcq - fcq[iq, :,:])**2))
-        
+                print " [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum(np.abs(old_fcq - fcq[iq, :,:])**2))
+                w_new = np.linalg.eigvals(fcq[iq, :, :])
+                print "FREQ AFTER SYM:", w_new
+
         # For each star perform the symmetrization over that star
         q0_index = 0
         for i in range(nqirr):
@@ -626,24 +631,28 @@ class QE_Symmetry:
 #                                          self.QE_bg, self.QE_at, lgamma)
         # If minus q check which is the symmetry
 #        
-        syms = self.GetSymmetries()
+        #syms = self.GetSymmetries()
+        self.QE_irotmq = 0
         if self.QE_minus_q:
-            self.QE_irotmq = 0
             # Fix in the Same BZ
-            aq = aq % 1
+            #aq = aq - np.floor(aq)
             
                 
             #print "VECTOR AQ:", aq
             
             # Get the first symmetry: 
-            for k, sym in enumerate(syms):
+            for k in range(self.QE_nsym):
                 # Skip the identity
                 #if k == 0:
                 #    continue
                 
-                new_q = sym[:,:3].dot(aq)
+                new_q = self.QE_s[:,:, k].dot(aq)
                 # Compare new_q with aq
                 dmin = Methods.get_min_dist_into_cell(np.eye(3), -new_q, aq)
+                print "Applying %d sym we transform " % (k+1), aq, "into", new_q, "dmin:", dmin
+                print "Vector in cart: ", q_point, "We used symmetry:" 
+                print self.QE_s[:, :, k]
+                print ""
                 #dmin = np.sqrt(np.sum( ((new_q + aq) % 1)**2))
 #            
 #                print "Symmetry number ", k+1
@@ -657,8 +666,10 @@ class QE_Symmetry:
                     #print "CORRECT FOR IROTMQ"
                     self.QE_irotmq = k + 1
                     break
-        if self.QE_irotmq == 0:
-            self.QE_irotmq = 1
+            if self.QE_irotmq == 0:
+                print ("Error, the fortran code tells me there is S so that Sq = -q + G")
+                print ("But I did not find such a symmetry!")
+                raise ValueError("Error in the symmetrization. See stdout")
                        
                 
     def InitFromSymmetries(self, symmetries, q_point):
@@ -822,9 +833,12 @@ class QE_Symmetry:
         #xq = np.ones(3, dtype = np.float64)
         xq = np.array(q_point, dtype = np.float64)
         print "XQ:", xq
-        print "NSYMQ:", self.QE_nsymq
+        print "XQ_CRYST:", Methods.covariant_coordinates(self.QE_bg.T, xq)
+        print "NSYMQ:", self.QE_nsymq, "NSYM:", self.QE_nsym
         print "QE SYM:"
-        print np.einsum("abc->cab", self.QE_s[:, :, :self.QE_nsymq])
+        print np.einsum("abc->cba", self.QE_s[:, :, :self.QE_nsymq])
+        print "Other syms:"
+        print np.einsum("abc->cba", self.QE_s[:, :, self.QE_nsymq: self.QE_nsym])
         print "QE INVS:"
         print self.QE_invs[:self.QE_nsymq]
         #print "QE RTAU:"
@@ -834,6 +848,9 @@ class QE_Symmetry:
         print "IRT:"
         print self.QE_irt[:self.QE_nsymq, :]
         print "NAT:", self.QE_nat
+
+        # Inibhit minus q
+        #self.QE_minus_q = 0
         
         
         # USE THE QE library to perform the symmetrization

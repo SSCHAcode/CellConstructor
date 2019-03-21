@@ -176,9 +176,9 @@ subroutine q2qstar_out (dyn, at, bg, nat, nsym, s, invs, irt, rtau, &
         !
         !print *, " --> saving..."
         !call flush()
-        counter=counter+1
+        !counter=counter+1
         ! included by ION ERREA
-        dynqstar(counter,:,:,:,:) = phi2
+        dynqstar(counter + nq,:,:,:,:) = phi2
         !print *, " --> saved."
         !call flush()
      endif

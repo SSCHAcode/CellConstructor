@@ -16,13 +16,18 @@ SUPERCELL = (3,3,3)
 
 dynmat = CC.Phonons.Phonons(FILDYN, NQIRR)
 
-# # Show the modes for each q point
-# for i,q in enumerate(dynmat.q_tot):
-#     print "Dyagonalizing:", q
-#     w, p = dynmat.DyagDinQ(i)
-#     print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
+# Compute the frequencies
+supercell_dyn = dynmat.GenerateSupercellDyn(SUPERCELL)
+w1, pols = supercell_dyn.DyagDinQ(0)
 
-# Test the symmetrization
+# Show the modes for each q point
+for i,q in enumerate(dynmat.q_tot):
+    print "Dyagonalizing:", q
+    w, p = dynmat.DyagDinQ(i)
+    print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
+
+#dynmat.Symmetrize()
+# # Test the symmetrization
 qe_sym = CC.symmetries.QE_Symmetry(dynmat.structure)
 
 fc_dynmat_start = np.array(dynmat.dynmats)
@@ -30,22 +35,24 @@ fc_dynmat_start = np.array(dynmat.dynmats)
 
 after_sym = fc_dynmat_start.copy()
 qe_sym.SymmetrizeFCQ(after_sym, np.array(dynmat.q_stars), verbose = True)
+for i,q in enumerate(dynmat.q_tot):
+    dynmat.dynmats[i] = after_sym[i,:,:]
 
-# # Show the modes for each q point
-# for i,q in enumerate(dynmat.q_tot):
-#     print "After Dyagonalizing:", q
-#     w, p = dynmat.DyagDinQ(i)
-#     print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
+# Show the modes for each q point
+for i,q in enumerate(dynmat.q_tot):
+    print "After Dyagonalizing:", q
+    w, p = dynmat.DyagDinQ(i)
+    print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
 
 # Print the difference between before and after the symmetrization
 print ""
 print "Difference of the symmetrization:",
 print np.sqrt( np.sum( (after_sym - fc_dynmat_start)**2 ) / np.sum(after_sym*fc_dynmat_start))
 
-print ""
+# print ""
 
 # Now lets try to randomize the matrix
-new_random = np.random.uniform( size = np.shape(fc_dynmat_start)) + 1j*np.random.uniform( size = np.shape(fc_dynmat_start))
+#new_random = np.random.uniform( size = np.shape(fc_dynmat_start)) + 1j*np.random.uniform( size = np.shape(fc_dynmat_start))
 
 # print "Saving a not symmetrized random matrix to Random.dyn.IQ, where IQ is the q index"
 # # Lets save the new matrix in QE format
@@ -71,7 +78,14 @@ w, pols = supercell_dyn.DyagDinQ(0)
 # Get the translations
 t = CC.Methods.get_translations(pols, supercell_dyn.structure.get_masses_array())
 
+dynmat.Symmetrize()
+# Compute the frequencies
+supercell_dyn = dynmat.GenerateSupercellDyn(SUPERCELL)
+w3, pols = supercell_dyn.DyagDinQ(0)
+# Get the translations
+t = CC.Methods.get_translations(pols, supercell_dyn.structure.get_masses_array())
+
 print "Frequencies:"
-print "\n".join(["%.4f cm-1   T: %d" % (w[i]*CC.Phonons.RY_TO_CM, t[i]) for i in range(len(w))])
+print "\n".join(["%.4f cm-1  | %.4f cm-1  | %.4f cm-1  T: %d" % (w1[i]*CC.Phonons.RY_TO_CM, w[i]*CC.Phonons.RY_TO_CM, w3[i]*CC.Phonons.RY_TO_CM, t[i]) for i in range(len(w))])
 print ""
 print "Done."
