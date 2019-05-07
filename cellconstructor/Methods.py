@@ -535,6 +535,18 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0, :] = np.array([1, 0, 0]) * a
         unit_cell[1, :] = np.array([-0.5, np.sqrt(3)/2, 0]) * a
         unit_cell[2, :] = np.array([0, 0, 1]) * c
+    elif ibrav == 5:
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        c = celldm[3]
+
+        tx = np.sqrt( (1 - c) / 2.)
+        ty = np.sqrt( (1-c) / 6.)
+        tz = np.sqrt( (1+2*c)/3.)
+
+        unit_cell[0, :] = np.array([tx, -ty, tz]) * a
+        unit_cell[1, :] = np.array([0, 2*ty, tz]) * a
+        unit_cell[2, :] = np.array([-tx, -ty, tz]) * a
+
     elif ibrav == 7:
         # Tetragonal I
         a = celldm[0] * BOHR_TO_ANGSTROM

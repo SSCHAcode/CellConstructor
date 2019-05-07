@@ -25,6 +25,15 @@ dealing with symmetries extracted with spglib.
 However, for a more carefull symmetry analisys, we suggest the use of external tools like ISOTROPY.
 This package can generate ISOTROPY input files for more advanced symmetry detection.
 
+Please, note that some fortran libraries are needed to be compiled, therefore the Python header files should be localized by the compiling process. 
+This requires the python distutils and developing tools to be properly installed.
+On ubuntu this can be achieved by running:
+```bash
+sudo apt-get install python-dev
+```
+
+If you are using anaconda or pip, it should be automatically installed.
+
 
 ## Installation
 
