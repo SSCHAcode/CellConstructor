@@ -276,7 +276,7 @@ def QHA_FreeEnergy(ph1, ph2, T, N_points = 2, return_interpolated_dyn = False):
     -------
         - free_energy : ndarray ( (N_points)x len(T)  )
             The matrix containing the free energy on all the points in between the interpolation at
-            the temperature given as the input array.
+            the temperature given as the input array. It is in Ry and in the unit cell
             
         - interp_dyns : list (Phonons()), len(N_points) [Only if asked]
              Only if return_interpolated_dyn is True, also the interpolated dyns are returned

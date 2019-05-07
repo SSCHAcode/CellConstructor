@@ -1517,8 +1517,54 @@ class Phonons:
                 
         return free_energy
         
+    def get_phonon_dos(self, w_array, smearing, exclude_acoustic = True, use_cm = False):
+        r"""
+        GET THE PHONON DOS
+        ==================
+
+        This function plots the phonon dos.
+
+        Parameters
+        ----------
+            w_array : ndarray
+                The frequencies at which you want to compute the phonon dos [in Ry] (or cm-1, see use_cm).
+            smearing : float
+                The smearing [in Ry] (or cm-1, see use_cm).
+            exclude_acoustic : bool
+                If true, the acoustic modes at gamma are excluded.
+            use_cm : bool
+                If true, the frequency array and the smearing is supposed to be given in cm-1 
+                instead of Ry.
+        
+        Results
+        -------
+            dos : ndarray(size = (w_array), dtype = np.float64)
+                The phonon density of state.
+        """
+
+        nq = len(self.q_tot)
+
+        if use_cm:
+            w_array = w_array.copy() / RY_TO_CM
+            smearing /= RY_TO_CM
+
+        dos = np.zeros(np.shape(w_array), dtype = np.float64)
+        for i, q_vec in enumerate(self.q_tot):
+            w, p = self.DyagDinQ(i)
+
+            if q_vec.dot(q_vec) < __EPSILON__:
+                trans = Methods.get_translations(p, self.structure.get_masses_array())
+                w = w[~trans]
+            
+            for w0 in w:
+                dos += np.exp( -(w_array - w0)**2 / (2 * smearing*smearing)) / np.sqrt(2 * np.pi * smearing*smearing)
+        
+        dos /= nq
+
+        return dos
+
     
-    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acustic = True):
+    def get_two_phonon_dos(self, w_array, smearing, temperature, q_index = 0, exclude_acoustic = True):
         r"""
         COMPUTE THE TWO PHONON DOS
         ==========================
