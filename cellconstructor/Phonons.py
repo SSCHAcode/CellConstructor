@@ -1824,7 +1824,7 @@ class Phonons:
         
         # Convert the displacement vector in bohr
         #A_TO_BOHR=np.float64(1.889725989)
-        if super_structure is None:
+        if super_structure is None and displacement is None:
             super_structure = self.structure.generate_supercell(supercell)
         
         # Get the displacement vector (bohr)
@@ -1842,6 +1842,8 @@ class Phonons:
         
         # Get the forces (Ry/ bohr)
         forces = - real_space_fc.dot(rv) 
+
+        nat_sc = self.structure.N_atoms * np.prod(supercell)
 #        
 #        print ""
 #        print " ===== DYNMAT ====="
@@ -1854,7 +1856,7 @@ class Phonons:
         # Translate the force in Ry / A
         forces *= A_TO_BOHR
         if not vector1d:
-            forces = forces.reshape( (super_structure.N_atoms, 3))
+            forces = forces.reshape( (nat_sc, 3))
         
         return energy, forces
         

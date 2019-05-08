@@ -1018,6 +1018,8 @@ def get_directed_nn(structure, atom_id, direction):
 
     The algorithm selects a cone around the atom oriented to the direction, and selects
     the first atom in the structure inside the cone (the one with lowest projection on the cone axis)
+    
+    The method returns -1 if no near neighbour along the specified direction is detected
     """
 
     nat = structure.N_atoms
@@ -1033,7 +1035,9 @@ def get_directed_nn(structure, atom_id, direction):
             new_coords[i, :] = put_into_cell(structure.unit_cell, new_coords[i, :])
         
         # Shift back
-        new_coords = structure.coords - structure.coords[atom_id, :]
+        new_coords -= new_coords[atom_id, :]
+
+
 
     
     # Pop the atoms not in the cone
@@ -1041,20 +1045,28 @@ def get_directed_nn(structure, atom_id, direction):
 
     # Project the coordinate on the versor
     p_cone = new_coords.dot(versor_cone)
+    #print p_cone
 
 
     # Now discard atoms not inside the cone
     good_atoms = []
+    good_d = []
     for i in range(nat):
         if p_cone[i] > 0:
             r_vect = new_coords[i, :] - p_cone[i] * versor_cone
             r = np.sqrt(r_vect.dot(r_vect))
+            #print "%d) p = %.4e, r = %.4e, r_vect = " % (i, p_cone[i], r), r_vect
             if r < p_cone[i]:
                 good_atoms.append(i)
+                good_d.append(r**2 + p_cone[i]**2)
     
+    #print good_atoms
+
+    if len(good_atoms) == 0:
+        return -1
 
     # Get the minimum value of p_cone among the good atoms
-    i_best = np.argmin(p_cone[good_atoms])
+    i_best = np.argmin(good_d)
 
     return good_atoms[i_best]
 
