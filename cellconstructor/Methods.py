@@ -1010,3 +1010,51 @@ def convert_fc(fc_matrix, unit_cell, cryst_to_cart = False):
     return new_fc_matrix
         
 
+def get_directed_nn(structure, atom_id, direction):
+    """
+    This function get the closest neighbour along a direction of the atom.
+    It returns the index of the atom in the structure that is the closest to atom_id in the
+    specified direction (a vector identifying the direction).
+
+    The algorithm selects a cone around the atom oriented to the direction, and selects
+    the first atom in the structure inside the cone (the one with lowest projection on the cone axis)
+    """
+
+    nat = structure.N_atoms
+    new_coords = structure.coords - structure.coords[atom_id, :]
+
+
+
+    # Center the atoms if the unit cell is present.
+    if structure.has_unit_cell:
+        # Put the atom at the center of the cell
+        new_coords[:,:] += 0.5 * np.sum(structure.unit_cell, axis = 0)
+        for i in range(nat):
+            new_coords[i, :] = put_into_cell(structure.unit_cell, new_coords[i, :])
+        
+        # Shift back
+        new_coords = structure.coords - structure.coords[atom_id, :]
+
+    
+    # Pop the atoms not in the cone
+    versor_cone = direction / np.sqrt(direction.dot(direction))
+
+    # Project the coordinate on the versor
+    p_cone = new_coords.dot(versor_cone)
+
+
+    # Now discard atoms not inside the cone
+    good_atoms = []
+    for i in range(nat):
+        if p_cone[i] > 0:
+            r_vect = new_coords[i, :] - p_cone[i] * versor_cone
+            r = np.sqrt(r_vect.dot(r_vect))
+            if r < p_cone[i]:
+                good_atoms.append(i)
+    
+
+    # Get the minimum value of p_cone among the good atoms
+    i_best = np.argmin(p_cone[good_atoms])
+
+    return good_atoms[i_best]
+
