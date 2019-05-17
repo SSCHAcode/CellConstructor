@@ -29,7 +29,7 @@ setup( name = "CellConstructor",
        install_requires = ["numpy", "ase", "scipy", "gfortran", "lapack"],
        license = "MIT",
        include_package_data = True,
-       scripts = ["scripts/symmetrize_dynmat.x"],
+       scripts = ["scripts/symmetrize_dynmat.x", "scripts/cellconstructor_test.py"],
        ext_modules = [symph_ext]
        )
 

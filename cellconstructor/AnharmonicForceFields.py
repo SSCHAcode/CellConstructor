@@ -6,14 +6,19 @@ This file setup the anharmonic force fields as ASE calculators.
 These can be used for examples of calculations.
 """
 
+import Methods
+import numpy as np
 
 __ASE__ = True
 try:
-    import ase.calculators as clt 
+    import ase
+    import ase.calculators.calculator as clt  
 except:
     __ASE__ = False 
     raise ImportError("Error, ASE is required to load this module.")
 
+
+RyToEv = 13.605691932782346
 
 class RockSalt(clt.Calculator):
     """
@@ -59,14 +64,12 @@ class RockSalt(clt.Calculator):
         
         self.nn_list = -np.ones((nat_sc, 6), dtype = np.intc)
         for i in range(nat_sc):
-            self.nn_list[i, 0] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([1,0,0]))
-            self.nn_list[i, 1] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([-1,0,0]))
-            self.nn_list[i, 2] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([0,1,0]))
-            self.nn_list[i, 3] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([0,-1,0]))
-            self.nn_list[i, 4] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([0,0,1]))
-            self.nn_list[i, 5] = CC.Methods.get_directed_nn(self.reference_structure, i, np.array([0,0,-1]))
-
-        print self.nn_list
+            self.nn_list[i, 0] = Methods.get_directed_nn(self.reference_structure, i, np.array([1,0,0]))
+            self.nn_list[i, 1] = Methods.get_directed_nn(self.reference_structure, i, np.array([-1,0,0]))
+            self.nn_list[i, 2] = Methods.get_directed_nn(self.reference_structure, i, np.array([0,1,0]))
+            self.nn_list[i, 3] = Methods.get_directed_nn(self.reference_structure, i, np.array([0,-1,0]))
+            self.nn_list[i, 4] = Methods.get_directed_nn(self.reference_structure, i, np.array([0,0,1]))
+            self.nn_list[i, 5] = Methods.get_directed_nn(self.reference_structure, i, np.array([0,0,-1]))
 
         # Delete the atoms whose near neighbour are not returned
         for i in range(nat_sc):
@@ -75,7 +78,6 @@ class RockSalt(clt.Calculator):
                 if not i in self.nn_list[close_atom, :]:
                     self.nn_list[i, j] = -1
                     
-        print self.nn_list
         
         self.p3 = p3
         self.p4 = p4
@@ -101,6 +103,10 @@ class RockSalt(clt.Calculator):
         u_disp = atoms.get_positions() - self.reference_structure.coords
         energy, forces = self.harm_dyn.get_energy_forces(None, displacement = u_disp.ravel(), supercell = self.harm_dyn.GetSupercell())
 
+        # Convert from Ry to eV both energy and forces
+        energy *= RyToEv
+        forces *= RyToEv
+
         for i in range(nat):
             for alpha in range(3):
                 s_next = self.nn_list[i, alpha*2]
@@ -120,6 +126,7 @@ class RockSalt(clt.Calculator):
                 # Add the fourth order term
                 energy += self.p4 * (A_sap**4 + A_sam**4)
                 forces[i, alpha] += 8 * self.p4 * (A_sap**3 + A_sam**3) / np.sqrt(2)
+
         
         self.results = {"energy" : energy, "forces": forces}
 
