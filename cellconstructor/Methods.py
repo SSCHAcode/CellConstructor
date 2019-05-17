@@ -39,21 +39,23 @@ def covariant_coordinates(basis, vector):
     
     Parameters
     ----------
-        - basis : 3x3 matrix
+        - basis : NxN matrix
             The basis. each :math:`\\vec e_i` is a row.
-        - vector : 3x float
+        - vector : Nx float
             The vector expressed in cartesian coordinates.
             
     Results
     -------
-        - cov_vector : 3x float
+        - cov_vector : Nx float
             The :math:`\\alpha_i` values.
             
     """
+
+    M, N = np.shape(basis)
     
-    metric_tensor = np.zeros((3,3))
-    for i in range(0, 3):
-        for j in range(i, 3):
+    metric_tensor = np.zeros((N,N))
+    for i in range(0, N):
+        for j in range(i, N):
             metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
 
     imt = np.linalg.inv(metric_tensor)
