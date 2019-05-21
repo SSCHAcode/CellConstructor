@@ -1474,3 +1474,81 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
         
+
+def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, nat):
+    """
+    SUPERCELL POLAIZATION VECTORS
+    =============================
+
+    This function adjust the supercell polarization vector dividing them in the different q points.
+
+    If the polarization vectors are obtained dyagonalizing the dynamical matrix in the supercell,
+    then different q points in the same star will originate the same frequency. 
+    This means that they will be degenerate in the supercell. 
+    Thus, the polarization vectors obtained by diagonalization will have a linear superposition
+    of different q point that belongs to the same star.
+    This method separate them, chosing a particular basis in which different q points are not mixed together.
+
+    Parameters
+    ----------
+        w_sc : ndarray( size = (n_modes), dtype = float64)
+            The frequencies associated to the polarization vector in the supercell.
+        pols_sc : ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
+            The polarization vector of the supercell (real)
+        super_structure : Structure()
+            The structure of the supercell
+        q_list : list (len = nat_sc / nat)
+            List of the 3d q vectors that builds the supercell
+        nat : int
+            The number of atoms in the unit cell.
+
+    Results
+    -------
+        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
+            The same polarization vectors with the q well separated.
+    """
+
+    # Get the atoms in the supercell
+    nat_sc = len(q_list) * nat
+    dumb, n_modes = np.shape(pols_sc)
+
+    # Test the consistency
+    assert nat_sc * 3 == len(w_sc), "Error, the number of atoms in the supercell inferred by q_list should match those in w_sc"
+
+    # For each q vector, build the projection
+    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.float64)
+
+    for q_vector in q_list:
+        # Get the projector in the given q point
+        projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+        for i in range(nat):
+            for j in range(3):
+                e_mu = np.zeros( 3*nat_sc, dtype = np.float64)
+
+                for k in range(len(q_list)):
+                    atm_index = nat*k + i
+                    delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
+                    e_mu[3*atm_index + j] = np.cos(q_vector.dot(delta_r)*2*np.pi)
+
+                # Normalize
+                e_mu /= np.sqrt(e_mu.dot(e_mu))
+                projector += np.outer(e_mu, e_mu) # |e_mu><e_mu|
+        
+
+        w_now = -2
+        for i in range(n_modes):
+            new_e = projector.dot(pols_sc[:, i])
+            coeff = pols_sc[:,i].dot(new_e)
+            # The vector has a component along this q mode
+            if np.sqrt(np.abs(coeff)) > __EPSILON__:
+                # This vector has not been found to have a component of other q modes
+                if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__ and np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
+                    new_pols_sc[:, i] = new_e / np.sqrt(new_e.dot(new_e))
+                    print("Inserted w = ", w_sc[i] *  109691.40235, " w_now = ", w_now *  109691.40235, "q = ", q_vector)
+
+                    w_now = w_sc[i]
+    
+    return new_pols_sc
+
+
+        

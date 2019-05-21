@@ -32,6 +32,9 @@ nat_sc = dyn_realspace.structure.N_atoms
 # Lets get all the possible q points for the given supercell.
 q_grid = CC.symmetries.GetQGrid(dynq.structure.unit_cell, dynq.GetSupercell())
 
+# Separate the different q points
+pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
+
 # Lets pick one q vector
 q_vector = q_grid[2]
 print("The selected q vector is: ", q_vector)
