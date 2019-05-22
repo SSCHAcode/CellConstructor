@@ -1504,8 +1504,9 @@ def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, n
 
     Results
     -------
-        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
+        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.complex128)
             The same polarization vectors with the q well separated.
+            Note, they must be complex to garantee that q and -q does not mix together.
     """
 
     # Get the atoms in the supercell
