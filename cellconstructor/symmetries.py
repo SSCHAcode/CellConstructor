@@ -1516,23 +1516,23 @@ def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, n
     assert nat_sc * 3 == len(w_sc), "Error, the number of atoms in the supercell inferred by q_list should match those in w_sc"
 
     # For each q vector, build the projection
-    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.float64)
+    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.complex128)
 
     for q_vector in q_list:
         # Get the projector in the given q point
-        projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+        projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.complex128)
         for i in range(nat):
             for j in range(3):
-                e_mu = np.zeros( 3*nat_sc, dtype = np.float64)
+                e_mu = np.zeros( 3*nat_sc, dtype = np.complex128)
 
                 for k in range(len(q_list)):
                     atm_index = nat*k + i
                     delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
-                    e_mu[3*atm_index + j] = np.cos(q_vector.dot(delta_r)*2*np.pi)
+                    e_mu[3*atm_index + j] = np.exp(1j * q_vector.dot(delta_r)*2*np.pi)
 
                 # Normalize
-                e_mu /= np.sqrt(e_mu.dot(e_mu))
-                projector += np.outer(e_mu, e_mu) # |e_mu><e_mu|
+                e_mu /= np.sqrt(e_mu.dot(np.conj(e_mu)))
+                projector += np.outer(e_mu, np.conj(e_mu)) # |e_mu><e_mu|
         
 
         w_now = -2
@@ -1542,9 +1542,9 @@ def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, n
             # The vector has a component along this q mode
             if np.sqrt(np.abs(coeff)) > __EPSILON__:
                 # This vector has not been found to have a component of other q modes
-                if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__ and np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
-                    new_pols_sc[:, i] = new_e / np.sqrt(new_e.dot(new_e))
-                    print("Inserted w = ", w_sc[i] *  109691.40235, " w_now = ", w_now *  109691.40235, "q = ", q_vector)
+                if np.sqrt(np.conj(new_pols_sc[:, i]).dot(new_pols_sc[:,i])) < __EPSILON__ and np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
+                    new_pols_sc[:, i] = new_e / np.sqrt(np.conj(new_e).dot(new_e))
+                    #print("Inserted w = ", w_sc[i] *  109691.40235, " w_now = ", w_now *  109691.40235, "q = ", q_vector)
 
                     w_now = w_sc[i]
     

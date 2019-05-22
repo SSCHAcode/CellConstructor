@@ -33,30 +33,30 @@ nat_sc = dyn_realspace.structure.N_atoms
 q_grid = CC.symmetries.GetQGrid(dynq.structure.unit_cell, dynq.GetSupercell())
 
 # Separate the different q points
-#pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
+pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
 
 # Lets pick one q vector
-q_vector = q_grid[2]
+q_vector = q_grid[4]
 print("The selected q vector is: ", q_vector)
 
 # Lets generate the basis of the modes along this vector
-projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.complex128)
 for i in range(nat):
     for j in range(3):
-        e_mu = np.zeros( 3*nat_sc, dtype = np.float64)
+        e_mu = np.zeros( 3*nat_sc, dtype = np.complex128)
 
         for k in range(np.prod(dynq.GetSupercell())):
             atm_index = nat*k + i
             delta_r = dyn_realspace.structure.coords[atm_index, :] - dyn_realspace.structure.coords[i, :]
-            e_mu[3*atm_index + j] = np.cos(q_vector.dot(delta_r)*2*np.pi)
+            e_mu[3*atm_index + j] = np.exp(1j*q_vector.dot(delta_r)*2*np.pi)
 
         # Normalize
-        e_mu /= np.sqrt(e_mu.dot(e_mu))
-        projector += np.outer(e_mu, e_mu) # |e_mu><e_mu|
+        e_mu /= np.sqrt(np.conj(e_mu).dot(e_mu))
+        projector += np.outer(e_mu, np.conj(e_mu)) # |e_mu><e_mu|
 
 
 # Print the component of each vector inside the q space.
 print("\n".join(["{:.4f} cm-1 has projection {:.4f}".format(w_sc[i] * CC.Phonons.RY_TO_CM,
-                                                          pols_sc[:, i].dot(projector.dot(pols_sc[:,i])))
+                                                          np.real(np.conj(pols_sc[:, i]).dot(projector.dot(pols_sc[:,i]))))
                  for i in range(3*nat_sc)]))
                                                         
