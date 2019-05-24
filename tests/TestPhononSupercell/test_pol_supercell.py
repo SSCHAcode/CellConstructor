@@ -36,7 +36,7 @@ q_grid = CC.symmetries.GetQGrid(dynq.structure.unit_cell, dynq.GetSupercell())
 pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
 
 # Lets pick one q vector
-q_vector = q_grid[0]
+q_vector = q_grid[4]
 print("The selected q vector is: ", q_vector)
 
 # Lets generate the basis of the modes along this vector
@@ -56,10 +56,10 @@ for i in range(nat):
 
 
 # Print the component of each vector inside the q space.
-print("\n".join(["{:.4f} cm-1 has projection {:.4f}".format(w_sc[i] * CC.Phonons.RY_TO_CM,
-                                                          np.real(np.conj(pols_sc[:, i]).dot(projector.dot(pols_sc[:,i]))))
+print("\n".join(["{:4d}){:16.4f} cm-1 has projection {:10.4f}".format(i, w_sc[i] * CC.Phonons.RY_TO_CM,
+                                                                      np.real(np.conj(pols_sc[:, i]).dot(projector.dot(pols_sc[:,i]))))
                  for i in range(3*nat_sc)]))
-                                                        
+
 
 # Identify the symmetry in the polarization basis
 try:

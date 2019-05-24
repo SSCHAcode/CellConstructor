@@ -16,6 +16,11 @@ symph_ext = Extension(name = "symph",
                       extra_f90_compile_args = ["-cpp"]
                       )
 
+cc_modules_ext = Extension(name = "cc_linalg",
+                      sources = ["CModules/LinAlg.c", "CModules/wrapper.c"]
+                      )
+
+
 
 
 setup( name = "CellConstructor",
@@ -30,7 +35,7 @@ setup( name = "CellConstructor",
        license = "MIT",
        include_package_data = True,
        scripts = ["scripts/symmetrize_dynmat.x", "scripts/cellconstructor_test.py"],
-       ext_modules = [symph_ext]
+       ext_modules = [symph_ext, cc_modules_ext]
        )
 
 def readme():

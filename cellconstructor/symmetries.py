@@ -13,6 +13,9 @@ import Methods
 # Load the fortran symmetry QE module
 import symph
 
+# Load the LinAlgebra module in C
+from cc_linalg import GramSchmidt
+
 
 
 
@@ -1563,76 +1566,144 @@ def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, n
     # Get the atoms in the supercell
     nat_sc = len(q_list) * nat
     dumb, n_modes = np.shape(pols_sc)
-
+    n_sup = np.arange(len(q_list)) * nat
+    
     bg = Methods.get_reciprocal_vectors(super_structure.unit_cell)
 
     # Test the consistency
     assert nat_sc * 3 == len(w_sc), "Error, the number of atoms in the supercell inferred by q_list should match those in w_sc"
 
     # For each q vector, build the projection
-    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.float64)
+    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.double, order = "F")
+    new_pols_sc[:,:] = pols_sc.copy()
+
+    
+    
 
     for q_vector in q_list:
         is_gamma = False
-        if Methods.get_min_dist_into_cell(bg, q_vector, np.array([0,0,0])) < __EPSILON__:
+        if Methods.get_min_dist_into_cell(bg, q_vector, -q_vector) < __EPSILON__:
             is_gamma = True
+            
+        delta_r = super_structure.coords[n_sup, :] - super_structure.coords[0, :]
+        #delta_r = np.tile(delta_r, (3*nat, 1)).T.ravel()
+        
+        q_cos = np.cos( delta_r.dot(q_vector) * 2*np.pi)
+        q_sin = np.sin( delta_r.dot(q_vector) * 2*np.pi)
 
-        # Get the projector in the given q point
-        projector_cos = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
-        projector_sin = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
-        for i in range(nat):
-            for j in range(3):
-                e_mu_cos = np.zeros( 3*nat_sc, dtype = np.float64)
-                e_mu_sin = np.zeros( 3*nat_sc, dtype = np.float64)
+        q_super_v_cos = np.tile(q_cos, (3*nat, 1)).T.ravel()
+        q_super_v_cos /= np.sqrt(q_cos.dot(q_cos))
+
+
+        q_super_v_sin = np.tile(q_sin, (3*nat, 1)).T.ravel()
+        if not is_gamma:
+            q_super_v_sin /= np.sqrt(q_super_v_sin).dot(q_super_v_sin)
+        
+        for i in range(n_modes):
+            # Project the mode on the cosinus
+            mode = new_pols_sc[:, i].reshape((len(q_list), 3*nat))
+
+            coeff = new_pols_sc[:, i].dot(q_super_v_cos)
+            coeff_sin = new_pols_sc[:, i].dot(q_super_v_sin)
+
+            # Check the degeneracy
+            w_current = w_sc[i]
+            n_deg = 1
+            for j in range(i+1, n_modes):
+                if np.abs(w_sc[i] - w_sc[j]) * 1e3 > __EPSILON__:
+                    break
+                
+                n_deg += 1
+                
+            if np.abs(coeff) > __EPSILON__:
+                # This mode has a q component
+                # Lets extract the elemental mode
+                elemental_mode = q_cos.dot(mode)
+                new_q_mode = np.outer(q_cos, elemental_mode).ravel()
+                new_q_mode /= np.sqrt(new_q_mode.dot(new_q_mode))
+
+                new_pols_sc[:, i] = new_q_mode
+
+                print("q_vector = ", q_vector, "mode: ", i, "COS")
+                
+                # Orthogonalize all the other mode
+                GramSchmidt(new_pols_sc[:, i:], n_deg, 3*nat_sc) 
+                
+            elif np.abs(coeff_sin) > __EPSILON__: 
+                # This mode has a q component
+                # Lets extract the elemental mode
+                elemental_mode = q_sin.dot(mode)
+                new_q_mode = np.outer(q_sin, elemental_mode).ravel()
+                new_q_mode /= np.sqrt(new_q_mode.dot(new_q_mode))
+
+                new_pols_sc[:, i] = new_q_mode
+                
+                print("q_vector = ", q_vector, "mode: ", i, "SIN")
+
+                # Orthogonalize all the other modes
+                GramSchmidt(new_pols_sc[:, i:], n_deg, 3*nat_sc) 
+                
+                
+
+            # Check if the mode has a component along gamma
+            
+
+        # # Get the projector in the given q point
+        # projector_cos = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+        # projector_sin = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+        # for i in range(nat):
+        #     for j in range(3):
+        #         e_mu_cos = np.zeros( 3*nat_sc, dtype = np.float64)
+        #         e_mu_sin = np.zeros( 3*nat_sc, dtype = np.float64)
 
                 
-                for k in range(len(q_list)):
-                    atm_index = nat*k + i
-                    delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
-                    e_mu_cos[3*atm_index + j] = np.cos( q_vector.dot(delta_r)*2*np.pi)
-                    if not is_gamma:
-                        e_mu_sin[3*atm_index + j] = np.sin( q_vector.dot(delta_r)*2*np.pi)
+        #         for k in range(len(q_list)):
+        #             atm_index = nat*k + i
+        #             delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
+        #             e_mu_cos[3*atm_index + j] = np.cos( q_vector.dot(delta_r)*2*np.pi)
+        #             if not is_gamma:
+        #                 e_mu_sin[3*atm_index + j] = np.sin( q_vector.dot(delta_r)*2*np.pi)
 
-                # Normalize
-                e_mu_cos /= np.sqrt(e_mu_cos.dot(e_mu_cos))
-                projector_cos += np.outer(e_mu_cos, e_mu_cos) # |e_mu><e_mu|
-                if not is_gamma:
-                    e_mu_sin /= np.sqrt(e_mu_sin.dot(e_mu_sin))
-                    projector_sin += np.outer(e_mu_sin, e_mu_sin) # |e_mu><e_mu|
+        #         # Normalize
+        #         e_mu_cos /= np.sqrt(e_mu_cos.dot(e_mu_cos))
+        #         projector_cos += np.outer(e_mu_cos, e_mu_cos) # |e_mu><e_mu|
+        #         if not is_gamma:
+        #             e_mu_sin /= np.sqrt(e_mu_sin.dot(e_mu_sin))
+        #             projector_sin += np.outer(e_mu_sin, e_mu_sin) # |e_mu><e_mu|
 
 
         
 
-        w_now = -2
-        counter = 0
-        for i in range(n_modes):
-            new_e_cos = projector_cos.dot(pols_sc[:, i])
-            new_e_sin = projector_sin.dot(pols_sc[:, i])
-            coeff_cos = pols_sc[:,i].dot(new_e_cos)
-            coeff_sin = pols_sc[:,i].dot(new_e_sin)
+        # w_now = -2
+        # counter = 0
+        # for i in range(n_modes):
+        #     new_e_cos = projector_cos.dot(pols_sc[:, i])
+        #     new_e_sin = projector_sin.dot(pols_sc[:, i])
+        #     coeff_cos = pols_sc[:,i].dot(new_e_cos)
+        #     coeff_sin = pols_sc[:,i].dot(new_e_sin)
             
-            # The vector has a component along this q mode
-            if np.sqrt(coeff_cos**2 + coeff_sin**2) > __EPSILON__:
+        #     # The vector has a component along this q mode
+        #     if np.sqrt(coeff_cos**2 + coeff_sin**2) > __EPSILON__:
 
-                # This vector has not been found to have a component of other q modes
-                if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__:
+        #         # This vector has not been found to have a component of other q modes
+        #         if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__:
 
-                    # Check if the same mode has already been seen:
-                    if np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
-                        if counter == 0:
-                            # Insert the cosinus
-                            new_pols_sc[:, i] = new_e_cos / np.sqrt(new_e_cos.dot(new_e_cos))
-                        elif counter == 1 and not is_gamma:
-                            # Insert the sinus
-                            new_pols_sc[:, i] = new_e_sin / np.sqrt(new_e_sin.dot(new_e_sin))
+        #             # Check if the same mode has already been seen:
+        #             if np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
+        #                 if counter == 0:
+        #                     # Insert the cosinus
+        #                     new_pols_sc[:, i] = new_e_cos / np.sqrt(new_e_cos.dot(new_e_cos))
+        #                 elif counter == 1 and not is_gamma:
+        #                     # Insert the sinus
+        #                     new_pols_sc[:, i] = new_e_sin / np.sqrt(new_e_sin.dot(new_e_sin))
 
                             
 
-                        # Lets ignore others
-                        counter += 1
-                    else:
-                        w_now = w_sc[i]
-                        counter = 0
+        #                 # Lets ignore others
+        #                 counter += 1
+        #             else:
+        #                 w_now = w_sc[i]
+        #                 counter = 0
     
     return new_pols_sc
 
