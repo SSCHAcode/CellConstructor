@@ -68,7 +68,10 @@ conda install clangxx_osx-64
 
 NOTE:
 If you want to install the package into a system python distribution, the
-installation commands should be executed as a superuser.
+installation commands should be executed as a superuser. 
+Otherwise, append the --user flag to either the setup.py or the pip installation. 
+In this way no administrator privilages is required, but the installation will be effective only for the current user.
+Note that some python distribution, like anaconda, does not need the superuser, as they have an installation path inside the HOME directory.
 
 ## GO!
 
@@ -78,3 +81,9 @@ almost self explaining and introduce you to the potentiality of this library.
 
 Please, note that all the functions of the library have a proper numpy style
 docstring.
+
+You can test the installation using the script:
+```bash
+cellconstructor_test.py
+```
+
