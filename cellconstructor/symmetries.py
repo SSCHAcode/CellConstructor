@@ -1107,7 +1107,59 @@ def CustomASR(fc_matrix):
 
     fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
     
+
+def ExcludeRotations(fc_matrix, structure):
+    """
+    APPLY THE ROTATION SUM RULE
+    ===========================
+
+    We exclude the rotations from the force constant matrix.
+
+    Parameters
+    ----------
+       fc_matrix : ndarray(3*nat, 3*nat)
+           The force constant matrix
+       structure : Structure()
+           The structure that is identified by the force constant matrix
+   
+    """
+
+    nat = structure.N_atoms
+    dtype = type(fc_matrix[0,0])
     
+    # Get the center of the structure
+    r_cm = np.sum(structure.coords, axis = 0) / nat
+    r = structure.coords - r_cm
+    
+    v_rots = np.zeros((3, 3*nat), dtype = dtype)
+    projector = np.eye(3*nat, dtype = dtype)
+    counter = 0
+    for i in range(3):
+        for j in range(i+1,3):
+            v = np.zeros(3*nat, dtype = dtype)
+            v_i = r[:, j] 
+            v_j = -r[:, i]
+
+            v[3*np.arange(nat) + i] = v_i
+            v[3*np.arange(nat) + j] = v_j
+
+            
+            # orthonormalize
+            for k in range(counter):
+                v -= v_rots[k, :].dot(v) * v_rots[k, :]
+
+            # Normalize
+            norm = np.sqrt(v.dot(v))
+            v /= norm
+
+            v_rots[counter, :] = v
+            projector -= np.outer(v,v)
+            counter += 1
+
+    
+
+    fc_matrix[:,:] = projector.dot(fc_matrix.dot(projector))
+        
 
 def GetIRT(structure, symmetry):
     """
@@ -1504,50 +1556,83 @@ def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, n
 
     Results
     -------
-        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.complex128)
+        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
             The same polarization vectors with the q well separated.
-            Note, they must be complex to garantee that q and -q does not mix together.
     """
 
     # Get the atoms in the supercell
     nat_sc = len(q_list) * nat
     dumb, n_modes = np.shape(pols_sc)
 
+    bg = Methods.get_reciprocal_vectors(super_structure.unit_cell)
+
     # Test the consistency
     assert nat_sc * 3 == len(w_sc), "Error, the number of atoms in the supercell inferred by q_list should match those in w_sc"
 
     # For each q vector, build the projection
-    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.complex128)
+    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.float64)
 
     for q_vector in q_list:
+        is_gamma = False
+        if Methods.get_min_dist_into_cell(bg, q_vector, np.array([0,0,0])) < __EPSILON__:
+            is_gamma = True
+
         # Get the projector in the given q point
-        projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.complex128)
+        projector_cos = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
+        projector_sin = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
         for i in range(nat):
             for j in range(3):
-                e_mu = np.zeros( 3*nat_sc, dtype = np.complex128)
+                e_mu_cos = np.zeros( 3*nat_sc, dtype = np.float64)
+                e_mu_sin = np.zeros( 3*nat_sc, dtype = np.float64)
 
+                
                 for k in range(len(q_list)):
                     atm_index = nat*k + i
                     delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
-                    e_mu[3*atm_index + j] = np.exp(1j * q_vector.dot(delta_r)*2*np.pi)
+                    e_mu_cos[3*atm_index + j] = np.cos( q_vector.dot(delta_r)*2*np.pi)
+                    if not is_gamma:
+                        e_mu_sin[3*atm_index + j] = np.sin( q_vector.dot(delta_r)*2*np.pi)
 
                 # Normalize
-                e_mu /= np.sqrt(e_mu.dot(np.conj(e_mu)))
-                projector += np.outer(e_mu, np.conj(e_mu)) # |e_mu><e_mu|
+                e_mu_cos /= np.sqrt(e_mu_cos.dot(e_mu_cos))
+                projector_cos += np.outer(e_mu_cos, e_mu_cos) # |e_mu><e_mu|
+                if not is_gamma:
+                    e_mu_sin /= np.sqrt(e_mu_sin.dot(e_mu_sin))
+                    projector_sin += np.outer(e_mu_sin, e_mu_sin) # |e_mu><e_mu|
+
+
         
 
         w_now = -2
+        counter = 0
         for i in range(n_modes):
-            new_e = projector.dot(pols_sc[:, i])
-            coeff = pols_sc[:,i].dot(new_e)
+            new_e_cos = projector_cos.dot(pols_sc[:, i])
+            new_e_sin = projector_sin.dot(pols_sc[:, i])
+            coeff_cos = pols_sc[:,i].dot(new_e_cos)
+            coeff_sin = pols_sc[:,i].dot(new_e_sin)
+            
             # The vector has a component along this q mode
-            if np.sqrt(np.abs(coeff)) > __EPSILON__:
-                # This vector has not been found to have a component of other q modes
-                if np.sqrt(np.conj(new_pols_sc[:, i]).dot(new_pols_sc[:,i])) < __EPSILON__ and np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
-                    new_pols_sc[:, i] = new_e / np.sqrt(np.conj(new_e).dot(new_e))
-                    #print("Inserted w = ", w_sc[i] *  109691.40235, " w_now = ", w_now *  109691.40235, "q = ", q_vector)
+            if np.sqrt(coeff_cos**2 + coeff_sin**2) > __EPSILON__:
 
-                    w_now = w_sc[i]
+                # This vector has not been found to have a component of other q modes
+                if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__:
+
+                    # Check if the same mode has already been seen:
+                    if np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
+                        if counter == 0:
+                            # Insert the cosinus
+                            new_pols_sc[:, i] = new_e_cos / np.sqrt(new_e_cos.dot(new_e_cos))
+                        elif counter == 1 and not is_gamma:
+                            # Insert the sinus
+                            new_pols_sc[:, i] = new_e_sin / np.sqrt(new_e_sin.dot(new_e_sin))
+
+                            
+
+                        # Lets ignore others
+                        counter += 1
+                    else:
+                        w_now = w_sc[i]
+                        counter = 0
     
     return new_pols_sc
 

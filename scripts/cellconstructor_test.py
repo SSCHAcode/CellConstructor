@@ -56,6 +56,7 @@ class TestStructureMethods(unittest.TestCase):
 
         self.struct_ice = struct_ice
 
+
         # Get a simple cubic structure
         self.struct_simple_cubic = CC.Structure.Structure(1)
         self.struct_simple_cubic.atoms = ["H"]
@@ -131,6 +132,7 @@ class TestStructureMethods(unittest.TestCase):
         # Test orthorombic
         self.assertTrue(np.sum(np.abs(voight_stress[3:])) < __epsil__)
 
+        
 
     def test_phonons_supercell(self):
         # Build a supercell dynamical matrix

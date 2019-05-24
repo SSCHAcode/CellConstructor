@@ -36,19 +36,19 @@ q_grid = CC.symmetries.GetQGrid(dynq.structure.unit_cell, dynq.GetSupercell())
 pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
 
 # Lets pick one q vector
-q_vector = q_grid[4]
+q_vector = q_grid[0]
 print("The selected q vector is: ", q_vector)
 
 # Lets generate the basis of the modes along this vector
-projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.complex128)
+projector = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
 for i in range(nat):
     for j in range(3):
-        e_mu = np.zeros( 3*nat_sc, dtype = np.complex128)
+        e_mu = np.zeros( 3*nat_sc, dtype = np.float64)
 
         for k in range(np.prod(dynq.GetSupercell())):
             atm_index = nat*k + i
             delta_r = dyn_realspace.structure.coords[atm_index, :] - dyn_realspace.structure.coords[i, :]
-            e_mu[3*atm_index + j] = np.exp(1j*q_vector.dot(delta_r)*2*np.pi)
+            e_mu[3*atm_index + j] = np.cos(q_vector.dot(delta_r)*2*np.pi)
 
         # Normalize
         e_mu /= np.sqrt(np.conj(e_mu).dot(e_mu))
@@ -60,3 +60,32 @@ print("\n".join(["{:.4f} cm-1 has projection {:.4f}".format(w_sc[i] * CC.Phonons
                                                           np.real(np.conj(pols_sc[:, i]).dot(projector.dot(pols_sc[:,i]))))
                  for i in range(3*nat_sc)]))
                                                         
+
+# Identify the symmetry in the polarization basis
+try:
+    import spglib
+except:
+    print("Please, install spglib if you want to run the test on the symmetries.")
+    exit(0)
+
+spglib_sym = spglib.get_symmetry(dyn_realspace.structure.get_ase_atoms())
+symmetries = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_sym, False)
+
+
+# Get the symmetries in the new polarization basis
+pol_symmetries = CC.symmetries.GetSymmetriesOnModes(symmetries, dyn_realspace.structure, pols_sc)
+
+# Exclude translations
+pol_symmetries = pol_symmetries[:, 3:, 3:]
+w_sc = w_sc[3:]
+
+# Build a mask that can extract degenerate modes
+deg_mask = np.abs(w_sc[1:] - w_sc[:-1]) < 1e-8
+deg_mask1 = np.concatenate(([False], deg_mask))
+deg_mask2 = np.concatenate((deg_mask, [False]))
+deg_realmask = deg_mask1 | deg_mask2
+
+Nsym, dumb1, dumb2 = np.shape(pol_symmetries)
+for i in range(Nsym):
+    print("Symmetry {}:".format(i+1))
+    print(pol_symmetries[i, deg_realmask, deg_realmask])

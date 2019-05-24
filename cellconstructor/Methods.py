@@ -907,6 +907,8 @@ def get_translations(pols, masses):
             is_translation[i] = True
 
     return is_translation
+
+
             
     
 def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
