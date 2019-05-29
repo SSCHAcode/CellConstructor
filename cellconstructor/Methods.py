@@ -369,16 +369,16 @@ are the angles alpha (between b and c), beta (between a and c) and gamma(between
 
 Parameters
 ----------
-    - unit_cell : 3x3 ndarray (float)
+    - unit_cell : 3x3 ndarray (a float dtype)
          The unit cell in which the lattice vectors are the rows.
 
 Results
 -------
-    - cell : 6 length ndarray (3x float, 3x int)
+    - cell : 6 length ndarray (size = 6, dtype = type(unit_cell))
          The array containing the a,b,c length followed by alpha,beta and gamma (in degrees)
     """
 
-    cell = np.zeros(6)
+    cell = np.zeros(6, dtype = unit_cell.dtype)
 
     # Get a,b,c
     for i in range(3):
@@ -390,7 +390,7 @@ Results
         k = (i + 2) % 3
         cosangle = unit_cell[j,:].dot(unit_cell[k, :]) / (cell[j] * cell[k])
         
-        cell[i + 3] = int(np.arccos(cosangle) * 180 / np.pi + .5)
+        cell[i + 3] = np.arccos(cosangle) * 180 / np.pi 
 
     return cell
 
