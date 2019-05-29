@@ -35,6 +35,13 @@ q_grid = CC.symmetries.GetQGrid(dynq.structure.unit_cell, dynq.GetSupercell())
 # Separate the different q points
 pols_sc = CC.symmetries.AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_grid, dyn_realspace.structure, nat)
 
+# Test if we can rebuild the dynamical matrix properly
+m = np.tile(dyn_realspace.structure.get_masses_array(), (3,1)).T.ravel()
+fc_matrix = np.einsum("a, ba, ca, b, c -> bc", w_sc**2, pols_sc, pols_sc, np.sqrt(m), np.sqrt(m))
+dyn_realspace.dynmats[0] = fc_matrix
+dyn_realspace.save_qe("RealspaceAdjusted")
+
+
 # Lets pick one q vector
 q_vector = q_grid[4]
 print("The selected q vector is: ", q_vector)
