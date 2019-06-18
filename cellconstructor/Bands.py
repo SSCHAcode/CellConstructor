@@ -50,7 +50,7 @@ class Bands:
     def standard_interpolation(self, new_kgrid, kind = "linear"):
         """
         BAND INTERPOLATION
-        ==================
+         ==================
 
         This function performs an interpolation of the bands using a regular grid (scipy).
 
@@ -93,9 +93,11 @@ class Bands:
 
         tot_kx, tot_ky, tot_kz = self.good_kpts.T
 
-        kx_data = np.unique(tot_kx, return_index = True)
-        ky_data = np.unique(tot_ky, return_index = True)
-        kz_data = np.unique(tot_kz, return_index = True)
+        kx, index = np.unique(tot_kx, return_index = True)
+        ky, index= np.unique(tot_ky, return_index = True)
+        kz, index = np.unique(tot_kz, return_index = True)
+
+        
 
         
 
