@@ -114,8 +114,7 @@ class Bands:
               The vector for each band that is the fermi velocity
         """
 
-        
-
+        raise NotImplementedError("Error, function not yet implemented")
     
 
     def get_conductivity(self, T):
@@ -153,14 +152,12 @@ class Bands:
         
         cond = 0
 
-        for i in range(self.N_bands):
-            cond += v_fermi[i,:].dot(v_fermi[i, :]) * get_fermi_derivative(self.fermi_energy, 
+        raise NotImplementedError("Error, not yet implemented.")
+        # for i in range(self.N_bands):
+        #     cond += v_fermi[i,:].dot(v_fermi[i, :]) * get_fermi_derivative(self.fermi_energy, 
             
         
         
-
-        
-
         
 
     def setup_from_espresso_output(self, filename):
@@ -229,7 +226,7 @@ class Bands:
             if reading_k_points and "bands" in line:
                 if band_index >= 0:
                     if not occupation_read:
-                        raise IOError("Error, I have not found the occupation number. Be sure that QE has been executed in high verbosity.\nFile: {}".format(filename)))
+                        raise IOError("Error, I have not found the occupation number. Be sure that QE has been executed in high verbosity.\nFile: {}".format(filename))
                     occupations.append(current_array)
                 band_index += 1
                 current_array = []
