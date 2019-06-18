@@ -2663,23 +2663,23 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     QE_tau[:,:] = unit_cell_structure.coords.transpose()
     QE_tau_sc[:,:] = super_cell_structure.coords.transpose()
     
-    print "ENTERING IN GET_FRC"
+    #print "ENTERING IN GET_FRC"
     QE_frc[:,:,:,:,:,:,:] = symph.get_frc(QE_fc, QE_tau, QE_tau_sc, QE_at, QE_itau, 
           coarse_grid[0], coarse_grid[1], coarse_grid[2], nat, natsc)
-    print "EXITING IN GET_FRC"
+    #print "EXITING IN GET_FRC"
     
     # Initialize the interpolation
     nrwsx = 200
     QE_rws = np.zeros((4, nrwsx), dtype = np.float64, order = "F")
-    print "ENTERING IN WSINIT"
+    #print "ENTERING IN WSINIT"
     nrws = symph.wsinit(QE_rws, QE_at_sc, nrwsx)
-    print "EXTING FROM WSINIT"
+    #print "EXTING FROM WSINIT"
     
     # Perform the interpolation
     QE_q = np.array(q_point, dtype = np.float64)
-    print "ENTERING:"
-    print "TAU SHAPE:", np.shape(QE_tau)
-    print "FRC SHAPE:", np.shape(QE_frc)
+    #print "ENTERING:"
+    #print "TAU SHAPE:", np.shape(QE_tau)
+    #print "FRC SHAPE:", np.shape(QE_frc)
     new_dyn = symph.frc_blk(QE_q, QE_tau, QE_frc, QE_at, QE_rws, nrws, nat,
                             coarse_grid[0], coarse_grid[1], coarse_grid[2])
     
