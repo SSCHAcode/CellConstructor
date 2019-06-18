@@ -27,7 +27,7 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
   double precision, dimension(3) :: vect
   double precision, dimension(:,:,:,:,:), allocatable :: phi_auxx
 
-  logical, parameter :: debug = .false.
+  logical, parameter :: debug = .true.
   
   !natsc = size(tau_sc(1,:))
   !nat   = size(tau(1,:))
