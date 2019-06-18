@@ -27,6 +27,8 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
   double precision, dimension(3) :: vect
   double precision, dimension(:,:,:,:,:), allocatable :: phi_auxx
 
+  logical, parameter :: debug = .false.
+  
   !natsc = size(tau_sc(1,:))
   !nat   = size(tau(1,:))
   supercell_size(1) = size1
@@ -34,12 +36,14 @@ subroutine get_frc( phi_sc, tau, tau_sc, at, itau, frc, &
   supercell_size(3) = size3
   
   ! Print some debugging info
-  print *, "SUPERCELL SIZE:", supercell_size(:)
-  print *, "NAT:", nat
-  print *, "The unit cell:"
-  do i = 1, 3
-      print *, at(:, i)
-  enddo
+  if (debug) then
+     print *, "SUPERCELL SIZE:", supercell_size(:)
+     print *, "NAT:", nat
+     print *, "The unit cell:"
+     do i = 1, 3
+        print *, at(:, i)
+     enddo
+  end if
 
   allocate(phi_auxx(nat,nat,supercell_size(1),supercell_size(2),supercell_size(3)))
 
