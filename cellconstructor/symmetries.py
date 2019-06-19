@@ -1529,6 +1529,61 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
         
+def GetIRActiveModes(symmetries, structure, pols):
+    """
+    GET ACTIVE IR MODES
+    ===================
+
+    This function return a list of the indices of the modes that 
+    could be IR active by symmetry.
+
+    NOTE: Polarization vectors related to translation will automatically discarded.
+
+    Parameters
+    ----------
+        symmetries : list of (3x4) ndarraies
+            The list of the symmetry operations of the structure.
+        structre : Structure()
+            The structure that you want to analyze.
+        pols : ndarray (3* nat, n_modes)
+            The polarization vectors, note that n_modes must match 3*nat
+            as they must form a complete set of the basis of displacements.
+
+    Returns
+    -------
+        ir_active_indices : list of int
+            The list of the indices i of vectors pols[:, i] that
+            can be IR active by symmetry 
+    """
+
+    # Check if the input is consistent
+    nat3, nmodes = np.shape(pols)
+    assert nat3 == nmodes, "Error, the pols argument must form a complete set."
+
+    # Get the symmetry matrix in the polarization basis
+    pol_matrix =  GetSymmetriesOnModes(symmetries, structure, pols)
+
+    nsyms = len(symmetries)
+
+    # This is a mask of the ir active modes
+    IR_active_mask = np.ones(nmodes)
+
+    # Discard polarization vectors related to translations
+    IR_active_mask[Methods.get_translations( structure.get_masses_array(), pols)] = 0
+
+    # Now the mode cannot be IR active if there is at least one symmetry
+    # That transforms e_mu = -e_mu 
+    for i in range(nsyms):
+        # As soon as we find a mode that cannot be IR active
+        # we inhibit the IR_active_mask
+        for j in range(nmodes):
+            if pol_matrix[i, j, j] < 0:
+                IR_active_mask[j] = 0
+
+
+    # Extract the list of IR active modes and return the result
+    return list( np.arange(nmodes)[IR_active_mask])
+
 
 def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, nat):
     """
