@@ -1551,9 +1551,8 @@ def GetIRActiveModes(symmetries, structure, pols):
 
     Returns
     -------
-        ir_active_indices : list of int
-            The list of the indices i of vectors pols[:, i] that
-            can be IR active by symmetry 
+        ir_active_indices : ndarray (size = nmodes)
+            It is 0 if the mode is not ir active, 1 if it is IR active
     """
 
     # Check if the input is consistent
@@ -1566,10 +1565,10 @@ def GetIRActiveModes(symmetries, structure, pols):
     nsyms = len(symmetries)
 
     # This is a mask of the ir active modes
-    IR_active_mask = np.ones(nmodes)
+    IR_active_mask = np.ones(nmodes, dtype = int)
 
     # Discard polarization vectors related to translations
-    IR_active_mask[Methods.get_translations( structure.get_masses_array(), pols)] = 0
+    IR_active_mask[Methods.get_translations(pols, structure.get_masses_array())] = 0
 
     # Now the mode cannot be IR active if there is at least one symmetry
     # That transforms e_mu = -e_mu 
@@ -1579,10 +1578,11 @@ def GetIRActiveModes(symmetries, structure, pols):
         for j in range(nmodes):
             if pol_matrix[i, j, j] < 0:
                 IR_active_mask[j] = 0
-
+                #print("Neglecting %d := sym %d is %.4f" % (j, i, pol_matrix[i, j, j]))
+    
 
     # Extract the list of IR active modes and return the result
-    return list( np.arange(nmodes)[IR_active_mask])
+    return IR_active_mask
 
 
 def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, nat):
