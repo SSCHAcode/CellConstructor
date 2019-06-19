@@ -85,7 +85,8 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,rws,nrws, nrwsx)
            END DO
         END DO
         IF (ABS(total_weight-nr1*nr2*nr3).GT.1.0d-8) THEN
-           WRITE(stdout,*) total_weight
+           WRITE(stdout,*) "Total weight:", total_weight
+           WRITE(stdout,*) "NR1,2,3 = ", nr1, nr2, nr3
            CALL errore ('frc_blk','wrong total_weight',1)
         END IF
      END DO
