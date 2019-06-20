@@ -1554,6 +1554,7 @@ def GetIRActiveModes(symmetries, structure, pols):
         ir_active_indices : ndarray (size = nmodes)
             It is 0 if the mode is not ir active, 1 if it is IR active
     """
+    raise NotImplementedError("Error, not yet implemented")
 
     # Check if the input is consistent
     nat3, nmodes = np.shape(pols)
@@ -1570,11 +1571,14 @@ def GetIRActiveModes(symmetries, structure, pols):
     # Discard polarization vectors related to translations
     IR_active_mask[Methods.get_translations(pols, structure.get_masses_array())] = 0
 
-    # Now the mode cannot be IR active if there is at least one symmetry
-    # That transforms e_mu = -e_mu 
-    for i in range(nsyms):
-        # As soon as we find a mode that cannot be IR active
-        # we inhibit the IR_active_mask
+    # Now the mode is IR active if and only if
+    # a mode transforms according to all the symmetry operations in the same way as the
+    # generic light polarization vector.
+    for j in range(nmodes):
+        # Check the character of the mode
+        for i in range(nsyms):
+            # As soon as we find a mode that cannot be IR active
+            # we inhibit the IR_active_mask
         for j in range(nmodes):
             if pol_matrix[i, j, j] < 0:
                 IR_active_mask[j] = 0
