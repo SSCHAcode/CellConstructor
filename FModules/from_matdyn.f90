@@ -16,7 +16,7 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,rws,nrws, nrwsx)
                
   double precision ::  r(3), weight, r_ws(3), total_weight, arg
   double precision, EXTERNAL :: wsweight
-  double precision,SAVE,ALLOCATABLE :: wscache(:,:,:,:,:)
+  double precision,ALLOCATABLE :: wscache(:,:,:,:,:)
   
   double precision, parameter :: tpi = 6.283185307179586
   LOGICAL, PARAMETER :: first=.true.
