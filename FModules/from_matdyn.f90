@@ -19,10 +19,10 @@ SUBROUTINE frc_blk(dyn,q,tau,nat,nr1,nr2,nr3,frc,at,rws,nrws, nrwsx)
   double precision,SAVE,ALLOCATABLE :: wscache(:,:,:,:,:)
   
   double precision, parameter :: tpi = 6.283185307179586
-  LOGICAL,SAVE :: first=.true.
+  LOGICAL, PARAMETER :: first=.true.
   !
   FIRST_TIME : IF (first) THEN
-    first=.false.
+    !first=.false.
     ALLOCATE( wscache(-2*nr3:2*nr3, -2*nr2:2*nr2, -2*nr1:2*nr1, nat,nat) )
     DO na=1, nat
        DO nb=1, nat
