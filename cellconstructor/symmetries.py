@@ -1579,9 +1579,9 @@ def GetIRActiveModes(symmetries, structure, pols):
         for i in range(nsyms):
             # As soon as we find a mode that cannot be IR active
             # we inhibit the IR_active_mask
-        for j in range(nmodes):
-            if pol_matrix[i, j, j] < 0:
-                IR_active_mask[j] = 0
+        #for j in range(nmodes):
+        #    if pol_matrix[i, j, j] < 0:
+        #        IR_active_mask[j] = 0
                 #print("Neglecting %d := sym %d is %.4f" % (j, i, pol_matrix[i, j, j]))
     
 
