@@ -1285,6 +1285,39 @@ class Phonons:
         
         return np.abs(I**2) * (1. + n) / w
 
+    def GetIRIntensities(self):
+        """
+        GET THE IR INTENSITIES
+        ======================
+
+        This function uses the effective charges to compute the infrared responce.
+
+        A list of value is returned, at each index the IR intensity of the
+        relative mode.
+        """
+
+        if self.effective_charges is None:
+            raise ValueError("Error, I cannot compute IR intensities without effective charges")
+
+        w, pols = self.DyagDinQ(0)
+        m = self.structure.get_masses_array()
+
+
+        # Get the eigendisplacement z
+        nat3, nmodes = np.shape(pols)
+        z = np.zeros( (nmodes, self.structure.N_atoms, 3), dtype = np.float64)
+        for i in range(self.structure.N_atoms):
+            z[:, i, :] = pols[3*i: 3*(i+1), :].T / np.sqrt(m[i])
+
+        # Get the I_mu,i where mu is the mode and i is the polarization of the light
+        I = np.einsum("cbd, acd->ab", self.effective_charges, z)
+        # Average over polarizations
+        I = np.sum( I*I, axis = 1) * 2
+
+        return I
+
+        
+
     def GetRamanVector(self, pol_in, pol_out):
         r"""
         GET THE RAMAN VECTOR
