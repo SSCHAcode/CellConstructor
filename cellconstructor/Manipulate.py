@@ -4,8 +4,12 @@
 This module contains the methods that requre to call the classes defined
 into this module.
 """
+import time
 import os
+
 import numpy as np
+import scipy, scipy.optimize
+
 from Structure import Structure
 from Phonons import Phonons
 import Methods
@@ -1175,3 +1179,128 @@ def RotationTranslationStretching(structure, molecules, indices, vector):
     I_stretch = np.sum(projector_stretch.dot(vector)**2) 
 
     return I_rot, I_trans, I_stretch   
+
+
+def AlignStructures(source, target, verbose = False):
+    """
+    ALIGN STRUCTURES
+    ================
+
+    This method finds the best alignment between the source and the target.
+    The source structure coordinates are then translated and the periodical images
+    are chosen so to match as closely as possible the target structure
+    
+    NOTE: This subroutine will rise an exception if the structures are not compatible.
+
+    Parameters
+    ----------
+        source : Structure()
+            The structure to be aligned
+        target : Structure()
+            The target structure of the alignment
+        verbose : bool
+            If true prints info during the minimization.
+            Good for debugging.
+    Results
+    -------
+        align_cost : float
+            The sum of all the residual distances between atoms (after alignment)
+    """
+
+    # Check alignment
+    assert source.N_atoms == target.N_atoms, "Error, the two structures must share the same number of atoms"
+
+
+    # Check the atomic types
+    # Get the unique values of the atomic types of the source
+    source_types = list(set(source.atoms))
+
+    for s_type in source_types:
+        count_source = source.atoms.count(s_type)
+        count_target = target.atoms.count(s_type)
+
+        assert count_source == count_target, "Error, type {} different between source and target".format(s_type)
+
+
+    # Align the cells
+    max_consecutive_rejects = 50
+    min_theta_step = 1e-8
+    rejected = 0
+    new_cell = source.unit_cell.copy()
+    cost_function = np.sum( (new_cell - target.unit_cell)**2)
+    theta_step = 0.05
+    
+    if verbose:
+        t1 = time.time()
+        print("Starting the cell optimization...")
+    while theta_step > min_theta_step:
+        # Pick a random direction
+        direction = np.random.randint(0, 3)
+
+        # Pick a random angle
+        theta = np.random.normal(scale = theta_step)
+
+        # Create the rotation matrix
+        U_mat = np.eye(3, dtype = np.double)
+        x_rot_i = (direction + 1) %3
+        y_rot_i = (direction + 2) %3
+        U_mat[x_rot_i, x_rot_i] = np.cos(theta)
+        U_mat[y_rot_i, y_rot_i] = np.cos(theta)
+        U_mat[x_rot_i, y_rot_i] = -np.sin(theta)
+        U_mat[y_rot_i, x_rot_i] = np.sin(theta)
+
+        # Rotate the cell
+        test_cell = new_cell.dot(U_mat.T)
+
+        # Look if the rotation improved the similarity
+        new_cost =  np.sum( (test_cell - target.unit_cell)**2)
+        #if verbose:
+        #    print("REJ:{} | cost = {} | old cost = {} | New cell: {}".format(rejected, new_cost, cost_function, test_cell))
+        if new_cost < cost_function:
+            rejected = 0
+            cost_function = new_cost
+            new_cell = test_cell
+        else:       
+            rejected += 1
+
+        if rejected > max_consecutive_rejects:
+            rejected = 0
+            theta_step /= 2
+
+    # Align the two structure according to the rotations between the cells
+    if verbose:
+        t2 = time.time()
+        print("Time elapsed to rotate the cell: {} s".format(t2-t1))
+    source.change_unit_cell(new_cell)
+
+    # Start the alignment of the translations
+    def align_cost(trans):
+        trial_struct = source.copy()
+        trial_struct.coords += np.tile(np.array(trans), (source.N_atoms, 1))
+
+        # Get the distances between atoms
+        IRT, distances = trial_struct.get_equivalent_atoms(target, True)
+
+        # Use a loss function that does not penalize strong outcomers
+        loss = np.sum(1 - 1 / np.cosh(np.array(distances)))
+        return loss
+
+    # Perform the minimization
+    if verbose:
+        print ("Optimizing the translations...")
+        t1 = time.time()
+    res = scipy.optimize.minimize(align_cost, [0,0,0])
+
+    # Shift the source
+    if verbose:
+        t2 = time.time()
+        print ("Time elapsed to optimize the translations:", t2 - t1, " s")
+    source.coords += np.tile(res.x, (source.N_atoms, 1))
+    IRT = source.get_equivalent_atoms(target)
+
+    # Exchange the order of the atoms to match the one of the target function
+    source.coords = source.coords[IRT, :]
+    source.atoms = [source.atoms[i] for i in IRT]
+
+    # Fix the atoms in the unit cell
+    source.fix_coords_in_unit_cell()

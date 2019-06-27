@@ -720,7 +720,7 @@ class Structure:
         
 
 
-    def get_equivalent_atoms(self, target_structure):
+    def get_equivalent_atoms(self, target_structure, return_distances = False):
         """
         GET EQUIVALENT ATOMS BETWEEN TWO STRUCTURES
         ===========================================
@@ -735,6 +735,8 @@ class Structure:
         ----------
             target_structure : Structure()
                 This is the target structure to be used to get the equivalent atoms.
+            return_distances : bool
+                If True it returns also the list of the distances between the atoms
                 
         Results
         -------
@@ -776,6 +778,8 @@ class Structure:
             equiv_atoms.append(j_min)
         
         #print "Max distance:", np.max(effective_distances)
+        if return_distances:
+            return equiv_atoms, effective_distances
         return equiv_atoms
 
 
