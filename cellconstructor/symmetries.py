@@ -1479,6 +1479,14 @@ def GetSupercellFromQlist(q_list, unit_cell):
                 supercell[j] = int(rmax[j] + .5)
     
     return supercell
+
+def ApplySymmetriesToRank3Matrix(symmetries, IRT, r3_matrix_inout):
+    """
+    APPLY SYMMETRIES ON A RANK-3 MATRIX
+    ===================================
+
+    This function symmetrizes a real space rank 3 matrices in cartesian units.
+    """
         
 
 def GetSymmetriesOnModes(symmetries, structure, pol_vects):
