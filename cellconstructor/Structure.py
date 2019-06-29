@@ -68,7 +68,12 @@ class Structure:
         aux.atoms = [atm for atm in self.atoms]
         aux.unit_cell = self.unit_cell.copy()
         aux.has_unit_cell = self.has_unit_cell
-        aux.masses = self.masses
+
+        # Deep copy of the masses
+        aux.masses = {}
+        for k in self.masses.keys():
+            aux.masses[k] = self.masses[k]
+            
         aux.ita = self.ita
         return aux
         

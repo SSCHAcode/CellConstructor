@@ -408,7 +408,7 @@ class Phonons:
         f2 = eigvals
         
         # Check for imaginary frequencies (unstabilities) and return them as negative
-        frequencies = np.zeros(len(f2))
+        frequencies = np.zeros(len(f2), dtype = np.double)
         frequencies[f2 > 0] = np.sqrt(f2[f2 > 0])
         frequencies[f2 < 0] = -np.sqrt(-f2[f2 < 0])
         
