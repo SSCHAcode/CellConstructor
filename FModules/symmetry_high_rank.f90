@@ -3,30 +3,40 @@
 ! is related by a translation vector of the supercell 
 ! to another atom of the supercell
 
-subroutine get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec )
+subroutine get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec, nat_sc, nr )
 
   implicit none
 
-  double precision, dimension(:,:), intent(in) :: tau_sc, latvec 
+  double precision, dimension(3,nat_sc), intent(in) :: tau_sc
+  double precision, dimension(nr, 3), intent(in) :: latvec 
   double precision, dimension(3,3), intent(in) :: at_sc
-  integer, dimension(:,:), intent(out) :: tau_sc_latvec
+  integer, dimension(nat_sc,nr), intent(out) :: tau_sc_latvec
 
   integer :: nr, nat_sc
   double precision, dimension(3) :: diff
   double precision, dimension(27,3) :: superlatvec
   double precision :: prec
+  logical, parameter :: debug = .true.
    
   integer :: ka, i, j, k, r
 
   ! Define precision for scalar product that
   ! decides if two positions are the same
 
+  if (debug) then
+    print *, "=== DEBUG get_tau_sc_latvec ==="
+    print *, "NAT_SC:", nat_sc
+    print *, "NR:", NR
+    print *, ""
+    call flush()
+  endif
+
   prec = 1.0d-6
 
   ! Get integers
 
-  nr = size(latvec(:,1))
-  nat_sc = size(tau_sc(1,:))
+  !nr = size(latvec(:,1))
+  !nat_sc = size(tau_sc(1,:))
 
   ! Create the supercell lattice vectors
 
@@ -161,17 +171,17 @@ end subroutine permute_v4
 ! an atom and a Cartesian index, but inside it is used
 ! with 6 indexes, separating cartesian and atom indexes.
 
-subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc )
+subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc, nat, nat_sc )
 
   implicit none
 
-  double precision, dimension(n,n,n), intent(inout) :: v3
+  double precision, dimension(nat_sc*3,nat_sc*3,nat_sc*3), intent(inout) :: v3
   double precision, dimension(3,nat), intent(in) :: tau
   double precision, dimension(3,nat_sc), intent(in) :: tau_sc
-  integer, dimension(:), intent(in) :: itau
+  integer, dimension(nat_sc), intent(in) :: itau
   double precision, dimension(3,3), intent(in) :: at_sc
 
-  integer :: nat, nat_sc, nr,n
+  integer :: nat, nat_sc, nr
   double precision, dimension(3) :: cholat, vect, diff
   double precision, dimension(:,:,:,:,:,:), allocatable :: v3_6
   double precision, dimension(:,:), allocatable :: latvec
@@ -180,13 +190,22 @@ subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc )
   logical, dimension(:), allocatable :: assigned
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3,3) :: mat_aux
+  logical, parameter :: debug = .true.
 
   prec = 1.0d-6
 
-  nat    = size(tau(1,:))
-  nat_sc = size(tau_sc(1,:))
+  !nat    = size(tau(1,:))
+  !nat_sc = size(tau_sc(1,:))
 
   nr = nat_sc / nat
+
+  if (debug) then
+    print *, "=== DEBUG TRANS V3 ==="
+    print *, "NAT_SC:", nat_sc
+    print *, "NAT:", nat 
+    print *, "NR:", nr 
+    call flush()
+  endif
 
   allocate( assigned(nr) )
   allocate( v3_6(nat_sc,nat_sc,nat_sc,3,3,3) )
@@ -195,17 +214,17 @@ subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc )
 
   ! Get the lattice vectors of the supercell
 
-  call get_latvec ( tau_sc, tau, itau, latvec )
+  call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
 
   ! Build the 3rd order force-constant matrices 
   ! in 6 rank tensor
 
-  call threetosix_real ( v3, v3_6, n/3, n)
+  call threetosix_real ( v3, v3_6, nat_sc)
 
   ! Assign which is the transformed atom in the supercell
   ! given a particular translation vector
 
-  call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec )
+  call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec, nat_sc, nr )
 
   ! Impose translational symmetry
 
@@ -228,7 +247,7 @@ subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc )
   ! Return to the rank 3 tensor of the third order force constants
   ! matrices
 
-  call sixtothree_real ( v3_6, v3, n/3, n)
+  call sixtothree_real ( v3_6, v3, nat_sc)
 
 end subroutine trans_v3
 
@@ -239,7 +258,7 @@ end subroutine trans_v3
 ! are given only with three indexes, each representing both
 ! an atom and a Cartesian index, but inside it is used
 ! with 6 indexes, separating cartesian and atom indexes.
-
+! TODO: TO BE CONVERTED IN PYTHONIC
 subroutine trans_v4 ( v4, tau, tau_sc, itau, at_sc )
 
   implicit none
@@ -272,7 +291,7 @@ subroutine trans_v4 ( v4, tau, tau_sc, itau, at_sc )
 
   ! Get the lattice vectors of the supercell
 
-  call get_latvec ( tau_sc, tau, itau, latvec )
+  call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
 
   ! Assign which is the transformed atom in the supercell
   ! given a particular translation vector
@@ -307,240 +326,244 @@ subroutine trans_v4 ( v4, tau, tau_sc, itau, at_sc )
 
 end subroutine trans_v4
 
-! This subroutine imposes the point group symmetry in the second-order
-! force-constants
+! ! This subroutine imposes the point group symmetry in the second-order
+! ! force-constants
 
-subroutine sym_v2 ( v2, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, at_sc, itau, prnt_sym )
+! subroutine sym_v2 ( v2, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, at_sc, itau, prnt_sym )
 
-  implicit none
+!   implicit none
 
-  double precision, dimension(:,:,:,:), intent(inout) :: v2
-  integer, intent(in) :: ntyp
-  integer, dimension(:), intent(in) :: ityp_sc
-  double precision, dimension(:), intent(in) :: amass
-  integer, intent(in) :: ibrav
-  double precision, dimension(6), intent(in) :: celldm
-  double precision, dimension(:,:), intent(in) :: tau_sc
-  character (len=3), dimension(:), intent(in) :: type_name
-  double precision, dimension(3,3), intent(in) :: at_sc
-  integer, dimension(:), intent(in) :: itau
+!   double precision, dimension(:,:,:,:), intent(inout) :: v2
+!   integer, intent(in) :: ntyp
+!   integer, dimension(:), intent(in) :: ityp_sc
+!   double precision, dimension(:), intent(in) :: amass
+!   integer, intent(in) :: ibrav
+!   double precision, dimension(6), intent(in) :: celldm
+!   double precision, dimension(:,:), intent(in) :: tau_sc
+!   character (len=3), dimension(:), intent(in) :: type_name
+!   double precision, dimension(3,3), intent(in) :: at_sc
+!   integer, dimension(:), intent(in) :: itau
 
-  double complex, dimension(:,:,:,:,:), allocatable  :: phitot
-  double precision, dimension(3,1) :: q
-  integer, dimension(1) :: nqs
-  logical :: lrigid
-  character (len=50) :: fildyn_prefix
-  character (len=512) :: fildyn
-  double precision, dimension(3,3) :: epsil
-  double precision, dimension(:,:,:), allocatable :: zeu
-  character(len=6), EXTERNAL :: int_to_char
+!   double complex, dimension(:,:,:,:,:), allocatable  :: phitot
+!   double precision, dimension(3,1) :: q
+!   integer, dimension(1) :: nqs
+!   logical :: lrigid
+!   character (len=50) :: fildyn_prefix
+!   character (len=512) :: fildyn
+!   double precision, dimension(3,3) :: epsil
+!   double precision, dimension(:,:,:), allocatable :: zeu
+!   character(len=6), EXTERNAL :: int_to_char
 
-  ! Symmetry stuff
+!   ! Symmetry stuff
 
-  integer, dimension(3,3,48) :: s
-  integer, dimension(48) :: invs, irgq, isq
-  double precision, dimension(3,48) :: sxq
-  double precision, dimension(:,:,:), allocatable :: rtau
-  integer, dimension(:,:), allocatable :: irt
-  integer :: nsymq, irotmq, nsym, imq
-  logical :: minus_q
+!   integer, dimension(3,3,48) :: s
+!   integer, dimension(48) :: invs, irgq, isq
+!   double precision, dimension(3,48) :: sxq
+!   double precision, dimension(:,:,:), allocatable :: rtau
+!   integer, dimension(:,:), allocatable :: irt
+!   integer :: nsymq, irotmq, nsym, imq
+!   logical :: minus_q
 
-  INTEGER :: na, nb, nc, isym, nar, nbr, ncr
-  double precision, ALLOCATABLE :: work (:,:,:,:)
-  double precision, dimension(3,3) :: bg_sc
+!   INTEGER :: na, nb, nc, isym, nar, nbr, ncr
+!   double precision, ALLOCATABLE :: work (:,:,:,:)
+!   double precision, dimension(3,3) :: bg_sc
 
-  integer :: nat_sc
+!   integer :: nat_sc
 
-  integer :: iq, i, j, k, alpha, beta, gamm
+!   integer :: iq, i, j, k, alpha, beta, gamm
   
-  logical :: prnt_sym
+!   logical :: prnt_sym
 
-  ! Extract integers
+!   ! Extract integers
 
-  nat_sc = size(tau_sc(1,:))
+!   nat_sc = size(tau_sc(1,:))
 
-  ! Allocate variables
+!   ! Allocate variables
 
-  allocate(phitot(1,3,3,nat_sc,nat_sc))
-  allocate(zeu(3,3,nat_sc))
+!   allocate(phitot(1,3,3,nat_sc,nat_sc))
+!   allocate(zeu(3,3,nat_sc))
 
-  allocate(rtau(3,48,nat_sc))
-  allocate(irt(48,nat_sc))
+!   allocate(rtau(3,48,nat_sc))
+!   allocate(irt(48,nat_sc))
 
-  ! Create reciprocal lattice vectors of supercell
+!   ! Create reciprocal lattice vectors of supercell
 
-  CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
+!   CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
 
-  ! Assign values to print fake dynamical matrix in the supercell
+!   ! Assign values to print fake dynamical matrix in the supercell
 
-  q = 0.0d0
-  nqs = 1
-  lrigid = .false.
-  epsil = 0.0d0
-  phitot = (0.0d0,0.0d0)
-  zeu = 0.0d0
-  fildyn_prefix = 'fake_dyn'
+!   q = 0.0d0
+!   nqs = 1
+!   lrigid = .false.
+!   epsil = 0.0d0
+!   phitot = (0.0d0,0.0d0)
+!   zeu = 0.0d0
+!   fildyn_prefix = 'fake_dyn'
 
-  ! Write fake dynamical matrix
+!   ! Write fake dynamical matrix
 
-!  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-!                            fildyn_prefix, ibrav, celldm, tau_sc, &
-!                            type_name, at_sc, lrigid, epsil, zeu)
-  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-                            fildyn_prefix, 0, celldm, tau_sc, &
-                            type_name, at_sc, lrigid, epsil, zeu)
+! !  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+! !                            fildyn_prefix, ibrav, celldm, tau_sc, &
+! !                            type_name, at_sc, lrigid, epsil, zeu)
+!   call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+!                             fildyn_prefix, 0, celldm, tau_sc, &
+!                             type_name, at_sc, lrigid, epsil, zeu)
 
-  ! Extract all information about symmetries
+!   ! Extract all information about symmetries
 
-  print *, ''
-  print *, ' Extracting symmetries of the supercell... '
-  print *, ''
+!   print *, ''
+!   print *, ' Extracting symmetries of the supercell... '
+!   print *, ''
 
-  iq = 1
+!   iq = 1
 
-  fildyn = trim(fildyn_prefix) // int_to_char(iq)
+!   fildyn = trim(fildyn_prefix) // int_to_char(iq)
 
-  call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
-                      s, invs, rtau, irt, irgq, &
-                      nsymq, irotmq, minus_q, nsym, nqs, isq, &
-                      imq, sxq, lrigid, epsil, zeu )
+!   call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
+!                       s, invs, rtau, irt, irgq, &
+!                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
+!                       imq, sxq, lrigid, epsil, zeu )
 
-  if (prnt_sym) call print_symm ( s, nsym, irt, .true., itau)
+!   if (prnt_sym) call print_symm ( s, nsym, irt, .true., itau)
 
-  ! Symmetrize the third order force constant matrix
+!   ! Symmetrize the third order force constant matrix
 
-     ALLOCATE (work(3,3,nat_sc,nat_sc))
-     !   
-     ! bring third-order matrix to crystal axis
-     !   
-     DO na = 1, nat_sc
-       DO nb = 1, nat_sc
-         do alpha = 1, 3  
-           do beta = 1, 3  
-             work(alpha,beta,na,nb) = 0.0d0
-             do i = 1, 3
-               do j = 1, 3
-                 work(alpha,beta,na,nb) = work(alpha,beta,na,nb) + &
-                                          v2(i,j,na,nb)*at_sc(i,alpha)*at_sc(j,beta)
-               end do
-             end do
-           end do
-         END DO
-       END DO
-     END DO
-     !   
-     ! symmetrize in crystal axis
-     !   
-     v2 = 0.0d0
-     DO na = 1, nat_sc
-       DO nb = 1, nat_sc
-         do alpha = 1, 3  
-           do beta = 1, 3  
-             DO isym = 1, nsym
-               nar = irt (isym, na)
-               nbr = irt (isym, nb)
-               do i = 1, 3
-                 do j = 1, 3
-                   v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
-                                          work(i,j,nar,nbr)*s(alpha,i,isym)*s(beta,j,isym)
-                 end do
-               end do
-             end do
-           end do
-         END DO
-       END DO
-     END DO
-     work (:,:,:,:) = v2 (:,:,:,:) / DBLE(nsym)
-     !   
-     ! bring vector back to cartesian axis
-     !   
-     DO na = 1, nat_sc
-       DO nb = 1, nat_sc
-         do alpha = 1, 3
-           do beta = 1, 3
-             v2(alpha,beta,na,nb) = 0.0d0
-             do i = 1, 3
-               do j = 1, 3
-                 v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
-                                        work(i,j,na,nb)*bg_sc(alpha,i)*bg_sc(beta,j)
-               end do
-             end do
-           end do
-         END DO
-       END DO
-     END DO
-     !   
-     DEALLOCATE (work)
+!      ALLOCATE (work(3,3,nat_sc,nat_sc))
+!      !   
+!      ! bring third-order matrix to crystal axis
+!      !   
+!      DO na = 1, nat_sc
+!        DO nb = 1, nat_sc
+!          do alpha = 1, 3  
+!            do beta = 1, 3  
+!              work(alpha,beta,na,nb) = 0.0d0
+!              do i = 1, 3
+!                do j = 1, 3
+!                  work(alpha,beta,na,nb) = work(alpha,beta,na,nb) + &
+!                                           v2(i,j,na,nb)*at_sc(i,alpha)*at_sc(j,beta)
+!                end do
+!              end do
+!            end do
+!          END DO
+!        END DO
+!      END DO
+!      !   
+!      ! symmetrize in crystal axis
+!      !   
+!      v2 = 0.0d0
+!      DO na = 1, nat_sc
+!        DO nb = 1, nat_sc
+!          do alpha = 1, 3  
+!            do beta = 1, 3  
+!              DO isym = 1, nsym
+!                nar = irt (isym, na)
+!                nbr = irt (isym, nb)
+!                do i = 1, 3
+!                  do j = 1, 3
+!                    v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
+!                                           work(i,j,nar,nbr)*s(alpha,i,isym)*s(beta,j,isym)
+!                  end do
+!                end do
+!              end do
+!            end do
+!          END DO
+!        END DO
+!      END DO
+!      work (:,:,:,:) = v2 (:,:,:,:) / DBLE(nsym)
+!      !   
+!      ! bring vector back to cartesian axis
+!      !   
+!      DO na = 1, nat_sc
+!        DO nb = 1, nat_sc
+!          do alpha = 1, 3
+!            do beta = 1, 3
+!              v2(alpha,beta,na,nb) = 0.0d0
+!              do i = 1, 3
+!                do j = 1, 3
+!                  v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
+!                                         work(i,j,na,nb)*bg_sc(alpha,i)*bg_sc(beta,j)
+!                end do
+!              end do
+!            end do
+!          END DO
+!        END DO
+!      END DO
+!      !   
+!      DEALLOCATE (work)
 
-  ! Deallocate stuff
+!   ! Deallocate stuff
 
-  deallocate(phitot)
-  deallocate(zeu)
-  deallocate(rtau)
-  deallocate(irt)
+!   deallocate(phitot)
+!   deallocate(zeu)
+!   deallocate(rtau)
+!   deallocate(irt)
 
-end subroutine sym_v2
+! end subroutine sym_v2
 
+! =========================
 ! This subroutine imposes the point group symmetry in the third-order
 ! force-constants
 
-subroutine sym_v3 ( v3, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, at_sc, itau )
+subroutine sym_v3 ( v3, at_sc, itau, s, irt, nsym, nat_sc )
 
   implicit none
 
-  double precision, dimension(:,:,:), intent(inout) :: v3
-  integer, intent(in) :: ntyp
-  integer, dimension(:), intent(in) :: ityp_sc
-  double precision, dimension(:), intent(in) :: amass
-  integer, intent(in) :: ibrav
-  double precision, dimension(6), intent(in) :: celldm
-  double precision, dimension(:,:), intent(in) :: tau_sc
-  character (len=3), dimension(:), intent(in) :: type_name
+  double precision, dimension(nat_sc*3,nat_sc*3,nat_sc*3), intent(inout) :: v3
+  !integer, dimension(nat_sc), intent(in) :: ityp_sc
+  !double precision, dimension(ntyp), intent(in) :: amass
+  !integer, intent(in) :: ibrav
+  !double precision, dimension(6), intent(in) :: celldm
+  !double precision, dimension(3,nat_sc), intent(in) :: tau_sc
+  !character (len=3), dimension(:), intent(in) :: type_name
   double precision, dimension(3,3), intent(in) :: at_sc
-  integer, dimension(:), intent(in) :: itau
+  integer, dimension(nat_sc), intent(in) :: itau
 
-  double complex, dimension(:,:,:,:,:), allocatable  :: phitot
-  double precision, dimension(3,1) :: q
-  integer, dimension(1) :: nqs
-  logical :: lrigid
-  character (len=50) :: fildyn_prefix
-  character (len=512) :: fildyn
-  double precision, dimension(3,3) :: epsil
-  double precision, dimension(:,:,:), allocatable :: zeu
-  character(len=6), EXTERNAL :: int_to_char
+  ! The symmetries
+  integer, dimension(3,3,48), intent(in) :: s
+  integer, dimension(48, nat_sc), intent(in) :: irt
+
+  integer :: nsym
+  integer :: nat_sc
+
+  !double complex, dimension(:,:,:,:,:), allocatable  :: phitot
+  !double precision, dimension(3,1) :: q
+  !integer, dimension(1) :: nqs
+  !logical :: lrigid
+  !character (len=50) :: fildyn_prefix
+  !character (len=512) :: fildyn
+  !double precision, dimension(3,3) :: epsil
+  !double precision, dimension(:,:,:), allocatable :: zeu
+  !character(len=6), EXTERNAL :: int_to_char
 
   ! Symmetry stuff
 
-  integer, dimension(3,3,48) :: s
-  integer, dimension(48) :: invs, irgq, isq
-  double precision, dimension(3,48) :: sxq
-  double precision, dimension(:,:,:), allocatable :: rtau
-  integer, dimension(:,:), allocatable :: irt
-  integer :: nsymq, irotmq, nsym, imq
-  logical :: minus_q
+  !integer, dimension(48) :: invs, irgq, isq
+  !double precision, dimension(3,48) :: sxq
+  !double precision, dimension(:,:,:), allocatable :: rtau
+  !integer :: nsymq, irotmq, nsym, imq
+  !logical :: minus_q
 
   INTEGER :: na, nb, nc, isym, nar, nbr, ncr
   double precision, ALLOCATABLE :: work (:,:,:,:,:,:)
   double precision, dimension(3,3) :: bg_sc
 
-  integer :: nat_sc
   double precision, dimension(:,:,:,:,:,:), allocatable :: v32
 
   integer :: iq, i, j, k, alpha, beta, gamm
 
   ! Extract integers
 
-  nat_sc = size(tau_sc(1,:))
+  !nat_sc = size(tau_sc(1,:))
 
   ! Allocate variables
 
   allocate(v32(nat_sc,nat_sc,nat_sc,3,3,3))
 
-  allocate(phitot(1,3,3,nat_sc,nat_sc))
-  allocate(zeu(3,3,nat_sc))
+  !allocate(phitot(1,3,3,nat_sc,nat_sc))
+  !allocate(zeu(3,3,nat_sc))
 
-  allocate(rtau(3,48,nat_sc))
-  allocate(irt(48,nat_sc))
+  !allocate(rtau(3,48,nat_sc))
+  !allocate(irt(48,nat_sc))
 
   ! Create reciprocal lattice vectors of supercell
 
@@ -548,43 +571,43 @@ subroutine sym_v3 ( v3, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
 
   ! Write third-order force constants with 6 indexes
 
-  call threetosix_real (v3,v32)
+  call threetosix_real (v3,v32, nat_sc)
 
   ! Assign values to print fake dynamical matrix in the supercell
 
-  q = 0.0d0
-  nqs = 1
-  lrigid = .false.
-  epsil = 0.0d0
-  phitot = (0.0d0,0.0d0)
-  zeu = 0.0d0
-  fildyn_prefix = 'fake_dyn'
+!   q = 0.0d0
+!   nqs = 1
+!   lrigid = .false.
+!   epsil = 0.0d0
+!   phitot = (0.0d0,0.0d0)
+!   zeu = 0.0d0
+!   fildyn_prefix = 'fake_dyn'
 
-  ! Write fake dynamical matrix
+!   ! Write fake dynamical matrix
 
-!  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-!                            fildyn_prefix, ibrav, celldm, tau_sc, &
-!                            type_name, at_sc, lrigid, epsil, zeu)
-  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-                            fildyn_prefix, 0, celldm, tau_sc, &
-                            type_name, at_sc, lrigid, epsil, zeu)
+! !  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+! !                            fildyn_prefix, ibrav, celldm, tau_sc, &
+! !                            type_name, at_sc, lrigid, epsil, zeu)
+!   call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+!                             fildyn_prefix, 0, celldm, tau_sc, &
+!                             type_name, at_sc, lrigid, epsil, zeu)
 
-  ! Extract all information about symmetries
+!   ! Extract all information about symmetries
 
-  print *, ''
-  print *, ' Extracting symmetries of the supercell... '
-  print *, ''
+!   print *, ''
+!   print *, ' Extracting symmetries of the supercell... '
+!   print *, ''
 
-  iq = 1
+!   iq = 1
 
-  fildyn = trim(fildyn_prefix) // int_to_char(iq)
+!   fildyn = trim(fildyn_prefix) // int_to_char(iq)
 
-  call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
-                      s, invs, rtau, irt, irgq, &
-                      nsymq, irotmq, minus_q, nsym, nqs, isq, &
-                      imq, sxq, lrigid, epsil, zeu )
+!   call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
+!                       s, invs, rtau, irt, irgq, &
+!                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
+!                       imq, sxq, lrigid, epsil, zeu )
 
-  call print_symm ( s, nsym, irt, .true., itau)
+  call print_symm ( s, nsym, irt, .true., itau, nat_sc)
 
   ! Symmetrize the third order force constant matrix
 
@@ -672,15 +695,14 @@ subroutine sym_v3 ( v3, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
 
   ! Write third-order force constants back with 3 indexes
 
-  call sixtothree_real (v32,v3)
+  call sixtothree_real (v32,v3, nat_sc)
 
   ! Deallocate stuff
 
-  deallocate(phitot)
-  deallocate(zeu)
-  deallocate(rtau)
-  deallocate(irt)
-
+  ! deallocate(phitot)
+  ! deallocate(zeu)
+  ! deallocate(rtau)
+  ! deallocate(irt)
 end subroutine sym_v3
 
 ! This subroutine imposes the point group symmetry in the fourth-order
@@ -710,7 +732,7 @@ subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
   character (len=512) :: fildyn
   double precision, dimension(3,3) :: epsil
   double precision, dimension(:,:,:), allocatable :: zeu
-  character(len=6), EXTERNAL :: int_to_char
+  !character(len=6), EXTERNAL :: int_to_char
 
   ! Symmetry stuff
 
@@ -748,39 +770,39 @@ subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
 
   ! Assign values to print fake dynamical matrix in the supercell
 
-  q = 0.0d0
-  nqs = 1
-  lrigid = .false.
-  epsil = 0.0d0
-  phitot = (0.0d0,0.0d0)
-  zeu = 0.0d0
-  fildyn_prefix = 'fake_dyn'
+!   q = 0.0d0
+!   nqs = 1
+!   lrigid = .false.
+!   epsil = 0.0d0
+!   phitot = (0.0d0,0.0d0)
+!   zeu = 0.0d0
+!   fildyn_prefix = 'fake_dyn'
 
-  ! Write fake dynamical matrix
+!   ! Write fake dynamical matrix
 
-!  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-!                            fildyn_prefix, ibrav, celldm, tau_sc, &
-!                            type_name, at_sc, lrigid, epsil, zeu)
-  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-                            fildyn_prefix, 0, celldm, tau_sc, &
-                            type_name, at_sc, lrigid, epsil, zeu)
+! !  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+! !                            fildyn_prefix, ibrav, celldm, tau_sc, &
+! !                            type_name, at_sc, lrigid, epsil, zeu)
+!   call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+!                             fildyn_prefix, 0, celldm, tau_sc, &
+!                             type_name, at_sc, lrigid, epsil, zeu)
 
-  ! Extract all information about symmetries
+!   ! Extract all information about symmetries
 
-  print *, ''
-  print *, ' Extracting symmetries of the supercell... '
-  print *, ''
+!   print *, ''
+!   print *, ' Extracting symmetries of the supercell... '
+!   print *, ''
 
-  iq = 1
+!   iq = 1
 
-  fildyn = trim(fildyn_prefix) // int_to_char(iq)
+!   fildyn = trim(fildyn_prefix) // int_to_char(iq)
 
-  call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
-                      s, invs, rtau, irt, irgq, &
-                      nsymq, irotmq, minus_q, nsym, nqs, isq, &
-                      imq, sxq, lrigid, epsil, zeu )
+!   call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
+!                       s, invs, rtau, irt, irgq, &
+!                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
+!                       imq, sxq, lrigid, epsil, zeu )
 
-  call print_symm ( s, nsym, irt, .true., itau)
+  call print_symm ( s, nsym, irt, .true., itau, nat_sc)
 
   ! Symmetrize the fourth order force constant matrix
 
@@ -905,219 +927,219 @@ end subroutine sym_v4
 ! the vector for all the random configuration 
 ! and it outputs in a new array the vector replicated in the new structures
 
-subroutine sym_replica (v, at_sc, irt, s, nsym, tau_sc_latvec, trans_replica, vr) 
+! subroutine sym_replica (v, at_sc, irt, s, nsym, tau_sc_latvec, trans_replica, vr) 
 
-  implicit none
+!   implicit none
 
-  double precision, dimension(:,:,:), intent(in) :: v   ! Input vector
-                                                        ! Dimension (n_random,nat_sc,3)
-  double precision, dimension(3,3), intent(in) :: at_sc ! Lattice vectors of the supercell
-  integer, dimension(:,:), intent(in) :: irt            ! Rotated atom by a symmetry operation
-  integer, dimension(3,3,48), intent(in) :: s           ! Symmetry operation matrix
-  integer, intent(in) :: nsym                           ! Number of symmetry operations
-  integer, dimension(:,:), allocatable :: tau_sc_latvec ! Tells which is the transformed atom by a particular translation
-  logical, intent(in) :: trans_replica                  ! Logical variable to determine if translational replica are included
-  double precision, dimension(:,:,:), intent(out) :: vr ! Output vector
-                                                        ! Dimension (n_random*nsym,nat_sc,3)
+!   double precision, dimension(:,:,:), intent(in) :: v   ! Input vector
+!                                                         ! Dimension (n_random,nat_sc,3)
+!   double precision, dimension(3,3), intent(in) :: at_sc ! Lattice vectors of the supercell
+!   integer, dimension(:,:), intent(in) :: irt            ! Rotated atom by a symmetry operation
+!   integer, dimension(3,3,48), intent(in) :: s           ! Symmetry operation matrix
+!   integer, intent(in) :: nsym                           ! Number of symmetry operations
+!   integer, dimension(:,:), allocatable :: tau_sc_latvec ! Tells which is the transformed atom by a particular translation
+!   logical, intent(in) :: trans_replica                  ! Logical variable to determine if translational replica are included
+!   double precision, dimension(:,:,:), intent(out) :: vr ! Output vector
+!                                                         ! Dimension (n_random*nsym,nat_sc,3)
   
-  ! Work variables for the subroutine
-  integer :: n_random, nat_sc, ntrans
-  integer :: na, nar, i, alpha, ran, nr, isym, nt 
-  double precision, dimension(3,3) :: bg_sc
-  double precision, dimension(:,:), allocatable :: work1, work2
-  double precision, dimension(3) :: work_aux
+!   ! Work variables for the subroutine
+!   integer :: n_random, nat_sc, ntrans
+!   integer :: na, nar, i, alpha, ran, nr, isym, nt 
+!   double precision, dimension(3,3) :: bg_sc
+!   double precision, dimension(:,:), allocatable :: work1, work2
+!   double precision, dimension(3) :: work_aux
 
 
-  ! Get integers
+!   ! Get integers
 
-  n_random = size (v(:,1,1))
-  nat_sc   = size (v(1,:,1))
-  ntrans   = size (tau_sc_latvec(1,:))
+!   n_random = size (v(:,1,1))
+!   nat_sc   = size (v(1,:,1))
+!   ntrans   = size (tau_sc_latvec(1,:))
   
-  ! Allcoate arrays 
+!   ! Allcoate arrays 
 
-  allocate ( work1 (nat_sc,3) )
-  allocate ( work2 (nat_sc,3) )
+!   allocate ( work1 (nat_sc,3) )
+!   allocate ( work2 (nat_sc,3) )
 
-  ! Create reciprocal lattice vectors of supercell
+!   ! Create reciprocal lattice vectors of supercell
 
-  CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
+!   CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
 
-  ! Do loop on random configurations and create replicas
+!   ! Do loop on random configurations and create replicas
 
-  nr = 0 ! Counter on replicas
+!   nr = 0 ! Counter on replicas
 
-  do ran = 1, n_random
-    ! Now we create replicas based on point group symmetries
-    do isym = 1, nsym
-      ! Bring vector to crystal axis
-      work1 = 0.0d0
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          work1(na,alpha) = 0.0d0
-          do i = 1, 3
-            work1(na,alpha) = work1(na,alpha) + v(ran,na,i) * at_sc(i,alpha)
-          end do
-        end do
-      end do
-      work2 = 0.0d0
-      ! Make replica
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          nar = irt (isym, na)
-          do i = 1, 3
-            work2(na,alpha) = work2(na,alpha) + work1(nar,i) * s(alpha,i,isym)
-          end do
-        end do
-      end do
-      ! Bring replica to cartesian units
-      work1 = 0.0d0
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          do i = 1, 3
-            work1(na,alpha) = work1(na,alpha) + work2(na,i) * bg_sc (alpha,i)
-          end do
-        end do 
-      end do      
-      ! Now we create replicas based on translations
-      if (trans_replica) then
-        do nt = 1, ntrans
-          nr = nr + 1
-          do na = 1, nat_sc
-            vr(nr,tau_sc_latvec(na,nt),:) =  work1(na,:)
-          end do
-        end do
-      else
-        nr = nr + 1
-        vr(nr,:,:) = work1(:,:)     
-      end if
-    end do
-  end do
+!   do ran = 1, n_random
+!     ! Now we create replicas based on point group symmetries
+!     do isym = 1, nsym
+!       ! Bring vector to crystal axis
+!       work1 = 0.0d0
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           work1(na,alpha) = 0.0d0
+!           do i = 1, 3
+!             work1(na,alpha) = work1(na,alpha) + v(ran,na,i) * at_sc(i,alpha)
+!           end do
+!         end do
+!       end do
+!       work2 = 0.0d0
+!       ! Make replica
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           nar = irt (isym, na)
+!           do i = 1, 3
+!             work2(na,alpha) = work2(na,alpha) + work1(nar,i) * s(alpha,i,isym)
+!           end do
+!         end do
+!       end do
+!       ! Bring replica to cartesian units
+!       work1 = 0.0d0
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           do i = 1, 3
+!             work1(na,alpha) = work1(na,alpha) + work2(na,i) * bg_sc (alpha,i)
+!           end do
+!         end do 
+!       end do      
+!       ! Now we create replicas based on translations
+!       if (trans_replica) then
+!         do nt = 1, ntrans
+!           nr = nr + 1
+!           do na = 1, nat_sc
+!             vr(nr,tau_sc_latvec(na,nt),:) =  work1(na,:)
+!           end do
+!         end do
+!       else
+!         nr = nr + 1
+!         vr(nr,:,:) = work1(:,:)     
+!       end if
+!     end do
+!   end do
 
-  ! Deallcoate arrays
+!   ! Deallcoate arrays
 
-  deallocate ( work1, work2 )
+!   deallocate ( work1, work2 )
 
-end subroutine sym_replica
+! end subroutine sym_replica
 
-! This subroutine creates replicas for one vector (i.e. forces or displacements)
-! in the supercell based on the pointgroup symmetries. The subroutine inputs
-! the vector for all the random configuration 
-! and it outputs in a new array the vector replicated in the new structures
+! ! This subroutine creates replicas for one vector (i.e. forces or displacements)
+! ! in the supercell based on the pointgroup symmetries. The subroutine inputs
+! ! the vector for all the random configuration 
+! ! and it outputs in a new array the vector replicated in the new structures
 
-subroutine sym_replica2 (v, at_sc, irt, s, nsym, tau_sc_latvec, trans_replica, vr) 
+! subroutine sym_replica2 (v, at_sc, irt, s, nsym, tau_sc_latvec, trans_replica, vr) 
 
-  implicit none
+!   implicit none
 
-  double precision, dimension(:,:,:), intent(in) :: v   ! Input vector
-                                                        ! Dimension (n_random,nat_sc,3)
-  double precision, dimension(3,3), intent(in) :: at_sc ! Lattice vectors of the supercell
-  integer, dimension(:,:), intent(in) :: irt            ! Rotated atom by a symmetry operation
-  integer, dimension(3,3,48), intent(in) :: s           ! Symmetry operation matrix
-  integer, intent(in) :: nsym                           ! Number of symmetry operations
-  integer, dimension(:,:), allocatable :: tau_sc_latvec ! Tells which is the transformed atom by a particular translation
-  logical, intent(in) :: trans_replica                  ! Logical variable to determine if translational replica are included
-  double precision, dimension(:,:,:), intent(out) :: vr ! Output vector
-                                                        ! Dimension (n_random*nsym,nat_sc,3)
+!   double precision, dimension(:,:,:), intent(in) :: v   ! Input vector
+!                                                         ! Dimension (n_random,nat_sc,3)
+!   double precision, dimension(3,3), intent(in) :: at_sc ! Lattice vectors of the supercell
+!   integer, dimension(:,:), intent(in) :: irt            ! Rotated atom by a symmetry operation
+!   integer, dimension(3,3,48), intent(in) :: s           ! Symmetry operation matrix
+!   integer, intent(in) :: nsym                           ! Number of symmetry operations
+!   integer, dimension(:,:), allocatable :: tau_sc_latvec ! Tells which is the transformed atom by a particular translation
+!   logical, intent(in) :: trans_replica                  ! Logical variable to determine if translational replica are included
+!   double precision, dimension(:,:,:), intent(out) :: vr ! Output vector
+!                                                         ! Dimension (n_random*nsym,nat_sc,3)
   
-  ! Work variables for the subroutine
-  integer :: n_random, nat_sc, ntrans
-  integer :: na, nar, i, alpha, ran, nr, isym, nt 
-  double precision, dimension(3,3) :: bg_sc
-  double precision, dimension(:,:), allocatable :: work1, work2
-  double precision, dimension(3) :: work_aux
+!   ! Work variables for the subroutine
+!   integer :: n_random, nat_sc, ntrans
+!   integer :: na, nar, i, alpha, ran, nr, isym, nt 
+!   double precision, dimension(3,3) :: bg_sc
+!   double precision, dimension(:,:), allocatable :: work1, work2
+!   double precision, dimension(3) :: work_aux
 
 
-  ! Get integers
+!   ! Get integers
 
-  n_random = size (v(:,1,1))
-  nat_sc   = size (v(1,:,1))
-  ntrans   = size (tau_sc_latvec(1,:))
+!   n_random = size (v(:,1,1))
+!   nat_sc   = size (v(1,:,1))
+!   ntrans   = size (tau_sc_latvec(1,:))
   
-  ! Allcoate arrays 
+!   ! Allcoate arrays 
 
-  allocate ( work1 (nat_sc,3) )
-  allocate ( work2 (nat_sc,3) )
+!   allocate ( work1 (nat_sc,3) )
+!   allocate ( work2 (nat_sc,3) )
 
-  ! Create reciprocal lattice vectors of supercell
+!   ! Create reciprocal lattice vectors of supercell
 
-  CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
+!   CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
 
-  ! Do loop on random configurations and create replicas
+!   ! Do loop on random configurations and create replicas
 
-  nr = 0 ! Counter on replicas
+!   nr = 0 ! Counter on replicas
 
-  do ran = 1, n_random
-    ! Now we create replicas based on point group symmetries
-    do isym = 1, nsym
-      ! Bring vector to crystal axis
-      work1 = 0.0d0
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          work1(na,alpha) = 0.0d0
-          do i = 1, 3
-            work1(na,alpha) = work1(na,alpha) + v(ran,na,i) * bg_sc(i,alpha)
-          end do
-        end do
-      end do
-      work2 = 0.0d0
-      ! Make replica
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          nar = irt (isym, na)
-          do i = 1, 3
-            work2(na,alpha) = work2(na,alpha) + work1(nar,i) * s(alpha,i,isym)
-          end do
-        end do
-      end do
-      ! Bring replica to cartesian units
-      work1 = 0.0d0
-      do na = 1, nat_sc
-        do alpha = 1, 3
-          do i = 1, 3
-            work1(na,alpha) = work1(na,alpha) + work2(na,i) * at_sc (alpha,i)
-          end do
-        end do 
-      end do      
-      ! Now we create replicas based on translations
-      if (trans_replica) then
-        do nt = 1, ntrans
-          nr = nr + 1
-          do na = 1, nat_sc
-            vr(nr,tau_sc_latvec(na,nt),:) =  work1(na,:)
-          end do
-        end do
-      else
-        nr = nr + 1
-        vr(nr,:,:) = work1(:,:)     
-      end if
-    end do
-  end do
+!   do ran = 1, n_random
+!     ! Now we create replicas based on point group symmetries
+!     do isym = 1, nsym
+!       ! Bring vector to crystal axis
+!       work1 = 0.0d0
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           work1(na,alpha) = 0.0d0
+!           do i = 1, 3
+!             work1(na,alpha) = work1(na,alpha) + v(ran,na,i) * bg_sc(i,alpha)
+!           end do
+!         end do
+!       end do
+!       work2 = 0.0d0
+!       ! Make replica
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           nar = irt (isym, na)
+!           do i = 1, 3
+!             work2(na,alpha) = work2(na,alpha) + work1(nar,i) * s(alpha,i,isym)
+!           end do
+!         end do
+!       end do
+!       ! Bring replica to cartesian units
+!       work1 = 0.0d0
+!       do na = 1, nat_sc
+!         do alpha = 1, 3
+!           do i = 1, 3
+!             work1(na,alpha) = work1(na,alpha) + work2(na,i) * at_sc (alpha,i)
+!           end do
+!         end do 
+!       end do      
+!       ! Now we create replicas based on translations
+!       if (trans_replica) then
+!         do nt = 1, ntrans
+!           nr = nr + 1
+!           do na = 1, nat_sc
+!             vr(nr,tau_sc_latvec(na,nt),:) =  work1(na,:)
+!           end do
+!         end do
+!       else
+!         nr = nr + 1
+!         vr(nr,:,:) = work1(:,:)     
+!       end if
+!     end do
+!   end do
 
-  ! Deallcoate arrays
+!   ! Deallcoate arrays
 
-  deallocate ( work1, work2 )
+!   deallocate ( work1, work2 )
 
-end subroutine sym_replica2
+! end subroutine sym_replica2
 
 
 ! This subroutine prints out the symmetries. It prints point group matrix
 ! and which atom is related to that in the unit cell
 
-subroutine print_symm ( s, nsym, irt, supercell, itau)
+subroutine print_symm ( s, nsym, irt, supercell, itau, nat)
 
   implicit none 
 
   integer, dimension(3,3,48), intent(in) :: s
   integer, intent(in) :: nsym
-  integer, dimension(:,:), intent(in) :: irt
+  integer, dimension(48,nat), intent(in) :: irt
   logical, intent(in) :: supercell
-  integer, dimension(:), intent(in) :: itau
+  integer, dimension(nat), intent(in) :: itau
 
   integer :: isym, alpha, na
   integer :: nat
 
-  nat = size(irt(1,:))
+  !nat = size(irt(1,:))
 
   print *, ''
   print *, ' Printing symmetries... ' 
@@ -1146,5 +1168,3 @@ subroutine print_symm ( s, nsym, irt, supercell, itau)
   end do
 
 end subroutine print_symm  
-
-end module symmetry

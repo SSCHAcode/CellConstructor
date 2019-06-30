@@ -2,14 +2,14 @@
 ! This subroutine writes a (3*nat,3*nat,3*nat) real matrix in the
 ! (nat,nat,nat,3,3,3) 
 
-subroutine threetosix_real (mat3,mat6, nat, nat3)
+subroutine threetosix_real (mat3,mat6, nat)
 
     implicit none
   
-    double precision, dimension(nat3,nat3,nat3), intent(in) :: mat3
+    double precision, dimension(nat*3,nat*3,nat*3), intent(in) :: mat3
     double precision, dimension(nat,nat,nat,3,3,3), intent(out) :: mat6
   
-    integer :: nat, nat3
+    integer :: nat
     integer :: i, j, k, alpha, beta, gamm
   
   
@@ -32,14 +32,14 @@ subroutine threetosix_real (mat3,mat6, nat, nat3)
   ! This subroutine writes a (3*nat,3*nat,3*nat) real matrix in the
   ! (nat,nat,nat,3,3,3) 
   
-  subroutine sixtothree_real (mat6,mat3, nat, nat3)
+  subroutine sixtothree_real (mat6,mat3, nat)
   
     implicit none
   
-    double precision, dimension(nat3,nat3,nat3), intent(out) :: mat3
+    double precision, dimension(nat*3,nat*3,nat*3), intent(out) :: mat3
     double precision, dimension(nat,nat,nat,3,3,3), intent(in) :: mat6
   
-    integer :: nat, nat3
+    integer :: nat
     integer :: i, j, k, alpha, beta, gamm
   
   
