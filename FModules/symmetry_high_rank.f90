@@ -504,7 +504,7 @@ end subroutine trans_v4
 ! This subroutine imposes the point group symmetry in the third-order
 ! force-constants
 
-subroutine sym_v3 ( v3, at_sc, itau, s, irt, nsym, nat_sc )
+subroutine sym_v3 ( v3, at_sc, s, irt, nsym, nat_sc )
 
   implicit none
 
@@ -516,7 +516,7 @@ subroutine sym_v3 ( v3, at_sc, itau, s, irt, nsym, nat_sc )
   !double precision, dimension(3,nat_sc), intent(in) :: tau_sc
   !character (len=3), dimension(:), intent(in) :: type_name
   double precision, dimension(3,3), intent(in) :: at_sc
-  integer, dimension(nat_sc), intent(in) :: itau
+  !integer, dimension(nat_sc), intent(in) :: itau
 
   ! The symmetries
   integer, dimension(3,3,48), intent(in) :: s
@@ -607,7 +607,7 @@ subroutine sym_v3 ( v3, at_sc, itau, s, irt, nsym, nat_sc )
 !                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
 !                       imq, sxq, lrigid, epsil, zeu )
 
-  call print_symm ( s, nsym, irt, .true., itau, nat_sc)
+  call print_symm ( s, nsym, irt, .true., nat_sc)
 
   ! Symmetrize the third order force constant matrix
 
@@ -802,7 +802,7 @@ subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
 !                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
 !                       imq, sxq, lrigid, epsil, zeu )
 
-  call print_symm ( s, nsym, irt, .true., itau, nat_sc)
+  call print_symm ( s, nsym, irt, .true., nat_sc)
 
   ! Symmetrize the fourth order force constant matrix
 
@@ -1126,7 +1126,7 @@ end subroutine sym_v4
 ! This subroutine prints out the symmetries. It prints point group matrix
 ! and which atom is related to that in the unit cell
 
-subroutine print_symm ( s, nsym, irt, supercell, itau, nat)
+subroutine print_symm ( s, nsym, irt, supercell, nat)
 
   implicit none 
 
@@ -1134,7 +1134,7 @@ subroutine print_symm ( s, nsym, irt, supercell, itau, nat)
   integer, intent(in) :: nsym
   integer, dimension(48,nat), intent(in) :: irt
   logical, intent(in) :: supercell
-  integer, dimension(nat), intent(in) :: itau
+  !integer, dimension(nat), intent(in) :: itau
 
   integer :: isym, alpha, na
   integer :: nat
@@ -1159,12 +1159,12 @@ subroutine print_symm ( s, nsym, irt, supercell, itau, nat)
     do na = 1, nat
       print '(i3,a,i3)', na , ' -> ', irt(isym,na)
     end do
-    if ( supercell ) then
-      print *, '            rotated atoms brought to unit cell:'
-      do na = 1, nat
-        print '(i3,a,i3)', itau(na) , ' -> ', itau(irt(isym,na))
-      end do
-    end if
+    ! if ( supercell ) then
+    !   print *, '            rotated atoms brought to unit cell:'
+    !   do na = 1, nat
+    !     print '(i3,a,i3)', itau(na) , ' -> ', itau(irt(isym,na))
+    !   end do
+    ! end if
   end do
 
 end subroutine print_symm  

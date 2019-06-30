@@ -211,7 +211,32 @@ class QE_Symmetry:
         return q_stars, q_indices
 
 
-            
+    def ApplySymmetryToTensor3(self, v3):
+        """
+        SYMMETRIZE A RANK-3 TENSOR
+        ==========================
+
+        This subroutines uses the current symmetries to symmetrize
+        a rank-3 tensor. 
+        This tensor must be in the supercell space.
+
+        The v3 argument will be overwritten.
+
+        NOTE: The symmetries must be initialized at gamma!
+
+        Parameters
+        ----------
+            v3 : ndarray( size=(3*nat, 3*nat, 3*nat), dtype = np.double, order = "F")
+                The 3-rank tensor to be symmetrized.
+                It will be overwritten with the new symmetric one.
+                It is suggested to specify the order of the array to "F", as this will prevent
+                the parser to copy the matrix when doing the symmetrization in Fortran.
+        """
+        # Apply the permutation symmetry
+        symph.permute_v3(v3)
+        # Apply all the symmetries at gamma
+        symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_nsymq)
+
     
     def ApplyQStar(self, fcq, q_point_group):
         """
@@ -1480,14 +1505,6 @@ def GetSupercellFromQlist(q_list, unit_cell):
     
     return supercell
 
-def ApplySymmetriesToRank3Matrix(symmetries, IRT, r3_matrix_inout):
-    """
-    APPLY SYMMETRIES ON A RANK-3 MATRIX
-    ===================================
-
-    This function symmetrizes a real space rank 3 matrices in cartesian units.
-    """
-        
 
 def GetSymmetriesOnModes(symmetries, structure, pol_vects):
         """
