@@ -705,8 +705,17 @@ class QE_Symmetry:
                 print ("But I did not find such a symmetry!")
                 raise ValueError("Error in the symmetrization. See stdout")
                        
+    def SetupFromSPGLIB(self):
+        """
+        USE SPGLIB TO SETUP THE SYMMETRIZATION
+        ======================================
+
+        This function uses spglib to find symmetries, recognize the supercell
+        and setup all the variables to perform the symmetrization inside the supercell.
+        """
+        raise NotImplementedError("Error, not yet implemented.")
                 
-    def InitFromSymmetries(self, symmetries, q_point):
+    def InitFromSymmetries(self, symmetries, q_point = np.array([0,0,0])):
         """
         This function initialize the QE symmetries from the symmetries expressed in the
         Cellconstructor format, i.e. a list of numpy array 3x4 where the last column is 
@@ -719,16 +728,14 @@ class QE_Symmetry:
         nsym = len(symmetries)
         
         self.QE_nsymq = np.intc(nsym)
+        self.QE_nsym = self.QE_nsymq
         
         
         for i, sym in enumerate(symmetries):
             self.QE_s[:,:, i] = np.transpose(sym[:, :3])
             
             # Get the atoms correspondence
-            aux_atoms = self.structure.copy()
-            aux_atoms.apply_symmetry(sym, delete_original = True)
-            aux_atoms.fix_coords_in_unit_cell()
-            eq_atoms = np.array(self.structure.get_equivalent_atoms(aux_atoms), dtype = np.intc)
+            eq_atoms = GetIRT(self.structure, sym)
             
             self.QE_irt[i, :] = eq_atoms + 1
             
@@ -742,7 +749,7 @@ class QE_Symmetry:
             
             # Setup the position after the symmetry application
             for k in range(self.QE_nat):
-                self.QE_rtau[:, i, k] = aux_atoms.coords[k, :].astype(np.float64)
+                self.QE_rtau[:, i, k] = self.structure.coords[eq_atoms[k], :].astype(np.float64)
         
         
         # Get the reciprocal lattice vectors
@@ -750,6 +757,8 @@ class QE_Symmetry:
         
         # Get the minus_q operation
         self.QE_minusq = False
+
+        # NOTE: HERE THERE COULD BE A BUG
         
         # q != -q
         # Get the q vectors in crystal coordinates
@@ -1251,7 +1260,7 @@ def GetIRT(structure, symmetry):
     n_struct_2 = new_struct.copy()
 
     new_struct.apply_symmetry(symmetry, True)
-    irt = n_struct_2.get_equivalent_atoms(new_struct)
+    irt = np.array(n_struct_2.get_equivalent_atoms(new_struct), dtype =np.intc)
     return irt
 
 def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
