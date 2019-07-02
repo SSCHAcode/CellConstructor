@@ -1013,6 +1013,9 @@ class QE_Symmetry:
                 It is directly modified
         """
 
+        # Apply the Permutation symmetry
+        v2[:,:] = 0.5 * (v2 + v2.T)
+
         # First lets recall that the fortran subroutines
         # Takes the input as (3,3,nat,nat)
         new_v2 = np.zeros( (3,3, self.QE_nat, self.QE_nat), dtype = np.double, order ="F")

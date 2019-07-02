@@ -38,8 +38,11 @@ sym_mats = CC.symmetries.GetSymmetriesFromSPGLIB(symmetries)
 PH.structure.fix_coords_in_unit_cell()
 PH.structure.impose_symmetries(sym_mats)
 
-view(PH.structure.get_ase_atoms())
- 
+# get a random matrix
+nat = PH.structure.N_atoms
+#PH.dynmats[0][:,:] = np.random.uniform(size = (3 * nat, 3*nat))
+#PH.dynmats[0] += PH.dynmats[0].T
+
 
 # Get frequencies of the original matrix
 w, pols = PH.DyagDinQ(0)
@@ -51,7 +54,7 @@ qe_sym = CC.symmetries.QE_Symmetry(PH.structure)
 qe_sym.SetupQPoint(verbose = True)
 #qe_sym.SymmetrizeDynQ(PH_new.dynmats[0], np.array([0,0,0]))
 qe_sym.ApplySymmetriesToV2(PH_new.dynmats[0])
-#CC.symmetries.CustomASR(PH_new.dynmats[0])
+CC.symmetries.CustomASR(PH_new.dynmats[0])
 
 new_w, new_pols = PH_new.DyagDinQ(0)
 
@@ -59,7 +62,7 @@ new_w, new_pols = PH_new.DyagDinQ(0)
 PH.Symmetrize()
 w_qe, p_qe = PH.DyagDinQ(0)
 
-print ("Python Symmetries | QE Symmetries | Old Matrix")
-print ("\n".join(["%12.2f\t%12.2f\t%12.2f  cm-1" % (new_w[k]*RyToCm, w[k] * RyToCm, w_qe[k] * RyToCm) for k in range(0, len(w))]))
+print ("Old Matrix | Python Symmetries | QE Symmetries | ")
+print ("\n".join(["%12.2f\t%12.2f\t%12.2f  cm-1" % (w[k] * RyToCm, new_w[k]*RyToCm , w_qe[k] * RyToCm) for k in range(0, len(w))]))
         
         

@@ -346,7 +346,15 @@ subroutine sym_v2 ( v2, at_sc, s, irt, nsym, nat_sc)
   double precision, dimension(3,3) :: bg_sc
 
   integer :: iq, i, j, k, alpha, beta, gamm
-  
+  logical, parameter :: debug = .true.
+
+  if (debug) then
+    print *, "=== DEBUG SYM_V2 ==="
+    print *, "NSYM:", nsym 
+    print *, "NAT_SC:", nat_sc 
+    call flush()
+  endif
+
   !logical :: prnt_sym
 
   ! Extract integers
