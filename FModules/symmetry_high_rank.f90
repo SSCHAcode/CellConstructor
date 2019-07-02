@@ -326,179 +326,116 @@ subroutine trans_v4 ( v4, tau, tau_sc, itau, at_sc )
 
 end subroutine trans_v4
 
-! ! This subroutine imposes the point group symmetry in the second-order
-! ! force-constants
+! This subroutine imposes the point group symmetry in the second-order
+! force-constants
 
-! subroutine sym_v2 ( v2, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, at_sc, itau, prnt_sym )
+subroutine sym_v2 ( v2, at_sc, s, irt, nsym, nat_sc)
 
-!   implicit none
+  implicit none
 
-!   double precision, dimension(:,:,:,:), intent(inout) :: v2
-!   integer, intent(in) :: ntyp
-!   integer, dimension(:), intent(in) :: ityp_sc
-!   double precision, dimension(:), intent(in) :: amass
-!   integer, intent(in) :: ibrav
-!   double precision, dimension(6), intent(in) :: celldm
-!   double precision, dimension(:,:), intent(in) :: tau_sc
-!   character (len=3), dimension(:), intent(in) :: type_name
-!   double precision, dimension(3,3), intent(in) :: at_sc
-!   integer, dimension(:), intent(in) :: itau
+  double precision, dimension(3,3,nat_sc,nat_sc), intent(inout) :: v2
+  double precision, dimension(3,3), intent(in) :: at_sc
+  ! Symmetry stuff
 
-!   double complex, dimension(:,:,:,:,:), allocatable  :: phitot
-!   double precision, dimension(3,1) :: q
-!   integer, dimension(1) :: nqs
-!   logical :: lrigid
-!   character (len=50) :: fildyn_prefix
-!   character (len=512) :: fildyn
-!   double precision, dimension(3,3) :: epsil
-!   double precision, dimension(:,:,:), allocatable :: zeu
-!   character(len=6), EXTERNAL :: int_to_char
+  integer, dimension(3,3,48), intent(in) :: s
+  integer, dimension(48,nat_sc), intent(in) :: irt
+  integer :: nsym, nat_sc
 
-!   ! Symmetry stuff
+  INTEGER :: na, nb, nc, isym, nar, nbr, ncr
+  double precision, ALLOCATABLE :: work (:,:,:,:)
+  double precision, dimension(3,3) :: bg_sc
 
-!   integer, dimension(3,3,48) :: s
-!   integer, dimension(48) :: invs, irgq, isq
-!   double precision, dimension(3,48) :: sxq
-!   double precision, dimension(:,:,:), allocatable :: rtau
-!   integer, dimension(:,:), allocatable :: irt
-!   integer :: nsymq, irotmq, nsym, imq
-!   logical :: minus_q
-
-!   INTEGER :: na, nb, nc, isym, nar, nbr, ncr
-!   double precision, ALLOCATABLE :: work (:,:,:,:)
-!   double precision, dimension(3,3) :: bg_sc
-
-!   integer :: nat_sc
-
-!   integer :: iq, i, j, k, alpha, beta, gamm
+  integer :: iq, i, j, k, alpha, beta, gamm
   
-!   logical :: prnt_sym
+  !logical :: prnt_sym
 
-!   ! Extract integers
+  ! Extract integers
 
-!   nat_sc = size(tau_sc(1,:))
+  !nat_sc = size(tau_sc(1,:))
 
-!   ! Allocate variables
+  ! Allocate variables
 
-!   allocate(phitot(1,3,3,nat_sc,nat_sc))
-!   allocate(zeu(3,3,nat_sc))
+  ! Create reciprocal lattice vectors of supercell
 
-!   allocate(rtau(3,48,nat_sc))
-!   allocate(irt(48,nat_sc))
+  CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
 
-!   ! Create reciprocal lattice vectors of supercell
+  ! Assign values to print fake dynamical matrix in the supercell
 
-!   CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
+  ! Write fake dynamical matrix
 
-!   ! Assign values to print fake dynamical matrix in the supercell
+!  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
+!                            fildyn_prefix, ibrav, celldm, tau_sc, &
+!                            type_name, at_sc, lrigid, epsil, zeu)
+ 
+  ! Extract all information about symmetries
 
-!   q = 0.0d0
-!   nqs = 1
-!   lrigid = .false.
-!   epsil = 0.0d0
-!   phitot = (0.0d0,0.0d0)
-!   zeu = 0.0d0
-!   fildyn_prefix = 'fake_dyn'
 
-!   ! Write fake dynamical matrix
+  ! Symmetrize the third order force constant matrix
 
-! !  call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-! !                            fildyn_prefix, ibrav, celldm, tau_sc, &
-! !                            type_name, at_sc, lrigid, epsil, zeu)
-!   call write_dyn (phitot, q, ntyp, nqs, ityp_sc, amass, &
-!                             fildyn_prefix, 0, celldm, tau_sc, &
-!                             type_name, at_sc, lrigid, epsil, zeu)
+     ALLOCATE (work(3,3,nat_sc,nat_sc))
+     !   
+     ! bring third-order matrix to crystal axis
+     !   
+     DO na = 1, nat_sc
+       DO nb = 1, nat_sc
+         do alpha = 1, 3  
+           do beta = 1, 3  
+             work(alpha,beta,na,nb) = 0.0d0
+             do i = 1, 3
+               do j = 1, 3
+                 work(alpha,beta,na,nb) = work(alpha,beta,na,nb) + &
+                                          v2(i,j,na,nb)*at_sc(i,alpha)*at_sc(j,beta)
+               end do
+             end do
+           end do
+         END DO
+       END DO
+     END DO
+     !   
+     ! symmetrize in crystal axis
+     !   
+     v2 = 0.0d0
+     DO na = 1, nat_sc
+       DO nb = 1, nat_sc
+         do alpha = 1, 3  
+           do beta = 1, 3  
+             DO isym = 1, nsym
+               nar = irt (isym, na)
+               nbr = irt (isym, nb)
+               do i = 1, 3
+                 do j = 1, 3
+                   v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
+                                          work(i,j,nar,nbr)*s(alpha,i,isym)*s(beta,j,isym)
+                 end do
+               end do
+             end do
+           end do
+         END DO
+       END DO
+     END DO
+     work (:,:,:,:) = v2 (:,:,:,:) / DBLE(nsym)
+     !   
+     ! bring vector back to cartesian axis
+     !   
+     DO na = 1, nat_sc
+       DO nb = 1, nat_sc
+         do alpha = 1, 3
+           do beta = 1, 3
+             v2(alpha,beta,na,nb) = 0.0d0
+             do i = 1, 3
+               do j = 1, 3
+                 v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
+                                        work(i,j,na,nb)*bg_sc(alpha,i)*bg_sc(beta,j)
+               end do
+             end do
+           end do
+         END DO
+       END DO
+     END DO
+     !   
+     DEALLOCATE (work)
 
-!   ! Extract all information about symmetries
-
-!   print *, ''
-!   print *, ' Extracting symmetries of the supercell... '
-!   print *, ''
-
-!   iq = 1
-
-!   fildyn = trim(fildyn_prefix) // int_to_char(iq)
-
-!   call symmdynmat ( fildyn, nat_sc, phitot(1,:,:,:,:),  q, &
-!                       s, invs, rtau, irt, irgq, &
-!                       nsymq, irotmq, minus_q, nsym, nqs, isq, &
-!                       imq, sxq, lrigid, epsil, zeu )
-
-!   if (prnt_sym) call print_symm ( s, nsym, irt, .true., itau)
-
-!   ! Symmetrize the third order force constant matrix
-
-!      ALLOCATE (work(3,3,nat_sc,nat_sc))
-!      !   
-!      ! bring third-order matrix to crystal axis
-!      !   
-!      DO na = 1, nat_sc
-!        DO nb = 1, nat_sc
-!          do alpha = 1, 3  
-!            do beta = 1, 3  
-!              work(alpha,beta,na,nb) = 0.0d0
-!              do i = 1, 3
-!                do j = 1, 3
-!                  work(alpha,beta,na,nb) = work(alpha,beta,na,nb) + &
-!                                           v2(i,j,na,nb)*at_sc(i,alpha)*at_sc(j,beta)
-!                end do
-!              end do
-!            end do
-!          END DO
-!        END DO
-!      END DO
-!      !   
-!      ! symmetrize in crystal axis
-!      !   
-!      v2 = 0.0d0
-!      DO na = 1, nat_sc
-!        DO nb = 1, nat_sc
-!          do alpha = 1, 3  
-!            do beta = 1, 3  
-!              DO isym = 1, nsym
-!                nar = irt (isym, na)
-!                nbr = irt (isym, nb)
-!                do i = 1, 3
-!                  do j = 1, 3
-!                    v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
-!                                           work(i,j,nar,nbr)*s(alpha,i,isym)*s(beta,j,isym)
-!                  end do
-!                end do
-!              end do
-!            end do
-!          END DO
-!        END DO
-!      END DO
-!      work (:,:,:,:) = v2 (:,:,:,:) / DBLE(nsym)
-!      !   
-!      ! bring vector back to cartesian axis
-!      !   
-!      DO na = 1, nat_sc
-!        DO nb = 1, nat_sc
-!          do alpha = 1, 3
-!            do beta = 1, 3
-!              v2(alpha,beta,na,nb) = 0.0d0
-!              do i = 1, 3
-!                do j = 1, 3
-!                  v2(alpha,beta,na,nb) = v2(alpha,beta,na,nb) + &
-!                                         work(i,j,na,nb)*bg_sc(alpha,i)*bg_sc(beta,j)
-!                end do
-!              end do
-!            end do
-!          END DO
-!        END DO
-!      END DO
-!      !   
-!      DEALLOCATE (work)
-
-!   ! Deallocate stuff
-
-!   deallocate(phitot)
-!   deallocate(zeu)
-!   deallocate(rtau)
-!   deallocate(irt)
-
-! end subroutine sym_v2
+end subroutine sym_v2
 
 ! =========================
 ! This subroutine imposes the point group symmetry in the third-order

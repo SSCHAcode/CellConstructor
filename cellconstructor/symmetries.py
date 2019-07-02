@@ -9,6 +9,7 @@ import time
 import os
 import numpy as np
 import Methods
+from Units import *
 
 # Load the fortran symmetry QE module
 import symph
@@ -87,6 +88,7 @@ class QE_Symmetry:
                 counter += 1
             
             self.QE_ityp[i] = symbs[atm]
+            # Convert in bohr
             for j in range(3):
                 self.QE_tau[j, i] = structure.coords[i, j]
                 
@@ -97,7 +99,7 @@ class QE_Symmetry:
         bg = structure.get_reciprocal_vectors()
         for i in range(3):
             for j in range(3):
-                self.QE_at[i,j] = structure.unit_cell[j,i]   
+                self.QE_at[i,j] = structure.unit_cell[j,i]
                 self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
   
     
@@ -995,6 +997,38 @@ class QE_Symmetry:
         q_irr = self.SelectIrreducibleQ(q_points)
 
         return q_irr
+
+    def ApplySymmetriesToV2(self, v2):
+        """
+        APPLY THE SYMMETRIES TO A 2-RANK TENSOR
+        =======================================
+
+        This subroutines applies the symmetries to a 2-rank
+        tensor. Usefull to work with supercells.
+
+        Parameters
+        ----------
+            v2 : ndarray (size = (3*nat, 3*nat), dtype = np.double)
+                The 2-rank tensor to be symmetrized.
+                It is directly modified
+        """
+
+        # First lets recall that the fortran subroutines
+        # Takes the input as (3,3,nat,nat)
+        new_v2 = np.zeros( (3,3, self.QE_nat, self.QE_nat), dtype = np.double, order ="F")
+        for i in range(self.QE_nat):
+            for j in range(self.QE_nat):
+                new_v2[:, :, i, j] = v2[3*i : 3*(i+1), 3*j : 3*(j+1)]
+        
+        # Apply the symmetrization
+        symph.sym_v2(new_v2, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsym, self.QE_nat)
+
+        # Return back
+        for i in range(self.QE_nat):
+            for j in range(self.QE_nat):
+                v2[3*i : 3*(i+1), 3*j : 3*(j+1)] = new_v2[:, :, i, j]
+        
+
 
 def get_symmetries_from_ita(ita, red=False):
     """

@@ -13,6 +13,8 @@ import scipy, scipy.optimize
 import Methods
 import symph
 
+from Units import *
+
 try:
     from mpi4py import MPI
     __MPI__ = True
@@ -25,9 +27,6 @@ try:
 except:
     __SPGLIB__ = False
 
-A_TO_BOHR = np.float64(1.889725989)
-BOHR_TO_ANGSTROM = 1 / A_TO_BOHR 
-RY_TO_CM = 109691.40235
 __EPSILON__ = 1e-5
 
 class Phonons:
@@ -2205,7 +2204,7 @@ class Phonons:
             self.dynmats[iq] = fcq[iq, :, :]
     
 
-    def ApplySumRule(self):
+    def ApplySumRule(self, kind = "custom"):
         """
         ACUSTIC SUM RULE
         ================
@@ -2217,16 +2216,29 @@ class Phonons:
         
             \\Phi_{n_a, n_a}^{x,y} = - \\sum_{n_b \\neq n_a} \\Phi_{n_a,n_b}^{x,y} 
         
+        Parameters
+        ----------
+            kind : string
+                - "custom" : The polarization vectors asigned to the translation are removed from the 
+                    gamma dynamical matrix.
+                - "normal" : The equation written in this doc_string is applied.
+                A NotImplementedError is raised if kind differs from these types.
         """
 
         # Apply the sum rule on the dynamical matrix
-        nb = np.arange(self.structure.N_atoms) 
-        for i in range(9):
-            x = i / 3
-            y = i % 3
-            for na in range(self.structure.N_atoms):
-                sum_value = np.sum(self.dynmats[0][3 * na + x, 3 * nb[(nb != na)] + y])
-                self.dynmats[0][3 * na + x, 3 * na + y] =  - sum_value
+        if kind == "custom":
+            # Apply the sum rule
+            symmetries.CustomASR(self.dynmats[0])
+        elif kind == "normal":
+            nb = np.arange(self.structure.N_atoms) 
+            for i in range(9):
+                x = i / 3
+                y = i % 3
+                for na in range(self.structure.N_atoms):
+                    sum_value = np.sum(self.dynmats[0][3 * na + x, 3 * nb[(nb != na)] + y])
+                    self.dynmats[0][3 * na + x, 3 * na + y] =  - sum_value
+        else:
+            raise NotImplementedError("Error, the specified kind for the sum rule is unknown {}".format(kind))
                     
 
         # Apply the sum rule on the effective charge
@@ -2238,7 +2250,7 @@ class Phonons:
     
 
 
-    def ApplySymmetry(self, symmat):
+    def ApplySymmetry(self, symmat, irt = None):
         """
         APPLY SYMMETRY
         ==============
@@ -2262,8 +2274,8 @@ class Phonons:
         ----------
             symmat : ndarray 3x4
                 The symmetry matrix to be checked. the last column contains the translations. Trans
-            threshold : float
-                The threshold on the distance below which two matrix are considered to be the same.
+            irt : ndarray (size = N_atoms)
+                The atoms the symmetry is mapping to.
                 
         Results
         -------
@@ -2282,11 +2294,14 @@ class Phonons:
             
             
         # Get the way atoms are echanged
-        aux_struct = self.structure.copy()
-        aux_struct.apply_symmetry(symmat, delete_original = True)
-        aux_struct.fix_coords_in_unit_cell()
+        if irt is None:
+            aux_struct = self.structure.copy()
+            aux_struct.apply_symmetry(symmat, delete_original = True)
+            aux_struct.fix_coords_in_unit_cell()
 
-        eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
+            eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
+        else:
+            eq_atoms = irt
         #print eq_atoms
         
         # Get the number of atoms
@@ -2335,7 +2350,7 @@ class Phonons:
         
     
         
-    def ForceSymmetries(self, symmetries, apply_sum_role = True):
+    def ForceSymmetries(self, symmetries, irt = None, apply_sum_rule = True):
         """
         FORCE THE PHONON TO RESPECT THE SYMMETRIES
         ==========================================
@@ -2353,13 +2368,16 @@ class Phonons:
         ----------
             symmetries : list of ndarray 3x4
                 List of the symmetries matrices. The last column is the fractional translation.
+            irt : ndarray(size = (N_sym, N_atoms_sc), dtype = np.intc)
+                For each symmetry s, the atom i is mapped into the atom irt[s, i]
+                If None, irt is recomputed with the symmetries module.
+            apply_sum_rule: bool
+                If true the default sum rule is applied.
         """
-        
-        
-        
         
         # Apply the symmetries
         new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
+
         
         self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
@@ -2372,7 +2390,10 @@ class Phonons:
                 raise ValueError("Error, the given structure do not satisfy the %d-th symmetry." % (i+1))
             
             # Get the force constant
-            current_fc = self.ApplySymmetry(sym)
+            current_irt = None
+            if not irt is None:
+                current_irt = irt[i, :]
+            current_fc = self.ApplySymmetry(sym, irt = current_irt)
             
             print i
             
@@ -2400,7 +2421,7 @@ class Phonons:
         #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
         
         # Apply the acustic sum rule
-        if apply_sum_role:
+        if apply_sum_rule:
             self.ApplySumRule()
 
 
