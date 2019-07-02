@@ -18,6 +18,13 @@ import symph
 from cc_linalg import GramSchmidt
 
 
+__SPGLIB__ = True
+try:
+    import spglib
+except:
+    __SPGLIB__ = False
+
+
 
 
 CURRENT_PATH = os.path.realpath(__file__)
@@ -101,7 +108,16 @@ class QE_Symmetry:
             for j in range(3):
                 self.QE_at[i,j] = structure.unit_cell[j,i]
                 self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
-  
+
+        # Here we define the quantities required to symmetrize the supercells
+        self.QE_at_sc = self.QE_at.copy()
+        self.QE_bg_sc = self.QE_bg.copy()
+        self.QE_translation_nr = 1 # The supercell total dimension (Nx * Ny * Nz)
+        self.QE_translations = [] # The translations in crystal axes
+
+        # After the translation, which vector is transformed in which one?
+        # This info is stored here as ndarray( size = (N_atoms, N_trans), dtype = np.intc, order = "F")
+        self.QE_translations_irt = [] 
     
     def ForceSymmetry(self, structure):
         """ 
@@ -712,8 +728,73 @@ class QE_Symmetry:
 
         This function uses spglib to find symmetries, recognize the supercell
         and setup all the variables to perform the symmetrization inside the supercell.
+
+        NOTE: If spglib cannot be imported, an ImportError will be raised
         """
-        raise NotImplementedError("Error, not yet implemented.")
+        if not __SPGLIB__:
+            raise ImportError("Error, this function works only if spglib is available")
+
+        # Get the symmetries
+        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), self.threshold)
+        symmetries = GetSymmetriesFromSPGLIB(spg_syms, regolarize= False)
+
+        trans_irt = 0
+        self.QE_s[:,:,:] = 0
+
+
+        # Check how many point group symmetries do we have
+        n_syms = 0
+        for i, sym in enumerate(symmetries):
+            # Extract the rotation and the fractional translation
+            rot = sym[:,:3]
+
+            # Extract the point group
+            if n_syms == 0:
+                self.QE_s[:,:, i] = rot.T
+
+                # Get the IRT (Atoms mapping using symmetries)
+                irt = GetIRT(self.structure, sym)
+                self.QE_irt[i, :] = irt + 1 #Py to Fort
+
+            # Check if the rotation is equal to the first one
+            if np.sum( (rot - symmetries[0][:,:3])**2 ) < 0.1 and n_syms == 0 and i > 0:
+                # We got all the rotations
+                n_syms = i 
+                break
+        
+        if n_syms == 0:
+            n_syms = len(symmetries)
+
+        # From the point group symmetries, get the supercell
+        n_supercell = len(symmetries) / n_syms
+        self.QE_translation_nr = n_supercell
+        self.QE_nsymq = n_syms
+        self.QE_nsym = n_syms
+
+        self.QE_translations_irt = np.zeros( (self.structure.N_atoms, n_supercell), dtype = np.intc, order = "F")
+        self.QE_translations = np.zeros( (3, n_supercell), dtype = np.double, order = "F")
+
+        # Now extract the translations
+        for i in range(n_supercell):
+            sym = symmetries[i * n_syms]
+            # Check if the symmetries are correctly setup
+
+            I = np.eye(3)
+            ERROR_MSG="""
+            Error, symmetries are not correctly ordered.
+            They must always start with the identity.
+
+            N_syms = {}; N = {}; SYM = {}
+            """.format(n_syms,i*n_syms, sym)
+            assert np.sum( (I - sym[:,:3])**2) < 0.5, ERROR_MSG
+
+            # Get the irt for the translation (and the translation)
+            irt = GetIRT(self.structure, sym)
+            self.QE_translations_irt[:, i] = irt + 1
+            self.QE_translations[:, i] = sym[:,3]
+                
+            
+
                 
     def InitFromSymmetries(self, symmetries, q_point = np.array([0,0,0])):
         """
@@ -1025,12 +1106,19 @@ class QE_Symmetry:
         # Apply the Permutation symmetry
         v2[:,:] = 0.5 * (v2 + v2.T)
 
+        # Check that the translations have been setted up
+        assert len(np.shape(self.QE_translations_irt)) == 2, "Error, symmetries not setted up to work in the supercell"
+
+
         # First lets recall that the fortran subroutines
         # Takes the input as (3,3,nat,nat)
         new_v2 = np.zeros( (3,3, self.QE_nat, self.QE_nat), dtype = np.double, order ="F")
         for i in range(self.QE_nat):
             for j in range(self.QE_nat):
                 new_v2[:, :, i, j] = v2[3*i : 3*(i+1), 3*j : 3*(j+1)]
+
+        # Apply the translations
+        symph.trans_v2(new_v2, self.QE_translations_irt)
         
         # Apply the symmetrization
         symph.sym_v2(new_v2, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsym, self.QE_nat)

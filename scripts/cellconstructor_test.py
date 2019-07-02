@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-
+import urllib2
 import numpy as np
 
 import cellconstructor as CC
@@ -183,6 +183,66 @@ class TestStructureMethods(unittest.TestCase):
 
         delta = np.sum( (w[3:] - w_new[3:])**2)
         self.assertTrue(delta < __epsil__)
+
+
+    def test_symmetries_realspace_supercell(self):
+        # Download from internet
+        NQ = 3
+        for i in range(1,NQ +1):
+            # Download from the web the dynamical matrices
+            dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
+            with open("dyn.SnSe.%d" % i,'wb') as output:
+                output.write(dynfile.read())
+
+        # Load the dynamical matrices
+        dyn = CC.Phonons.Phonons("dyn.SnSe.", NQ)
+
+        # Lets add a small random noise at gamma
+        for iq, q in enumerate(dyn.q_tot):
+            dyn.dynmats[iq][:,:] += np.random.uniform( size = np.shape(dyn.dynmats[0]))
+
+
+        # Generate the dynamical matrix from the supercell
+        dyn_supercell = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+        # Get the symmetries in the supercell using SPGLIB
+        spg_sym = CC.symmetries.QE_Symmetry(dyn_supercell.structure)
+        spg_sym.SetupFromSPGLIB()
+
+        # Perform the symmetrization
+        spg_sym.ApplySymmetriesToV2(dyn_supercell.dynmats[0])
+
+        # Apply the custom sum rule
+        dyn_supercell.ApplySumRule()
+
+        # Convert back to the original dynamical matrix
+        fcq = CC.Phonons.GetDynQFromFCSupercell(dyn_supercell.dynmats[0], np.array(dyn.q_tot), \
+            dyn.structure, dyn_supercell.structure)
+
+        # Create the symmetrized dynamical matrix
+        new_dyn = dyn.Copy()
+        for iq, q in enumerate(dyn.q_tot):
+            new_dyn.dynmats[iq] = fcq[iq, :, :]
+        
+        # Symmetrize using the standard tools
+        dyn.Symmetrize()
+
+        threshold = 1e-3
+
+        # Now compare the spectrum between the two matrices
+        for iq,q in enumerate(dyn.q_tot):
+            w_spglib, dumb = new_dyn.DyagDinQ(iq)
+            w_standard, dumb = dyn.DyagDinQ(iq)
+
+            w_spglib *= CC.Units.RY_TO_CM
+            w_standard *= CC.Units.RY_TO_CM
+
+            self.assertTrue(np.max(np.abs(w_spglib - w_standard)) < threshold)
+
+
+
+
+
 
         
 

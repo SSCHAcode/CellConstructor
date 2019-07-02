@@ -163,6 +163,52 @@ subroutine permute_v4 (v4, n)
 
 end subroutine permute_v4
 
+
+! This subroutine imposes the translational symmetry to the 
+! second order force constants.
+!
+
+subroutine trans_v2 ( v2, tau_sc_latvec, nat_sc, nr )
+
+  implicit none
+
+  double precision, dimension(3, 3, nat_sc,nat_sc), intent(inout) :: v2
+  integer, dimension(nat_sc,nr), intent(in) :: tau_sc_latvec
+  integer :: nat_sc, nr
+  
+  integer :: ka, i, j, k, l, r, is, js, la, r1, r2
+  double precision, dimension(3,3) :: mat_aux
+  logical, parameter :: debug = .true.
+
+  !nat    = size(tau(1,:))
+  !nat_sc = size(tau_sc(1,:))
+
+  if (debug) then
+    print *, "=== DEBUG TRANS V3 ==="
+    print *, "NAT_SC:", nat_sc
+    print *, "NR:", nr 
+    call flush()
+  endif
+
+
+  ! Impose translational symmetry
+
+  do i = 1, nat_sc
+    do j = 1, nat_sc
+        mat_aux = 0.0d0
+        do r = 1, nr
+           mat_aux(:,:) = mat_aux(:,:) &
+                          + v2(:, :, tau_sc_latvec(i,r),tau_sc_latvec(j,r))
+        end do
+        mat_aux(:,:) = mat_aux(:,:) / dble(nr)
+        do r = 1, nr
+           v2(:, :, tau_sc_latvec(i,r),tau_sc_latvec(j,r)) = mat_aux(:,:)
+        end do
+      end do
+  end do
+
+end subroutine trans_v2
+
 ! This subroutine imposes the translational symmetry to the 
 ! third order force constants.
 !
