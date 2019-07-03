@@ -1315,7 +1315,37 @@ class Phonons:
 
         return I
 
-        
+    def GetIRActivityVector(self):
+        """
+        GET THE IR VECTOR
+        =================
+
+        This vector returns the activity of the infrared mode.
+        It is the matrix element to compute the responce function of the IR experiment.
+
+        Results
+        -------
+            v_ir : ndarray(size = (3, 3*natoms), dtype = np.double)
+                The ir activity amplitude for each polarization mode, for each polarizations of the incoming field
+        """
+
+        if self.effective_charges is None:
+            raise ValueError("Error, I cannot compute IR intensities without effective charges")
+
+        w, pols = self.DyagDinQ(0)
+        m = self.structure.get_masses_array()
+
+        # Get the eigendisplacement z
+        nat3, nmodes = np.shape(pols)
+        z = np.zeros( (nmodes, self.structure.N_atoms, 3), dtype = np.float64)
+        for i in range(self.structure.N_atoms):
+            z[:, i, :] = pols[3*i: 3*(i+1), :].T / np.sqrt(m[i])
+
+        # Get the I_mu,i where mu is the mode and i is the polarization of the light
+        v_ir = np.einsum("cbd, acd->ba", self.effective_charges, z)
+
+        return v_ir
+
 
     def GetRamanVector(self, pol_in, pol_out):
         r"""

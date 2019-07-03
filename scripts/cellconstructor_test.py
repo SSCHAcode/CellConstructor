@@ -265,12 +265,6 @@ class TestStructureMethods(unittest.TestCase):
 
 
 
-
-
-
-
-        
-
         
 
 
