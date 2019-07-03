@@ -6,6 +6,7 @@ from __future__ import division
 import unittest
 import urllib2
 import numpy as np
+import sys, os
 
 import cellconstructor as CC
 import cellconstructor.Structure
@@ -197,6 +198,10 @@ class TestStructureMethods(unittest.TestCase):
         # Load the dynamical matrices
         dyn = CC.Phonons.Phonons("dyn.SnSe.", NQ)
 
+        # Lets remove the downloaded file
+        for i in range(1,NQ +1):
+            os.remove("dyn.SnSe.%d" % i)
+
         # Lets add a small random noise at gamma
         for iq, q in enumerate(dyn.q_tot):
             dyn.dynmats[iq][:,:] += np.random.uniform( size = np.shape(dyn.dynmats[0]))
@@ -238,6 +243,26 @@ class TestStructureMethods(unittest.TestCase):
             w_standard *= CC.Units.RY_TO_CM
 
             self.assertTrue(np.max(np.abs(w_spglib - w_standard)) < threshold)
+
+        # Lets try to see if the spglib symmetrization correctly symemtrizes also a vector
+        random_vector = np.zeros(np.shape(dyn.structure.coords), dtype = np.double)
+        random_vector[:,:] = np.random.uniform( size = np.shape(random_vector))
+
+        rv2 = random_vector.copy()
+
+        # Get the symmetries in the unit cell using spglib
+        qe_sym = CC.symmetries.QE_Symmetry(dyn.structure)
+        qe_sym.SetupFromSPGLIB()
+        qe_sym.SymmetrizeVector(random_vector)
+
+        # Get the symmetries using quantum espresso
+        qe_sym.SetupQPoint()
+        qe_sym.SymmetrizeVector(rv2)
+
+        # Check if rv2 is equal to random_vector
+        self.assertTrue( np.sum( (random_vector - rv2)**2) < 1e-8)
+
+
 
 
 
