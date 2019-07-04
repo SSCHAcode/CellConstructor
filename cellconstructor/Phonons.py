@@ -2505,38 +2505,61 @@ class Phonons:
         for i in range(nat_sc):
             R_vec[3*i : 3*i+3, :] = np.tile(super_structure.coords[i, :] - self.structure.coords[itau[i], :], (3,1))
         
-
+        i_mu = 0
+        bg = self.structure.get_reciprocal_vectors()
         for iq, q in enumerate(self.q_tot):
+            # Check if the current q point has been seen (we do not distinguish between q and -q)
+            skip_this_q = False
+            for jq, q_prev in enumerate(self.q_tot):
+                if jq >= iq:
+                    break
+                
+                # Check if q and q_prev are related by a G-q operation
+                dist = Methods.get_min_dist_into_cell(bg, -q, q_prev)
+                if dist < __EPSILON__:
+                    skip_this_q = True
+                    break
+            
+            if skip_this_q:
+                continue
+
+
             # Diagonalize the matrix in the given q point
             wq, eq = self.DyagDinQ(iq)
-            n_modes_q = len(wq)
 
             # Iterate over the frequencies of the given q point
             for i_qnu, w_qnu in enumerate(wq):
-                i_mu = n_modes_q * iq + i_qnu
-                w_array[i_mu] = w_qnu
-
                 tilde_e_qnu =  eq[:, i_qnu]
 
-                # Get the reference in the polarization vector (the first nonzero)
-                iw_ref = 0
-                while np.abs(tilde_e_qnu[iw_ref]) < 1e-4:
-                    iw_ref += 1
+                phase = R_vec.dot(q) * 2 * np.pi
+                c_e_sc = tilde_e_qnu[itau_modes] * np.exp(1j*phase)
 
-                e_pols_sc[iw_ref, i_mu] = np.sqrt(np.abs(tilde_e_qnu[iw_ref]) / supercell_size)
+                # Get the real and imaginary part
+                evec_1 = np.real(c_e_sc) / np.sqrt(supercell_size)
+                evec_2 = np.imag(c_e_sc) / np.sqrt(supercell_size)
 
-                R_ref = R_vec[iw_ref,:]
-                phase = (R_vec - np.tile(R_ref, (nmodes, 1))).dot(q) * 2 * np.pi
+                # Check if they are not zero
+                norm1 = evec_1.dot(evec_1)
+                norm2 = evec_2.dot(evec_2)
+
+                # Add the second vector
+                if norm1 > 1e-8:
+                    w_array[i_mu] = w_qnu
+                    e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
+                    i_mu += 1
+                    
+                    if norm2 > 1e-8 and evec_1.dot(evec_2) < 1e-8:
+                        w_array[i_mu] = w_qnu
+                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                        i_mu += 1
+                else:
+                    w_array[i_mu] = w_qnu
+                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                    i_mu += 1
                 
-                complex_value = tilde_e_qnu * np.conj(tilde_e_qnu[iw_ref])
-                #print(len(complex_value), itau_modes)
-                cval = complex_value[itau_modes]
-                #print(len(cval))
-                real_part = np.real(cval)
-                imag_part = np.imag(cval)
 
-                numerator = np.cos(phase) * real_part - np.sin(phase) * imag_part
-                e_pols_sc[:, i_mu] = numerator / (e_pols_sc[iw_ref, i_mu] * supercell_size)
+        # Check that i_mu is of the correct length
+        assert i_mu == nmodes, "Error, something wrong: i_mu = {}, nmodes = {}".format(i_mu, nmodes)
 
 
         # Sort the frequencies
