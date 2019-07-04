@@ -24,6 +24,36 @@ try:
     import ase.visualize
 except:
     __ASE__ = False
+
+
+# This function retrives a testing dynamical matrix from the web
+def DownloadDynSnSe():
+    """
+    DOWNLOAD THE DYN FROM WEB
+    =========================
+
+    We use urllib to download from the web a testing dynamical matrix.
+
+    Results
+    -------
+        dyn : CC.Phonons.Phonons()
+            The dynamical matrix for test
+    """
+    NQ = 3
+    for i in range(1,NQ +1):
+        # Download from the web the dynamical matrices
+        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
+        with open("dyn.SnSe.%d" % i,'wb') as output:
+            output.write(dynfile.read())
+
+    # Load the dynamical matrices
+    dyn = CC.Phonons.Phonons("dyn.SnSe.", NQ)
+
+    # Lets remove the downloaded file
+    for i in range(1,NQ +1):
+        os.remove("dyn.SnSe.%d" % i)
+
+    return dyn
     
 
 class TestStructureMethods(unittest.TestCase):
@@ -185,22 +215,49 @@ class TestStructureMethods(unittest.TestCase):
         delta = np.sum( (w[3:] - w_new[3:])**2)
         self.assertTrue(delta < __epsil__)
 
+    def test_polarization_vectors_supercell(self):
+        # Download the dynamical matrix from internet
+        dyn = DownloadDynSnSe()
+        
+        dyn.Symmetrize()
+
+        # Get the dynamical matrix in the supercell
+        super_dyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+        # Get the polarization vectors in the supercell without generating the big matrix
+        w, pols = dyn.DiagonalizeSupercell()
+
+        # Get the masses
+        m = np.tile(super_dyn.structure.get_masses_array(), (3, 1)).T.ravel()
+
+        # Get the polarization vectors times the masses
+        new_v = np.einsum("ab, a-> ab", pols, np.sqrt(m))
+
+        # Generate the supercell dyn from the polarization vectors
+        sup_dyn = np.einsum("i, ai, bi->ab", w**2, new_v, new_v)
+
+        # Compare the two dynamical matrices
+        __tollerance__ = 1e-6
+
+        # Print the scalar product between the polarization vectors
+        n_modes = len(w)
+        s_mat = pols.T.dot(pols)
+        delta_mat = s_mat - np.eye(n_modes)
+        np.savetxt("s_mat.dat", s_mat)
+        self.assertTrue( np.sum(delta_mat**2) < __tollerance__)
+
+
+        delta = np.sum(np.abs(super_dyn.dynmats[0] - sup_dyn)) 
+
+        print("DELTA:", delta)
+
+        self.assertTrue( delta < __tollerance__)
+
 
     def test_symmetries_realspace_supercell(self):
         # Download from internet
-        NQ = 3
-        for i in range(1,NQ +1):
-            # Download from the web the dynamical matrices
-            dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
-            with open("dyn.SnSe.%d" % i,'wb') as output:
-                output.write(dynfile.read())
-
-        # Load the dynamical matrices
-        dyn = CC.Phonons.Phonons("dyn.SnSe.", NQ)
-
-        # Lets remove the downloaded file
-        for i in range(1,NQ +1):
-            os.remove("dyn.SnSe.%d" % i)
+        #NQ = 3
+        dyn = DownloadDynSnSe()
 
         # Lets add a small random noise at gamma
         for iq, q in enumerate(dyn.q_tot):

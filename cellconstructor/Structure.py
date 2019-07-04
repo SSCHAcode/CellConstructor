@@ -1128,7 +1128,9 @@ class Structure:
         ========
         
         This subroutine (called by a supercell structure), returns the array
-        of the corrispondence between its atoms and those in the unit cell.
+        of the corrispondence between its atoms and those in the unit cell.s
+
+        NOTE: The ITAU is returned in Fortran indexing, subtract by 1 if you want to use it in python
         
         Parameters
         ----------

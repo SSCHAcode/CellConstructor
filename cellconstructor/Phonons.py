@@ -2454,6 +2454,99 @@ class Phonons:
         if apply_sum_rule:
             self.ApplySumRule()
 
+    def DiagonalizeSupercell(self):
+        r"""
+        DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
+        =================================================
+
+        This method dyagonalizes the dynamical matrix using the supercell approach.
+
+        In this way we simply generate the polarization vector in the supercell
+        using those in the unit cell.
+
+        This is performed using the following equation:
+
+        .. math ::
+
+            e_\mu^0(R_0) = \frac{\sqrt{|\tilde e_{q\nu}^a|^2}}{N_q}
+
+            e_\mu^a(R_a) = \frac{\cos(\vec q\cdot \Delta R_{a0}) \Re\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger] - \sin(\vec q\cdot \Delta R_{a0}) \Im\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger]}{e_\mu^0(R_0)N_q}
+        
+        Here the :math:`\tilde e_{q\nu}` are the complex polarization vectors in the q point so that :math:`\omega_{q\nu} = \omega_{\mu}`. 
+        
+        Results
+        -------
+            w_mu : ndarray( size = (n_modes), dtype = np.double)
+                Frequencies in the supercell
+            e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
+                Polarization vectors in the supercell
+        """
+
+        supercell_size = len(self.q_tot)
+        nat = self.structure.N_atoms
+
+        nmodes = 3*nat*supercell_size
+        nat_sc = nat*supercell_size 
+
+        w_array = np.zeros( nmodes, dtype = np.double)
+        e_pols_sc = np.zeros( (nmodes, nmodes), dtype = np.double, order = "F")
+
+        # Get the structure in the supercell
+        super_structure = self.structure.generate_supercell(self.GetSupercell())
+
+        # Get the supercell correspondence vector
+        itau = super_structure.get_itau(self.structure) - 1 # Fort2Py
+
+        # Get the itau in the contracted indices (3*nat_sc -> 3*nat)
+        itau_modes = (np.tile(np.array(itau) * 3, (3,1)).T + np.arange(3)).ravel()
+
+        # Get the position in the supercell
+        R_vec = np.zeros((nmodes, 3), dtype = np.double)
+        for i in range(nat_sc):
+            R_vec[3*i : 3*i+3, :] = np.tile(super_structure.coords[i, :] - self.structure.coords[itau[i], :], (3,1))
+        
+
+        for iq, q in enumerate(self.q_tot):
+            # Diagonalize the matrix in the given q point
+            wq, eq = self.DyagDinQ(iq)
+            n_modes_q = len(wq)
+
+            # Iterate over the frequencies of the given q point
+            for i_qnu, w_qnu in enumerate(wq):
+                i_mu = n_modes_q * iq + i_qnu
+                w_array[i_mu] = w_qnu
+
+                tilde_e_qnu =  eq[:, i_qnu]
+
+                # Get the reference in the polarization vector (the first nonzero)
+                iw_ref = 0
+                while np.abs(tilde_e_qnu[iw_ref]) < 1e-4:
+                    iw_ref += 1
+
+                e_pols_sc[iw_ref, i_mu] = np.sqrt(np.abs(tilde_e_qnu[iw_ref]) / supercell_size)
+
+                R_ref = R_vec[iw_ref,:]
+                phase = (R_vec - np.tile(R_ref, (nmodes, 1))).dot(q) * 2 * np.pi
+                
+                complex_value = tilde_e_qnu * np.conj(tilde_e_qnu[iw_ref])
+                #print(len(complex_value), itau_modes)
+                cval = complex_value[itau_modes]
+                #print(len(cval))
+                real_part = np.real(cval)
+                imag_part = np.imag(cval)
+
+                numerator = np.cos(phase) * real_part - np.sin(phase) * imag_part
+                e_pols_sc[:, i_mu] = numerator / (e_pols_sc[iw_ref, i_mu] * supercell_size)
+
+
+        # Sort the frequencies
+        sort_mask = np.argsort(w_array)
+        w_array = w_array[sort_mask]
+        e_pols_sc = e_pols_sc[:, sort_mask]
+
+        return w_array, e_pols_sc
+        
+
 
 def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure, itau = None):
     """
