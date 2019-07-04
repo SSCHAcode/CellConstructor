@@ -243,13 +243,13 @@ class TestStructureMethods(unittest.TestCase):
         n_modes = len(w)
         s_mat = pols.T.dot(pols)
         delta_mat = s_mat - np.eye(n_modes)
-        np.savetxt("s_mat.dat", s_mat)
+        #np.savetxt("s_mat.dat", s_mat)
         self.assertTrue( np.sum(delta_mat**2) < __tollerance__)
 
 
         delta = np.sum(np.abs(super_dyn.dynmats[0] - sup_dyn)) 
 
-        print("DELTA:", delta)
+        #print("DELTA:", delta)
 
         self.assertTrue( delta < __tollerance__)
 
