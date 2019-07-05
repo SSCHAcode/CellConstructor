@@ -1179,7 +1179,7 @@ def get_symmetries_from_ita(ita, red=False):
     return symmetries
 
 
-def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = True):
+def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = False):
     """
     CONVERT THE SYMMETRIES
     ======================
