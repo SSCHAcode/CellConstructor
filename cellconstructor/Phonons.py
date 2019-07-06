@@ -39,7 +39,7 @@ class Phonons:
     It can be used to show and display dinamical matrices, as well as for operating 
     with them
     """
-    def __init__(self, structure = None, nqirr = 1, full_name = False):
+    def __init__(self, structure = None, nqirr = 1, full_name = False, use_format = False):
         """
         INITIALIZE PHONONS
         ==================
@@ -91,7 +91,7 @@ class Phonons:
         # Check whether the structure argument is a path or a Structure
         if (type(structure) == type("hello there!")):
             # Quantum espresso
-            self.LoadFromQE(structure, nqirr, full_name = full_name)
+            self.LoadFromQE(structure, nqirr, full_name = full_name, use_format = use_format)
         elif (type(structure) == type(Structure.Structure())):   
             # Get the structure
             self.structure = structure
@@ -113,8 +113,8 @@ class Phonons:
                 self.q_tot.append(np.zeros(3, dtype = np.float64))
         
                 
-    def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False):
-        """
+    def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False, use_format= False):
+        r"""
         This Function loads the phonons information from the quantum espresso dynamical matrix.
         the fildyn prefix is the prefix of the QE dynamical matrix, that must be followed by numbers from 1 to nqirr.
         All the dynamical matrices are loaded.
@@ -130,6 +130,10 @@ class Phonons:
             - full_name : bool, optional
                 If it is True, then the dynamical matrix is loaded without appending the q index.
                 This is compatible only with gamma point matrices.
+            - use_format : bool
+                If true, the IQ index of the dynamical matrix is replaced in the specified format, i.e.
+                a standard matrix with prefix dyn (dyn1, dyn2, ...) will be dyn{} with the format notation.
+                This allows the user to insert the IQ index in many formats and any position of the file name.
         """
         
         # Check if the nqirr is correct
@@ -145,11 +149,14 @@ class Phonons:
         # Start processing the dynamical matrices
         for iq in range(nqirr):
             # Check if the selected matrix exists
-            if not full_name:
-                filepath = "%s%i" % (fildyn_prefix, iq + 1)
+            if use_format:
+                filepath = fildyn_prefix.format(iq+1)
             else:
-                filepath = fildyn_prefix
-                
+                if not full_name:
+                    filepath = "%s%i" % (fildyn_prefix, iq + 1)
+                else:
+                    filepath = fildyn_prefix
+                    
             if not os.path.isfile(filepath):
                 raise ValueError("Error, file %s does not exist." % filepath)
             
