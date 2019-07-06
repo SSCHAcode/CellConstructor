@@ -265,7 +265,7 @@ class QE_Symmetry:
         symph.trans_v3(v3, self.QE_translations_irt)
 
         # Apply all the symmetries at gamma
-        symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_nsymq)
+        symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsymq)
 
     
     def ApplyQStar(self, fcq, q_point_group):
