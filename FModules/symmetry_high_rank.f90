@@ -216,24 +216,24 @@ end subroutine trans_v2
 ! are given only with three indexes, each representing both
 ! an atom and a Cartesian index, but inside it is used
 ! with 6 indexes, separating cartesian and atom indexes.
-
-subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc, nat, nat_sc )
+subroutine trans_v3 ( v3, tau_sc_latvec, nat_sc, nr)!tau, tau_sc, itau, at_sc, nat, nat_sc )
 
   implicit none
 
   double precision, dimension(nat_sc*3,nat_sc*3,nat_sc*3), intent(inout) :: v3
-  double precision, dimension(3,nat), intent(in) :: tau
-  double precision, dimension(3,nat_sc), intent(in) :: tau_sc
-  integer, dimension(nat_sc), intent(in) :: itau
-  double precision, dimension(3,3), intent(in) :: at_sc
+  integer, dimension(nat_sc,nr), intent(in) :: tau_sc_latvec
+  !double precision, dimension(3,nat), intent(in) :: tau
+  !double precision, dimension(3,nat_sc), intent(in) :: tau_sc
+  !integer, dimension(nat_sc), intent(in) :: itau
+  !double precision, dimension(3,3), intent(in) :: at_sc
 
-  integer :: nat, nat_sc, nr
-  double precision, dimension(3) :: cholat, vect, diff
+  integer :: nat_sc, nr
+  !double precision, dimension(3) :: cholat, vect, diff
   double precision, dimension(:,:,:,:,:,:), allocatable :: v3_6
-  double precision, dimension(:,:), allocatable :: latvec
+  !double precision, dimension(:,:), allocatable :: latvec
   double precision :: prec
-  integer, dimension(:,:), allocatable :: tau_sc_latvec
-  logical, dimension(:), allocatable :: assigned
+  !integer, dimension(:,:), allocatable :: tau_sc_latvec
+  !logical, dimension(:), allocatable :: assigned
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3,3) :: mat_aux
   logical, parameter :: debug = .true.
@@ -243,24 +243,24 @@ subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc, nat, nat_sc )
   !nat    = size(tau(1,:))
   !nat_sc = size(tau_sc(1,:))
 
-  nr = nat_sc / nat
+  !nr = nat_sc / nat
 
   if (debug) then
     print *, "=== DEBUG TRANS V3 ==="
     print *, "NAT_SC:", nat_sc
-    print *, "NAT:", nat 
+    !print *, "NAT:", nat 
     print *, "NR:", nr 
     call flush()
   endif
 
-  allocate( assigned(nr) )
+  !allocate( assigned(nr) )
   allocate( v3_6(nat_sc,nat_sc,nat_sc,3,3,3) )
-  allocate( latvec(nr,3) )
-  allocate( tau_sc_latvec(nat_sc,nr) )
+  !allocate( latvec(nr,3) )
+  !allocate( tau_sc_latvec(nat_sc,nr) )
 
   ! Get the lattice vectors of the supercell
 
-  call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
+  !call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
 
   ! Build the 3rd order force-constant matrices 
   ! in 6 rank tensor
@@ -270,7 +270,7 @@ subroutine trans_v3 ( v3, tau, tau_sc, itau, at_sc, nat, nat_sc )
   ! Assign which is the transformed atom in the supercell
   ! given a particular translation vector
 
-  call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec, nat_sc, nr )
+  !call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec, nat_sc, nr )
 
   ! Impose translational symmetry
 

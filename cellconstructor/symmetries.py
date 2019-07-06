@@ -229,7 +229,7 @@ class QE_Symmetry:
         return q_stars, q_indices
 
 
-    def ApplySymmetryToTensor3(self, v3):
+    def ApplySymmetryToTensor3(self, v3, initialize_symmetries = True):
         """
         SYMMETRIZE A RANK-3 TENSOR
         ==========================
@@ -240,7 +240,8 @@ class QE_Symmetry:
 
         The v3 argument will be overwritten.
 
-        NOTE: The symmetries must be initialized at gamma!
+        NOTE: The symmetries must be initialized in the supercell using spglib
+        
 
         Parameters
         ----------
@@ -249,9 +250,20 @@ class QE_Symmetry:
                 It will be overwritten with the new symmetric one.
                 It is suggested to specify the order of the array to "F", as this will prevent
                 the parser to copy the matrix when doing the symmetrization in Fortran.
+            initialize_symmetries : bool
+                If True the symmetries will be initialized using spglib. Otherwise
+                the already present symmetries will be use. Use it False at your own risk! 
+                (It can crash with seg fault if symmetries are not properly initialized)
         """
+        if initialize_symmetries:
+            self.SetupFromSPGLIB()
+
         # Apply the permutation symmetry
         symph.permute_v3(v3)
+
+        # Apply the translational symmetries
+        symph.trans_v3(v3, self.QE_translations_irt)
+
         # Apply all the symmetries at gamma
         symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_nsymq)
 
