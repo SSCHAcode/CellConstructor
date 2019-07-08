@@ -305,44 +305,54 @@ end subroutine trans_v3
 ! an atom and a Cartesian index, but inside it is used
 ! with 6 indexes, separating cartesian and atom indexes.
 ! TODO: TO BE CONVERTED IN PYTHONIC
-subroutine trans_v4 ( v4, tau, tau_sc, itau, at_sc )
+!( v3, tau_sc_latvec, nat_sc, nr)
+subroutine trans_v4 ( v4, tau_sc_latvec, nat_sc, nr )
 
   implicit none
 
-  double precision, dimension(:,:,:,:), intent(inout) :: v4
-  double precision, dimension(:,:), intent(in) :: tau, tau_sc
-  integer, dimension(:), intent(in) :: itau
-  double precision, dimension(3,3), intent(in) :: at_sc
+  double precision, dimension(3*nat_sc,3*nat_sc,3*nat_sc,3*nat_sc), intent(inout) :: v4
+  integer, dimension(nat_sc,nr), intent(in) :: tau_sc_latvec
+
+  ! double precision, dimension(:,:), intent(in) :: tau, tau_sc
+  ! integer, dimension(:), intent(in) :: itau
+  ! double precision, dimension(3,3), intent(in) :: at_sc
 
   integer :: nat, nat_sc, nr
-  double precision, dimension(3) :: cholat, vect, diff
+
+  ! double precision, dimension(3) :: cholat, vect, diff
   double precision, dimension(:,:,:,:,:,:), allocatable :: v3_6
-  double precision, dimension(:,:), allocatable :: latvec
+  ! double precision, dimension(:,:), allocatable :: latvec
   double precision :: prec
-  integer, dimension(:,:), allocatable :: tau_sc_latvec
   logical, dimension(:), allocatable :: assigned
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3,3,3) :: mat_aux
+  logical, parameter :: debug = .true.
 
   prec = 1.0d-6
 
-  nat    = size(tau(1,:))
-  nat_sc = size(tau_sc(1,:))
+  nat = nat_sc / nr
 
-  nr = nat_sc / nat
+  if (debug) then
+    print *, "=== DEBUG TRANS_V4 ==="
+    print *, "NAT_SC:", nat_sc
+    print *, "NR:", nr 
+    print *, "NAT:", nat
+    call flush()
+  endif
 
-  allocate( assigned(nr) )
-  allocate( latvec(nr,3) )
-  allocate( tau_sc_latvec(nat_sc,nr) )
 
-  ! Get the lattice vectors of the supercell
+  ! allocate( assigned(nr) )
+  ! allocate( latvec(nr,3) )
+  ! allocate( tau_sc_latvec(nat_sc,nr) )
 
-  call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
+  ! ! Get the lattice vectors of the supercell
 
-  ! Assign which is the transformed atom in the supercell
-  ! given a particular translation vector
+  ! call get_latvec ( tau_sc, tau, itau, latvec, nat, nat_sc, nr )
 
-  call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec )
+  ! ! Assign which is the transformed atom in the supercell
+  ! ! given a particular translation vector
+
+  ! call get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec )
 
   ! Impose translational symmetry
 
@@ -699,41 +709,42 @@ end subroutine sym_v3
 ! This subroutine imposes the point group symmetry in the fourth-order
 ! force-constants
 
-subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, at_sc, itau )
+subroutine sym_v4 ( v4, at_sc, s, irt, nsym, nat_sc )
 
   implicit none
 
-  double precision, dimension(:,:,:,:), intent(inout) :: v4
-  integer, intent(in) :: ntyp
-  integer, dimension(:), intent(in) :: ityp_sc
-  double precision, dimension(:), intent(in) :: amass
-  integer, intent(in) :: ibrav
-  double precision, dimension(6), intent(in) :: celldm
-  double precision, dimension(:,:), intent(in) :: tau_sc
-  character (len=3), dimension(:), intent(in) :: type_name
+  double precision, dimension(3*nat_sc,3*nat_sc,3*nat_sc,3*nat_sc), intent(inout) :: v4
+  !integer, intent(in) :: ntyp
+  !integer, dimension(:), intent(in) :: ityp_sc
+  !double precision, dimension(:), intent(in) :: amass
+  !integer, intent(in) :: ibrav
+  !double precision, dimension(6), intent(in) :: celldm
+  !double precision, dimension(:,:), intent(in) :: tau_sc
+  !character (len=3), dimension(:), intent(in) :: type_name
   double precision, dimension(3,3), intent(in) :: at_sc
-  integer, dimension(:), intent(in) :: itau
+  integer, dimension(3,3,48), intent(in) :: s
+  integer, dimension(48, nat_sc), intent(in) :: irt
+  integer, intent(in) :: nsym
+  !integer, dimension(:), intent(in) :: itau
 
 
-  double complex, dimension(:,:,:,:,:), allocatable  :: phitot
-  double precision, dimension(3,1) :: q
-  integer, dimension(1) :: nqs
-  logical :: lrigid
-  character (len=50) :: fildyn_prefix
-  character (len=512) :: fildyn
-  double precision, dimension(3,3) :: epsil
-  double precision, dimension(:,:,:), allocatable :: zeu
+  !double complex, dimension(:,:,:,:,:), allocatable  :: phitot
+  !double precision, dimension(3,1) :: q
+  !integer, dimension(1) :: nqs
+  !logical :: lrigid
+  !character (len=50) :: fildyn_prefix
+  !character (len=512) :: fildyn
+  !double precision, dimension(3,3) :: epsil
+  !double precision, dimension(:,:,:), allocatable :: zeu
   !character(len=6), EXTERNAL :: int_to_char
 
   ! Symmetry stuff
 
-  integer, dimension(3,3,48) :: s
-  integer, dimension(48) :: invs, irgq, isq
-  double precision, dimension(3,48) :: sxq
-  double precision, dimension(:,:,:), allocatable :: rtau
-  integer, dimension(:,:), allocatable :: irt
-  integer :: nsymq, irotmq, nsym, imq
-  logical :: minus_q
+  ! integer, dimension(48) :: invs, irgq, isq
+  ! double precision, dimension(3,48) :: sxq
+  ! double precision, dimension(:,:,:), allocatable :: rtau
+  ! integer :: nsymq, irotmq, nsym, imq
+  ! logical :: minus_q
 
   INTEGER :: na, nb, nc, nd, isym, nar, nbr, ncr, ndr
   double precision, ALLOCATABLE :: work (:,:,:,:)
@@ -742,18 +753,25 @@ subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
   integer :: nat_sc
 
   integer :: iq, i, j, k, l, alpha, beta, gamm, delt 
+  logical, parameter :: debug = .true.
 
   ! Extract integers
 
-  nat_sc = size(tau_sc(1,:))
+  !nat_sc = size(tau_sc(1,:))
+  if (debug) then
+    print *, "=== DEBUG SYM_V4 ==="
+    print *, "NAT_SC:", nat_sc 
+    print *, "NSYM:", nsym 
+    call flush()
+  end if  
 
   ! Allocate variables
 
-  allocate(phitot(1,3,3,nat_sc,nat_sc))
-  allocate(zeu(3,3,nat_sc))
+  ! allocate(phitot(1,3,3,nat_sc,nat_sc))
+  ! allocate(zeu(3,3,nat_sc))
 
-  allocate(rtau(3,48,nat_sc))
-  allocate(irt(48,nat_sc))
+  ! allocate(rtau(3,48,nat_sc))
+  ! allocate(irt(48,nat_sc))
 
   ! Create reciprocal lattice vectors of supercell
 
@@ -906,10 +924,10 @@ subroutine sym_v4 ( v4, ntyp, ityp_sc, amass, ibrav, celldm, tau_sc, type_name, 
 
   ! Deallocate stuff
 
-  deallocate(phitot)
-  deallocate(zeu)
-  deallocate(rtau)
-  deallocate(irt)
+  ! deallocate(phitot)
+  ! deallocate(zeu)
+  ! deallocate(rtau)
+  ! deallocate(irt)
 
 end subroutine sym_v4
 

@@ -268,6 +268,45 @@ class QE_Symmetry:
         symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsymq)
 
     
+
+    def ApplySymmetryToTensor4(self, v4, initialize_symmetries = True):
+        """
+        SYMMETRIZE A RANK-4 TENSOR
+        ==========================
+
+        This subroutines uses the current symmetries to symmetrize
+        a rank-4 tensor. 
+        This tensor must be in the supercell space.
+
+        The v4 argument will be overwritten.
+
+        NOTE: The symmetries must be initialized in the supercell using spglib
+        
+
+        Parameters
+        ----------
+            v4 : ndarray( size=(3*nat, 3*nat, 3*nat, 3*nat), dtype = np.double, order = "F")
+                The 4-rank tensor to be symmetrized.
+                It will be overwritten with the new symmetric one.
+                It is suggested to specify the order of the array to "F", as this will prevent
+                the parser to copy the matrix when doing the symmetrization in Fortran.
+            initialize_symmetries : bool
+                If True the symmetries will be initialized using spglib. Otherwise
+                the already present symmetries will be use. Use it False at your own risk! 
+                (It can crash with seg fault if symmetries are not properly initialized)
+        """
+        if initialize_symmetries:
+            self.SetupFromSPGLIB()
+
+        # Apply the permutation symmetry
+        symph.permute_v4(v4)
+
+        # Apply the translational symmetries
+        symph.trans_v4(v4, self.QE_translations_irt)
+
+        # Apply all the symmetries at gamma
+        symph.sym_v4(v4, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsymq)
+
     def ApplyQStar(self, fcq, q_point_group):
         """
         APPLY THE Q STAR SYMMETRY
