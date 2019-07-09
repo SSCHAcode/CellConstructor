@@ -54,6 +54,37 @@ def DownloadDynSnSe():
         os.remove("dyn.SnSe.%d" % i)
 
     return dyn
+
+
+# This function retrives a testing dynamical matrix from the web
+def DownloadDynSky():
+    """
+    DOWNLOAD THE DYN FROM WEB
+    =========================
+
+    We use urllib to download from the web a testing dynamical matrix.
+
+    Results
+    -------
+        dyn : CC.Phonons.Phonons()
+            The dynamical matrix for test
+    """
+    NQ = 7
+    for i in range(1,NQ +1):
+        # Download from the web the dynamical matrices
+        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/newsscha_odd%d" % i)
+        with open("dyn.Sky.%d" % i,'wb') as output:
+            output.write(dynfile.read())
+
+    # Load the dynamical matrices
+    dyn = CC.Phonons.Phonons("dyn.Sky.", NQ)
+
+    # Lets remove the downloaded file
+    for i in range(1,NQ +1):
+        os.remove("dyn.Sky.%d" % i)
+
+    return dyn
+    
     
 
 class TestStructureMethods(unittest.TestCase):
@@ -94,6 +125,11 @@ class TestStructureMethods(unittest.TestCase):
         self.struct_simple_cubic.has_unit_cell = True
         self.struct_simple_cubic.unit_cell = np.eye(3)
         self.struct_simple_cubic.masses = {"H": 938}
+
+
+        # Download the complex dynamical matrices from internet
+        self.dynSnSe = DownloadDynSnSe()
+        self.dynSky = DownloadDynSky()
 
 
         
@@ -253,11 +289,30 @@ class TestStructureMethods(unittest.TestCase):
 
         self.assertTrue( delta < __tollerance__)
 
+    def test_dyn_realspace_and_back(self):
+        """
+        Test in which we take a particularly odd dynamical matrix
+        and we generate the dynamical matrix in realspace, and then we 
+        return back in q space. The two must match.
+        """
+
+        dyn = self.dynSky.Copy()
+        superdyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+        dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(dyn.q_tot), \
+            dyn.structure, superdyn.structure)
+        
+        for iq, q in enumerate(dyn.q_tot):
+            delta = dynq[iq,:,:] - dyn.dynmats[iq]
+            delta = np.sqrt(np.sum(np.abs(delta)**2))
+            self.assertAlmostEqual(delta, 0)
+
+
 
     def test_symmetries_realspace_supercell(self):
         # Download from internet
         #NQ = 3
-        dyn = DownloadDynSnSe()
+        dyn = self.dynSnSe.Copy()
 
         # Lets add a small random noise at gamma
         for iq, q in enumerate(dyn.q_tot):
@@ -318,6 +373,55 @@ class TestStructureMethods(unittest.TestCase):
 
         # Check if rv2 is equal to random_vector
         self.assertTrue( np.sum( (random_vector - rv2)**2) < 1e-8)
+
+    def test_multiple_spglib_symmetries(self):
+        """
+        This test tries to apply many times the symmetrization.
+        If after two application the dynamical matrix changes, 
+        there is a problem in the symmetrization.
+        """
+        dyn = DownloadDynSky()
+
+        dyn.SymmetrizeSupercell()
+
+        new_dyn = dyn.Copy()
+
+        new_dyn.SymmetrizeSupercell()
+
+        for iq, q in enumerate(dyn.q_tot):
+            delta = dyn.dynmats[iq] - new_dyn.dynmats[iq]
+            delta = np.sqrt(np.sum(np.abs(delta)**2))
+            #print("Testing iq = {}, q = {}".format(i, iq))
+            self.assertAlmostEqual(delta, 0)
+        
+
+
+    def test_spglib_phonon_symmetries(self):
+        # Get the Sky dyn
+        # This is a phonon matrix that gave a lot of problem
+        # In the symmetrization in the supercell
+        dyn = self.dynSky.Copy()
+
+        # Symmetrize using quantum espresso
+        dyn_qe = dyn.Copy()
+        dyn_qe.Symmetrize()
+
+        # Symmetrize using spblig
+        dyn_spglib = dyn.Copy()
+        dyn_spglib.SymmetrizeSupercell()
+        #__thr__ = 1e-8
+
+        dyn_qe.save_qe("trial_qe")
+        dyn_spglib.save_qe("trial_spglib")
+
+        # Compare
+        for i, iq in enumerate(dyn.q_tot):
+            delta = dyn_qe.dynmats[i] - dyn_spglib.dynmats[i]
+            delta = np.sqrt(np.sum(np.abs(delta)**2))
+            print("Testing iq = {}, q = {}".format(i, iq))
+            self.assertAlmostEqual(delta, 0)
+        
+        
 
 
 

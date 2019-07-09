@@ -1981,7 +1981,8 @@ class Phonons:
         for i, q in enumerate(self.q_tot):
             dynmat[i, :,:] = self.dynmats[i]
             
-        return GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), self.structure, super_structure)
+        fc = GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), self.structure, super_structure)
+        return fc
         
 #        
 #        # Define the number of q points, atoms and unit cell atoms
@@ -2190,10 +2191,13 @@ class Phonons:
         self.q_stars = q_stars
         self.nqirr = len(q_stars)
             
-    def SymmetrizeSupercell(self, supercell_size):
+    def SymmetrizeSupercell(self, supercell_size = None):
         """
         Testing function, it applies symmetries in the supercell.
         """
+
+        if supercell_size == None:
+            supercell_size = self.GetSupercell()
 
         
         if not __SPGLIB__:
@@ -2206,6 +2210,7 @@ class Phonons:
 
         qe_sym = symmetries.QE_Symmetry(superdyn.structure)
         qe_sym.SetupFromSPGLIB()
+        #qe_sym.SetupQPoint()
         qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
         
         #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
@@ -2727,6 +2732,14 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
         
         #np.sum(dynmat * np.exp(), axis = 0) / nq
     #print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
+
+    # Check the imaginary part
+    imag = np.sqrt(np.sum(np.imag(fc)**2))
+    ASSERT_ERROR = """
+    Error, the imaginary part of the real space force constant 
+    is not zero. IMAG={}
+    """
+    assert imag < 1e-6, ASSERT_ERROR.format(imag)
     
     return fc
 
