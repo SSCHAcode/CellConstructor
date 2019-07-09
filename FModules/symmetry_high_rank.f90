@@ -184,7 +184,7 @@ subroutine trans_v2 ( v2, tau_sc_latvec, nat_sc, nr )
   !nat_sc = size(tau_sc(1,:))
 
   if (debug) then
-    print *, "=== DEBUG TRANS V3 ==="
+    print *, "=== DEBUG TRANS V2 ==="
     print *, "NAT_SC:", nat_sc
     print *, "NR:", nr 
     call flush()
@@ -385,12 +385,13 @@ end subroutine trans_v4
 ! This subroutine imposes the point group symmetry in the second-order
 ! force-constants
 
-subroutine sym_v2 ( v2, at_sc, s, irt, nsym, nat_sc)
+subroutine sym_v2 ( v2, at_sc, bg_sc, s, irt, nsym, nat_sc)
 
   implicit none
 
   double precision, dimension(3,3,nat_sc,nat_sc), intent(inout) :: v2
   double precision, dimension(3,3), intent(in) :: at_sc
+  double precision, dimension(3,3), intent(in) :: bg_sc
   ! Symmetry stuff
 
   integer, dimension(3,3,48), intent(in) :: s
@@ -399,7 +400,7 @@ subroutine sym_v2 ( v2, at_sc, s, irt, nsym, nat_sc)
 
   INTEGER :: na, nb, nc, isym, nar, nbr, ncr
   double precision, ALLOCATABLE :: work (:,:,:,:)
-  double precision, dimension(3,3) :: bg_sc
+  !double precision, dimension(3,3) :: bg_sc
 
   integer :: iq, i, j, k, alpha, beta, gamm
   logical, parameter :: debug = .true.
@@ -421,7 +422,7 @@ subroutine sym_v2 ( v2, at_sc, s, irt, nsym, nat_sc)
 
   ! Create reciprocal lattice vectors of supercell
 
-  CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
+  !CALL recips(at_sc(1,1),at_sc(1,2),at_sc(1,3),bg_sc(1,1),bg_sc(1,2),bg_sc(1,3))
 
   ! Assign values to print fake dynamical matrix in the supercell
 

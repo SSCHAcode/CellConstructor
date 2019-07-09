@@ -69,10 +69,11 @@ def DownloadDynSky():
         dyn : CC.Phonons.Phonons()
             The dynamical matrix for test
     """
-    NQ = 7
+    NQ = 4
     for i in range(1,NQ +1):
         # Download from the web the dynamical matrices
-        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/newsscha_odd%d" % i)
+        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/skydyn_%d" %i)
+        #dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/newsscha_odd%d" % i)
         with open("dyn.Sky.%d" % i,'wb') as output:
             output.write(dynfile.read())
 
@@ -411,14 +412,14 @@ class TestStructureMethods(unittest.TestCase):
         dyn_spglib.SymmetrizeSupercell()
         #__thr__ = 1e-8
 
-        dyn_qe.save_qe("trial_qe")
-        dyn_spglib.save_qe("trial_spglib")
+        #dyn_qe.save_qe("trial_qe")
+        #dyn_spglib.save_qe("trial_spglib")
 
         # Compare
         for i, iq in enumerate(dyn.q_tot):
             delta = dyn_qe.dynmats[i] - dyn_spglib.dynmats[i]
             delta = np.sqrt(np.sum(np.abs(delta)**2))
-            print("Testing iq = {}, q = {}".format(i, iq))
+            #print("Testing iq = {}, q = {}".format(i, iq))
             self.assertAlmostEqual(delta, 0)
         
         

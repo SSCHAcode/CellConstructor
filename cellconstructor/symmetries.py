@@ -1139,7 +1139,7 @@ class QE_Symmetry:
 
         return q_irr
 
-    def ApplySymmetriesToV2(self, v2):
+    def ApplySymmetriesToV2(self, v2, apply_translations = True):
         """
         APPLY THE SYMMETRIES TO A 2-RANK TENSOR
         =======================================
@@ -1152,14 +1152,12 @@ class QE_Symmetry:
             v2 : ndarray (size = (3*nat, 3*nat), dtype = np.double)
                 The 2-rank tensor to be symmetrized.
                 It is directly modified
+            apply_translation : bool
+                If false pure translations are neglected.
         """
 
         # Apply the Permutation symmetry
         v2[:,:] = 0.5 * (v2 + v2.T)
-
-        # Check that the translations have been setted up
-        assert len(np.shape(self.QE_translations_irt)) == 2, "Error, symmetries not setted up to work in the supercell"
-
 
         # First lets recall that the fortran subroutines
         # Takes the input as (3,3,nat,nat)
@@ -1169,10 +1167,13 @@ class QE_Symmetry:
                 new_v2[:, :, i, j] = v2[3*i : 3*(i+1), 3*j : 3*(j+1)]
 
         # Apply the translations
-        symph.trans_v2(new_v2, self.QE_translations_irt)
+        if apply_translations:
+            # Check that the translations have been setted up
+            assert len(np.shape(self.QE_translations_irt)) == 2, "Error, symmetries not setted up to work in the supercell"
+            symph.trans_v2(new_v2, self.QE_translations_irt)
         
         # Apply the symmetrization
-        symph.sym_v2(new_v2, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsym, self.QE_nat)
+        symph.sym_v2(new_v2, self.QE_at, self.QE_bg, self.QE_s, self.QE_irt, self.QE_nsym, self.QE_nat)
 
         # Return back
         for i in range(self.QE_nat):
@@ -1399,7 +1400,7 @@ def GetIRT(structure, symmetry):
     n_struct_2 = new_struct.copy()
 
     new_struct.apply_symmetry(symmetry, True)
-    irt = np.array(n_struct_2.get_equivalent_atoms(new_struct), dtype =np.intc)
+    irt = np.array(new_struct.get_equivalent_atoms(n_struct_2), dtype =np.intc)
     return irt
 
 def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
