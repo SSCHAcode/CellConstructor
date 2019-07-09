@@ -2203,11 +2203,14 @@ class Phonons:
 
         # Apply the sum rule
         symmetries.CustomASR(superdyn.dynmats[0])
+
+        qe_sym = symmetries.QE_Symmetry(superdyn.structure)
+        qe_sym.SetupFromSPGLIB()
+        qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
         
-        spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
-        syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
-        
-        superdyn.ForceSymmetries(syms)
+        #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
+        #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
+        #superdyn.ForceSymmetries(syms)
         
         # Get the dynamical matrix back
         fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
