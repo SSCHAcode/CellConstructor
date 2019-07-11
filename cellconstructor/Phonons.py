@@ -2521,7 +2521,7 @@ class Phonons:
             R_vec[3*i : 3*i+3, :] = np.tile(super_structure.coords[i, :] - self.structure.coords[itau[i], :], (3,1))
         
         i_mu = 0
-        bg = self.structure.get_reciprocal_vectors()
+        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
         for iq, q in enumerate(self.q_tot):
             # Check if the current q point has been seen (we do not distinguish between q and -q)
             skip_this_q = False
@@ -2559,6 +2559,8 @@ class Phonons:
 
                 # Add the second vector
                 if norm1 > 1e-8:
+                    #q_cryst = Methods.covariant_coordinates(bg, q)
+                    #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst))
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1

@@ -1799,182 +1799,123 @@ def GetIRActiveModes(symmetries, structure, pols):
     return IR_active_mask
 
 
-def AdjustSupercellPolarizationVectors(w_sc, pols_sc, q_list, super_structure, nat):
+def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
+    supercell_size, crystal = True):
     """
-    SUPERCELL POLAIZATION VECTORS
-    =============================
+    GET THE Q VECTOR
+    ================
 
-    This function adjust the supercell polarization vector dividing them in the different q points.
+    For each polarization mode in the supercell computes the 
+    corresponding q vector.
 
-    If the polarization vectors are obtained dyagonalizing the dynamical matrix in the supercell,
-    then different q points in the same star will originate the same frequency. 
-    This means that they will be degenerate in the supercell. 
-    Thus, the polarization vectors obtained by diagonalization will have a linear superposition
-    of different q point that belongs to the same star.
-    This method separate them, chosing a particular basis in which different q points are not mixed together.
+    Indeed the polarization vector will be a have components both at q and at -q.
+
+    If a polarization vector mixes two q an error will be raised.
+
+    NOTE: use DiagonalizeSupercell of Phonons to avoid mixing q.
+
 
     Parameters
     ----------
-        w_sc : ndarray( size = (n_modes), dtype = float64)
-            The frequencies associated to the polarization vector in the supercell.
         pols_sc : ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
             The polarization vector of the supercell (real)
-        super_structure : Structure()
-            The structure of the supercell
-        q_list : list (len = nat_sc / nat)
-            List of the 3d q vectors that builds the supercell
-        nat : int
-            The number of atoms in the unit cell.
+        unit_cell_structure : Structure()
+            The structure in the unit cell
+        supercell_structure: Structure()
+            The structure in the super cell
+        supercell_size : list of 3 int
+            The supercell 
+        crystal : bool
+            If True, q points are returned in cristal coordinates.
+            
 
     Results
     -------
-        new_pols_sc :  ndarray ( size = (3*nat_sc, n_modes), dtype = np.float64)
-            The same polarization vectors with the q well separated.
+        q_list : ndarray(size = (n_modes, 3), dtype = np.float, order = "C")
+            The list of q points associated with each polarization mode.
+            If crystal is true, they will be in crystal coordinates.
     """
 
-    # Get the atoms in the supercell
-    nat_sc = len(q_list) * nat
-    dumb, n_modes = np.shape(pols_sc)
-    n_sup = np.arange(len(q_list)) * nat
+    # Check the supercell
+    n_cell = np.prod(supercell_size)
+
+    nat = unit_cell_structure.N_atoms
+    nat_sc = np.shape(pols_sc)[0] / 3
+    n_modes = np.shape(pols_sc)[1] 
+
+    ERR_MSG = """
+    Error, the supercell {} is not commensurate with the polarization vector given.
+    nat = {}, nat_sc = {}
+    """
+    assert n_cell * nat == nat_sc, ERR_MSG.format(supercell_size, nat, nat_sc)
+    assert nat_sc == supercell_structure.N_atoms
+
+    # Get the reciprocal lattice
+    bg = Methods.get_reciprocal_vectors(unit_cell_structure.unit_cell) / (2 * np.pi)
+
+    # Get the possible Q list
+    q_grid = GetQGrid(unit_cell_structure.unit_cell, supercell_size)
+
+    # Allocate the output variable
+    q_list = np.zeros( (n_modes, 3), dtype = np.double, order = "C")
+
+    # Get the correspondance between the unit cell and the super cell atoms
+    itau = supercell_structure.get_itau(unit_cell_structure) - 1 #Fort2Py
+
+    # Get the translational vectors
+    R_vects = np.zeros( (nat_sc, 3), dtype = np.double)
+    for i in range(nat_sc):
+        R_vects[i, :] = unit_cell_structure.coords[itau[i],:] - supercell_structure.coords[i,:]
     
-    bg = Methods.get_reciprocal_vectors(super_structure.unit_cell)
+    R_vects = R_vects.ravel()
+    __thr__ = 1e-6
 
-    # Test the consistency
-    assert nat_sc * 3 == len(w_sc), "Error, the number of atoms in the supercell inferred by q_list should match those in w_sc"
+    for imu in range(n_modes):
+        pol_v = pols_sc[:, imu]
 
-    # For each q vector, build the projection
-    new_pols_sc = np.zeros(np.shape(pols_sc), dtype = np.double, order = "F")
-    new_pols_sc[:,:] = pols_sc.copy()
+        nq = 0
+        for q in q_grid:
+            q_vec = np.tile(q, nat_sc)
+            q_cos = np.cos(2*np.pi * q_vec * R_vects)
+            q_cos /= np.sqrt(q_cos.dot(q_cos))
+            q_sin = np.sin(2*np.pi * q_vec * R_vects)
+            q_sin /= np.sqrt(q_cos.dot(q_cos))
 
-    
-    
+            cos_proj = q_cos.dot(pol_v)
+            sin_proj = q_sin.dot(pol_v)
+            # Wrong, this select only a translational mode
 
-    for q_vector in q_list:
-        is_gamma = False
-        if Methods.get_min_dist_into_cell(bg, q_vector, -q_vector) < __EPSILON__:
-            is_gamma = True
-            
-        delta_r = super_structure.coords[n_sup, :] - super_structure.coords[0, :]
-        #delta_r = np.tile(delta_r, (3*nat, 1)).T.ravel()
-        
-        q_cos = np.cos( delta_r.dot(q_vector) * 2*np.pi)
-        q_sin = np.sin( delta_r.dot(q_vector) * 2*np.pi)
+            if np.abs(cos_proj**2 + sin_proj**2 -1) < __thr__:
+                new_q = q
+                if crystal:
+                    new_q = CC.Methods.coovariant_coordinates(bg, q)
+                q_list[imu, :] = new_q
+                break
+            elif cos_proj**2 + sin_proj**2 > __thr__:
+                print (q_cos)
+                ERROR_MSG = """
+    Error, mixing between two |q|.
+    Please provide polarization vectors that are well defined in |q|.
+    This can be reached using the subroutine Phonons.Phonons.DiagonalizeSupercell.
+    q = {}
+    i_mode = {}
 
-        q_super_v_cos = np.tile(q_cos, (3*nat, 1)).T.ravel()
-        q_super_v_cos /= np.sqrt(q_cos.dot(q_cos))
-
-
-        q_super_v_sin = np.tile(q_sin, (3*nat, 1)).T.ravel()
-        if not is_gamma:
-            q_super_v_sin /= np.sqrt(q_super_v_sin).dot(q_super_v_sin)
-        
-        for i in range(n_modes):
-            # Project the mode on the cosinus
-            mode = new_pols_sc[:, i].reshape((len(q_list), 3*nat))
-
-            coeff = new_pols_sc[:, i].dot(q_super_v_cos)
-            coeff_sin = new_pols_sc[:, i].dot(q_super_v_sin)
-
-            # Check the degeneracy
-            w_current = w_sc[i]
-            n_deg = 1
-            for j in range(i+1, n_modes):
-                if np.abs(w_sc[i] - w_sc[j]) * 1e3 > __EPSILON__:
-                    break
-                
-                n_deg += 1
-                
-            if np.abs(coeff) > __EPSILON__:
-                # This mode has a q component
-                # Lets extract the elemental mode
-                elemental_mode = q_cos.dot(mode)
-                new_q_mode = np.outer(q_cos, elemental_mode).ravel()
-                new_q_mode /= np.sqrt(new_q_mode.dot(new_q_mode))
-
-                new_pols_sc[:, i] = new_q_mode
-
-                print("q_vector = ", q_vector, "mode: ", i, "COS")
-                
-                # Orthogonalize all the other mode
-                GramSchmidt(new_pols_sc[:, i:], n_deg, 3*nat_sc) 
-                
-            elif np.abs(coeff_sin) > __EPSILON__: 
-                # This mode has a q component
-                # Lets extract the elemental mode
-                elemental_mode = q_sin.dot(mode)
-                new_q_mode = np.outer(q_sin, elemental_mode).ravel()
-                new_q_mode /= np.sqrt(new_q_mode.dot(new_q_mode))
-
-                new_pols_sc[:, i] = new_q_mode
-                
-                print("q_vector = ", q_vector, "mode: ", i, "SIN")
-
-                # Orthogonalize all the other modes
-                GramSchmidt(new_pols_sc[:, i:], n_deg, 3*nat_sc) 
-                
-                
-
-            # Check if the mode has a component along gamma
-            
-
-        # # Get the projector in the given q point
-        # projector_cos = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
-        # projector_sin = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.float64)
-        # for i in range(nat):
-        #     for j in range(3):
-        #         e_mu_cos = np.zeros( 3*nat_sc, dtype = np.float64)
-        #         e_mu_sin = np.zeros( 3*nat_sc, dtype = np.float64)
-
-                
-        #         for k in range(len(q_list)):
-        #             atm_index = nat*k + i
-        #             delta_r = super_structure.coords[atm_index, :] - super_structure.coords[i, :]
-        #             e_mu_cos[3*atm_index + j] = np.cos( q_vector.dot(delta_r)*2*np.pi)
-        #             if not is_gamma:
-        #                 e_mu_sin[3*atm_index + j] = np.sin( q_vector.dot(delta_r)*2*np.pi)
-
-        #         # Normalize
-        #         e_mu_cos /= np.sqrt(e_mu_cos.dot(e_mu_cos))
-        #         projector_cos += np.outer(e_mu_cos, e_mu_cos) # |e_mu><e_mu|
-        #         if not is_gamma:
-        #             e_mu_sin /= np.sqrt(e_mu_sin.dot(e_mu_sin))
-        #             projector_sin += np.outer(e_mu_sin, e_mu_sin) # |e_mu><e_mu|
-
+    cos_proj = {} | sin_proj = {}
+    """
+                raise ValueError(ERROR_MSG.format(q, imu, cos_proj, sin_proj))
+            else:
+                nq += 1
 
         
+        # If we are here not q has been found
+        if nq == len(q_grid):
+            ERROR_MSG = """
+    Error, the polarization vector {} cannot be identified!
+    No q found in this supercell!
+    """
+            raise ValueError(ERROR_MSG.format(imu))
 
-        # w_now = -2
-        # counter = 0
-        # for i in range(n_modes):
-        #     new_e_cos = projector_cos.dot(pols_sc[:, i])
-        #     new_e_sin = projector_sin.dot(pols_sc[:, i])
-        #     coeff_cos = pols_sc[:,i].dot(new_e_cos)
-        #     coeff_sin = pols_sc[:,i].dot(new_e_sin)
-            
-        #     # The vector has a component along this q mode
-        #     if np.sqrt(coeff_cos**2 + coeff_sin**2) > __EPSILON__:
 
-        #         # This vector has not been found to have a component of other q modes
-        #         if np.sqrt(new_pols_sc[:, i].dot(new_pols_sc[:,i])) < __EPSILON__:
-
-        #             # Check if the same mode has already been seen:
-        #             if np.abs(w_sc[i] - w_now)*1e2 > __EPSILON__:
-        #                 if counter == 0:
-        #                     # Insert the cosinus
-        #                     new_pols_sc[:, i] = new_e_cos / np.sqrt(new_e_cos.dot(new_e_cos))
-        #                 elif counter == 1 and not is_gamma:
-        #                     # Insert the sinus
-        #                     new_pols_sc[:, i] = new_e_sin / np.sqrt(new_e_sin.dot(new_e_sin))
-
-                            
-
-        #                 # Lets ignore others
-        #                 counter += 1
-        #             else:
-        #                 w_now = w_sc[i]
-        #                 counter = 0
-    
-    return new_pols_sc
-
+    return q_list
 
         
