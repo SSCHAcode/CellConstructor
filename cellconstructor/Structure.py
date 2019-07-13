@@ -19,6 +19,8 @@ import Methods
 import symph
 import symmetries as SYM
 
+from Units import *
+
 __all__ = ["Structure"]
 BOHR_TO_ANGSTROM=0.529177249
 
@@ -1870,3 +1872,86 @@ class Structure:
             new_struct.atoms[i] = self.atoms[x]
         
         return new_struct
+
+    def get_inertia_tensor(self):
+        """
+        GET INERTIA TENSOR
+        ====================
+
+        This method get the intertial tensor of the current structure.
+        Note periodic boundary conditions will be ingored, 
+        so take care that the atoms are correctly centered.
+
+        The units will be the units given for the mass dot the position^2
+
+        Results
+        -------
+            I : ndarray ( size = (3,3), dtype = np.double)
+                The inertia tensor
+        """
+
+        # Extract the masses
+        m = self.get_masses_array()
+
+        I = np.zeros( (3,3), dtype = np.double)
+        E = np.eye(3, dtype = np.double)
+
+        # Get the center of mass
+        r_cm = np.einsum("a, ab->b", m, self.coords) / np.sum(m)
+
+        # Get the inertia tensor
+        for i in range(self.N_atoms):
+            r = self.coords[i, :] - r_cm
+
+            I += m[i] * (E * r.dot(r) - np.outer(r,r))
+        
+        return I
+
+    def get_classical_rotational_free_energy(self, temperature, unit_mass = "uma"):
+        """
+        ROTATIONAL FREE ENERGY
+        ======================
+
+        Get the classical free energy of a rigid rotor.
+
+        Parameters
+        ----------
+            temperature : float
+                Temperature in K
+            unit_mass : string
+                The unit of measurement of the masses.
+                It can be one of:
+                    - "uma" : the atomic mass unit (1/12 of the C12 nucleus)
+                    - "Ry" : the rydberg mass (twice electron mass)
+                    - "Ha" : the hartree mass (electron mass)
+        Results
+        -------
+            free_energy : float
+                The rotational free energy in eV
+        """
+
+        # Get the inertia tensor
+        It = self.get_inertia_tensor()
+
+        # convert the mass
+        if unit_mass.lower() == "ry":
+            It *= MASS_RY_TO_UMA
+        elif unit_mass.lower() == "ha":
+            It /= ELECTRON_MASS_UMA
+        elif unit_mass.lower() == "uma":
+            pass
+        else:       
+            ERROR_MSG = """
+    Error, unkwown unit type: {}
+"""
+            raise ValueError(ERROR_MSG.format(unit_mass))
+        
+
+        Idiag, dumb = np.linalg.eigh(It)
+
+        kbT = temperature* K_B
+        Z = np.sqrt((2 * np.pi* kbT)**3 * np.prod(Idiag))
+        free_energy = - kbT * np.log(Z)
+        #free_energy = 3 * kbT * np.log(2*kbT)/2 + kbT / 2 * np.sum(np.log(Idiag))
+
+        return free_energy
