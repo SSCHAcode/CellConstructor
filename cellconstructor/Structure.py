@@ -1907,7 +1907,7 @@ class Structure:
         
         return I
 
-    def get_classical_rotational_free_energy(self, temperature, unit_mass = "uma"):
+    def get_classical_rotational_free_energy(self, temperature, unit_mass = "Ry"):
         """
         ROTATIONAL FREE ENERGY
         ======================
