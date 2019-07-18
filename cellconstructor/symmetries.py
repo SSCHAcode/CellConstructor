@@ -1692,56 +1692,56 @@ def GetSupercellFromQlist(q_list, unit_cell):
     return supercell
 
 
-def GetSymmetriesOnModes(symmetries, structure, pol_vects):
-        """
-        GET SYMMETRIES ON MODES
-        =======================
+# def GetSymmetriesOnModes(symmetries, structure, pol_vects):
+#         """
+#         GET SYMMETRIES ON MODES
+#         =======================
 
-        This methods returns a set of symmetry matrices that explains how polarization vectors interacts between them
-        through any symmetry operation.
+#         This methods returns a set of symmetry matrices that explains how polarization vectors interacts between them
+#         through any symmetry operation.
 
-        Parameters
-        ----------
-            symmetries : list 
-               The list of 3x4 matrices representing the symmetries.
-            structure : Structure.Structure()
-               The structure (supercell) to allow the symmetry to correctly identify the atoms that transforms one
-               in each other.
-            pol_vects : ndarray(size = (n_dim, n_modes))
-               The array of the polarization vectors (must be real)
+#         Parameters
+#         ----------
+#             symmetries : list 
+#                The list of 3x4 matrices representing the symmetries.
+#             structure : Structure.Structure()
+#                The structure (supercell) to allow the symmetry to correctly identify the atoms that transforms one
+#                in each other.
+#             pol_vects : ndarray(size = (n_dim, n_modes))
+#                The array of the polarization vectors (must be real)
 
 
-        Results
-        -------
-            pol_symmetries : ndarray( size=(n_sym, n_modes, n_modes))
-               The symmetry operation between the modes. This allow to identify which mode
-               will be degenerate, and which will not interact.
-        """
+#         Results
+#         -------
+#             pol_symmetries : ndarray( size=(n_sym, n_modes, n_modes))
+#                The symmetry operation between the modes. This allow to identify which mode
+#                will be degenerate, and which will not interact.
+#         """
 
-        # Get the vector of the displacement in the polarization
-        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
-        disp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
+#         # Get the vector of the displacement in the polarization
+#         m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
+#         disp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
 
-        n_dim, n_modes = np.shape(pol_vects)
+#         n_dim, n_modes = np.shape(pol_vects)
 
-        n_sym = len(symmetries)
-        nat = structure.N_atoms
+#         n_sym = len(symmetries)
+#         nat = structure.N_atoms
         
-        # For each symmetry operation apply the
-        pol_symmetries = np.zeros((n_sym, n_modes, n_modes), dtype = np.float64)
-        for i, sym_mat in enumerate(symmetries):
-            irt = GetIRT(structure, sym_mat)
+#         # For each symmetry operation apply the
+#         pol_symmetries = np.zeros((n_sym, n_modes, n_modes), dtype = np.float64)
+#         for i, sym_mat in enumerate(symmetries):
+#             irt = GetIRT(structure, sym_mat)
             
-            for j in range(n_modes):
-                # Apply the i-th symmetry to the j-th mode
-                new_vector = ApplySymmetryToVector(sym_mat, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irt).ravel()
-                new_coords = Methods.covariant_coordinates(disp_v, new_vector)
-                pol_symmetries[i, j, :] = new_coords
+#             for j in range(n_modes):
+#                 # Apply the i-th symmetry to the j-th mode
+#                 new_vector = ApplySymmetryToVector(sym_mat, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irt).ravel()
+#                 new_coords = Methods.covariant_coordinates(disp_v, new_vector)
+#                 pol_symmetries[i, j, :] = new_coords
 
-        return pol_symmetries
+#         return pol_symmetries 
 
 
-def GetSymmetriesOnModesFast(symmetries, structure, pol_vects):
+def GetSymmetriesOnModes(symmetries, structure, pol_vects):
         """
         GET SYMMETRIES ON MODES
         =======================
