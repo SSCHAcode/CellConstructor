@@ -498,7 +498,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T, iq = 0):
+    def GetUpsilonMatrix(self, T):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -511,19 +511,17 @@ class Phonons:
         The resulting matrix is a 3N x 3N one ordered as the dynamical matrix here.
         The result is in bohr^-2, please be carefull.
         
-        NOTE: Tested only for the gamma point.
         
         Parameters
         ----------
             T : float
                 Temperature of the calculation (Kelvin)
-            iq : int, optional
-                the q point index of the calculation, default is Gamma.
         
         Returns
         -------
-            ndarray(3N x3N), dtype = np.complex128
-                The inverse of the correlation matrix.
+            ndarray(3N x3N), dtype = np.float64
+                The inverse of the correlation matrix in the supercell.
+                N is the number of atoms in the supercell
         """
         K_to_Ry=6.336857346553283e-06
 
@@ -534,22 +532,20 @@ class Phonons:
 #            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
-        w, pols = self.DyagDinQ(iq)
+        w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
         # Remove translations if we are at Gamma
-        type_cal = np.complex128
-        if iq == 0:
-            no_trans = ~Methods.get_translations(pols, self.structure.get_masses_array())
-            
-            # Discard translations
-            w = w[no_trans]
-            pols = pols[:, no_trans]
-            #type_cal = np.float64
-            
-            #pols_conj = pols
-            
+        type_cal = np.float64#np.complex128
+        
+        super_struct = self.structure.generate_supercell(self.GetSupercell())
+        no_trans = ~Methods.get_translations(pols, super_struct.get_masses_array())
+
+        # Discard translations
+        w = w[no_trans]
+        pols = pols[:, no_trans]
+        
         
         pols_conj = np.conj(pols)
             
@@ -566,16 +562,16 @@ class Phonons:
         factor = 2 * w / (1. + 2*nw)
         Upsilon = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
         
-        _p1_, _p1vect_ = np.linalg.eigh(Upsilon)
+        #_p1_, _p1vect_ = np.linalg.eigh(Upsilon)
         #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
         # Get the masses for the final multiplication
-        mass1 = np.zeros( 3*self.structure.N_atoms)
+        mass1 = np.zeros( 3*super_struct.N_atoms)
         for i in range(self.structure.N_atoms):
-            mass1[ 3*i : 3*i + 3] = np.sqrt(self.structure.masses[ self.structure.atoms[i]])
+            mass1[ 3*i : 3*i + 3] = np.sqrt(self.structure.masses[ super_struct.atoms[i]])
         
-        _m1_ = np.tile(mass1, (3 * self.structure.N_atoms, 1))
-        _m2_ = np.tile(mass1, (3 * self.structure.N_atoms, 1)).transpose()
+        _m1_ = np.tile(mass1, (3 * super_struct.N_atoms, 1))
+        _m2_ = np.tile(mass1, (3 * super_struct.N_atoms, 1)).transpose()
         
         return Upsilon * _m1_ * _m2_
     
