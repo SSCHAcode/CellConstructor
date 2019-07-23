@@ -2566,6 +2566,7 @@ class Phonons:
                     i_mu += 1
                     
                     if norm2 > 1e-8 and evec_1.dot(evec_2) < 1e-8:
+                        print("Adding another: norm2 = {}, dotproduct = {}".format(norm2, evec_1.dot(evec_2)))
                         w_array[i_mu] = w_qnu
                         e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
                         i_mu += 1
