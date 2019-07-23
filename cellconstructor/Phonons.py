@@ -2559,8 +2559,8 @@ class Phonons:
 
                 # Add the second vector
                 if norm1 > 1e-8:
-                    #q_cryst = Methods.covariant_coordinates(bg, q)
-                    #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst))
+                    q_cryst = Methods.covariant_coordinates(bg, q)
+                    print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst))
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
