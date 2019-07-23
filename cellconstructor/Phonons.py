@@ -2565,7 +2565,7 @@ class Phonons:
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
                     
-                    if norm2 > 1e-8 and evec_1.dot(evec_2) < 1e-8:
+                    if norm2 > 1e-8 and np.abs(evec_1.dot(evec_2)) < 1e-8:
                         w_array[i_mu] = w_qnu
                         e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
                         i_mu += 1
