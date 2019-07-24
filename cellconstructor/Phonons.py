@@ -566,14 +566,14 @@ class Phonons:
         #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
         # Get the masses for the final multiplication
-        mass = np.tile(super_struct.get_masses_array(), (3,1)).T.ravel()
+        mass_sqrt = np.sqrt(np.tile(super_struct.get_masses_array(), (3,1)).T.ravel())
         
         #mass1 = np.zeros( 3*super_struct.N_atoms)
         #for i in range(self.structure.N_atoms):
         #    mass1[ 3*i : 3*i + 3] = np.sqrt(self.structure.masses[ super_struct.atoms[i]])
         
-        _m1_ = np.tile(mass, (3 * super_struct.N_atoms, 1))
-        _m2_ = np.tile(mass, (3 * super_struct.N_atoms, 1)).transpose()
+        _m1_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1))
+        _m2_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1)).transpose()
         
         return Upsilon * _m1_ * _m2_
     
