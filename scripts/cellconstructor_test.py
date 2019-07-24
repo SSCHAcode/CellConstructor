@@ -308,6 +308,28 @@ class TestStructureMethods(unittest.TestCase):
             delta = np.sqrt(np.sum(np.abs(delta)**2))
             self.assertAlmostEqual(delta, 0)
 
+    def test_upsilon_matrix(self):
+        """
+        In this test we compute the upsilon matrix (inverse phonon covariance) 
+        in the supercell both by generating the supercell 
+        and by computing upsilon using the DiagonalizeSupercell method.
+        These two ways shold give the same result.
+        """
+
+        # Get the dynamical matrix
+        dyn = self.dynSnSe.Copy()
+        T = 300 # K
+
+        # Generate the supercell dynamical matrix
+        super_dyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+        # Compute Upsilon in both ways
+        ups_from_supercell = super_dyn.GetUpsilonMatrix(T)
+        ups_from_dyn = dyn.GetUpsilonMatrix(T)
+
+        # Perform the comparison
+        delta = np.sqrt(np.sum( (ups_from_supercell - ups_from_dyn)**2))
+        self.assertAlmostEqual(delta, 0, delta = 1e-5)
 
 
     def test_symmetries_realspace_supercell(self):
