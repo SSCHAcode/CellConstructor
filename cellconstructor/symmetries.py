@@ -450,7 +450,7 @@ class QE_Symmetry:
         """
 
         # Setup the symmetries in the Gamma point
-        self.SetupQPoint()
+        #self.SetupQPoint()
 
         # Perform the symmetrization
         mat_f = np.array(matrix, order = "F", dtype = np.float64)
