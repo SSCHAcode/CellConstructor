@@ -73,6 +73,17 @@ Otherwise, append the --user flag to either the setup.py or the pip installation
 In this way no administrator privilages is required, but the installation will be effective only for the current user.
 Note that some python distribution, like anaconda, does not need the superuser, as they have an installation path inside the HOME directory.
 
+You can install also using the intel compiler.
+In this case, you must edit the setup.py script so that:
+- remove the lapack and blas as extra library for the SCHAModules extension.
+- add a new flag: 'extra_link_args = ["-mkl"]' to the extension. 
+
+Remember to specify the intel compiler both to the compilation and for the running:
+CC="icc"
+LDSHARED="icc -shared"
+otherwise the C module will give an error when loaded reguarding some "_fast_memcpy_" linking.
+
+
 ## GO!
 
 To test if the installation runned properly, run the examples reported 
