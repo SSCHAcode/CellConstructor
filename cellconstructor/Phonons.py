@@ -449,8 +449,6 @@ class Phonons:
         So take care if the structure is big, because it will overload the memory.
 
 
-        NOTE: For now this will not copy raman or IR tensor.
-        TODO: TO be fixed
         """
         
         ret = Phonons()
@@ -466,6 +464,13 @@ class Phonons:
         
         for i, dyn in enumerate(self.dynmats):
             ret.dynmats.append(dyn.copy())
+
+        if not self.effective_charges is None:
+            ret.effective_charges = self.effective_charges.copy()
+        if not self.raman_tensor is None:
+            ret.raman_tensor = self.raman_tensor.copy()
+        if not self.dielectric_tensor is None:
+            ret.dielectric_tensor = self.dielectric_tensor.copy()
         
         return ret
     
