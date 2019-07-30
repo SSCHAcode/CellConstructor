@@ -575,6 +575,17 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0, :] = np.array([-a/2, b/2, 0])
         unit_cell[1, :] = np.array([a/2, b/2, 0])
         unit_cell[2, :] = np.array([0, 0, c])
+    elif ibrav == 91:
+        #     Orthorhombic one-face base-centered A-type
+        #                                     celldm(2)=b/a
+        #                                     celldm(3)=c/a
+        #       v1 = (a, 0, 0),  v2 = (0,b/2,-c/2),  v3 = (0,b/2,c/2)
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+        unit_cell[0,:] = np.array([a,0,0])
+        unit_cell[1,:] = np.array([0, b/2, -c/2])
+        unit_cell[2,:] = np.array([0, b/2, c/2])
     elif ibrav == 13:
         # Monoclinic base-centered
         
