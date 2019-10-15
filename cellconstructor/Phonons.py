@@ -2588,6 +2588,100 @@ class Phonons:
         e_pols_sc = e_pols_sc[:, sort_mask]
 
         return w_array, e_pols_sc
+
+
+    def ReadInfoFromESPRESSO(self, filename):
+        """
+        READ INFO FROM ESPRESSO
+        =======================
+
+        This method reads the effective charges, the dielectric tensor as well as 
+        the Raman tensor (TODO) from an espresso phonon output file.
+        It is usefull if you want to run the electric field perturbation without computing
+        all the phonon spectrum, deriving only with respect to the electric field.
+
+        NOTE: The raman tensor is still not yet implemented, it will not be read by this method.
+
+        Parameters
+        ----------
+            filename : string
+                Path to the standard output of the ph.x calculation.
+        """
+
+        if not os.path.exists(filename):
+            raise IOError("Error, the given file {} does not exist".format(filename))
+
+        # Read all the file
+        f = open(filename, "r")
+        lines = [l.strip() for l in f.readlines()]
+        f.close()
+
+        # The triggers to know what I am reading
+        reading_dielectric = False
+        reading_eff_charges = False 
+        reading_raman = False
+
+        reading_index = 0
+        reading_atom = 0
+
+        self.dielectric_tensor = np.zeros((3,3), dtype = np.double)
+        self.effective_charges = np.zeros( (self.structure.N_atoms, 3, 3), dtype = np.double)
+
+        # Start the analysis
+        for line in lines:            
+            data = line.split()
+            if len(data) == 0:
+                continue
+
+            # Check the number of atoms coincides
+            if "atoms/cell" in line:
+                nat = int(data[4])
+                if nat != self.structure.N_atoms:
+                    raise ValueError("Error, this Phonon has {} atoms, while the {} calculations contains {} atoms".format(self.structure.N_atoms, filename, nat))
+
+            # Check if we are reading the dielectric
+            if "Dielectric constant in " in line:
+                reading_dielectric = True 
+                reading_eff_charges = False 
+                reading_raman = False
+                reading_index = 0
+                reading_atom = 0
+            elif "Effective charges" in line:
+                reading_dielectric = False 
+                reading_eff_charges = True 
+                reading_raman = False
+                reading_index = 0
+                reading_atom = 0
+
+            # Check if we must read the dielectric file
+            if reading_dielectric:
+                if len(data) == 5 and data[0] == "(":
+                    self.dielectric_tensor[reading_index, :] = [float(x) for x in data[1:4]]
+                    reading_index += 1
+
+            if reading_eff_charges:
+                if data[0] == "atom":
+                    reading_atom = int(data[1]) - 1
+                    reading_index = 0
+                    # Check the consistency of the atom type
+                    atm_type = data[2]
+                    if self.structure.atoms[reading_atom] != atm_type:
+                        error = """
+Error while reading {}:
+    atom index {} shoud be {}, while it is {} (index {})
+""".format(filename, reading_atom, self.structure.atoms[reading_atom], atm_type, reading_atom+1)
+                        raise ValueError(error)
+                if len(data) == 6 and data[0][0] == 'E':
+                    self.effective_charges[reading_atom, reading_index, :] = [float(x) for x in data[2:5]]
+                    reading_index += 1
+                
+                # Check if we ended
+                if reading_atom == self.structure.N_atoms - 1 and reading_index == 3:
+                    reading_eff_charges = False
+
+            
+
+
         
 
 
