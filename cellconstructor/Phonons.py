@@ -2596,11 +2596,10 @@ class Phonons:
         =======================
 
         This method reads the effective charges, the dielectric tensor as well as 
-        the Raman tensor (TODO) from an espresso phonon output file.
+        the Raman tensor from an espresso phonon output file.
         It is usefull if you want to run the electric field perturbation without computing
         all the phonon spectrum, deriving only with respect to the electric field.
 
-        NOTE: The raman tensor is still not yet implemented, it will not be read by this method.
 
         Parameters
         ----------
@@ -2623,9 +2622,11 @@ class Phonons:
 
         reading_index = 0
         reading_atom = 0
+        reading_pol = 0
 
         self.dielectric_tensor = np.zeros((3,3), dtype = np.double)
         self.effective_charges = np.zeros( (self.structure.N_atoms, 3, 3), dtype = np.double)
+        self.raman_tensor = np.zeros((3,3, 3* self.structure.N_atoms), dtype = np.double)
 
         # Start the analysis
         for line in lines:            
@@ -2646,12 +2647,22 @@ class Phonons:
                 reading_raman = False
                 reading_index = 0
                 reading_atom = 0
+                reading_pol = 0
             elif "Effective charges" in line:
                 reading_dielectric = False 
                 reading_eff_charges = True 
                 reading_raman = False
                 reading_index = 0
                 reading_atom = 0
+                reading_pol = 0
+            elif "Raman tensor (A^2)" in line:
+                reading_dielectric = False 
+                reading_eff_charges = False 
+                reading_raman = True
+                reading_index = 0
+                reading_atom = 0
+                reading_pol = 0
+
 
             # Check if we must read the dielectric file
             if reading_dielectric:
@@ -2679,6 +2690,33 @@ Error while reading {}:
                 if reading_atom == self.structure.N_atoms - 1 and reading_index == 3:
                     reading_eff_charges = False
 
+
+            # Reading the raman
+            if reading_raman:
+                if data[0] == "atom":
+                    reading_atom = int(data[2]) - 1
+                    reading_index = 0
+                    reading_pol = int(data[4]) - 1
+
+                    if reading_atom >= self.structure.N_atoms:
+                        error_msg = """
+    Error, trying to read atom {} from inputfile {}.
+    I expect a maximum of {} atoms from this structure.
+""".format(reading_atom + 1, filename, self.structure.N_atoms)
+                        raise ValueError(error_msg)
+                
+                if len(data) == 3:
+                    is_good_line = False
+                    try:
+                        float(data[0])
+                        is_good_line = True
+                    except:
+                        pass
+
+                    if is_good_line:
+                        numbers = [float(x) for x in data]
+                        self.raman_tensor[reading_index, :, 3 * reading_atom + reading_pol] = numbers
+                        reading_index += 1
             
 
 

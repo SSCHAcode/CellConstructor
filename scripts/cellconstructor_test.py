@@ -330,7 +330,7 @@ class TestStructureMethods(unittest.TestCase):
         # Perform the comparison
         delta = np.sqrt(np.sum( (ups_from_supercell - ups_from_dyn)**2))
         self.assertAlmostEqual(delta, 0, delta = 1e-5)
-
+        
 
     def test_symmetries_realspace_supercell(self):
         # Download from internet
