@@ -1093,6 +1093,35 @@ class Phonons:
                 
                 # Go to the next q point
                 count_q += 1
+
+            # Here save the Dielectric tensor, the effective charges and the Raman response
+            if not self.dielectric_tensor is None:
+                fp.write("\n")
+                fp.write("    Dielectric Tensor:\n")
+                fp.write("\n")
+                for i in range(3):
+                    fp.write("{:24.12f} {:24.12f} {:24.12f}\n".format(*list(self.dielectric_tensor[i,:])))
+                
+            if not self.effective_charges is None:
+                fp.write("\n")
+                fp.write("     Effective Charges E-U: Z_{alpha}{s,beta}\n")
+                fp.write("\n")
+                for i in range(self.structure.N_atoms):
+                    fp.write("    atom # {:5d}\n".format(i+1))
+                    for j in range(3):
+                        fp.write("{:24.12e} {:24.12e} {:24.12e}\n".format(*list(self.effective_charges[i, :, j])))
+            
+            if not self.raman_tensor is None:
+                fp.write("\n")
+                fp.write("     Raman tensor (A^2)\n")
+                fp.write("\n")
+                for i_atm in range(self.structure.N_atoms):
+                    for j_pol in range(3):
+                        fp.write("     atom # {:5d}    pol. {:2d}\n".format(i_atm+1, j_pol+1))
+                        for k in range(3):
+                            fp.write("{:24.12e} {:24.12e} {:24.12e}\n".format(*list(self.raman_tensor[k, :, 3*i_atm + j_pol])))
+                
+
         
             # Print the diagnoalization of the matrix
             fp.write("\n")
@@ -2590,7 +2619,7 @@ class Phonons:
         return w_array, e_pols_sc
 
 
-    def ReadInfoFromESPRESSO(self, filename):
+    def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True):
         """
         READ INFO FROM ESPRESSO
         =======================
@@ -2605,6 +2634,12 @@ class Phonons:
         ----------
             filename : string
                 Path to the standard output of the ph.x calculation.
+            read_dielectric_constant: bool
+                If False, the dielectric tensor will be ignored
+            read_effective_charge : bool
+                If False, the effective charges will be ignored
+            read_raman_tensor : bool
+                If False, the Raman tensor will be ignored.
         """
 
         if not os.path.exists(filename):
@@ -2624,9 +2659,13 @@ class Phonons:
         reading_atom = 0
         reading_pol = 0
 
-        self.dielectric_tensor = np.zeros((3,3), dtype = np.double)
-        self.effective_charges = np.zeros( (self.structure.N_atoms, 3, 3), dtype = np.double)
-        self.raman_tensor = np.zeros((3,3, 3* self.structure.N_atoms), dtype = np.double)
+
+        if read_dielectric_tensor and len([x for x in lines if "Dielectric constant in " in x]):
+            self.dielectric_tensor = np.zeros((3,3), dtype = np.double)
+        if read_eff_charges and len([x for x in lines if "Effective charges" in x]):
+            self.effective_charges = np.zeros( (self.structure.N_atoms, 3, 3), dtype = np.double)
+        if read_raman_tensor and len([x for x in lines if "Raman tensor" in x]):
+            self.raman_tensor = np.zeros((3,3, 3* self.structure.N_atoms), dtype = np.double)
 
         # Start the analysis
         for line in lines:            
@@ -2665,12 +2704,12 @@ class Phonons:
 
 
             # Check if we must read the dielectric file
-            if reading_dielectric:
+            if reading_dielectric and read_dielectric_tensor:
                 if len(data) == 5 and data[0] == "(":
                     self.dielectric_tensor[reading_index, :] = [float(x) for x in data[1:4]]
                     reading_index += 1
 
-            if reading_eff_charges:
+            if reading_eff_charges and read_eff_charges:
                 if data[0] == "atom":
                     reading_atom = int(data[1]) - 1
                     reading_index = 0
@@ -2692,7 +2731,7 @@ Error while reading {}:
 
 
             # Reading the raman
-            if reading_raman:
+            if reading_raman and read_raman_tensor:
                 if data[0] == "atom":
                     reading_atom = int(data[2]) - 1
                     reading_index = 0
