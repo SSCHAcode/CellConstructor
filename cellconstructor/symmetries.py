@@ -152,6 +152,20 @@ class QE_Symmetry:
         # Save in the structure
         structure.coords[:,:] = new_coords.transpose()
         
+    def PrintSymmetries(self):
+        """
+        This method just prints the symmetries on stdout.
+        """
+
+        print()
+        print("Number of symmetries: {}".format(self.QE_nsym))
+        syms = self.GetSymmetries()
+        for i in range(self.QE_nsym):
+            print("  Symmetry {}".format(i+1))
+            for j in range(3):
+                print("  {:3.0f}{:3.0f}{:3.0f} | {:6.3f}".format(*syms[i][j,:]))
+            print()
+
             
     def SetupQStar(self, q_tot):
         """
@@ -204,20 +218,32 @@ class QE_Symmetry:
             
             # Prepare the star
             q_star = [sxq[:, k] for k in range(nq_new)]
+
+            # If imq is not zero (we do not have -q in the star) then add the -q for each in the star
+            if imq == 0:
+                old_q_star = q_star[:]
+                min_dist = 1
+                
+                for q in old_q_star:
+                    q_star.append(-q)
+
+                    
+
             q_stars.append(q_star)
             
             # Pop out the q_star from the q_list
-            for jq in range(nq_new):
+            for jq, q_instar in enumerate(q_star):
                 # Look for the q point in the star and pop them
+                print("q_instar:", q_instar)
                 q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
-                                                         sxq[:, jq], q_point) for q_point in q_list]
+                                                         np.array(q_instar), q_point) for q_point in q_list]
                 
                 pop_index = np.argmin(q_dist)            
                 q_list.pop(pop_index)
                 
                 # Use the same trick to identify the q point
                 q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
-                                                         sxq[:, jq], q_point) for q_point in q_tot]
+                                                         np.array(q_instar), q_point) for q_point in q_tot]
                 
                 q_index = np.argmin(q_dist)
                 print q_indices, count_q, q_index
