@@ -201,6 +201,44 @@ class TestStructureMethods(unittest.TestCase):
         self.assertTrue(np.sum(np.abs(voight_stress[3:])) < __epsil__)
 
         
+    def test_q_star_with_minus_q(self):
+        """
+        This subroutine tests the interpolation in a supercell 
+        where there is a q point so that
+        q != -q + G
+
+        In which there is no inversion symmetry (so -q is not in the star)
+        Then we try to both recover the correct q star, symmetrize and
+        check the symmetrization in the supercell
+        """
+
+
+        dyn = CC.Phonons.Phonons(self.struct_ice)
+        
+        # Get a random dynamical matrix
+        fc_random = np.complex128(np.random.uniform(size = (3 * self.struct_ice.N_atoms, 3 * self.struct_ice.N_atoms)))
+        fc_random += fc_random.T 
+        
+        
+        dyn.dynmats = [fc_random]
+        dyn.q_tot = [np.array([0,0,0])]
+        dyn.q_stars = [[np.array([0,0,0])]]
+
+        # Perform the symmetrization
+        #dyn.Symmetrize()
+
+        # Now perform the interpolation
+        SUPERCELL = (1,1,3)
+        new_dyn = dyn.Interpolate((1,1,1), SUPERCELL)
+        new_dyn.Symmetrize()
+        super_dyn = new_dyn.GenerateSupercellDyn(new_dyn.GetSupercell())
+        fc1 = super_dyn.dynmats[0].copy()
+        new_dyn.SymmetrizeSupercell()
+        super_dyn = new_dyn.GenerateSupercellDyn(new_dyn.GetSupercell())
+        fc2 = super_dyn.dynmats[0].copy()
+
+        self.assertTrue( np.sqrt(np.sum( (fc1 - fc2)**2)) < 1e-6)
+
 
     def test_phonons_supercell(self):
         # Build a supercell dynamical matrix
@@ -330,7 +368,7 @@ class TestStructureMethods(unittest.TestCase):
         # Perform the comparison
         delta = np.sqrt(np.sum( (ups_from_supercell - ups_from_dyn)**2))
         self.assertAlmostEqual(delta, 0, delta = 1e-5)
-
+        
 
     def test_symmetries_realspace_supercell(self):
         # Download from internet

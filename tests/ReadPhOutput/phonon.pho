@@ -1,0 +1,1314 @@
+
+     Program PHONON v.6.2.0 starts on 11Oct2019 at 21:20:29 
+
+     This program is part of the open-source Quantum ESPRESSO suite
+     for quantum simulation of materials; please cite
+         "P. Giannozzi et al., J. Phys.:Condens. Matter 21 395502 (2009);
+         "P. Giannozzi et al., J. Phys.:Condens. Matter. in press (2017);
+          URL http://www.quantum-espresso.org", 
+     in publications or presentations arising from this work. More details at
+     http://www.quantum-espresso.org/quote
+
+     Parallel version (MPI), running on     4 processors
+
+     MPI processes distributed on     1 nodes
+     K-points division:     npool     =       4
+      Title line not specified: using 'default'.
+
+     Reading data from directory:
+     ./pwscf.save/
+
+     IMPORTANT: XC functional enforced from input :
+     Exchange-correlation      = BLYP ( 1  3  1  3 0 0)
+     Any further DFT definition will be discarded
+     Please, verify this is what you really want
+
+
+     G-vector sticks info
+     --------------------
+     sticks:   dense  smooth     PW     G-vecs:    dense   smooth      PW
+     Sum        2095    2095    589                66161    66161   10007
+
+
+     Calculation of q =    0.0000000   0.0000000   0.0000000
+
+     default                                                                    
+
+     bravais-lattice index     =            0
+     lattice parameter (alat)  =      11.0817  a.u.
+     unit-cell volume          =    1052.7892 (a.u.)^3
+     number of atoms/cell      =           96
+     number of atomic types    =            1
+     kinetic-energy cut-off    =      60.0000  Ry
+     charge density cut-off    =     240.0000  Ry
+     convergence threshold     =      1.0E-18
+     beta                      =       0.7000
+     number of iterations used =            4
+     Exchange-correlation      = BLYP ( 1  3  1  3 0 0)
+
+
+     celldm(1)=   11.08170  celldm(2)=    0.00000  celldm(3)=    0.00000
+     celldm(4)=    0.00000  celldm(5)=    0.00000  celldm(6)=    0.00000
+
+     crystal axes: (cart. coord. in units of alat)
+               a(1) = (  0.3763  0.3296 -0.8659 )  
+               a(2) = ( -0.5860  0.6738 -0.0000 )  
+               a(3) = (  0.3763  0.3296  0.8659 )  
+
+     reciprocal axes: (cart. coord. in units 2 pi/alat)
+               b(1) = (  0.7542  0.6559 -0.5775 )  
+               b(2) = ( -0.7378  0.8425  0.0000 )  
+               b(3) = (  0.7542  0.6559  0.5775 )  
+
+
+     Atoms inside the unit cell: 
+
+     Cartesian axes
+
+     site n.  atom      mass           positions (alat units)
+        1     H    1.0080   tau(    1) = (    0.14170    0.30343   -0.11096  )
+        2     H    1.0080   tau(    2) = (   -0.01017    0.40102   -0.06871  )
+        3     H    1.0080   tau(    3) = (   -0.36890    0.75893    0.09332  )
+        4     H    1.0080   tau(    4) = (   -0.12648    0.62233    0.04845  )
+        5     H    1.0080   tau(    5) = (    0.19356    0.28358    0.03103  )
+        6     H    1.0080   tau(    6) = (   -0.14609    0.36454    0.00957  )
+        7     H    1.0080   tau(    7) = (   -0.45759    0.70541   -0.00985  )
+        8     H    1.0080   tau(    8) = (   -0.09959    0.66507   -0.05943  )
+        9     H    1.0080   tau(    9) = (    0.17824    0.31305    0.22604  )
+       10     H    1.0080   tau(   10) = (   -0.09016    0.40072    0.27450  )
+       11     H    1.0080   tau(   11) = (   -0.42064    0.74627   -0.23988  )
+       12     H    1.0080   tau(   12) = (   -0.08666    0.61049   -0.24455  )
+       13     H    1.0080   tau(   13) = (    0.14397    0.27110    0.35715  )
+       14     H    1.0080   tau(   14) = (   -0.08069    0.38879    0.36764  )
+       15     H    1.0080   tau(   15) = (   -0.40636    0.73472   -0.40091  )
+       16     H    1.0080   tau(   16) = (   -0.11331    0.61383   -0.36482  )
+       17     H    1.0080   tau(   17) = (    0.14798    0.30561   -0.30446  )
+       18     H    1.0080   tau(   18) = (   -0.05265    0.39291   -0.27243  )
+       19     H    1.0080   tau(   19) = (   -0.32908    0.69804    0.30581  )
+       20     H    1.0080   tau(   20) = (   -0.17874    0.64890    0.25479  )
+       21     H    1.0080   tau(   21) = (    0.08821    0.17129    0.14110  )
+       22     H    1.0080   tau(   22) = (    0.00035    0.46877    0.12685  )
+       23     H    1.0080   tau(   23) = (   -0.28189    0.80182   -0.09051  )
+       24     H    1.0080   tau(   24) = (   -0.25709    0.51779   -0.13652  )
+       25     H    1.0080   tau(   25) = (    0.31231    0.42964    0.37317  )
+       26     H    1.0080   tau(   26) = (    0.16533    0.55301    0.33667  )
+       27     H    1.0080   tau(   27) = (   -0.12938    0.88448    0.50647  )
+       28     H    1.0080   tau(   28) = (    0.03688    0.78080    0.52743  )
+       29     H    1.0080   tau(   29) = (    0.36633    0.48540    0.48599  )
+       30     H    1.0080   tau(   30) = (    0.07925    0.51637    0.43409  )
+       31     H    1.0080   tau(   31) = (   -0.22308    0.84286    0.40557  )
+       32     H    1.0080   tau(   32) = (    0.11436    0.80121    0.43078  )
+       33     H    1.0080   tau(   33) = (    0.39566    0.43361    0.69854  )
+       34     H    1.0080   tau(   34) = (    0.05100    0.55084    0.69794  )
+       35     H    1.0080   tau(   35) = (   -0.23221    0.87893    0.18217  )
+       36     H    1.0080   tau(   36) = (    0.07872    0.79067    0.17645  )
+       37     H    1.0080   tau(   37) = (    0.35037    0.45472    0.82490  )
+       38     H    1.0080   tau(   38) = (    0.10161    0.58751    0.78272  )
+       39     H    1.0080   tau(   39) = (   -0.19520    0.90379    0.06017  )
+       40     H    1.0080   tau(   40) = (    0.01303    0.81062    0.05769  )
+       41     H    1.0080   tau(   41) = (    0.35528    0.43954    0.11874  )
+       42     H    1.0080   tau(   42) = (    0.12375    0.54445    0.16253  )
+       43     H    1.0080   tau(   43) = (   -0.15617    0.88449    0.73359  )
+       44     H    1.0080   tau(   44) = (    0.03861    0.80539    0.71358  )
+       45     H    1.0080   tau(   45) = (    0.25605    0.35240    0.58509  )
+       46     H    1.0080   tau(   46) = (    0.22468    0.63816    0.59520  )
+       47     H    1.0080   tau(   47) = (   -0.09008    0.96681    0.29689  )
+       48     H    1.0080   tau(   48) = (   -0.04435    0.69095    0.28472  )
+       49     H    1.0080   tau(   49) = (    0.36002    0.43169   -0.50681  )
+       50     H    1.0080   tau(   50) = (    0.14169    0.54976   -0.53751  )
+       51     H    1.0080   tau(   51) = (   -0.14883    0.88088   -0.29631  )
+       52     H    1.0080   tau(   52) = (    0.04544    0.74558   -0.34584  )
+       53     H    1.0080   tau(   53) = (    0.33997    0.50012   -0.41159  )
+       54     H    1.0080   tau(   54) = (    0.08932    0.51763   -0.43994  )
+       55     H    1.0080   tau(   55) = (   -0.21690    0.82896   -0.43186  )
+       56     H    1.0080   tau(   56) = (    0.09805    0.82334   -0.42504  )
+       57     H    1.0080   tau(   57) = (    0.41027    0.48152   -0.15830  )
+       58     H    1.0080   tau(   58) = (    0.07968    0.51071   -0.17225  )
+       59     H    1.0080   tau(   59) = (   -0.23721    0.88156   -0.68072  )
+       60     H    1.0080   tau(   60) = (    0.11730    0.82585   -0.67661  )
+       61     H    1.0080   tau(   61) = (    0.30093    0.44795   -0.06056  )
+       62     H    1.0080   tau(   62) = (    0.14945    0.54953   -0.06381  )
+       63     H    1.0080   tau(   63) = (   -0.18252    0.89302   -0.79232  )
+       64     H    1.0080   tau(   64) = (    0.03139    0.76127   -0.76724  )
+       65     H    1.0080   tau(   65) = (    0.33281    0.46597   -0.73853  )
+       66     H    1.0080   tau(   66) = (    0.12405    0.51634   -0.70864  )
+       67     H    1.0080   tau(   67) = (   -0.17605    0.88010   -0.14638  )
+       68     H    1.0080   tau(   68) = (    0.08040    0.77877   -0.13585  )
+       69     H    1.0080   tau(   69) = (    0.26034    0.37093   -0.26756  )
+       70     H    1.0080   tau(   70) = (    0.21557    0.61968   -0.28791  )
+       71     H    1.0080   tau(   71) = (   -0.10302    0.97488   -0.56190  )
+       72     H    1.0080   tau(   72) = (   -0.04392    0.69196   -0.57881  )
+       73     H    1.0080   tau(   73) = (    0.51058    0.61943   -0.07446  )
+       74     H    1.0080   tau(   74) = (    0.34565    0.71906   -0.08205  )
+       75     H    1.0080   tau(   75) = (    0.00936    1.02557    0.06921  )
+       76     H    1.0080   tau(   76) = (    0.23641    0.93223    0.05765  )
+       77     H    1.0080   tau(   77) = (    0.57147    0.64780    0.01790  )
+       78     H    1.0080   tau(   78) = (    0.26999    0.65089    0.01453  )
+       79     H    1.0080   tau(   79) = (   -0.04486    1.01136   -0.02642  )
+       80     H    1.0080   tau(   80) = (    0.27552    1.00089   -0.03856  )
+       81     H    1.0080   tau(   81) = (    0.55289    0.64962    0.25993  )
+       82     H    1.0080   tau(   82) = (    0.27649    0.67297    0.23602  )
+       83     H    1.0080   tau(   83) = (   -0.02112    0.99953   -0.26913  )
+       84     H    1.0080   tau(   84) = (    0.29749    0.94922   -0.28101  )
+       85     H    1.0080   tau(   85) = (    0.56066    0.61831    0.37425  )
+       86     H    1.0080   tau(   86) = (    0.28651    0.72066    0.37464  )
+       87     H    1.0080   tau(   87) = (    0.01836    1.06753   -0.36269  )
+       88     H    1.0080   tau(   88) = (    0.20237    0.95727   -0.38594  )
+       89     H    1.0080   tau(   89) = (    0.51583    0.60897   -0.27659  )
+       90     H    1.0080   tau(   90) = (    0.32070    0.67017   -0.30407  )
+       91     H    1.0080   tau(   91) = (    0.01694    1.02492    0.28175  )
+       92     H    1.0080   tau(   92) = (    0.22624    0.97983    0.28432  )
+       93     H    1.0080   tau(   93) = (    0.42269    0.52375    0.10920  )
+       94     H    1.0080   tau(   94) = (    0.39778    0.79347    0.11328  )
+       95     H    1.0080   tau(   95) = (    0.10611    1.14376   -0.13538  )
+       96     H    1.0080   tau(   96) = (    0.19912    0.85290   -0.16845  )
+
+     Computing dynamical matrix for 
+                    q = (   0.0000000   0.0000000   0.0000000 )
+
+      2 Sym.Ops. (with q -> -q+G )
+
+
+     G cutoff =  746.5597  (  66161 G-vectors)     FFT grid: ( 60, 50, 60)
+     number of k points=    32
+                       cart. coord. in units 2pi/alat
+        k(    1) = (   0.0963250   0.2692767   0.0000000), wk =   0.0625000
+        k(    2) = (   0.2848719   0.4332450   0.1443627), wk =   0.0625000
+        k(    3) = (  -0.2807689  -0.0586599  -0.2887254), wk =   0.0625000
+        k(    4) = (  -0.0922219   0.1053084  -0.1443627), wk =   0.0625000
+        k(    5) = (  -0.0881189   0.4798934   0.0000000), wk =   0.0625000
+        k(    6) = (   0.1004280   0.6438617   0.1443627), wk =   0.0625000
+        k(    7) = (  -0.4652128   0.1519568  -0.2887254), wk =   0.0625000
+        k(    8) = (  -0.2766658   0.3159251  -0.1443627), wk =   0.0625000
+        k(    9) = (   0.4652128  -0.1519568   0.0000000), wk =   0.0625000
+        k(   10) = (   0.6537597   0.0120115   0.1443627), wk =   0.0625000
+        k(   11) = (   0.0881189  -0.4798934  -0.2887254), wk =   0.0625000
+        k(   12) = (   0.2807689   0.0586599   0.0000000), wk =   0.0625000
+        k(   13) = (   0.4693158   0.2226282   0.1443627), wk =   0.0625000
+        k(   14) = (  -0.0963250  -0.2692767  -0.2887254), wk =   0.0625000
+        k(   15) = (   0.4734189   0.5972133   0.0000000), wk =   0.0625000
+        k(   16) = (  -0.0922219   0.1053084  -0.4330881), wk =   0.0625000
+        k(   17) = (   0.2889750   0.8078300   0.0000000), wk =   0.0625000
+        k(   18) = (  -0.2766658   0.3159251  -0.4330881), wk =   0.0625000
+        k(   19) = (   0.8423066   0.1759798   0.0000000), wk =   0.0625000
+        k(   20) = (   0.6578627   0.3865965   0.0000000), wk =   0.0625000
+        k(   21) = (  -0.2848719  -0.4332450   0.1443627), wk =   0.0625000
+        k(   22) = (   0.2807689   0.0586599  -0.2887254), wk =   0.0625000
+        k(   23) = (   0.0922219  -0.1053084  -0.1443627), wk =   0.0625000
+        k(   24) = (  -0.1004280  -0.6438617   0.1443627), wk =   0.0625000
+        k(   25) = (   0.4652128  -0.1519568  -0.2887254), wk =   0.0625000
+        k(   26) = (   0.2766658  -0.3159251  -0.1443627), wk =   0.0625000
+        k(   27) = (  -0.6537597  -0.0120115   0.1443627), wk =   0.0625000
+        k(   28) = (  -0.0881189   0.4798934  -0.2887254), wk =   0.0625000
+        k(   29) = (  -0.4693158  -0.2226282   0.1443627), wk =   0.0625000
+        k(   30) = (   0.0963250   0.2692767  -0.2887254), wk =   0.0625000
+        k(   31) = (   0.0922219  -0.1053084  -0.4330881), wk =   0.0625000
+        k(   32) = (   0.2766658  -0.3159251  -0.4330881), wk =   0.0625000
+
+     PseudoPot. # 1 for H  read from file:
+     /home/darth-vader/espresso/pseudo/H.bare.upf
+     MD5 check sum: ad9761c55b7d2c28abe9fa2b83269171
+     Pseudo is Norm-conserving, Zval =  1.0
+     Generated using ONCVPSP code by D. R. Hamann
+     Using radial grid of  866 points,  3 beta functions with: 
+                l(1) =   0
+                l(2) =   0
+                l(3) =   1
+
+     Mode symmetry, C_1 (1)     point group:
+
+
+     Electric field:
+     Dielectric constant
+     Born effective charges as d Force / d E
+
+
+     Atomic displacements:
+     There are 288 irreducible representations
+
+     Representation     1      1 modes -A  To be done
+
+     Representation     2      1 modes -A  To be done
+
+     Representation     3      1 modes -A  To be done
+
+     Representation     4      1 modes -A  To be done
+
+     Representation     5      1 modes -A  To be done
+
+     Representation     6      1 modes -A  To be done
+
+     Representation     7      1 modes -A  To be done
+
+     Representation     8      1 modes -A  To be done
+
+     Representation     9      1 modes -A  To be done
+
+     Representation    10      1 modes -A  To be done
+
+     Representation    11      1 modes -A  To be done
+
+     Representation    12      1 modes -A  To be done
+
+     Representation    13      1 modes -A  To be done
+
+     Representation    14      1 modes -A  To be done
+
+     Representation    15      1 modes -A  To be done
+
+     Representation    16      1 modes -A  To be done
+
+     Representation    17      1 modes -A  To be done
+
+     Representation    18      1 modes -A  To be done
+
+     Representation    19      1 modes -A  To be done
+
+     Representation    20      1 modes -A  To be done
+
+     Representation    21      1 modes -A  To be done
+
+     Representation    22      1 modes -A  To be done
+
+     Representation    23      1 modes -A  To be done
+
+     Representation    24      1 modes -A  To be done
+
+     Representation    25      1 modes -A  To be done
+
+     Representation    26      1 modes -A  To be done
+
+     Representation    27      1 modes -A  To be done
+
+     Representation    28      1 modes -A  To be done
+
+     Representation    29      1 modes -A  To be done
+
+     Representation    30      1 modes -A  To be done
+
+     Representation    31      1 modes -A  To be done
+
+     Representation    32      1 modes -A  To be done
+
+     Representation    33      1 modes -A  To be done
+
+     Representation    34      1 modes -A  To be done
+
+     Representation    35      1 modes -A  To be done
+
+     Representation    36      1 modes -A  To be done
+
+     Representation    37      1 modes -A  To be done
+
+     Representation    38      1 modes -A  To be done
+
+     Representation    39      1 modes -A  To be done
+
+     Representation    40      1 modes -A  To be done
+
+     Representation    41      1 modes -A  To be done
+
+     Representation    42      1 modes -A  To be done
+
+     Representation    43      1 modes -A  To be done
+
+     Representation    44      1 modes -A  To be done
+
+     Representation    45      1 modes -A  To be done
+
+     Representation    46      1 modes -A  To be done
+
+     Representation    47      1 modes -A  To be done
+
+     Representation    48      1 modes -A  To be done
+
+     Representation    49      1 modes -A  To be done
+
+     Representation    50      1 modes -A  To be done
+
+     Representation    51      1 modes -A  To be done
+
+     Representation    52      1 modes -A  To be done
+
+     Representation    53      1 modes -A  To be done
+
+     Representation    54      1 modes -A  To be done
+
+     Representation    55      1 modes -A  To be done
+
+     Representation    56      1 modes -A  To be done
+
+     Representation    57      1 modes -A  To be done
+
+     Representation    58      1 modes -A  To be done
+
+     Representation    59      1 modes -A  To be done
+
+     Representation    60      1 modes -A  To be done
+
+     Representation    61      1 modes -A  To be done
+
+     Representation    62      1 modes -A  To be done
+
+     Representation    63      1 modes -A  To be done
+
+     Representation    64      1 modes -A  To be done
+
+     Representation    65      1 modes -A  To be done
+
+     Representation    66      1 modes -A  To be done
+
+     Representation    67      1 modes -A  To be done
+
+     Representation    68      1 modes -A  To be done
+
+     Representation    69      1 modes -A  To be done
+
+     Representation    70      1 modes -A  To be done
+
+     Representation    71      1 modes -A  To be done
+
+     Representation    72      1 modes -A  To be done
+
+     Representation    73      1 modes -A  To be done
+
+     Representation    74      1 modes -A  To be done
+
+     Representation    75      1 modes -A  To be done
+
+     Representation    76      1 modes -A  To be done
+
+     Representation    77      1 modes -A  To be done
+
+     Representation    78      1 modes -A  To be done
+
+     Representation    79      1 modes -A  To be done
+
+     Representation    80      1 modes -A  To be done
+
+     Representation    81      1 modes -A  To be done
+
+     Representation    82      1 modes -A  To be done
+
+     Representation    83      1 modes -A  To be done
+
+     Representation    84      1 modes -A  To be done
+
+     Representation    85      1 modes -A  To be done
+
+     Representation    86      1 modes -A  To be done
+
+     Representation    87      1 modes -A  To be done
+
+     Representation    88      1 modes -A  To be done
+
+     Representation    89      1 modes -A  To be done
+
+     Representation    90      1 modes -A  To be done
+
+     Representation    91      1 modes -A  To be done
+
+     Representation    92      1 modes -A  To be done
+
+     Representation    93      1 modes -A  To be done
+
+     Representation    94      1 modes -A  To be done
+
+     Representation    95      1 modes -A  To be done
+
+     Representation    96      1 modes -A  To be done
+
+     Representation    97      1 modes -A  To be done
+
+     Representation    98      1 modes -A  To be done
+
+     Representation    99      1 modes -A  To be done
+
+     Representation   100      1 modes -A  To be done
+
+     Representation   101      1 modes -A  To be done
+
+     Representation   102      1 modes -A  To be done
+
+     Representation   103      1 modes -A  To be done
+
+     Representation   104      1 modes -A  To be done
+
+     Representation   105      1 modes -A  To be done
+
+     Representation   106      1 modes -A  To be done
+
+     Representation   107      1 modes -A  To be done
+
+     Representation   108      1 modes -A  To be done
+
+     Representation   109      1 modes -A  To be done
+
+     Representation   110      1 modes -A  To be done
+
+     Representation   111      1 modes -A  To be done
+
+     Representation   112      1 modes -A  To be done
+
+     Representation   113      1 modes -A  To be done
+
+     Representation   114      1 modes -A  To be done
+
+     Representation   115      1 modes -A  To be done
+
+     Representation   116      1 modes -A  To be done
+
+     Representation   117      1 modes -A  To be done
+
+     Representation   118      1 modes -A  To be done
+
+     Representation   119      1 modes -A  To be done
+
+     Representation   120      1 modes -A  To be done
+
+     Representation   121      1 modes -A  To be done
+
+     Representation   122      1 modes -A  To be done
+
+     Representation   123      1 modes -A  To be done
+
+     Representation   124      1 modes -A  To be done
+
+     Representation   125      1 modes -A  To be done
+
+     Representation   126      1 modes -A  To be done
+
+     Representation   127      1 modes -A  To be done
+
+     Representation   128      1 modes -A  To be done
+
+     Representation   129      1 modes -A  To be done
+
+     Representation   130      1 modes -A  To be done
+
+     Representation   131      1 modes -A  To be done
+
+     Representation   132      1 modes -A  To be done
+
+     Representation   133      1 modes -A  To be done
+
+     Representation   134      1 modes -A  To be done
+
+     Representation   135      1 modes -A  To be done
+
+     Representation   136      1 modes -A  To be done
+
+     Representation   137      1 modes -A  To be done
+
+     Representation   138      1 modes -A  To be done
+
+     Representation   139      1 modes -A  To be done
+
+     Representation   140      1 modes -A  To be done
+
+     Representation   141      1 modes -A  To be done
+
+     Representation   142      1 modes -A  To be done
+
+     Representation   143      1 modes -A  To be done
+
+     Representation   144      1 modes -A  To be done
+
+     Representation   145      1 modes -A  To be done
+
+     Representation   146      1 modes -A  To be done
+
+     Representation   147      1 modes -A  To be done
+
+     Representation   148      1 modes -A  To be done
+
+     Representation   149      1 modes -A  To be done
+
+     Representation   150      1 modes -A  To be done
+
+     Representation   151      1 modes -A  To be done
+
+     Representation   152      1 modes -A  To be done
+
+     Representation   153      1 modes -A  To be done
+
+     Representation   154      1 modes -A  To be done
+
+     Representation   155      1 modes -A  To be done
+
+     Representation   156      1 modes -A  To be done
+
+     Representation   157      1 modes -A  To be done
+
+     Representation   158      1 modes -A  To be done
+
+     Representation   159      1 modes -A  To be done
+
+     Representation   160      1 modes -A  To be done
+
+     Representation   161      1 modes -A  To be done
+
+     Representation   162      1 modes -A  To be done
+
+     Representation   163      1 modes -A  To be done
+
+     Representation   164      1 modes -A  To be done
+
+     Representation   165      1 modes -A  To be done
+
+     Representation   166      1 modes -A  To be done
+
+     Representation   167      1 modes -A  To be done
+
+     Representation   168      1 modes -A  To be done
+
+     Representation   169      1 modes -A  To be done
+
+     Representation   170      1 modes -A  To be done
+
+     Representation   171      1 modes -A  To be done
+
+     Representation   172      1 modes -A  To be done
+
+     Representation   173      1 modes -A  To be done
+
+     Representation   174      1 modes -A  To be done
+
+     Representation   175      1 modes -A  To be done
+
+     Representation   176      1 modes -A  To be done
+
+     Representation   177      1 modes -A  To be done
+
+     Representation   178      1 modes -A  To be done
+
+     Representation   179      1 modes -A  To be done
+
+     Representation   180      1 modes -A  To be done
+
+     Representation   181      1 modes -A  To be done
+
+     Representation   182      1 modes -A  To be done
+
+     Representation   183      1 modes -A  To be done
+
+     Representation   184      1 modes -A  To be done
+
+     Representation   185      1 modes -A  To be done
+
+     Representation   186      1 modes -A  To be done
+
+     Representation   187      1 modes -A  To be done
+
+     Representation   188      1 modes -A  To be done
+
+     Representation   189      1 modes -A  To be done
+
+     Representation   190      1 modes -A  To be done
+
+     Representation   191      1 modes -A  To be done
+
+     Representation   192      1 modes -A  To be done
+
+     Representation   193      1 modes -A  To be done
+
+     Representation   194      1 modes -A  To be done
+
+     Representation   195      1 modes -A  To be done
+
+     Representation   196      1 modes -A  To be done
+
+     Representation   197      1 modes -A  To be done
+
+     Representation   198      1 modes -A  To be done
+
+     Representation   199      1 modes -A  To be done
+
+     Representation   200      1 modes -A  To be done
+
+     Representation   201      1 modes -A  To be done
+
+     Representation   202      1 modes -A  To be done
+
+     Representation   203      1 modes -A  To be done
+
+     Representation   204      1 modes -A  To be done
+
+     Representation   205      1 modes -A  To be done
+
+     Representation   206      1 modes -A  To be done
+
+     Representation   207      1 modes -A  To be done
+
+     Representation   208      1 modes -A  To be done
+
+     Representation   209      1 modes -A  To be done
+
+     Representation   210      1 modes -A  To be done
+
+     Representation   211      1 modes -A  To be done
+
+     Representation   212      1 modes -A  To be done
+
+     Representation   213      1 modes -A  To be done
+
+     Representation   214      1 modes -A  To be done
+
+     Representation   215      1 modes -A  To be done
+
+     Representation   216      1 modes -A  To be done
+
+     Representation   217      1 modes -A  To be done
+
+     Representation   218      1 modes -A  To be done
+
+     Representation   219      1 modes -A  To be done
+
+     Representation   220      1 modes -A  To be done
+
+     Representation   221      1 modes -A  To be done
+
+     Representation   222      1 modes -A  To be done
+
+     Representation   223      1 modes -A  To be done
+
+     Representation   224      1 modes -A  To be done
+
+     Representation   225      1 modes -A  To be done
+
+     Representation   226      1 modes -A  To be done
+
+     Representation   227      1 modes -A  To be done
+
+     Representation   228      1 modes -A  To be done
+
+     Representation   229      1 modes -A  To be done
+
+     Representation   230      1 modes -A  To be done
+
+     Representation   231      1 modes -A  To be done
+
+     Representation   232      1 modes -A  To be done
+
+     Representation   233      1 modes -A  To be done
+
+     Representation   234      1 modes -A  To be done
+
+     Representation   235      1 modes -A  To be done
+
+     Representation   236      1 modes -A  To be done
+
+     Representation   237      1 modes -A  To be done
+
+     Representation   238      1 modes -A  To be done
+
+     Representation   239      1 modes -A  To be done
+
+     Representation   240      1 modes -A  To be done
+
+     Representation   241      1 modes -A  To be done
+
+     Representation   242      1 modes -A  To be done
+
+     Representation   243      1 modes -A  To be done
+
+     Representation   244      1 modes -A  To be done
+
+     Representation   245      1 modes -A  To be done
+
+     Representation   246      1 modes -A  To be done
+
+     Representation   247      1 modes -A  To be done
+
+     Representation   248      1 modes -A  To be done
+
+     Representation   249      1 modes -A  To be done
+
+     Representation   250      1 modes -A  To be done
+
+     Representation   251      1 modes -A  To be done
+
+     Representation   252      1 modes -A  To be done
+
+     Representation   253      1 modes -A  To be done
+
+     Representation   254      1 modes -A  To be done
+
+     Representation   255      1 modes -A  To be done
+
+     Representation   256      1 modes -A  To be done
+
+     Representation   257      1 modes -A  To be done
+
+     Representation   258      1 modes -A  To be done
+
+     Representation   259      1 modes -A  To be done
+
+     Representation   260      1 modes -A  To be done
+
+     Representation   261      1 modes -A  To be done
+
+     Representation   262      1 modes -A  To be done
+
+     Representation   263      1 modes -A  To be done
+
+     Representation   264      1 modes -A  To be done
+
+     Representation   265      1 modes -A  To be done
+
+     Representation   266      1 modes -A  To be done
+
+     Representation   267      1 modes -A  To be done
+
+     Representation   268      1 modes -A  To be done
+
+     Representation   269      1 modes -A  To be done
+
+     Representation   270      1 modes -A  To be done
+
+     Representation   271      1 modes -A  To be done
+
+     Representation   272      1 modes -A  To be done
+
+     Representation   273      1 modes -A  To be done
+
+     Representation   274      1 modes -A  To be done
+
+     Representation   275      1 modes -A  To be done
+
+     Representation   276      1 modes -A  To be done
+
+     Representation   277      1 modes -A  To be done
+
+     Representation   278      1 modes -A  To be done
+
+     Representation   279      1 modes -A  To be done
+
+     Representation   280      1 modes -A  To be done
+
+     Representation   281      1 modes -A  To be done
+
+     Representation   282      1 modes -A  To be done
+
+     Representation   283      1 modes -A  To be done
+
+     Representation   284      1 modes -A  To be done
+
+     Representation   285      1 modes -A  To be done
+
+     Representation   286      1 modes -A  To be done
+
+     Representation   287      1 modes -A  To be done
+
+     Representation   288      1 modes -A  To be done
+
+
+     PHONON       :     9.88s CPU        10.06s WALL
+
+
+     Electric Fields Calculation
+
+      iter #   1 total cpu time :  1097.9 secs   av.it.:   6.6
+      thresh= 1.000E-02 alpha_mix =  0.700 |ddv_scf|^2 =  1.426E-07
+
+      iter #   2 total cpu time :  1552.6 secs   av.it.:  13.7
+      thresh= 3.776E-05 alpha_mix =  0.700 |ddv_scf|^2 =  2.222E-07
+
+      iter #   3 total cpu time :  1967.0 secs   av.it.:  12.2
+      thresh= 4.714E-05 alpha_mix =  0.700 |ddv_scf|^2 =  3.145E-09
+
+      iter #   4 total cpu time :  2403.3 secs   av.it.:  12.9
+      thresh= 5.608E-06 alpha_mix =  0.700 |ddv_scf|^2 =  6.283E-10
+
+      iter #   5 total cpu time :  2839.0 secs   av.it.:  12.8
+      thresh= 2.506E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.637E-10
+
+      iter #   6 total cpu time :  3265.3 secs   av.it.:  12.6
+      thresh= 1.280E-06 alpha_mix =  0.700 |ddv_scf|^2 =  1.844E-11
+
+      iter #   7 total cpu time :  3693.1 secs   av.it.:  12.7
+      thresh= 4.294E-07 alpha_mix =  0.700 |ddv_scf|^2 =  1.698E-12
+
+      iter #   8 total cpu time :  4127.2 secs   av.it.:  12.8
+      thresh= 1.303E-07 alpha_mix =  0.700 |ddv_scf|^2 =  6.094E-13
+
+      iter #   9 total cpu time :  4549.3 secs   av.it.:  12.6
+      thresh= 7.806E-08 alpha_mix =  0.700 |ddv_scf|^2 =  1.687E-13
+
+      iter #  10 total cpu time :  4970.2 secs   av.it.:  12.3
+      thresh= 4.107E-08 alpha_mix =  0.700 |ddv_scf|^2 =  1.440E-14
+
+      iter #  11 total cpu time :  5398.1 secs   av.it.:  12.8
+      thresh= 1.200E-08 alpha_mix =  0.700 |ddv_scf|^2 =  2.305E-15
+
+      iter #  12 total cpu time :  5828.1 secs   av.it.:  12.6
+      thresh= 4.801E-09 alpha_mix =  0.700 |ddv_scf|^2 =  5.102E-16
+
+      iter #  13 total cpu time :  6257.8 secs   av.it.:  12.7
+      thresh= 2.259E-09 alpha_mix =  0.700 |ddv_scf|^2 =  8.878E-17
+
+      iter #  14 total cpu time :  6689.5 secs   av.it.:  12.9
+      thresh= 9.422E-10 alpha_mix =  0.700 |ddv_scf|^2 =  5.190E-17
+
+      iter #  15 total cpu time :  7111.0 secs   av.it.:  12.4
+      thresh= 7.204E-10 alpha_mix =  0.700 |ddv_scf|^2 =  1.193E-17
+
+      iter #  16 total cpu time :  7542.0 secs   av.it.:  12.8
+      thresh= 3.454E-10 alpha_mix =  0.700 |ddv_scf|^2 =  5.946E-18
+
+      iter #  17 total cpu time :  7961.3 secs   av.it.:  12.5
+      thresh= 2.439E-10 alpha_mix =  0.700 |ddv_scf|^2 =  5.831E-19
+
+     End of electric fields calculation
+
+          Dielectric constant in cartesian axis 
+
+          (      17.145834941       3.717552929      -0.101146722 )
+          (       3.717552929      10.801102544       0.143759118 )
+          (      -0.101146723       0.143759121      16.140191568 )
+
+          Effective charges (d Force / dE) in cartesian axis
+
+           atom      1   H  
+      Ex  (       -0.15992       -0.16583       -0.15513 )
+      Ey  (       -0.20920        0.06684       -0.16139 )
+      Ez  (       -0.02864       -0.03351        1.36683 )
+           atom      2   H  
+      Ex  (        0.77236       -0.08270       -0.44418 )
+      Ey  (       -0.01151        0.17861       -0.19078 )
+      Ez  (       -0.33423       -0.25897       -0.07013 )
+           atom      3   H  
+      Ex  (       -0.29633        0.17109        0.55268 )
+      Ey  (        0.05192        0.05293        0.19566 )
+      Ez  (        0.47035       -0.00092        0.33120 )
+           atom      4   H  
+      Ex  (       -0.16118       -0.19091       -0.36087 )
+      Ey  (       -0.09706       -0.07146       -0.07822 )
+      Ez  (       -0.15790       -0.11382        0.03892 )
+           atom      5   H  
+      Ex  (       -0.38653       -0.09889        0.09733 )
+      Ey  (       -0.17141       -0.05128       -0.03957 )
+      Ez  (        0.28564        0.01141       -0.46058 )
+           atom      6   H  
+      Ex  (        0.10618       -0.10068       -0.36892 )
+      Ey  (        0.10049       -0.11943       -0.18434 )
+      Ez  (       -0.33796       -0.04257       -0.48169 )
+           atom      7   H  
+      Ex  (        0.10889        0.04730        0.61798 )
+      Ey  (        0.24703       -0.08826        0.04574 )
+      Ez  (        0.65174       -0.34598       -0.17418 )
+           atom      8   H  
+      Ex  (        0.05327       -0.22848        0.04033 )
+      Ey  (       -0.07001        0.02729       -0.05897 )
+      Ez  (       -0.01020       -0.07092        0.06469 )
+           atom      9   H  
+      Ex  (       -0.21686       -0.22427        0.44707 )
+      Ey  (       -0.23540       -0.05758       -0.29731 )
+      Ez  (        0.13733       -0.20006        0.16597 )
+           atom     10   H  
+      Ex  (       -0.24353       -0.03033       -0.15246 )
+      Ey  (       -0.07836       -0.14579       -0.01123 )
+      Ez  (       -0.05735        0.03073       -0.25595 )
+           atom     11   H  
+      Ex  (       -0.40761       -0.01669       -0.09401 )
+      Ey  (       -0.18652       -0.28154        0.09909 )
+      Ez  (       -0.44743        0.04040        0.08718 )
+           atom     12   H  
+      Ex  (       -0.20621       -0.11632       -0.22765 )
+      Ey  (       -0.09002       -0.27978        0.03302 )
+      Ez  (       -0.04350        0.01540       -0.35050 )
+           atom     13   H  
+      Ex  (        0.12763        0.20399       -0.57415 )
+      Ey  (       -0.07728        0.11225       -0.20432 )
+      Ez  (       -0.58588       -0.41969        0.14660 )
+           atom     14   H  
+      Ex  (       -0.03014        0.00536        0.06874 )
+      Ey  (       -0.05424       -0.06729       -0.02915 )
+      Ez  (       -0.05250        0.06079        0.22251 )
+           atom     15   H  
+      Ex  (        0.36979       -0.04636       -0.07779 )
+      Ey  (        0.01056        0.05863        0.23532 )
+      Ez  (        0.08064        0.06121        1.17835 )
+           atom     16   H  
+      Ex  (        0.15027        0.03187        0.38826 )
+      Ey  (       -0.07347        0.10522       -0.02978 )
+      Ez  (        0.07070        0.09316        0.59045 )
+           atom     17   H  
+      Ex  (       -0.38711       -0.06723        0.21309 )
+      Ey  (       -0.15665       -0.07247        0.09043 )
+      Ez  (        0.29389        0.14828       -0.34339 )
+           atom     18   H  
+      Ex  (       -0.11902        0.01766       -0.14083 )
+      Ey  (        0.15209        0.27234        0.03057 )
+      Ez  (        0.14111        0.04045        0.02942 )
+           atom     19   H  
+      Ex  (        0.22453       -0.00862        0.15555 )
+      Ey  (       -0.05038       -0.09628        0.06081 )
+      Ez  (        0.16130        0.20930       -0.15982 )
+           atom     20   H  
+      Ex  (       -0.24493       -0.10429        0.02121 )
+      Ey  (       -0.08464       -0.16898        0.02033 )
+      Ez  (        0.36291        0.10764       -0.30677 )
+           atom     21   H  
+      Ex  (        0.70163       -0.14040       -0.05325 )
+      Ey  (        0.08078        0.31561        0.02801 )
+      Ez  (       -0.08429        0.24658        0.06452 )
+           atom     22   H  
+      Ex  (        0.57601        0.43116        0.66390 )
+      Ey  (        0.31489        0.22935        0.23289 )
+      Ez  (        0.57770        0.35852        0.39075 )
+           atom     23   H  
+      Ex  (        1.12172        0.41946       -0.59220 )
+      Ey  (        0.33862        0.39195       -0.25282 )
+      Ez  (       -0.55959       -0.29842        0.21266 )
+           atom     24   H  
+      Ex  (        0.28645        0.06808        0.05786 )
+      Ey  (        0.14493       -0.02792       -0.03828 )
+      Ez  (        0.13616        0.03100       -0.36027 )
+           atom     25   H  
+      Ex  (        0.10508       -0.11484        0.26949 )
+      Ey  (        0.04792        0.03300        0.21888 )
+      Ez  (        0.64220        0.46027       -0.04389 )
+           atom     26   H  
+      Ex  (        0.44641        0.28374       -0.21649 )
+      Ey  (        0.27279        0.24459       -0.37739 )
+      Ez  (        0.01499       -0.47850        0.13363 )
+           atom     27   H  
+      Ex  (        0.40999        0.04283        0.44057 )
+      Ey  (        0.12923        0.33170        0.47153 )
+      Ez  (        0.54158        0.60891        0.35667 )
+           atom     28   H  
+      Ex  (       -0.02317        0.04486       -0.07016 )
+      Ey  (        0.14953        0.08904       -0.03488 )
+      Ez  (       -0.17775       -0.03701        0.26055 )
+           atom     29   H  
+      Ex  (       -0.14737       -0.10984        0.15126 )
+      Ey  (       -0.09690        0.03150        0.22417 )
+      Ez  (        0.10774        0.09592       -0.21267 )
+           atom     30   H  
+      Ex  (       -0.50059       -0.03924        0.07049 )
+      Ey  (       -0.00559       -0.23115        0.00693 )
+      Ez  (       -0.14480       -0.02967       -0.58721 )
+           atom     31   H  
+      Ex  (       -0.33757       -0.11292       -0.03412 )
+      Ey  (       -0.16157       -0.18162       -0.05239 )
+      Ez  (       -0.01194        0.08730       -0.58987 )
+           atom     32   H  
+      Ex  (       -0.39984       -0.08409       -0.21285 )
+      Ey  (       -0.08809       -0.07265        0.00214 )
+      Ez  (       -0.32064        0.05877       -0.32552 )
+           atom     33   H  
+      Ex  (       -0.08852       -0.05555       -0.05253 )
+      Ey  (       -0.09334       -0.13929       -0.20805 )
+      Ez  (       -0.33065        0.05094        0.18419 )
+           atom     34   H  
+      Ex  (        0.11637       -0.07513        0.24927 )
+      Ey  (       -0.04412       -0.11141        0.02047 )
+      Ez  (        0.15106       -0.05614        0.04163 )
+           atom     35   H  
+      Ex  (       -0.35879       -0.16423       -0.05262 )
+      Ey  (       -0.06721       -0.14821        0.03119 )
+      Ez  (       -0.10371        0.11823        0.12697 )
+           atom     36   H  
+      Ex  (       -0.21884       -0.09416        0.28554 )
+      Ey  (       -0.01690       -0.36201        0.29321 )
+      Ez  (       -0.03901        0.20092       -0.54196 )
+           atom     37   H  
+      Ex  (       -0.23576        0.01142       -0.19951 )
+      Ey  (       -0.18816        0.19849        0.34049 )
+      Ez  (       -0.24287        0.32759        0.64345 )
+           atom     38   H  
+      Ex  (       -0.32589       -0.03683        0.08570 )
+      Ey  (       -0.15745       -0.09902        0.12070 )
+      Ez  (        0.00176        0.15597        0.03861 )
+           atom     39   H  
+      Ex  (       -0.20181       -0.18250       -0.35613 )
+      Ey  (       -0.08469       -0.23912       -0.08627 )
+      Ez  (       -0.09612        0.05491        0.53223 )
+           atom     40   H  
+      Ex  (       -0.10501       -0.22396        0.11786 )
+      Ey  (       -0.31847        0.31062       -0.25539 )
+      Ez  (        0.37290        0.05950        0.50064 )
+           atom     41   H  
+      Ex  (       -0.33713       -0.02683        0.12935 )
+      Ey  (        0.06442        0.25195        0.05481 )
+      Ez  (       -0.05490       -0.05106       -0.18396 )
+           atom     42   H  
+      Ex  (       -0.71228       -0.16716        0.14507 )
+      Ey  (       -0.12041       -0.13124        0.19578 )
+      Ez  (       -0.12091        0.05299       -0.16149 )
+           atom     43   H  
+      Ex  (       -0.13766        0.01115       -0.01974 )
+      Ey  (        0.11673        0.15620        0.16066 )
+      Ez  (        0.06559        0.23120       -0.09700 )
+           atom     44   H  
+      Ex  (       -0.46544       -0.20498       -0.18920 )
+      Ey  (       -0.06684       -0.21367       -0.08174 )
+      Ez  (       -0.14751       -0.06794       -0.29595 )
+           atom     45   H  
+      Ex  (        0.41902        0.31104       -0.18551 )
+      Ey  (        0.22435        0.18545       -0.15155 )
+      Ez  (       -0.26114       -0.14822       -0.04728 )
+           atom     46   H  
+      Ex  (        0.32507        0.13413       -0.03850 )
+      Ey  (        0.08601       -0.18269       -0.09036 )
+      Ez  (       -0.02679       -0.22076       -0.34511 )
+           atom     47   H  
+      Ex  (        0.61993        0.49407       -0.15214 )
+      Ey  (        0.31854        0.29327       -0.37453 )
+      Ez  (       -0.05823       -0.16393       -0.21876 )
+           atom     48   H  
+      Ex  (        0.77203        0.35026        0.05475 )
+      Ey  (        0.22512        0.24904       -0.19115 )
+      Ez  (       -0.19380       -0.20796       -0.12302 )
+           atom     49   H  
+      Ex  (       -0.10549       -0.03576        0.28856 )
+      Ey  (       -0.00673       -0.14594        0.17062 )
+      Ez  (        0.21673        0.05158        0.08136 )
+           atom     50   H  
+      Ex  (        0.14510        0.04065       -0.01116 )
+      Ey  (        0.04070        0.02731        0.04546 )
+      Ez  (       -0.16358       -0.10857        0.40096 )
+           atom     51   H  
+      Ex  (        0.01272       -0.11441       -0.49816 )
+      Ey  (       -0.01286       -0.07132       -0.25375 )
+      Ez  (       -0.06181       -0.00217        1.05317 )
+           atom     52   H  
+      Ex  (        0.17765        0.15642       -0.30879 )
+      Ey  (        0.14209        0.28029       -0.25686 )
+      Ez  (       -0.25420       -0.11032        0.23695 )
+           atom     53   H  
+      Ex  (       -0.19376       -0.34256       -0.13412 )
+      Ey  (       -0.23225       -0.05069        0.13368 )
+      Ez  (       -0.02104        0.35518       -0.00856 )
+           atom     54   H  
+      Ex  (       -0.19523       -0.04751        0.04068 )
+      Ey  (        0.03816       -0.06566       -0.09931 )
+      Ez  (        0.03887        0.01522       -0.54365 )
+           atom     55   H  
+      Ex  (        0.01686       -0.00055        0.25876 )
+      Ey  (        0.05432       -0.10035        0.28111 )
+      Ez  (       -0.12323        0.19949       -0.75907 )
+           atom     56   H  
+      Ex  (       -0.42561       -0.39971        0.12676 )
+      Ey  (       -0.22874       -0.43008        0.08801 )
+      Ez  (       -0.03611        0.09318       -0.33468 )
+           atom     57   H  
+      Ex  (       -0.15811        0.05841       -0.05803 )
+      Ey  (        0.01650       -0.13431       -0.10309 )
+      Ez  (        0.14972       -0.05935       -0.43160 )
+           atom     58   H  
+      Ex  (        0.00510        0.03689       -0.19484 )
+      Ey  (       -0.04261       -0.03878        0.18217 )
+      Ez  (       -0.10167       -0.00945        0.05642 )
+           atom     59   H  
+      Ex  (        0.02555       -0.05545       -0.31477 )
+      Ey  (       -0.08960       -0.02681       -0.03255 )
+      Ez  (       -0.18749        0.09734        0.11518 )
+           atom     60   H  
+      Ex  (       -0.07909        0.03012        0.35264 )
+      Ey  (        0.15986        0.20981        0.10902 )
+      Ez  (        0.35119        0.13071       -0.04979 )
+           atom     61   H  
+      Ex  (        0.55529        0.09029       -0.57278 )
+      Ey  (        0.14140        0.24058       -0.22800 )
+      Ez  (       -0.42079       -0.24353        0.50556 )
+           atom     62   H  
+      Ex  (        0.20890        0.09119        0.14913 )
+      Ey  (       -0.01785        0.02774        0.13101 )
+      Ez  (        0.18600        0.28835        0.30921 )
+           atom     63   H  
+      Ex  (       -0.16948       -0.03994       -0.09132 )
+      Ey  (       -0.04432       -0.07811        0.09443 )
+      Ez  (       -0.20448       -0.02997        0.30922 )
+           atom     64   H  
+      Ex  (        0.19423        0.18579        0.48342 )
+      Ey  (        0.10190        0.01066        0.09692 )
+      Ez  (        0.27066        0.10685       -0.11118 )
+           atom     65   H  
+      Ex  (       -0.65418       -0.11449        0.21060 )
+      Ey  (       -0.00685       -0.18415       -0.09983 )
+      Ez  (       -0.02320       -0.28463       -0.68196 )
+           atom     66   H  
+      Ex  (       -0.43404       -0.13445       -0.26848 )
+      Ey  (       -0.06794       -0.17187        0.00965 )
+      Ez  (       -0.41379       -0.01449       -0.29771 )
+           atom     67   H  
+      Ex  (       -0.56959       -0.22426        0.08040 )
+      Ey  (       -0.11659       -0.14734        0.00918 )
+      Ez  (        0.25018        0.11476       -0.39225 )
+           atom     68   H  
+      Ex  (       -1.00299       -0.20839       -0.07828 )
+      Ey  (       -0.02501       -0.10615       -0.07176 )
+      Ez  (        0.06120        0.01174       -0.29077 )
+           atom     69   H  
+      Ex  (        0.76960        0.51929        0.14055 )
+      Ey  (        0.38322        0.22070        0.23456 )
+      Ez  (        0.12568        0.10128       -0.08305 )
+           atom     70   H  
+      Ex  (        0.19234        0.12751        0.09652 )
+      Ey  (        0.01388        0.08466       -0.04846 )
+      Ez  (        0.22335       -0.06024       -0.16409 )
+           atom     71   H  
+      Ex  (        0.62838        0.38887       -0.09220 )
+      Ey  (        0.13776        0.38330        0.02135 )
+      Ez  (       -0.22194       -0.23686        0.21699 )
+           atom     72   H  
+      Ex  (        0.73401        0.41666       -0.16503 )
+      Ey  (        0.12283        0.11964       -0.14102 )
+      Ez  (       -0.26220       -0.25580       -0.08711 )
+           atom     73   H  
+      Ex  (       -0.36079       -0.17863       -0.03805 )
+      Ey  (       -0.16039       -0.12408        0.04220 )
+      Ez  (        0.02595        0.07723        0.19795 )
+           atom     74   H  
+      Ex  (        0.17925       -0.18439       -0.14605 )
+      Ey  (       -0.06787        0.00532       -0.11323 )
+      Ez  (       -0.13530       -0.22451        0.20853 )
+           atom     75   H  
+      Ex  (        0.00734       -0.16660        0.19007 )
+      Ey  (        0.04291       -0.10523        0.33725 )
+      Ez  (        0.04801        0.16814        0.37236 )
+           atom     76   H  
+      Ex  (       -0.06694        0.02151       -0.13387 )
+      Ey  (       -0.00359        0.01551       -0.11265 )
+      Ez  (       -0.11871       -0.14134        0.07506 )
+           atom     77   H  
+      Ex  (       -0.19530        0.03869        0.22423 )
+      Ey  (       -0.04174        0.00423        0.16121 )
+      Ez  (        0.02154        0.01755       -0.12835 )
+           atom     78   H  
+      Ex  (       -0.16136       -0.12051       -0.24637 )
+      Ey  (       -0.00607        0.04035       -0.14845 )
+      Ez  (        0.01050       -0.07123       -0.22446 )
+           atom     79   H  
+      Ex  (        0.10368       -0.26936        0.08515 )
+      Ey  (       -0.06194       -0.25684        0.01702 )
+      Ez  (        0.01334        0.08102       -0.12635 )
+           atom     80   H  
+      Ex  (       -0.08039       -0.23329        0.13282 )
+      Ey  (       -0.15863       -0.00550       -0.03043 )
+      Ez  (        0.01591       -0.12203        0.07833 )
+           atom     81   H  
+      Ex  (        0.01250       -0.10975        0.05314 )
+      Ey  (       -0.05893       -0.03157       -0.15296 )
+      Ez  (        0.05596       -0.11148       -0.09226 )
+           atom     82   H  
+      Ex  (        0.06882       -0.05289       -0.17483 )
+      Ey  (        0.00003        0.02114        0.01467 )
+      Ez  (        0.08127        0.09571        0.12456 )
+           atom     83   H  
+      Ex  (       -0.09966       -0.00845        0.19777 )
+      Ey  (        0.06901        0.10335       -0.06388 )
+      Ez  (        0.25714        0.10228       -0.33828 )
+           atom     84   H  
+      Ex  (       -0.57710       -0.16348       -0.23118 )
+      Ey  (       -0.12172       -0.31784       -0.02832 )
+      Ez  (       -0.26704        0.03864       -0.52437 )
+           atom     85   H  
+      Ex  (       -0.06918       -0.02390        0.07747 )
+      Ey  (       -0.06614       -0.05359        0.17723 )
+      Ez  (        0.20363       -0.07658        0.10603 )
+           atom     86   H  
+      Ex  (        0.20587       -0.04795        0.28307 )
+      Ey  (       -0.06786       -0.00082        0.18257 )
+      Ez  (        0.06076        0.10223        0.41668 )
+           atom     87   H  
+      Ex  (       -0.31385       -0.02952       -0.27041 )
+      Ey  (       -0.13513       -0.10716       -0.07901 )
+      Ez  (       -0.05306       -0.29853        0.53084 )
+           atom     88   H  
+      Ex  (        0.57234       -0.02580        0.70002 )
+      Ey  (        0.06951        0.51980        0.10233 )
+      Ez  (        0.29907       -0.09522        0.67246 )
+           atom     89   H  
+      Ex  (       -0.28622       -0.09398       -0.25867 )
+      Ey  (        0.00049       -0.01746       -0.09840 )
+      Ez  (       -0.03491       -0.03351       -0.03253 )
+           atom     90   H  
+      Ex  (       -0.04764        0.05883        0.02866 )
+      Ey  (        0.14142       -0.11931       -0.10263 )
+      Ez  (       -0.16085       -0.20363       -0.14248 )
+           atom     91   H  
+      Ex  (       -0.30545       -0.11846        0.05361 )
+      Ey  (       -0.20278       -0.17464       -0.06592 )
+      Ez  (       -0.07534       -0.18707       -0.34198 )
+           atom     92   H  
+      Ex  (       -0.58509       -0.07728       -0.06142 )
+      Ey  (       -0.05429       -0.20509       -0.07305 )
+      Ez  (        0.25096        0.01592       -0.40195 )
+           atom     93   H  
+      Ex  (        0.17620        0.31537       -0.08257 )
+      Ey  (       -0.01067       -0.16022       -0.01089 )
+      Ez  (       -0.18943       -0.11142       -0.23328 )
+           atom     94   H  
+      Ex  (        0.63838        0.48933        0.42772 )
+      Ey  (        0.16847        0.19665        0.23828 )
+      Ez  (        0.45574        0.32142        0.15425 )
+           atom     95   H  
+      Ex  (        0.49500        0.13008       -0.22821 )
+      Ey  (        0.16504        0.00364       -0.12605 )
+      Ez  (       -0.11303       -0.08323       -0.21635 )
+           atom     96   H  
+      Ex  (        0.68173        0.58233       -0.37937 )
+      Ey  (        0.10126        0.43569       -0.12996 )
+      Ez  (       -0.32205       -0.24058        0.41926 )
+
+     PHONON       :     2h47m CPU        2h50m WALL
+
+     INITIALIZATION: 
+     phq_setup    :      0.99s CPU      1.00s WALL (       1 calls)
+     phq_init     :      6.64s CPU      6.70s WALL (       1 calls)
+
+     phq_init     :      6.64s CPU      6.70s WALL (       1 calls)
+     init_vloc    :      0.48s CPU      0.48s WALL (       1 calls)
+     init_us_1    :      0.01s CPU      0.01s WALL (       1 calls)
+
+     DIELECTRIC CONSTANT AND EFFECTIVE CHARGES:
+     solve_e      :   7828.69s CPU   7951.28s WALL (       1 calls)
+     dielec       :      0.19s CPU      0.44s WALL (       1 calls)
+     zstar_eu     :   2240.89s CPU   2286.83s WALL (       1 calls)
+
+
+
+
+     dvqpsi_us    :   2217.58s CPU   2247.78s WALL (    2304 calls)
+     ortho        :     20.17s CPU     20.32s WALL (     432 calls)
+     cgsolve      :   7252.16s CPU   7361.02s WALL (     432 calls)
+     incdrhoscf   :    278.89s CPU    283.75s WALL (     408 calls)
+     dv_of_drho   :      9.86s CPU     10.34s WALL (      51 calls)
+     mix_pot      :      1.07s CPU      1.90s WALL (      17 calls)
+
+     dvqpsi_us    :   2217.58s CPU   2247.78s WALL (    2304 calls)
+     dvqpsi_us_on :    465.98s CPU    470.70s WALL (    2304 calls)
+
+     cgsolve      :   7252.16s CPU   7361.02s WALL (     432 calls)
+     ch_psi       :   7162.96s CPU   7266.68s WALL (   10328 calls)
+
+     ch_psi       :   7162.96s CPU   7266.68s WALL (   10328 calls)
+     h_psi        :   5774.87s CPU   5847.37s WALL (   10328 calls)
+     last         :   1366.49s CPU   1381.34s WALL (   10328 calls)
+
+     h_psi        :   5774.87s CPU   5847.37s WALL (   10328 calls)
+     add_vuspsi   :   1070.30s CPU   1077.15s WALL (   10328 calls)
+
+     incdrhoscf   :    278.89s CPU    283.75s WALL (     408 calls)
+
+
+      General routines
+     calbec       :   2041.52s CPU   2062.55s WALL (   20712 calls)
+     fft          :      7.38s CPU      7.51s WALL (     575 calls)
+     ffts         :     24.71s CPU     25.03s WALL (    2304 calls)
+     fftw         :   5231.89s CPU   5306.05s WALL (  867308 calls)
+     davcio       :      7.00s CPU     20.16s WALL (    8538 calls)
+     write_rec    :      0.10s CPU      0.22s WALL (      17 calls)
+
+
+     PHONON       :     2h47m CPU        2h50m WALL
+
+
+   This run was terminated on:   0:11:18  12Oct2019            
+
+=------------------------------------------------------------------------------=
+   JOB DONE.
+=------------------------------------------------------------------------------=
