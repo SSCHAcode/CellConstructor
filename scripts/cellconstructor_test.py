@@ -225,7 +225,7 @@ class TestStructureMethods(unittest.TestCase):
         dyn.q_stars = [[np.array([0,0,0])]]
 
         # Perform the symmetrization
-        dyn.Symmetrize()
+        #dyn.Symmetrize()
 
         # Now perform the interpolation
         SUPERCELL = (1,1,3)
