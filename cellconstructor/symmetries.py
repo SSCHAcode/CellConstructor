@@ -871,6 +871,37 @@ class QE_Symmetry:
             self.QE_translations[:, i] = sym[:,3]
                 
             
+    def ApplyTranslationsToVector(self, vector):
+        """
+        This subroutine applies the translations to the given vector.
+        To be used only if the structure is a supercell structure
+        and the symmetries have been initialized with SPGLIB
+
+        Parameters
+        ----------
+            vector : size (nat, 3)
+                A vector that must be symmetrized. It will be overwritten.
+        """
+
+        nat = self.QE_nat 
+
+        assert vector.shape[0] == nat 
+        assert vector.shape[1] == 3
+
+        # Ignore if no translations are presents
+        if self.QE_translation_nr <= 1:
+            return
+
+        sum_all = np.zeros((nat, 3), dtype =  type(vector[0,0]))
+
+        for i in range(self.QE_translation_nr):
+            n_supercell = np.shape(self.QE_translations_irt)[1]
+
+            sum_all += vector[self.QE_translations_irt[:, i] - 1, :]
+        sum_all /= self.QE_translation_nr
+        vector[:,:] = sum_all
+
+
 
                 
     def InitFromSymmetries(self, symmetries, q_point = np.array([0,0,0])):
@@ -982,6 +1013,9 @@ class QE_Symmetry:
                 This is the vector to be symmetrized, it will be overwritten
                 with the symmetrized version
         """
+
+        # Apply Translations if any
+        self.ApplyTranslationsToVector(vector)
         
         # Prepare the real vector
         tmp_vector = np.zeros( (3, self.QE_nat), dtype = np.float64, order = "F")

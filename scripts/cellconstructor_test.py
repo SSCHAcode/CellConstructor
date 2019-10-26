@@ -175,7 +175,6 @@ class TestStructureMethods(unittest.TestCase):
         self.assertEqual(qe_sym.QE_nsymq, 48)
 
         
-
     def test_stress_symmetries(self):
         syms = CC.symmetries.QE_Symmetry(self.struct_ice)
         syms.ChangeThreshold(1e-1)
