@@ -190,7 +190,7 @@ class QE_Symmetry:
         """
         
         # Setup the symmetries
-        self.SetupQPoint()
+        #self.SetupQPoint()
         
         # Lets copy the q list (we are going to pop items from it)
         q_list = q_tot[:]

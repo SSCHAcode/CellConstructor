@@ -2196,17 +2196,31 @@ class Phonons:
         return new_dynmat
             
     
-    def AdjustQStar(self):
+    def AdjustQStar(self, use_spglib = False):
         """
         ADJUST THE Q STAR
         =================
         
         This function uses the quantum espresso symmetry finder to
-        divide the q points into the proper q stars, reordering the current dynamical matrix
+        divide the q points into the proper q stars, reordering the current dynamical matrix.
+
+
+        Parameters
+        ----------
+            use_spglib : bool
+                If true, the SPGLIB is used to perform the symmetrization.
+                Otherwise the quantum espresso default symmetry route is used.
+                NOTE: Still does not work. Needed to adjust the get q_star to use the spglib symmetries.
         """
         
         # Initialize the symmetries
         qe_sym = symmetries.QE_Symmetry(self.structure)
+
+        if use_spglib:
+            
+            qe_sym.SetupFromSPGLIB()
+        else:
+            qe_sym.SetupQPoint()
         
         # Get the q_stars
         q_stars, q_order = qe_sym.SetupQStar(self.q_tot)
