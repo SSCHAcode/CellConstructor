@@ -22,7 +22,7 @@ First of all, lets copy the file ``tests/TestPhononSupercell/dynmat1`` inside th
   w_freq, pols = dyn.DyagonalizeSupercell()
 
   # Print the frequencies on the screen
-  print("\n".join("{:16.4f} cm-1".format(x * CC.Units.RY_TO_CM) for x in w_freq))
+  print("\n".join(["{:16.4f} cm-1".format(x * CC.Units.RY_TO_CM) for x in w_freq]))
 
 
 If we run this script using python, it will print for each line the frequency in cm-1 of each phonon mode at gamma.
