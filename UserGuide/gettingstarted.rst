@@ -70,3 +70,109 @@ Here, ``q_index`` is the index of the q-point that you want to diagonalize. Usua
 This will print on the screen the q points preceeded by the respective index. Note that the number should be always equal to the number of cells.
 
 
+Tutorials
+=========
+
+
+In this section, I will show how simple tasks can be performed using CellConstructor.
+
+
+Extract an harmonic random ensemble
+-----------------------------------
+
+You can use CellConstructor to extract an harmonic esnemble.
+It can be used for measuring electron-phonon properties, as you can average
+dielectric function on this ensemble to get phonon mediated electronic properties.
+
+To get a list of structures distributed according to a dynamical matrix use the following commands::
+
+  import cellconstructor as CC
+  import cellconstructor.Phonons
+
+  # We read the dynmat1 file (quantum espresso gamma dynamical matrix)
+  dyn = CC.Phonons.Phonons("dynmat")
+
+  structures = dyn.ExtractRandomStructures(size = 10, T = 100)
+
+Then, ``structures`` is a list of ``CC.Structures.Structures``.
+We have extracted 10 structures at a temperature of 100 K.
+You can save them in the .scf format, that is ready to be copied on the bottom of a quantum espresso pw.x input file for a calculation of the band structure for example::
+
+  for i, struct in enumerate(structures):
+      struct.save_scf("random_struct{:05d}.scf".format(i))
+
+In this way, we will create 10 files named
+.. code:: bash
+
+   random_struct00000.scf
+   random_struct00001.scf
+   random_struct00002.scf
+   random_struct00003.scf
+   ...
+
+
+Each of them will be ready to be used in a quantum espresso pw.x calculation with ibrav=0.
+
+Alternatively, one can convert them into the ASE atoms object. In this way
+any configured calculator can be used directly inside python::
+
+  for i, struct in enumerate(structures):
+      ase_atmoms = struct.get_ase_atoms()
+
+      # Here the code to perform the ab-initio calculation
+      # with ase
+
+Note that we used a gamma dynamical matrix. To generate a random structure in a supercell you need to first generate a supercell real space dynamical matrix. This is covered in the next tutorial.
+
+If you are using the python-sscha package, it has a class Ensemble that can automatically generate and store the ensemble using this function.
+
+For more details on the structure generation, I remand to the specific documentation:
+
+.. autoclass:: Phonons.Phonons
+   :members: ExtractRandomStructures
+
+
+
+Generate a real space supercell dynamical matrix
+------------------------------------------------
+
+Many operations are possible only when the dynamical matrix
+is expressed in real space supercell, as the extraction of the
+random ensemble.
+
+So it is crucial to be able to define a dynamical matrix in the supercell.
+Luckily, it is very easy::
+
+  import cellconstructor as CC
+  import cellconstructor.Phonons
+
+  # We load the dynmat1 ... dynmat8 files
+  # They are located inside tests/TestPhononSupercell
+  dyn = CC.Phonons.Phonons("dynmat", nqirr = 8)
+
+  super_dyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+  # Now we can do what we wont with the super_dyn variable.
+  # For example we can extract a random ensemble in the supercell
+
+  structures = super_dyn.ExtractRandomStructures(size = 10, T = 100)
+  
+Also in this case, please refer to the official documentation
+
+.. autoclass:: Phonons.Phonons
+   :members: GenerateSupercellDyn
+
+
+
+  
+Force a dynamical matrix to be positive definite
+------------------------------------------------
+
+This is an important task if you want to use the dynamical matrix to extract random configurations.
+Often, harmonic calculation leads to imaginary frequencies. This may happen if:
+
+1. The calculation is not well converged.
+2. The dynamical matrix comes from interpolation of a small grid
+3. The structure is in a saddle point of the Born-Oppenheimer energy landscape.
+
+In all these cases, to generate a good dynamical matrix for extracting randomly distributed configurations

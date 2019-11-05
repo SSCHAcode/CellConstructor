@@ -6,20 +6,13 @@
 Welcome to CellConstructor's documentation!
 ===========================================
 
-CellConstructor is a Python library to manipulate atomic
-structures and to compute vibrational properties within the
-harmonic and the quasi-harmonic approximation.
-
-
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    intro
-   installation
    gettingstarted
-   tutorials
    developerguide
    apireference
 
