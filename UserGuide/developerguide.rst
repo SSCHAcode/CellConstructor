@@ -89,6 +89,40 @@ In particular, when coding in python, keep in mind the following rules.
 
           if x < 0:
 	      raise ValueError("Error, x is lower than 0")
+10. Always write a test inside the unittest suite to reproduce a known result. In this way, if bugs are introduced in future, they will be spotted immediately.
+    To this purpose, see the next section.
+
+
+Adding tests
+------------
+
+It is very important that each part of the code can be tested automatically each time a new feature is implemented.
+The cellconstructor tests are based on unittest for now.
+There is a script inside *scripts/cellconstructor_test.py*
+
+Here, you will find a class that contains all the test runned when the command cellconstructor_test.py is executed. Remember, after editing each part of the code, no matter how small, always check that you did not break other parts by running the testsuite (after having reinstalled the software)
+.. code:: bash
+
+   $ cellconstructor_test.py
+
+To add your own test, have a look inside that script. You just need to add a function to the class ``TestStructureMethods``. Your function must start with ``test_`` and take only ``self`` as argument.
+To retrive some example dynamical matrix or strctures are inside ``self``.
+For example, a ice XI structure is::
+
+  # ICE XI structure
+  self.struct_ice
+
+  # Dynamical matrix of SnSe (a supercell)
+  self.dynSnSe
+
+  # Dynamical matrix of TiSe (a supercell)
+  self.dynSky
+
+You can also add your own file, by either expliciting coding it inside the ``__init__(self)`` method or by storing online and writing a download function. Remember that if you store them online, the file should be always be available.
+
+Inside the testing function, you must check if the code is executed correctly by using ``self.assertTrue(cond)`` where ``cond`` is a bool condition that must be fullfilled, if not the test fails (it means a bug is present).
+
+You can find online a more detailed guide on the ``unittest`` library.
 
 	      
 The Fortran interface
@@ -214,6 +248,8 @@ Keep your fortran code as simple as possible.
 6. Avoid using any external library apart from blas and lapack. Remember that python is very good for linear algebra with numpy, so try to use Fortran only to perform critical computations that would require a slow massive for loop in python.
 
 7. You can use openmp directives, but avoid importing the openmp library and use openmp subroutines, this breaks the compatibility if openmp is unavailable on the machine.
+
+8. Always add a test into the ``scripts/cellconstructor_test.py`` file of the new function you implemented. In this way, if bugs are introduced in future, we will spot them immediately.
 
 Fortran is very good to program fast tasks, however, the fortran converted subroutines are not documented and the input is uncontrolled. This means that passing an array with wrong size or typing can result in a Segmentation Fault error.
 This is very annoying, as it can be very difficult to debug, especially if you are using a function written by someone else. **Each time you implement a fortran subroutine, write also the python parser**.
