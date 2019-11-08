@@ -1772,7 +1772,7 @@ class Phonons:
         return DOS / 2 # We need a 1/2 factor
 
 
-    def get_phonon_propagator(self, w_array, smearing = 1e-5):
+    def get_phonon_propagator(self, w_array, smearing = 1e-5, only_gamma = False):
         r"""
         GET THE SINGLE PHONON PROPAGATOR
         ================================
@@ -1793,6 +1793,8 @@ class Phonons:
                 In [Ry]
             - smearing : float
                 The :math:`\eta` value.
+            - only_gamma : bool
+                If True, only the phonons at gamma will be used
 
         Results
         -------
@@ -1801,12 +1803,17 @@ class Phonons:
 
         """
 
-        w, pols = self.DiagonalizeSupercell()
+        if not only_gamma:
+            w, pols = self.DiagonalizeSupercell()
 
-        super_struct = self.structure.generate_supercell(self.GetSupercell())
-        trans = Methods.get_translations(pols, super_struct.get_masses_array())
-
-        nat = self.structure.N_atoms
+            super_struct = self.structure.generate_supercell(self.GetSupercell())
+            trans = Methods.get_translations(pols, super_struct.get_masses_array())
+            nat = super_struct.N_atoms
+        else:
+            w, pols = self.DyagDinQ(0)
+            trans = Methods.get_translations(pols, self.structure.get_masses_array())
+            nat = self.structure.N_atoms
+            
         G_final = np.zeros( (3*nat, 3*nat, len(w_array)), dtype = np.complex128)
 
         w = w[~trans]
