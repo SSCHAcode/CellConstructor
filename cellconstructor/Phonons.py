@@ -1771,9 +1771,58 @@ class Phonons:
 
         return DOS / 2 # We need a 1/2 factor
 
-    def get_phonon_propagator(self, w, T, smearing = 1e-5):
+
+    def get_phonon_propagator(self, w_array, smearing = 1e-5):
         r"""
-        GET THE PHONON PROPAGATOR
+        GET THE SINGLE PHONON PROPAGATOR
+        ================================
+
+        This method computes the single phonon harmonic propagator.
+        It is computed in the supercell
+
+        .. math::
+
+            G_{ab}(\omega) = \sum_{\mu}\frac{e_\mu^a e_\mu^b}{(\omega - i\eta)^2 - \omega_\mu^2}
+
+        This is in real space
+
+        Parameters
+        ----------
+            - w_array : ndarray
+                The frequencies at which you want to compute the propagator.
+                In [Ry]
+            - smearing : float
+                The :math:`\eta` value.
+
+        Results
+        -------
+            - G_abw : ndarray(size = (3nat, 3nat, len(w)))
+                The real space green function
+
+        """
+
+        w, pols = self.DiagonalizeSupercell()
+
+        super_struct = self.structure.generate_supercell(self.GetSupercell())
+        trans = Methods.get_translations(pols, super_struct.get_masses_array())
+
+        nat = self.structure.N_atoms
+        G_final = np.zeros( (3*nat, 3*nat, len(w_array)), dtype = np.complex128)
+
+        w = w[~trans]
+        pols = pols[:, ~trans]
+
+        nmodes = len(w)
+        for mu in range(nmodes):
+            epol = np.outer(pols[:, mu], pols[:, mu])
+            freq = 1 / ((w_array + 1j*smearing)**2 - w[mu]**2)
+            G_final[:,:,:] += np.einsum("ab,c ->abc", epol, freq)
+            
+        return G_final
+
+    def get_two_phonon_propagator(self, w, T, smearing = 1e-5):
+        r"""
+        GET THE TWO PHONONS PROPAGATOR
         =========================
 
         This subroutine computes the two phonons propagator defined as

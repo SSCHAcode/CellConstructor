@@ -1452,6 +1452,56 @@ def GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T, s
 
     return dZ_dR
 
+def GetIRSpectrum(dyn, w_array, smearing):
+    """
+    GET THE IR SPECTRUM
+    ===================
+
+    This method get a ready to plot harmonic IR spectrum.
+    The effective charge must be included in the dynamical matrix
+
+    Parameters
+    ----------
+        - dyn : Phonons()
+            The dynamical matrix on which to compute the IR.
+            It must contain valid effective charges.
+        - w_array : ndarray
+            The values of the frequencies at which to compute the IR.
+            in [Ry]
+        - smearing : float
+            The value of the smearing for the plot (in Ry).
+
+
+    Results
+    -------
+        - ir_spectrum: ndarray( size = (len(w)))
+            The ir spectrum at each frequency. 
+    """
+
+    # Check if the effective charges are defined
+    if dyn.effective_charges is None:
+        raise ValueError("Error, effective charges must be initialized to compute the IR")
+
+    g_propagator = dyn.get_phonon_propagator(w_array, smearing)
+
+    # Get the masses
+    m = np.tile(dyn.structure.get_masses_array(), (3,1)).T.ravel()
+
+    # Divide the propagator by the mass square root
+    new_g = np.einsum("abw, a, b-> abw", g_propagator, 1 / np.sqrt(m), 1/np.sqrt(m))
+
+    # We move the electric field polarization on the first index
+    eff_charge = np.einsum("abc -> bac", dyn.effective_charges)
+
+    # Lets unite the last two coordinates (atomic index and cartesian coordinate)
+    eff_charge = eff_charge.reshape((3, 3 * dyn.structure.N_atoms))
+
+    # Now we can multiply the effective charge times the propagator
+    ir_signal = np.einsum("ia, ib, abw->w", eff_charge, eff_charge, -np.imag(new_g))
+    return ir_signal
+
+
+
 def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smearing):
     r"""
     GET THE TWO PHONON IR RESPONSE FUNCTION
@@ -1527,10 +1577,10 @@ def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smea
     # The frist two are polarization basis
 
     # We can get the 2 phonon propagator
-    G_munu = super_dyn.get_phonon_propagator(w_array, T, smearing)
+    G_munu = super_dyn.get_two_phonon_propagator(w_array, T, smearing)
 
     # Get the IR response
-    IR = np.einsum("abi, abi, abw->w", dM_dpdp, dM_dpdp, G_munu)
+    IR = np.einsum("abi, abi, abw->w", dM_dpdp, dM_dpdp, G_munu) / 4
 
     # Get the IR intensity by tracing on the electric field 
     # And selecting the imaginary part of the green function.
