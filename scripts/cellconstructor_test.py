@@ -11,6 +11,7 @@ import sys, os
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Phonons
+import cellconstructor.Manipulate
 
 __SPGLIB__ = True
 try:
@@ -24,6 +25,106 @@ try:
     import ase.visualize
 except:
     __ASE__ = False
+
+
+# Class of a distorted rocksalt
+class BCCToyModel:
+    """
+    This is a NaCl toy model
+    """
+    def __init__(self):
+        self.lattice_param = 5.6402 # A
+        self.N_atoms = 2
+        #self.w_freq = 200 #cm-1
+        
+        self.structure = None
+        self.dynmat = None
+
+        # The effective charges
+        self.z0 = np.zeros((self.N_atoms, 3, 3))
+        self.dz_dr = 1
+
+        # Build all
+        self.build()
+        
+    def build(self):
+        """
+        Build the dynamical matrix
+        and the structure
+        """
+        
+
+        self.structure = CC.Structure.Structure(self.N_atoms)
+        self.structure.coords[1,:] = .51 * self.lattice_param
+
+        self.structure.has_unit_cell = True
+        self.structure.unit_cell = np.eye(3) * self.lattice_param
+        self.structure.atoms[0] = "Na"
+        self.structure.atoms[1] = "Cl"
+
+        self.structure.masses = {"Na": 20953.89349715178,
+                                 "Cl": 302313.43272048925}
+
+        # Build the dynamical matrix
+        self.dynmat = CC.Phonons.Phonons(self.structure)
+
+        self.dynmat.dynmats[0] = np.random.uniform(size=(3 * self.N_atoms, 3*self.N_atoms))
+        self.dynmat.dynmats[0] += self.dynmat.dynmats[0].T
+        
+        self.dynmat.Symmetrize()
+        self.dynmat.ForcePositiveDefinite()
+
+        # Setup the effective charges
+        self.dynmat.effective_charges = self.z0
+        
+
+    def get_z(self, structure):
+        """
+        Get the Z effective charge from the structure
+        """
+
+        # Get the displacement of the structure
+        u_disp = structure.coords - self.structure.coords
+        return self.get_z_u(u_disp)
+
+    def get_z_u(self, u_disp):
+        """
+        Returns the effective charge given the u_disp.
+        
+        We remove the q square
+        """
+
+        projector = np.ones(3 * self.N_atoms)
+        projector[3:] *= -1
+        projector /= np.sqrt(projector.dot(projector))
+        v_disp = projector.dot(u_disp.ravel()) * CC.Units.A_TO_BOHR
+
+        pol = np.array([1,1,1])
+
+        z_eff_all = np.outer(projector, pol) * 2 * v_disp * self.dz_dr
+        z_eff_all = z_eff_all.reshape((self.N_atoms, 3,3))
+        z_eff = np.einsum("abc->acb", z_eff_all)
+        
+
+        
+
+        # z_eff = np.zeros(3, self.N_atoms, 3))
+        
+        # # Project the displacement along the only active mode
+        
+        # u_prime = u_disp.reshape((self.N_atoms, 3)) * CC.Units.A_TO_BOHR
+        # trans = np.sum(u_prime, axis = 0) / self.N_atoms
+        # v_disp = u_prime - np.tile(trans, (self.N_atoms,1))
+
+        # z_eff = np.zeros((3, self.N_atoms, 3))
+        # z_eff  = np.tile(self.dz_dr * v_disp, (3, 1)).reshape((3, self.N_atoms, 3))
+        
+        # # Exchange axes
+        # z_eff = np.einsum("ibc ->bic", z_eff)
+        return z_eff
+
+
+
 
 
 # This function retrives a testing dynamical matrix from the web
@@ -119,6 +220,8 @@ class TestStructureMethods(unittest.TestCase):
 
         self.struct_ice = struct_ice
 
+        # Get a rocksalt structure
+        self.rocksalt = BCCToyModel()
 
         # Get a simple cubic structure
         self.struct_simple_cubic = CC.Structure.Structure(1)
@@ -237,6 +340,40 @@ class TestStructureMethods(unittest.TestCase):
         fc2 = super_dyn.dynmats[0].copy()
 
         self.assertTrue( np.sqrt(np.sum( (fc1 - fc2)**2)) < 1e-6)
+
+    def test_second_order_effective_charges(self):
+        """
+        Here we test the effective charges second order tensor
+        using the rocksalt toy model
+        """
+
+        n_config = 10000
+        structures = self.rocksalt.dynmat.ExtractRandomStructures(n_config)
+        eff_charges = [self.rocksalt.get_z(s) for s in structures]
+
+        dM_drdr = CC.Manipulate.GetSecondOrderDipoleMoment(self.rocksalt.dynmat, structures, eff_charges, T = 0)
+
+        # Do the numerical differences
+        dx = 0.01
+        dM_num = np.zeros((3*self.rocksalt.N_atoms, 3*self.rocksalt.N_atoms,3))
+
+        for x1 in range(3*self.rocksalt.N_atoms):
+            nat1 = int(x1 / 3)
+            cart1 = x1 % 3
+
+            struct = self.rocksalt.structure.copy()
+            struct.coords[nat1, cart1] += dx
+
+            z = self.rocksalt.get_z(struct)
+            for i in range(3):
+                dM_num[x1, :, i] = z[:, i, :].ravel()
+        dM_num /= dx * CC.Units.A_TO_BOHR
+
+        distance = np.sqrt(np.sum((dM_drdr - dM_num)**2))
+        #print("DISTANCE:", distance)
+
+        self.assertTrue(distance < 0.05)
+
 
 
     def test_phonons_supercell(self):
@@ -484,12 +621,10 @@ class TestStructureMethods(unittest.TestCase):
         
 
 
+if __name__ == "__main__":
+    # Make everything reproducible
+    np.random.seed(1)
 
-
-        
-
-
-
-# Run all the tests
-suite = unittest.TestLoader().loadTestsFromTestCase(TestStructureMethods)
-unittest.TextTestRunner(verbosity=2).run(suite)
+    # Run all the tests
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestStructureMethods)
+    unittest.TextTestRunner(verbosity=2).run(suite)
