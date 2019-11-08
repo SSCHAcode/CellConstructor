@@ -6,15 +6,18 @@ into this module.
 """
 import time
 import os
+import six
 
 import numpy as np
 import scipy, scipy.optimize
 
 from Structure import Structure
 from Phonons import Phonons
+import symmetries
 import Methods
 import warnings
 import Settings
+import Units
 
 from functools import partial
 
@@ -1304,3 +1307,231 @@ def AlignStructures(source, target, verbose = False):
 
     # Fix the atoms in the unit cell
     source.fix_coords_in_unit_cell()
+
+
+def GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T, symmetrize = True):
+    r"""
+    GET THE SECOND ORDER DIPOLE MOMENT
+    ==================================
+
+    This method computes the second order dipole moment.
+    It is the average second derivative of the dipole moment with respect to the atomic displacements.
+
+    .. math::
+
+        \frac{\partial M_x}{\partial R_a \partial R_b}
+
+    It can be used to compute the two phonon IR response.
+
+    Note: both the structures and the effective charges must be defined on the same supercell as the original_dyn
+
+    The derivative of the dipole moment is computed using the average ensemble rule:
+
+    .. math::
+
+        \frac{\partial^2 M_x}{\partial R_a \partial R_b} = - \sum_q \Upsilon_{aq} \left< u_q\frac{\partial M_x}{\partial R_b}\right>
+
+    If the original dynamical matrix has an effective charge, then it is removed from any effective charge, to better sample the linear dependence. 
+
+    Parameters
+    ----------
+        - original_dyn : CC.Phonons.Phonons()
+            The dynamical matrix of the equilibrium system.
+        - structures : list 
+            A list of CC.Structure.Structure() of the displaced structure with respect to original_dyn on which the effective charges are computed. 
+            Alternatively, you can pass a list of strings that must point to the .scf files of the structures.
+        - effective_charges : list
+            A list of the effective charge tensor. Alternatively you may provide a list of strings that must point to the output of the ph.x package from Quantum ESPRESSO,
+            where the effective charges are printed.
+        - T : float
+            The temperature (in K)
+        - symmetrize : bool
+            If True the tensor is simmetrized. This requires the
+            symmetrization in real space, therefore spglib must be available.
+
+    Results
+    -------
+        - dM_dRdR : ndarray (size = (3*nat_sc, 3*nat_sc, 3))
+            The second derivative of the dipole moment. nat_sc are the atoms in the supercell.
+            The first two components are the cartesian indices of the displacements, 
+            while the last is the dipole vector
+
+    """
+
+    N_config = len(structures)
+
+    # Check that the effective charges have the same number of configurations
+    __ERR_MSG__ = """
+    Error a differen number of effective charges and structures.
+    N_structures  : {}
+    N_eff_charges : {}
+    """.format(N_config, len(effective_charges))
+    assert N_config == len(effective_charges), __ERR_MSG__
+
+    # Read the structures
+    new_structures = []
+    if isinstance(structures[0], six.string_types):
+        # Here we replace the string loading
+        for i, sname in enumerate(structures):
+            if not os.path.exists(sname):
+                raise IOError("Error, file {} does not exist".format(sname))
+
+            struct = Structure()
+            struct.read_scf(sname)
+            new_structures.append(struct)
+    else:
+        new_structures = structures
+        
+    # Read the effective charges
+    new_eff_charges = []
+    if isinstance(effective_charges[0], six.string_types):
+        # Here we replace the string loading
+        for i, sname in enumerate(effective_charges):
+            if not os.path.exists(sname):
+                raise IOError("Error, file {} does not exist".format(sname))
+
+            aux_dyn = original_dyn.GenerateSupercellDyn(original_dyn.GetSupercell())
+            aux_dyn.ReadInfoFromESPRESSO(sname)
+            new_eff_charges.append(aux_dyn.effective_charges)
+    else:
+        new_eff_charges = effective_charges
+
+    # Check the consistency of the atoms
+    nat_sc = original_dyn.structure.N_atoms * np.prod(original_dyn.GetSupercell())
+    
+    # Get the displacements from both position and effective charges
+    u_disps = np.zeros((N_config, nat_sc*3), dtype = np.double) 
+    eff_cgs = np.zeros((3, N_config, nat_sc*3), dtype = np.double)
+    
+    super_struct, itau = original_dyn.structure.generate_supercell(original_dyn.GetSupercell(), get_itau = True)
+    ref_coords = super_struct.coords.ravel()
+
+    # Get the central effective charges in the supercell
+    ef_cg_new = np.zeros((3, nat_sc*3), dtype = np.double)
+    if not original_dyn.effective_charges is None:
+        for j in range(nat_sc):
+            ef_cg_new[:, 3*j:3*(j+1)] = original_dyn.effective_charges[itau[j], :, :]
+
+    # Prepare the array for the fast processing
+    for i in range(N_config):
+        coords = new_structures[i].coords.ravel()
+        u_disps[i, :] = coords - ref_coords
+
+        # Transpose the effective charges so to have the electric field as first index
+        ef_new = np.einsum("abc -> bac", new_eff_charges[i])
+        eff_cgs[:, i, :] = ef_new.reshape((3, 3 * nat_sc))
+        eff_cgs[:, i,:] -= ef_cg_new
+
+        u_norm = np.sqrt(u_disps[i,:].dot(u_disps[i,:]))
+        #eff_project = eff_cgs[0, i, :].dot(u_disps[i,:]) / u_norm
+        #print("{:d}) u_disp: {:.4f} | eff_charge (along u): {:.4f}".format(i+1, u_norm, eff_project))
+
+    # Get the derivative of the effective charges
+    super_dyn = original_dyn.GenerateSupercellDyn(original_dyn.GetSupercell())
+    upsilon = super_dyn.GetUpsilonMatrix(T)
+
+    # Get the <uZ_eff>_abj; a = cartesian, b = cartesian, j = electric field
+    uZ_eff = np.einsum("ia, jib->abj", u_disps * Units.A_TO_BOHR, eff_cgs) / N_config
+
+
+    # Now we can compute the average of the effective charge derivative
+    # It has cartesian, cartesian, electric_field components (3N, 3N, 3)
+    # dZ_dR = Y <u Z_eff>
+    dZ_dR = np.einsum("aq, qbc->abc", upsilon, uZ_eff)
+    #upsilon.dot(uZ_eff) WRONG, dot sum with the second last component
+
+    # Perform the symmetrization
+    if symmetrize:
+        qe_sym = symmetries.QE_Symmetry(super_dyn.structure)
+        qe_sym.SetupFromSPGLIB()
+        qe_sym.ApplySymmetryToSecondOrderEffCharge(dZ_dR)
+    else:
+        # Apply only the hermitianity
+        dZ_dR += np.einsum("abc->bac", dZ_dR)
+        dZ_dR /= 2
+
+    return dZ_dR
+
+def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smearing):
+    r"""
+    GET THE TWO PHONON IR RESPONSE FUNCTION
+    =======================================
+
+    This method computes the two phonon IR response function for an harmonic dynamical matrix.
+    The two phonon IR is due to quadratic terms in the dipole moment (linear part of the effective charge)
+
+    The IR intensity due to the two phonon structures is
+
+    .. math:: 
+
+        I(\omega) = \frac 14 \sum_{x = 1}^3 \sum_{abcd} \frac{\partial^2 M_x}{\partial R_a \partial R_b} \frac{\partial^2 M_x}{\partial R_c\partial R_d} \frac{-\Im G_{abcd}(\omega)}{\sqrt{m_am_bm_cm_d}}
+    
+    where the $G_{abcd}(\omega)$ is the two phonon propagator
+
+    .. math::
+
+        G_{abcd}(z) = \sum_{\mu\nu} \frac{e_\mu^a e_\nu^be_\mu^ce_\nu^d}{2\omega_\mu\omega_\nu}\left[\frac{(\omega_\mu + \omega_\nu)(n_\mu + n_\nu + 1)}{(\omega_\mu + \omega_\nu)^2 - z^2} - \frac{(\omega_\mu - \omega_\nu)(n_\mu - n_\nu)}{(\omega_\mu - \omega_\nu)^2 - z^2}\right]
+
+
+    Parameters
+    ----------
+        - original_dyn : CC.Phonons.Phonons()
+            The dynamical matrix of the equilibrium system.
+        - structures : list 
+            A list of CC.Structure.Structure() of the displaced structure with respect to original_dyn on which the effective charges are computed. 
+            Alternatively, you can pass a list of strings that must point to the .scf files of the structures.
+        - effective_charges : list
+            A list of the effective charge tensor. Alternatively you may provide a list of strings that must point to the output of the ph.x package from Quantum ESPRESSO,
+            where the effective charges are printed.
+        - T : float
+            The temperature (in K)
+        - w_array : ndarray
+            A real valued array of the frequencies for the IR signal. The energy must be in [Ry]
+        - smearing : float
+            The value of the 0^+ in the phonon propagator. This allows the response to have a non vanishing imaginary part
+
+    Results
+    -------
+        - ir_2_ph : ndarray
+            The 2-phonons IR intensity at each w_array frequency. 
+
+    """
+
+    # Generate the dynamical matrix in the supercell
+    super_dyn = original_dyn.GenerateSupercellDyn(original_dyn.GetSupercell())
+
+    # Get frequencies and polarization vectors
+    w_freqs, pol_vec = original_dyn.DiagonalizeSupercell()
+
+    # Get the translations
+    trans_mask = Methods.get_translations(pol_vec, super_dyn.structure.get_masses_array())
+
+    # Remove the translations from w and the polarization vectors
+    w_freqs = w_freqs[~trans_mask]
+    pol_vec = pol_vec[:, ~trans_mask]
+
+    # Get the second order dipole moment (3nat_sc, 3nat_sc, 3)
+    dM_dRdR = GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T)
+
+    # Get an array of the masses for each 3nat_sc coordinate
+    m = np.tile(super_dyn.structure.get_masses_array(), (3,1)).T.ravel()
+
+    # get e_mu/sqrt(m)
+    enew = np.einsum("ab, a -> ba", pol_vec, 1/np.sqrt(m))
+
+    # Convert the dipole moment in polarization basis
+    dM_dRdp = np.einsum("abj, mb->amj", dM_dRdR, enew)
+    dM_dpdp = np.einsum("abj, ma->mbj", dM_dRdp, enew)
+
+    # Now dM_dpdp has (3nat_sc - 3, 3nat_sc - 3, 3) coordinates, 
+    # The frist two are polarization basis
+
+    # We can get the 2 phonon propagator
+    G_munu = super_dyn.get_phonon_propagator(w_array, T, smearing)
+
+    # Get the IR response
+    IR = np.einsum("abi, abi, abw->w", dM_dpdp, dM_dpdp, G_munu)
+
+    # Get the IR intensity by tracing on the electric field 
+    # And selecting the imaginary part of the green function.
+    return -np.imag(IR)

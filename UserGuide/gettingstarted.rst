@@ -1,11 +1,9 @@
 Getting started
 ===============
 
-Now that we have correctly installed the CellConstructor, we
-can start testing the features.
+Now that we have correctly installed the CellConstructor, we can start testing the features.
 
-The source code comes with a series of test and examples
-available under the ``tests`` directory of the git source.
+The source code comes with a series of test and examples available under the ``tests`` directory of the git source.
 
 As a first example, we will load a dynamical matrix in the Quantum ESPRESSO PHonon output style, compute the eigenvalues and print them into the screen.
 
@@ -175,4 +173,195 @@ Often, harmonic calculation leads to imaginary frequencies. This may happen if:
 2. The dynamical matrix comes from interpolation of a small grid
 3. The structure is in a saddle point of the Born-Oppenheimer energy landscape.
 
-In all these cases, to generate a good dynamical matrix for extracting randomly distributed configurations
+In all these cases, to generate a good dynamical matrix for extracting randomly distributed configurations we need to define a dynamical matrix that is positive definite.
+
+A good way to do that is to redefine our matrix as
+
+.. math::
+
+   \Phi_{ab}' = \sqrt{m_am_b}\sum_{\mu} e_\mu^a e_\mu^b \left|\omega_\mu^2 \right|
+
+where :math:`\omega_\mu^2` and :math:`e_\mu` are, respectively, eigenvalues and eigenvectors of the original :math:`\Phi` matrix.
+
+This can be achieved with just one line of code::
+
+  dyn.ForcePositiveDefinite()
+
+In the following tutorial, we create a random structure, associate to it a random dynamical matrix, print the frequencies of this dynamical matrix on the screen, force it to be positive definite, and the print the frequencies again.
+
+.. code:: python
+
+   import cellconstructor as CC
+   import cellconstructor.Structure
+   import cellconstructor.Phonons
+   import numpy as np
+
+   # We create a structure with 6 atoms
+   struct = CC.Structure.Structure(6)
+
+   # By default the structure has 6 Hydrogen atoms
+   # struct.atoms = ["H"] * 6
+
+   # We must setup the masses (in Ha)
+   struct.masses = {"H" : 938}
+
+   # We extract the 3 cartesian coordinates
+   # Randomly for all the coordinates
+   struct.coords = np.random.uniform(size = (6, 3))
+
+   # We set a cubic unit cell
+   # eye makes the identity matrix, 3 is the size (3x3)
+   struct.unit_cell = np.eye(3)
+   struct.has_unit_cell = True # Set the periodic boundary conditions
+
+   # Now we create a Phonons class with the structure
+   dyn = CC.Phonons.Phonons(struct)
+
+   # We fill the gamma dynamical matrix with a random matrix
+   dyn.dynmats[0] = np.random.uniform(size = (3*struct.N_atoms, 3*struct.N_atoms))
+
+   # We impose the matrix to be hermitian
+   dyn.dynmats[0] += dyn.dynmats[0].T
+
+   # We print all the frequencies of the dynamical matrices
+   freqs, pols = dyn.DyagonalizeSupercell()
+   print("\n".join(["{:3d}) {:10.4f} cm-1".format(i+1, w * CC.Units.RY_TO_CM) for i, w in enumerate(freqs)]))
+
+   # Now we Impose the dynamical matrix to be positive definite
+   dyn.ForcePositiveDefinite()
+
+   # Now we can print again the frequencies
+   print("")
+   print("After the  force to positive definite")
+   freqs, pols = dyn.DyagonalizeSupercell()
+   print("\n".join(["{:3d}) {:10.4f} cm-1".format(i+1, w * CC.Units.RY_TO_CM) for i, w in enumerate(freqs)]))
+
+
+The output of this code is shown below. Note, since we randomly initialized the dynamical matrix, the absolute value of the frequencies may change.
+.. code::
+
+      1) -5800.6476 cm-1
+      2) -5690.3146 cm-1
+      3) -4521.1801 cm-1
+      4) -4373.4443 cm-1
+      5) -4184.2736 cm-1
+      6) -4028.2141 cm-1
+      7) -3220.6904 cm-1
+      8) -2043.1963 cm-1
+      9) -1073.2832 cm-1
+     10)  2216.9358 cm-1
+     11)  2952.8991 cm-1
+     12)  3478.0255 cm-1
+     13)  3801.1767 cm-1
+     14)  4805.3197 cm-1
+     15)  5073.9250 cm-1
+     16)  5524.8080 cm-1
+     17)  6162.4137 cm-1
+     18) 14400.8452 cm-1
+
+    After the  force to positive definite
+      1)  1073.2832 cm-1
+      2)  2043.1963 cm-1
+      3)  2216.9358 cm-1
+      4)  2952.8991 cm-1
+      5)  3220.6904 cm-1
+      6)  3478.0255 cm-1
+      7)  3801.1767 cm-1
+      8)  4028.2141 cm-1
+      9)  4184.2736 cm-1
+      10)  4373.4443 cm-1
+      11)  4521.1801 cm-1
+      12)  4805.3197 cm-1
+      13)  5073.9250 cm-1
+      14)  5524.8080 cm-1
+      15)  5690.3146 cm-1
+      16)  5800.6476 cm-1
+      17)  6162.4137 cm-1
+      18) 14400.8452 cm-1
+
+In this tutorial we saw also how to create a random dynamical matrix. Note, the negative frequencies are imaginary: they are the square root of the negative eigenvalues of the dynamical matrix.
+
+You may notice that this dynamical matrix at gamma does not satisfy the acoustic sum rule: it should have 3 eigenvalues of 0 frequency.
+We will see in the next tutorials how to enforce all the symmetries and the acoustic sum rule on the dynamical matrix
+
+Symmetries of the structure
+---------------------------
+
+It is very common to have a structure that violates slightly some symmetry. It can come from a relaxation that is affected from some noise, from experimental data.
+
+Here, we will see how to use spglib and CellConstructor to enforce the symmetries on the structure. We will create a BCC structure, then we will add to the atoms a small random displacements so that spglib does not recognize any more the original group.
+Then we will enforce the symmetrization with CellConstructor.
+
+This tutorial requires spglib and the ASE packages installed.
+
+.. code:: python
+
+   from __future__ import print_function
+   from __future__ import division
+   import cellconstructor as CC
+   import cellconstructor.Structure
+
+   import spglib
+   
+   # We create a structure of two atoms
+   struct = CC.Structure.Structure(2)
+
+   # We fix an atom in the origin, the other in the center
+   struct.coords[0,:] = [0,0,0]
+   struct.coords[1,:] = [0.5, 0.5, 0.5]
+
+   # We add an unit cell equal to the identity matrix (a cubic structure with :math:`a = 1`)
+   struct.unit_cell = np.eye(3)
+   struct.has_unit_cell = True # periodic boundary conditions on
+
+   # Lets see the symmetries that prints spglib
+   print("Original space group: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+
+   # The previous command should print
+   # Original space group: Im-3m (299)
+
+   # Lets store the symmetries and convert from spglib to the CellConstructor
+   syms = spglib.get_symmetry(struct.get_ase_atoms())
+   cc_syms = CC.symmetries.GetSymmetriesFromSPGLIB(syms)
+
+   # We can add a random noise on the atoms
+   struct.coords += np.random.normal(0, 0.01, size = (2, 3))
+
+   # Let us print again the symmetry group
+   print("Space group with noise: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+
+   # This time the code will print
+   # Space group with noise: P-1 (2)
+   #
+   # This means that the structure lost all the symmetries
+
+   # Now we enforce the symmetrization on the structure
+   struct.impose_symmetries(cc_syms)
+
+   # The previous command will print details on the symmetrization iterations
+   print("Final group: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+   # Now the structure will be again in the Im-3m group.
+
+You can pass to all spglib commands a threshold for the symmetrization. In this case you can also use a large threshold and get the symmetries of the closest larger space group. You can use them to constrain the symmetries.
+
+Note, in some cases the symmetrization does not converge. If this happens, then the symmetries cannot be enforced on the structure.
+It could also be possible that spglib identifies some symmetries with a threshold, the code impose them, but then the symmetries are still not recognized by spglib with a lower threshold. This happens when the symmetries you are imposing are not satisfied by the unit cell.
+In that case, you have to manually edit the unit cell before imposing the symmetries.
+
+   
+
+
+Symmetries of the dynamical matrix
+----------------------------------
+
+In this tutorial we will create a random dynamical matrix of a high symmetry structure and enforce the symmetrization.
+We will do this in two ways. Firstly, we will use the builtin symmetry engine from QuantumESPRESSO, then we will try to use spglib.
+
+
+The builtin Quantum ESPRESSO module performs the symmetrization in q space, thus is much faster than spglib when large supercells are involved. Moreover, it is installed together with CellConstructor, therefore, no additional package is required. However, spglib is much better in finding symmetries of the structures, and it is a good tool to be used when the structure is not a primitive cell. The CellConstructor module interfaces with spglib symmetry identification and performs the symmetrization of the dynamical matrix.
+Let us assume you imported cellconstructor and Phonons as always
+
+TODO
+   
+
+

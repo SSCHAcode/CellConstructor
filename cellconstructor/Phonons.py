@@ -75,7 +75,7 @@ class Phonons:
         
         # Prepare additional information that can be loaded
         self.dielectric_tensor = None
-        self.effective_charges = None
+        self.effective_charges = None # 3-rank (Natoms, pol electric field, atomic coords) = (nat, 3, 3)
         self.raman_tensor = None
         
         # This alat is read just from QE, but not used
@@ -1771,12 +1771,12 @@ class Phonons:
 
         return DOS / 2 # We need a 1/2 factor
 
-    def get_phonon_propagator(self, w, T, q1, q2, smearing = 1e-5):
+    def get_phonon_propagator(self, w, T, smearing = 1e-5):
         r"""
         GET THE PHONON PROPAGATOR
         =========================
 
-        This subroutine computes the phononic propagator defined as
+        This subroutine computes the two phonons propagator defined as
 
         .. math ::
 
@@ -1784,20 +1784,18 @@ class Phonons:
 
             \chi_{\mu\nu}(z, q) = \frac{\hbar}{2\omega_\mu\omega_\nu}\left[ \frac{(\omega_\nu + \omega_\mu)[1 + n_\nu + n_\mu]}{(\omega_\nu + \omega_\mu)^2 - z^2} - \frac{(\omega_\nu - \omega_\mu)[n_\nu - n_\mu]}{(\omega_\nu - \omega_\mu)^2 -z^2}\right]
         
-        This is the phonon dynamical bubble. The summation over k is discretized in the
-        current dynamical matrix. To achieve the thermodynamic limit you can use the interpolation in a finer mesh.
+        This is the phonon dynamical bubble.
+        This is computed in the polarization basis.
+        The translational modes are discarted.
+
         
         
         Parameters
         ----------
-            w : double
-                The value of the dynamical frequency to compute the phonon propagator.
+            w : ndarray
+                The values of the dynamical frequency to compute the phonon propagator.
             T : float
                 The temperature to compute the bosonic occupation numbers :math:`n_\mu`.
-            q1 : ndarray(size=3)
-                The first q vector
-            q2 : ndarray(size=3)
-                The second q vector
             semaring : float, default = 1e-5
                 The smearing [Ry] to achieve a faster convergence with the k-mesh sampling.
 
@@ -1810,68 +1808,54 @@ class Phonons:
 
         K_to_Ry=6.336857346553283e-06
 
-        # Get the q vector
-        bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
-
-        nat = self.structure.N_atoms
-        
-        ChiMuNu = np.zeros( (3*nat, 3*nat), dtype = np.complex128)
-
-        # Get the k vectors from the delta relations
-        k1_dists = [Methods.get_min_dist_into_cell(bg, q1, x) for x in self.q_tot]
-        k2_dists = [Methods.get_min_dist_into_cell(bg, q2, x) for x in self.q_tot]
-
-        k1_i = np.argmin(k1_dists)
-        k2_i = np.argmin(k2_dists)
 
         # Get the frequencies at the correct Q points
-        _wmu_, _pmu_ = self.DyagDinQ(k1_i)
-        _wnu_, _pnu_ = self.DyagDinQ(k2_i)
+        _w_, _p_ = self.DiagonalizeSupercell()
 
         # Get the translational vectors
-        trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
-        trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+        trans = Methods.get_translations(_p_, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+
+        _w_ = _w_[~trans]
+        _p_ = _p_[~trans]
+
+        nmodes = len(_w_)
+        ChiMuNu = np.zeros( (nmodes, nmodes, len(w)), dtype = np.complex128)
 
         # Sum over mu nu
-        for mu in range(3*nat):
-            if trans1[mu]:
-                continue
-            w_mu = _wmu_[mu]
+        for mu, w_mu in enumerate(_w_):
             n_mu = 0
             dn_dw = 0
             if T > __EPSILON__:
                 n_mu = 1 / (np.exp(w_mu  / (T * K_to_Ry)) - 1)
                 dn_dw = -n_mu / (T * K_to_Ry * (1 - np.exp(-w_mu  / (T * K_to_Ry))))
-            for nu in range(3*nat):
-                w_nu = _wnu_[nu]
+            for nu, w_nu in enumerate(_w_):
                 n_nu = 0
                 if T > __EPSILON__:
                     n_nu = 1 / (np.exp(w_nu  / (T * K_to_Ry)) - 1)
 
-                chi1 = 0j
-                chi2 = 0j
-                if not (trans2[nu]):
-                    chi1 = (w_mu +  w_nu) * (n_nu + n_mu + 1)
-                    chi1 /= ( (w_mu + w_nu)**2 - w**2 - 2*1j*w*smearing)
-                    chi1 /= 2*w_mu*w_nu
+                chi1 = np.zeros(np.shape(w), dtype = np.complex128)
+                chi2 = np.zeros(np.shape(w), dtype = np.complex128)
+                chi1 = (w_mu +  w_nu) * (n_nu + n_mu + 1)
+                chi1 /= ( (w_mu + w_nu)**2 - (w - 1j*smearing)**2 )
+                chi1 /= 2*w_mu*w_nu
 
-                    if np.abs(w) < __EPSILON__ and np.abs(w_nu - w_mu) < __EPSILON__:
-                        chi2 = - dn_dw / (2*w_mu*w_nu)
-                    else:
-                        chi2 = (w_mu - w_nu) * (n_nu - n_mu)
-                        chi2 /= ( (w_nu - w_mu)**2 - w**2 -2j*w*smearing)
-                        chi2 /= 2*w_mu*w_nu
+                #if np.abs(w) < __EPSILON__ and np.abs(w_nu - w_mu) < __EPSILON__:
+                #    chi2 = - dn_dw / (2*w_mu*w_nu)
+                #else:
+                chi2 = (w_mu - w_nu) * (n_nu - n_mu)
+                chi2 /= ( (w_nu - w_mu)**2 - (w - 1j*smearing)**2 )
+                chi2 /= 2*w_mu*w_nu
                     
-                if np.isnan(chi1 + chi2):
-                    print "NaN value found in the propagator."
-                    print "NaN value error details:"
-                    print "chi1: ", chi1
-                    print "chi2: ", chi2
-                    print "mu = %d, nu = %d" % (mu, nu)
-                    print "w_mu = %10.4f, n_mu = %10.4f" % (w_mu * RY_TO_CM, n_mu)
-                    print "w_nu = %10.4f, n_nu = %10.4f" % (w_nu * RY_TO_CM, n_nu)
+                if np.isnan(chi1 + chi2).any():
+                    print("NaN value found in the propagator.")
+                    print("NaN value error details:")
+                    print("chi1: ", chi1)
+                    print("chi2: ", chi2)
+                    print("mu = %d, nu = %d" % (mu, nu))
+                    print("w_mu = %10.4f, n_mu = %10.4f" % (w_mu * RY_TO_CM, n_mu))
+                    print("w_nu = %10.4f, n_nu = %10.4f" % (w_nu * RY_TO_CM, n_nu))
                     raise ValueError("Error, the propagator is NAN, check stdout for details.")
-                ChiMuNu[mu, nu] = chi1 + chi2
+                ChiMuNu[mu, nu, :] = chi1 + chi2
 
         return ChiMuNu
     
@@ -2339,6 +2323,53 @@ class Phonons:
             # Subtract to each atom an average of the total charges
             self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
     
+
+    def GetIRActive(self, use_spglib = False):
+        """
+        GET IF A MODE IS IR ACTIVE
+        ==========================
+
+        This subroutine uses group theory to get if a mode is IR active.
+
+        Parameters
+        ----------
+            use_spglib : bool
+                If True, spglib is used for group theory.
+                Good if you are in a supercell.
+
+        Results
+        -------
+            is_ir_active : ndarray (size = 3*nat)
+                Returns a bool array with True for each mode at gamma
+                that is IR active.
+        """
+
+        there_are_eff_charges = True
+        if self.effective_charges is None:
+            there_are_eff_charges = False 
+            self.effective_charges = np.zeros((self.structure.N_atoms, 3,3), dtype = np.double)
+            self.effective_charges = np.random.uniform( size = self.effective_charges.shape)
+
+            # Get the symmetries
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+            if use_spglib:
+                qe_sym.SetupFromSPGLIB()
+            else:
+                qe_sym.SetupQPoint()
+            
+            # Symmetrize the effective charges
+            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+
+        # Simulate the IR signal
+        Ir = self.GetIRIntensities()
+        is_ir_active = Ir > 1e-9
+
+        # Delete the random effective charges if added
+        if not there_are_eff_charges:
+            self.effective_charges = None
+
+        return is_ir_active
+
 
 
     def ApplySymmetry(self, symmat, irt = None):

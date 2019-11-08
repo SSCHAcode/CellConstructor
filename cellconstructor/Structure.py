@@ -1154,7 +1154,7 @@ class Structure:
             
         return itau
 
-    def generate_supercell(self, dim, itau = None, QE_convention = True):
+    def generate_supercell(self, dim, itau = None, QE_convention = True, get_itau = False):
         """
         This method generate a supercell of specified dimension, replicating the system
         on the n-th neighbours unit cells.
@@ -1169,6 +1169,8 @@ class Structure:
             - QE_convention : bool, optional
                   If true (default) the quantum espresso set_tau subroutine is used to determine
                   the order of how the atoms in the supercell are generated
+            - get_itau : bool
+                If true also the itau order is returned in output (python convention). 
 
         Results
         -------
@@ -1251,11 +1253,13 @@ class Structure:
             
             
             supercell.coords[:,:] = tau_sc.transpose()
-            supercell.atoms = [self.atoms[x - 1] for x in itau] 
+            itau -= 1 # Fortran To Python indexing
+            supercell.atoms = [self.atoms[x] for x in itau] 
             
             
         
-
+        if get_itau:
+            return supercell, itau 
         return supercell
     
     def reorder_atoms_supercell(self, reference_structure):

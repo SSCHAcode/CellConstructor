@@ -293,7 +293,173 @@ class QE_Symmetry:
         # Apply all the symmetries at gamma
         symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsymq)
 
+    def ApplySymmetryToEffCharge(self, eff_charges):
+        """
+        SYMMETRIZE EFFECTIVE CHARGES
+        ============================
+
+        This subroutine applies the symmetries to the effective charges.
+
+        As always, the eff_charges will be modified by this subroutine.
+
+        Parameters
+        ----------
+            - eff_charges : ndarray (size = (nat, 3, 3))
+                The effective charges tensor. 
+                The first dimension is the index of the atom in the primitive cell
+                the second index is the electric field.
+                The third index is the cartesian axis.
+        """
     
+        nat, cart1, cart2 = np.shape(eff_charges)
+
+        assert cart1 == cart2 
+        assert cart1 == 3
+        assert nat == self.QE_nat, "Error, the structure and effective charges are not compatible"
+
+
+        # Apply the sum rule
+        tot_sum = np.sum(eff_charges, axis = 0)
+        eff_charges -= np.tile(tot_sum, (nat, 1)).reshape((nat, 3,3 )) / nat
+
+        new_eff_charges = np.zeros((nat, cart1, cart2), dtype = np.double)
+
+        # Get the effective charges in crystal components
+        for i in range(nat):
+            eff_charges[i, :, :] = Methods.convert_matrix_cart_cryst(eff_charges[i, :, :], self.QE_at.T)
+
+        # Apply translations
+        if self.QE_translation_nr > 1:
+            for i in range(self.QE_translation_nr):
+                irt = self.QE_translations_irt[:, i] - 1
+                for j in range(nat):
+                    new_mat = eff_charges[irt[j], :, :]
+                    new_eff_charges[j, :, :] += new_mat
+
+            eff_charges[:,:,:] = new_eff_charges / self.QE_translation_nr
+            new_eff_charges[:,:,:] = 0.
+
+        # Apply rotations
+        for i in range(self.QE_nsym):
+            irt = self.QE_irt[i, :] - 1
+
+            for j in range(nat):
+                new_mat = self.QE_s[:,:, i].dot( eff_charges[irt[j], :, :].dot(self.QE_s[:,:,i].T))
+                new_eff_charges[j, :, :] += new_mat
+        new_eff_charges /= self.QE_nsym
+
+        # Convert back into cartesian
+        for i in range(nat):
+            eff_charges[i, :, :] = Methods.convert_matrix_cart_cryst(new_eff_charges[i, :, :], self.QE_at.T, True)
+
+
+
+    def ApplySymmetryToSecondOrderEffCharge(self, dM_drdr, apply_asr = True):
+        """
+        SYMMETRIZE TWO PHONON EFFECTIVE CHARGES
+        =======================================
+
+        This subroutine applies simmetries to the two phonon
+        effective charges.
+
+        Note, to symmetrize this tensor, symmetries must be imposed 
+        on the supercell.
+
+        Parameters
+        ----------
+            dM_drdr : ndarray (size = (3 nat_sc, 3nat_sc, 3))
+                The derivative of effective charges.
+            apply_asr : bool
+                If True the sum rule is applied. 
+                The sum rule is the 'custom' one where translations are projected
+                out from the space for each polarization components.
+        """
+
+        nat3, nat3_, cart = np.shape(dM_drdr)
+
+        assert nat3 == nat3_, "Error on the shape of the argument"
+        assert nat3 == 3 * self.QE_nat, "Wrong number of atoms (Symmetries must be setup in the supercell)"
+        assert cart == 3
+
+        nat = int(nat3 / 3)
+        
+        # Apply hermitianity
+        #print("Original:")
+        #print(dM_drdr[:,:,0])
+
+        dM_drdr += np.einsum("abc->bac", dM_drdr)
+        dM_drdr /= 2
+
+        # Apply the Sum Rule
+        if apply_asr:
+            for pol in range(3):
+                CustomASR(dM_drdr[:,:,pol])
+
+        #print("After the sum rule:")
+        #print(dM_drdr[:,:,0])
+
+        # Convert in crystal coordinates
+        for i in range(nat):
+            for j in range(nat):
+                dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T)
+
+
+        #print("Crystal:")
+        #print(dM_drdr[:,:,0])
+
+
+        # Apply translations
+        new_dM = np.zeros(np.shape(dM_drdr), dtype = np.double)
+        if self.QE_translation_nr > 1:
+            for i in range(self.QE_translation_nr):
+                irt = self.QE_translations_irt[:, i] - 1
+                for jat in range(nat):
+                    for kat in range(nat):
+                        new_mat = dM_drdr[3*irt[jat]: 3*irt[jat]+3, 3*irt[kat]:3*irt[kat] + 3,:]
+                        new_dM[j, 3*jat: 3*jat+3, 3*kat:3*kat+3] += new_mat
+
+            dM_drdr[:,:,:] = new_dM / self.QE_translation_nr
+            new_dM[:,:,:] = 0
+
+        
+        #print("After transl:")
+        #print(dM_drdr[:,:,0])
+
+        #self.PrintSymmetries()
+
+        # Apply rotations
+        for i in range(self.QE_nsym):
+            irt = self.QE_irt[i, :] - 1
+
+            #print("")
+            #print("--------------------")
+            #print("symmetry: {:d}, irt: {}".format(i+1, irt +1))
+
+            #prova = np.zeros(np.shape(new_dM))
+
+            for jat in range(nat):
+                for kat in range(nat):
+                    new_mat = dM_drdr[3*irt[jat]: 3*irt[jat]+3, 3*irt[kat]:3*irt[kat] + 3,:]
+                    # Apply the symmetries
+
+                    new_mat = np.einsum("ck, ijk->ijc", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("bj, ijc->ibc", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("ai, ibc->abc", self.QE_s[:,:,i], new_mat)
+                    #prova[3*jat:3*jat+3, 3*kat:3*kat+3,:] = new_mat
+                    new_dM[3*jat:3*jat+3, 3*kat:3*kat+3,:] += new_mat
+        
+            #print(np.einsum("abc->cab", prova))
+            #print("--------------------")
+        dM_drdr[:,:,:] = new_dM / self.QE_nsym
+
+
+
+        # Convert in crystal coordinates
+        for i in range(nat):
+            for j in range(nat):
+                dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T, True)
+
+        
 
     def ApplySymmetryToTensor4(self, v4, initialize_symmetries = True):
         """
@@ -1849,7 +2015,7 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
         
-def GetIRActiveModes(symmetries, structure, pols):
+def GetIRActiveModes(symmetries, structure):
     """
     GET ACTIVE IR MODES
     ===================

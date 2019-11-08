@@ -21,7 +21,7 @@ pass between crystal and Cartesian units, read espresso
 input namelists, compute reciprocal lattice vectors. 
       
 .. automodule:: Methods
-   :members:
+   :members: 
       
 The Phonon Module
 =================

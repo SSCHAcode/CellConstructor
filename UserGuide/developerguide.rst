@@ -197,7 +197,7 @@ For a more detailed guide on advanced features, refer to numpy fortran extension
 
   
 
-Fortran programmin guidelines
+Fortran programming guidelines
 -----------------------------
 
 In the previous section we managed to make a very simple fortran extension to python. However, codes are always much more complicated.
