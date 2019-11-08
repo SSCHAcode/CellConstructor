@@ -1482,7 +1482,7 @@ def GetIRSpectrum(dyn, w_array, smearing):
     if dyn.effective_charges is None:
         raise ValueError("Error, effective charges must be initialized to compute the IR")
 
-    g_propagator = dyn.get_phonon_propagator(w_array, smearing)
+    g_propagator = dyn.get_phonon_propagator(w_array, smearing, only_gamma = True)
 
     # Get the masses
     m = np.tile(dyn.structure.get_masses_array(), (3,1)).T.ravel()
