@@ -416,7 +416,7 @@ class QE_Symmetry:
                 for jat in range(nat):
                     for kat in range(nat):
                         new_mat = dM_drdr[3*irt[jat]: 3*irt[jat]+3, 3*irt[kat]:3*irt[kat] + 3,:]
-                        new_dM[j, 3*jat: 3*jat+3, 3*kat:3*kat+3] += new_mat
+                        new_dM[3*jat: 3*jat+3, 3*kat:3*kat+3, :] += new_mat
 
             dM_drdr[:,:,:] = new_dM / self.QE_translation_nr
             new_dM[:,:,:] = 0

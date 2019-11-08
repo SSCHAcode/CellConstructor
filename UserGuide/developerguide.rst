@@ -5,6 +5,70 @@ Developer's guide
 In this chapter, I will introduce you to the code development.
 
 
+The code management
+===================
+
+CellConstructor is distributed through the GIT control version system.
+
+Get the last development code
+-----------------------------
+
+To download the last development distribution, use the command:
+
+.. code:: bash
+
+   $ git clone https://github.com/mesonepigreco/CellConstructor.git
+
+In this way a new directory CellConstructor will be created.
+After you created the directory, you can upload your local repository with the last
+changes using the pull command.
+
+.. code:: bash
+
+   $ git pull
+
+The pull command must be executed inside the CellConstructor directory.
+
+
+What should I do BEFORE modify the code?
+----------------------------------------
+
+Note, the master branch of CellConstructor is holy: you should push your changes inside this branch
+only after you are absolutely sure that they will not brake any function.
+Moreover, unless you are an official developer of CellConstructor, you will not have the
+permission to push your commits inside the official repository.
+
+Then, how can you make your own changes available to other developers? The answer is **forking**.
+
+Fork the CellConstructor repository, in this way you will create a new repository, synced with the
+original one, where you are the owner.
+
+You can do all the changes, commit and push them inside this repository.
+When you think that everything is ok and ready to be merged inside the main repository, you can ask for a **pull request**.
+
+CellConstructor uses GitHub (this may change in future). A detailed guide on how to manage forks and pull requests on
+the github web site, please see:
+
+https://help.github.com/en/github/getting-started-with-github/fork-a-repo
+
+
+
+How do I report a bug?
+----------------------
+
+If you spot a bug, please open an issue on our GitHub page
+
+https://github.com/mesonepigreco/CellConstructor
+
+Before opening a new post, please, look if someone already spotted your same error (and maybe managed to find a workaround).
+If not, open a new issue.
+
+Describe in detail the problem and the calculation you are trying to run.
+Please, **include an executable script with data** that triggers the bug.
+
+We developers are not working 24h to answer issues, however, we will do our best to give you an answer as soon as we can.
+
+
 Coding guidelines
 =================
 
@@ -256,3 +320,5 @@ This is very annoying, as it can be very difficult to debug, especially if you a
 
 The parser is a python function that takes in input python arguments, converts them if necessary into the fortran types, verifies the size of the arrays to match exactly what the fortran function is expecting, calls the the fortran function, parses the output and return the output in python.
 It is very important that the user of CellConstructor must **never** call directly a fortran function. This extends possibly also to other developers: try to make other peaple need only to call your final python functions and not directly the fortran ones.
+
+
