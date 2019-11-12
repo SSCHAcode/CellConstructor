@@ -15,4 +15,4 @@ In this way it is a very clean module
 #from Methods import LoadXYZTrajectory
 #from Methods import QHA_FreeEnergy
 
-__all__ = ["Structure", "Methods", "Phonons", "Manipulate", "symmetries"]
+__all__ = ["Structure", "Methods", "Phonons", "Manipulate", "symmetries", "ForceTensor"]

@@ -1114,3 +1114,49 @@ def get_directed_nn(structure, atom_id, direction):
 
     return good_atoms[i_best]
 
+def get_closest_vector(unit_cell, v_dist):
+    """
+    This subroutine computes the periodic replica of v_dist
+    that minimizes its modulus.
+
+    Parameters
+    ----------
+        - unit_cell : ndarray(size = (3,3))
+            The unit cell vector, unit_cell[i,:] is the i-th cell vector
+        - v_dist : ndarray(size = 3)
+            The distance vector that you want to optimize
+
+    Returns
+    -------
+        - new_v_dist: ndarray(size = 3)
+            The replica of v_dist that has the minimum modulus
+    """
+
+    # Define the metric tensor
+    g = unit_cell.dot(unit_cell.T)
+    alphas = covariant_coordinates(unit_cell, v_dist)
+    
+    # Define the minimum function
+    def min_f(n):
+        tmp = g.dot(2 * alphas + n)
+        return n.dot(tmp)
+    
+    # Get the starting guess for the vector
+    n_start = -np.floor(alphas + .5)
+    n_min = n_start.copy()
+    tot_min = min_f(n_min)
+
+    # Get the supercell shift that minimizes the vector
+    for n_x in [-1,0,1]:
+        for n_y in [-1,0,1]:
+            for n_z in [-1,0,1]:
+                n_v = n_start + np.array([n_x, n_y, n_z])
+                new_min = min_f(n_v)
+                if new_min < tot_min:
+                    tot_min = new_min 
+                    n_min = n_v
+    
+    # Get the new vector
+    new_v = v_dist + n_min.dot(unit_cell)
+    return new_v
+

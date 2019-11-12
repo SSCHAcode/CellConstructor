@@ -12,6 +12,7 @@ import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Phonons
 import cellconstructor.Manipulate
+import cellconstructor.ForceTensor
 
 __SPGLIB__ = True
 try:
@@ -277,6 +278,32 @@ class TestStructureMethods(unittest.TestCase):
 
         self.assertEqual(qe_sym.QE_nsymq, 48)
 
+    def test_tensor_interpolation(self):
+        """
+        Test the interpolation using the Tensor
+        module against the interpolation of the quantum espresso
+        module.
+        """
+
+        dyn = self.dynSnSe.Copy()
+
+        new_cell = (4,4,1)
+
+        qe_inter_dyn = dyn.Interpolate(dyn.GetSupercell(), new_cell)
+
+        # Interpolate using the Tensor library
+        t2 = CC.ForceTensor.Tensor2(dyn.structure)
+        t2.SetupFromPhonons(dyn)
+        tensor_inter_dyn = t2.GeneratePhonons(new_cell)
+
+        # Apply the symmetries to both
+        tensor_inter_dyn.Symmetrize()
+        qe_inter_dyn.Symmetrize()
+
+        dist = qe_inter_dyn.dynmats[0] - tensor_inter_dyn.dynmats[0]
+        dist = np.sqrt(np.sum(dist**2))
+
+        self.assertTrue(dist > 1e-6)
         
     def test_stress_symmetries(self):
         syms = CC.symmetries.QE_Symmetry(self.struct_ice)
