@@ -87,6 +87,12 @@ class Tensor2(GenericTensor):
         # Check if the passed structure is a good superstructure
         assert nat_sc % nat == 0, "Error, the given superstructure has a wrong number of atoms"
 
+        natsc3, natsc3_ = np.shape(tensor)
+
+        assert nat_sc == natsc3/3, "Error, the given tensor and superstructure are not compatible"
+
+        assert natsc3 == natsc3_, "Error, the given tensor must be a square matrix"
+
         # Prepare the tensor
         self.tensor = np.zeros( (nat, nat_sc, 3, 3), order = "C", dtype = np.double)
         self.r_vectors = np.zeros((nat, nat_sc, 3), order = "C", dtype = np.double)
@@ -138,13 +144,14 @@ class Tensor2(GenericTensor):
             for j in range(nat_sc):
 
                 r_vector = super_structure.coords[i,:] - super_structure.coords[j,:]
-                new_r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
+                #new_r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
 
                 # Now average all the values that 
                 # share the same r vector
-                dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
-                mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                mask = np.array(mask)
+                #dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
+                #mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+                #mask = np.array(mask)
+                mask = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], r_vector)
                 #mask = np.sqrt(np.einsum("ab, ab -> a", dist_v, dist_v)) < 1e-5
 
 
@@ -170,9 +177,10 @@ class Tensor2(GenericTensor):
                 # double transpose inside the same unit cell
                 # If the share a -1 with the vector then we found the transposed element
                 if n_elements1 == 0:
-                    dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
-                    mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                    mask2 = np.array(mask2)
+                    #dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
+                    mask2 = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], -r_vector)
+                    #mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+                    #mask2 = np.array(mask2)
                     n_elements2 = np.sum(mask2.astype(int))
                     if n_elements2 > 0:
                         tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements2

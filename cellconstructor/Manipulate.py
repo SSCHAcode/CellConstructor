@@ -21,6 +21,7 @@ import Units
 
 from functools import partial
 
+import symph
 
 # Check if parallelization is available
 try:
@@ -1501,8 +1502,7 @@ def GetIRSpectrum(dyn, w_array, smearing):
     return ir_signal
 
 
-
-def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smearing):
+def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smearing, use_fortran = True):
     r"""
     GET THE TWO PHONON IR RESPONSE FUNCTION
     =======================================
@@ -1539,7 +1539,12 @@ def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smea
             A real valued array of the frequencies for the IR signal. The energy must be in [Ry]
         - smearing : float
             The value of the 0^+ in the phonon propagator. This allows the response to have a non vanishing imaginary part
-
+        - use_fortran : bool
+            If true the fortran library is used to perform the calculation
+            This is very convenient, as it speed up the calculation
+            and avoids storing massive amount of memory. 
+            Use it to false only for testing purpouses or for very small system
+            with many freqiencies (in that case the python implemetation could be faster)
     Results
     -------
         - ir_2_ph : ndarray
@@ -1560,9 +1565,6 @@ def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smea
     w_freqs = w_freqs[~trans_mask]
     pol_vec = pol_vec[:, ~trans_mask]
 
-    # Get the second order dipole moment (3nat_sc, 3nat_sc, 3)
-    dM_dRdR = GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T)
-
     # Get an array of the masses for each 3nat_sc coordinate
     m = np.tile(super_dyn.structure.get_masses_array(), (3,1)).T.ravel()
 
@@ -1577,11 +1579,77 @@ def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smea
     # The frist two are polarization basis
 
     # We can get the 2 phonon propagator
-    G_munu = super_dyn.get_two_phonon_propagator(w_array, T, smearing)
+    if use_fortran == False:
+        # Use the python. Good for testing but require a massive amount of memory
+        # For large cells
+        G_munu = super_dyn.get_two_phonon_propagator(w_array, T, smearing)
 
-    # Get the IR response
-    IR = np.einsum("abi, abi, abw->w", dM_dpdp, dM_dpdp, G_munu) / 4
+        # Get the IR response
+        IR = np.einsum("abi, abi, abw->w", dM_dpdp, dM_dpdp, G_munu) / 4
+    else:
+        # Use the fortran accelerated library.
+        # They are fast and not memory intensive
+        IR = np.zeros(len(w_array), dtype = np.complex128)
+        for i in range(3):
+            gf_pol = symph.contract_two_ph_propagator(w_array, w_freqs, T, smearing, dM_dpdp[:,:,i])
+            IR += gf_pol / 4
+
 
     # Get the IR intensity by tracing on the electric field 
     # And selecting the imaginary part of the green function.
     return -np.imag(IR)
+
+
+def GetTwoPhononIR(original_dyn, structures, effective_charges, T, w_array, smearing, *args, **kwargs):
+    r"""
+    GET THE TWO PHONON IR RESPONSE FUNCTION
+    =======================================
+
+    This method computes the two phonon IR response function for an harmonic dynamical matrix.
+    The two phonon IR is due to quadratic terms in the dipole moment (linear part of the effective charge)
+
+    The IR intensity due to the two phonon structures is
+
+    .. math:: 
+
+        I(\omega) = \frac 14 \sum_{x = 1}^3 \sum_{abcd} \frac{\partial^2 M_x}{\partial R_a \partial R_b} \frac{\partial^2 M_x}{\partial R_c\partial R_d} \frac{-\Im G_{abcd}(\omega)}{\sqrt{m_am_bm_cm_d}}
+    
+    where the $G_{abcd}(\omega)$ is the two phonon propagator
+
+    .. math::
+
+        G_{abcd}(z) = \sum_{\mu\nu} \frac{e_\mu^a e_\nu^be_\mu^ce_\nu^d}{2\omega_\mu\omega_\nu}\left[\frac{(\omega_\mu + \omega_\nu)(n_\mu + n_\nu + 1)}{(\omega_\mu + \omega_\nu)^2 - z^2} - \frac{(\omega_\mu - \omega_\nu)(n_\mu - n_\nu)}{(\omega_\mu - \omega_\nu)^2 - z^2}\right]
+
+
+    NOTE: This function calls the GetTwoPhononIRFromSecondOrderDypole
+
+    So refer to that one for documentation in extra parameters
+
+    Parameters
+    ----------
+        - original_dyn : CC.Phonons.Phonons()
+            The dynamical matrix of the equilibrium system.
+        - structures : list 
+            A list of CC.Structure.Structure() of the displaced structure with respect to original_dyn on which the effective charges are computed. 
+            Alternatively, you can pass a list of strings that must point to the .scf files of the structures.
+        - effective_charges : list
+            A list of the effective charge tensor. Alternatively you may provide a list of strings that must point to the output of the ph.x package from Quantum ESPRESSO,
+            where the effective charges are printed.
+        - T : float
+            The temperature (in K)
+        - w_array : ndarray
+            A real valued array of the frequencies for the IR signal. The energy must be in [Ry]
+        - smearing : float
+            The value of the 0^+ in the phonon propagator. This allows the response to have a non vanishing imaginary part
+    Results
+    -------
+        - ir_2_ph : ndarray
+            The 2-phonons IR intensity at each w_array frequency. 
+
+    """
+
+    # Get the second order dipole moment (3nat_sc, 3nat_sc, 3)
+    dM_dRdR = GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T)
+
+    return GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smearing, *args, **kwargs)
+

@@ -63,6 +63,59 @@ def covariant_coordinates(basis, vector):
     contra_vect = basis.dot(vector)
     return imt.dot(contra_vect)
     
+def get_equivalent_vectors(unit_cell, vectors, target):
+    """
+    This function returns an array mask of the vectors that are
+    equivalent to the target vector.
+
+    Parameters
+    ----------
+        - unit_cell : ndarray (size = (3,3))
+            unit_cell[i, :] is the i-th lattice vector
+        - vectors : ndarray(size = (n_vects, 3))
+            The vectors to be compared to the target
+        - target : ndarray(size = 3)
+            The target vector
+    
+    Returns
+    -------
+        - eq_mask : ndarray(size = n_vects, dtype = bool)
+            A mask that is True if the vectors[i, :] is equivalent
+            to target.
+    """
+
+    # Get the inverse metric tensor
+    M, N = np.shape(unit_cell)
+    
+    metric_tensor = np.zeros((N,N))
+    for i in range(0, N):
+        for j in range(i, N):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    imt = np.linalg.inv(metric_tensor)
+
+    # Transform matrix
+    # This matrix transforms from cartesian to crystal coordinates
+    transform = imt.dot(unit_cell)
+
+    # Get the crystal coordinates for each vector
+    crystal_vectors = vectors.dot(transform.T)
+
+    # Get the crystal coordinates for the target
+    crystal_target = transform.dot(target)
+
+    # For each crystal vector, subtract the target
+    crystal_vectors -= crystal_target
+
+    # Get the mask of those vectors whose components are integers
+    mask_on_coords = (crystal_vectors - np.floor(crystal_vectors + .5)) < 1e-5
+
+    # Here we count, for each vector, how many coordinates are not integers in crystal units
+    # Then we select only those whose count is 0 (all crystal coordinats are integers)
+    mask_equal = np.sum(mask_on_coords.astype(int), axis = 1) == 0
+
+    return mask_equal
+
 
 def get_min_dist_into_cell(unit_cell, v1, v2):
     """
