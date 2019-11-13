@@ -54,22 +54,49 @@ class Tensor2(GenericTensor):
 
         self.structure = phonons.structure 
 
+        # Get the dynamical matrix in the supercell
+        super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
+
+        # Setup from the supercell dynamical matrix
+        self.SetupFromTensor(super_dyn.dynmats[0], super_dyn.structure)
+
+
+    def SetupFromTensor(self, tensor, superstructure):
+        """
+        SETUP FROM A TENSOR
+        ===================
+
+        This module setup the tensor from a 3*natsc x 3*natsc matrix.
+        You should also pass the structure in the supercell to infer
+        which atom correspond to which one.
+
+        NOTE: The first nat atoms of the superstructure must be a unit cell.
+
+        Parameters
+        ----------
+            - tensor : ndarray( size=(3*nat_sc, 3*nat_sc))
+                The matrix to be converted in this Tensor2.
+            - superstructure : Structures.Structure()
+                The structure in the supercell that define the tensor. 
+                
+        """
+
         nat = self.structure.N_atoms
-        nat_sc = nat * np.prod(phonons.GetSupercell())
+        nat_sc = superstructure.N_atoms
+
+        # Check if the passed structure is a good superstructure
+        assert nat_sc % nat == 0, "Error, the given superstructure has a wrong number of atoms"
 
         # Prepare the tensor
         self.tensor = np.zeros( (nat, nat_sc, 3, 3), order = "C", dtype = np.double)
         self.r_vectors = np.zeros((nat, nat_sc, 3), order = "C", dtype = np.double)
         
 
-        # Get the dynamical matrix in the supercell
-        super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
-
         for i in range(nat):
             for j in range(nat_sc):
-                self.tensor[i, j, :, :] = super_dyn.dynmats[0][3*i: 3*i+3, 3*j:3*j+3]
-                v_dist = super_dyn.structure.coords[i, :] - super_dyn.structure.coords[j,:]
-                self.r_vectors[i, j, :] = Methods.get_closest_vector(super_dyn.structure.unit_cell, v_dist) 
+                self.tensor[i, j, :, :] = tensor[3*i: 3*i+3, 3*j:3*j+3]
+                v_dist = superstructure.coords[i, :] - superstructure.coords[j,:]
+                self.r_vectors[i, j, :] = Methods.get_closest_vector(superstructure.unit_cell, v_dist) 
         
 
     def GenerateSupercellTensor(self, supercell):
