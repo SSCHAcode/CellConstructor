@@ -32,6 +32,7 @@ subroutine contract_two_ph_propagator(w_array, w_mu, T, smearing, M, f_output, n
     double precision :: w
     double complex, dimension(n_modes, n_modes) :: chi
 
+    !$OMP DO PRIVATE(i1, mu, nu, w, chi) SHARED(m, f_output, smearing, T, n_modes)
     do i1 = 1, n_w
         w = w_array(i1)
 
@@ -39,14 +40,15 @@ subroutine contract_two_ph_propagator(w_array, w_mu, T, smearing, M, f_output, n
         call get_two_phonon_propagator(w, w_mu, T, smearing, chi, n_modes)
 
         f_output(i1) = 0
-        !$OMP DO COLLAPSE(2) REDUCTION(+:f_output(i1))
+        !!$OMP DO COLLAPSE(2) REDUCTION(+:f_output(i1))
         do mu = 1, n_modes
             do nu = 1, n_modes 
                 f_output(i1) = f_output(i1) + M(nu, mu) * M(nu, mu) * chi(nu, mu)
             end do
         end do
-        !$OMP END DO
+        !!$OMP END DO
     enddo   
+    !$OMP END DO
 
 end subroutine contract_two_ph_propagator   
 

@@ -305,6 +305,28 @@ class TestStructureMethods(unittest.TestCase):
 
         self.assertTrue(dist > 1e-6)
         
+
+
+    def test_qgrid_interpolation(self):
+        """
+        We test if the interpolation and the generation of 
+        a q grid is consistent.
+        """
+
+        dyn = self.dynSnSe.Copy()
+
+        new_dyn = dyn.Interpolate(dyn.GetSupercell(), (4,4,1))
+        superdyn = new_dyn.GenerateSupercellDyn(new_dyn.GetSupercell())
+
+        # Now we return back
+        dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(new_dyn.q_tot), new_dyn.structure, superdyn.structure)
+
+        for iq, q in enumerate(new_dyn.q_tot):
+            zero = dynq[iq, :, :] - new_dyn.dynmats[iq]
+            zero = np.max(np.abs(zero))
+            self.assertTrue(zero < 1e-8)
+
+
     def test_stress_symmetries(self):
         syms = CC.symmetries.QE_Symmetry(self.struct_ice)
         syms.ChangeThreshold(1e-1)
@@ -329,6 +351,64 @@ class TestStructureMethods(unittest.TestCase):
         # Test orthorombic
         self.assertTrue(np.sum(np.abs(voight_stress[3:])) < __epsil__)
 
+    def test_fourier(self):
+        """
+        Generate a random dynamical matrix, apply translations,
+        and then generate do forward and backward the transformation
+        """
+        SUPERCELL = (4,4,1)
+
+        # Use the unit cell of SnSe
+        dyn = self.dynSnSe
+
+        # Generate a super structure
+        superstructure= dyn.structure.generate_supercell(SUPERCELL)
+        natsc = superstructure.N_atoms
+
+        # Here the random dynamical matrix
+        fc_random = np.random.uniform(size = (3*natsc, 3*natsc))
+        fc_random += fc_random.T
+
+        # Apply the translations
+        CC.symmetries.ApplyTranslationsToSupercell(fc_random, superstructure, SUPERCELL)
+
+        # Get the expected q grid
+        q_grid = CC.symmetries.GetQGrid(dyn.structure.unit_cell, SUPERCELL)
+
+        # Go into the q space
+        dynq = CC.Phonons.GetDynQFromFCSupercell(fc_random, np.array(q_grid),
+                                                dyn.structure,
+                                                superstructure)
+
+
+        # Return back to the real space fc
+        fc_new = CC.Phonons.GetSupercellFCFromDyn(dynq, np.array(q_grid),
+                                                dyn.structure,
+                                                superstructure)
+
+        # Check the difference between before and after
+        self.assertTrue(np.max(np.abs( fc_new - fc_random)) < 1e-10)
+
+    def test_tensor_translational_invariance(self):
+        """
+        Test if the tensor class generates 
+        a translational invariant tensor when interpolating
+        """
+
+        tensor = CC.ForceTensor.Tensor2(self.dynSnSe.structure)
+        tensor.SetupFromPhonons(self.dynSnSe)
+
+        # Interpolate to supercell (4,4,1)
+        SUPERCELL = (4,4,1)
+        force_fc = tensor.GenerateSupercellTensor(SUPERCELL)
+
+        superstructure = self.dynSnSe.structure.generate_supercell(SUPERCELL)
+        symmetrize_fc = force_fc.copy()
+
+        # Impose the translations on the new supercell structure
+        CC.symmetries.ApplyTranslationsToSupercell(symmetrize_fc, superstructure, SUPERCELL)
+        
+        self.assertTrue(np.max(np.abs(force_fc - symmetrize_fc)) < 1e-10)
         
     def test_q_star_with_minus_q(self):
         """

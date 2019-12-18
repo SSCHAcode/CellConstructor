@@ -63,7 +63,7 @@ def covariant_coordinates(basis, vector):
     contra_vect = basis.dot(vector)
     return imt.dot(contra_vect)
     
-def get_equivalent_vectors(unit_cell, vectors, target):
+def get_equivalent_vectors(unit_cell, vectors, target, index = None):
     """
     This function returns an array mask of the vectors that are
     equivalent to the target vector.
@@ -104,15 +104,16 @@ def get_equivalent_vectors(unit_cell, vectors, target):
     # Get the crystal coordinates for the target
     crystal_target = transform.dot(target)
 
+
     # For each crystal vector, subtract the target
     crystal_vectors -= crystal_target
 
     # Get the mask of those vectors whose components are integers
-    mask_on_coords = (crystal_vectors - np.floor(crystal_vectors + .5)) < 1e-5
+    mask_on_coords = np.abs((crystal_vectors - np.floor(crystal_vectors + .5))) < 1e-5
 
     # Here we count, for each vector, how many coordinates are not integers in crystal units
     # Then we select only those whose count is 0 (all crystal coordinats are integers)
-    mask_equal = np.sum(mask_on_coords.astype(int), axis = 1) == 0
+    mask_equal = np.sum(mask_on_coords.astype(int), axis = 1) == 3
 
     return mask_equal
 

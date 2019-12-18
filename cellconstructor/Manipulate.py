@@ -1502,7 +1502,7 @@ def GetIRSpectrum(dyn, w_array, smearing):
     return ir_signal
 
 
-def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smearing, use_fortran = True):
+def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smearing, use_fortran = True, verbose = False):
     r"""
     GET THE TWO PHONON IR RESPONSE FUNCTION
     =======================================
@@ -1545,6 +1545,8 @@ def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smear
             and avoids storing massive amount of memory. 
             Use it to false only for testing purpouses or for very small system
             with many freqiencies (in that case the python implemetation could be faster)
+        - verbose : bool
+            If true prints the timing on output.
     Results
     -------
         - ir_2_ph : ndarray
@@ -1572,8 +1574,13 @@ def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smear
     enew = np.einsum("ab, a -> ba", pol_vec, 1/np.sqrt(m))
 
     # Convert the dipole moment in polarization basis
+    t1 = time.time()
     dM_dRdp = np.einsum("abj, mb->amj", dM_dRdR, enew)
     dM_dpdp = np.einsum("abj, ma->mbj", dM_dRdp, enew)
+
+    t2 = time.time()
+    if verbose:
+        print("Time to transform the dipole in the polarization basis: {}s".format(t2 -t1))
 
     # Now dM_dpdp has (3nat_sc - 3, 3nat_sc - 3, 3) coordinates, 
     # The frist two are polarization basis
@@ -1594,6 +1601,9 @@ def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smear
             gf_pol = symph.contract_two_ph_propagator(w_array, w_freqs, T, smearing, dM_dpdp[:,:,i])
             IR += gf_pol / 4
 
+    t3 = time.time()
+    if verbose:
+        print("Time to conpute the IR response: {} s".format(t3-t2))
 
     # Get the IR intensity by tracing on the electric field 
     # And selecting the imaginary part of the green function.

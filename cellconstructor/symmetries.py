@@ -1776,19 +1776,25 @@ def GetQGrid(unit_cell, supercell_size):
             for iz in range(supercell_size[2]):
                 n_s = np.array( [ix, iy, iz], dtype = np.float64)
                 q_vect = n_s.dot(bg_s)
-                q_vect = Methods.put_into_cell(bg, q_vect)
-                
+                #q_vect = Methods.get_closest_vector(bg, q_vect)
+
+                # Check if q is in the listcount = 0
+                count = 0
                 for q in q_list:
-                    if Methods.get_min_dist_into_cell(bg, q_vect, q) < __EPSILON__:
-                        print "The q point in crystal (bg_s):"
-                        print ix, iy, iz
-                        print "The q point:", q_vect
-                        print "Is already present in the list:",
-                        print q_list
-                        raise ValueError("Error, q point found twice.")
-                
+                    if Methods.get_min_dist_into_cell(bg, -q_vect, q) < __EPSILON__:
+                        count += 1
+                        break
+                if count > 0:
+                    continue
+
+                # Add the q point
                 q_list.append(q_vect)
                 
+                # Check if -q and q are different
+                if Methods.get_min_dist_into_cell(bg, -q_vect, q_vect) > __EPSILON__:
+                   q_list.append(-q_vect)
+                
+
     
     return q_list
         
@@ -2015,64 +2021,6 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
         
-def GetIRActiveModes(symmetries, structure):
-    """
-    GET ACTIVE IR MODES
-    ===================
-
-    This function return a list of the indices of the modes that 
-    could be IR active by symmetry.
-
-    NOTE: Polarization vectors related to translation will automatically discarded.
-
-    Parameters
-    ----------
-        symmetries : list of (3x4) ndarraies
-            The list of the symmetry operations of the structure.
-        structre : Structure()
-            The structure that you want to analyze.
-        pols : ndarray (3* nat, n_modes)
-            The polarization vectors, note that n_modes must match 3*nat
-            as they must form a complete set of the basis of displacements.
-
-    Returns
-    -------
-        ir_active_indices : ndarray (size = nmodes)
-            It is 0 if the mode is not ir active, 1 if it is IR active
-    """
-    raise NotImplementedError("Error, not yet implemented")
-
-    # Check if the input is consistent
-    nat3, nmodes = np.shape(pols)
-    assert nat3 == nmodes, "Error, the pols argument must form a complete set."
-
-    # Get the symmetry matrix in the polarization basis
-    pol_matrix =  GetSymmetriesOnModes(symmetries, structure, pols)
-
-    nsyms = len(symmetries)
-
-    # This is a mask of the ir active modes
-    IR_active_mask = np.ones(nmodes, dtype = int)
-
-    # Discard polarization vectors related to translations
-    IR_active_mask[Methods.get_translations(pols, structure.get_masses_array())] = 0
-
-    # Now the mode is IR active if and only if
-    # a mode transforms according to all the symmetry operations in the same way as the
-    # generic light polarization vector.
-    for j in range(nmodes):
-        # Check the character of the mode
-        for i in range(nsyms):
-            # As soon as we find a mode that cannot be IR active
-            # we inhibit the IR_active_mask
-            if pol_matrix[i, j, j] < 0:
-                IR_active_mask[j] = 0
-                #print("Neglecting %d := sym %d is %.4f" % (j, i, pol_matrix[i, j, j]))
-    
-
-    # Extract the list of IR active modes and return the result
-    return IR_active_mask
-
 
 def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
     supercell_size, crystal = True):
@@ -2194,3 +2142,65 @@ def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
     return q_list
 
         
+def ApplyTranslationsToSupercell(fc_matrix, super_cell_structure, supercell):
+    """
+    Impose the translational symmetry directly on the supercell
+    matrix.
+
+    Parameters
+    ----------
+        - fc_matrix : ndarray(size=(3*natsc, 3*natsc))
+            The matrix in the supercell. In output will be
+            modified
+        - super_cell_structure : Structure()
+            The structure of the super cell
+        - supercell : (nx,ny,nz)
+            The dimension of the supercell. 
+    """
+
+    natsc = super_cell_structure.N_atoms
+
+    # Check the consistency of the passed options
+    natsc3, _ = np.shape(fc_matrix)
+    assert natsc == int(natsc3 / 3), "Error, wrong number of atoms in the supercell structure"
+    assert natsc3 == _, "Error, the matrix passed has a wrong shape"
+    assert natsc % np.prod(supercell) == 0, "Error, the given supercell is impossible with the number of atoms"
+
+    # Fill the auxiliary matrix
+    new_v2 = np.zeros( (3,3, natsc, natsc), dtype = np.double, order ="F")
+    for i in range(natsc):
+        for j in range(natsc):
+            new_v2[:, :, i, j] = fc_matrix[3*i : 3*(i+1), 3*j : 3*(j+1)]
+
+
+    # The number of translations
+    n_trans = np.prod(supercell)
+    trans_irt = np.zeros((natsc, n_trans), dtype = np.double, order = "F")
+
+    # Setup the translational symmetries
+    for nx in range(supercell[0]):
+        for ny in range(supercell[1]):
+            for nz in range(supercell[2]):
+                # Build the translational symmetry
+                symmat = np.zeros((3,4))
+                symmat[:3,:3] = np.eye(3)
+                symmat[:, 3] = np.array([nx, ny, nz], dtype = float) / np.array(supercell)
+
+
+                nindex = supercell[2] * supercell[1] *nx 
+                nindex += supercell[2] * ny 
+                nindex += nz 
+
+                # Get the IRT for this symmetry operation in the supercell
+                trans_irt[:, nindex] = GetIRT(super_cell_structure, symmat) + 1 
+                
+
+                
+    
+    # Apply the translations
+    symph.trans_v2(new_v2, trans_irt)
+
+    # Return back to the fc_matrix
+    for i in range(natsc):
+        for j in range(natsc):
+            fc_matrix[3*i : 3*(i+1), 3*j : 3*(j+1)] = new_v2[:, :, i, j]

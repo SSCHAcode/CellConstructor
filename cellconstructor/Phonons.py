@@ -2276,6 +2276,13 @@ class Phonons:
         self.dynmats = new_dynmats
         self.q_stars = q_stars
         self.nqirr = len(q_stars)
+
+        # # Now, the q_stars respect the correct fourier convention
+        # q_tot = []
+        # for q_star in q_stars:
+        #     for q in q_star:
+        #         q_tot.append(q)
+        # self.q_tot = q_tot
             
     def SymmetrizeSupercell(self, supercell_size = None):
         """
@@ -3190,25 +3197,5 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
             output_dyn[3*i : 3*(i+1), 3*j: 3*(j+1)]= new_dyn[:,:, i, j]
             
     return output_dyn
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
     

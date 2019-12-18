@@ -48,9 +48,9 @@ Please, note that some fortran libraries are needed to be compiled, therefore th
 This requires the python distutils and developing tools to be properly installed.
 On ubuntu this can be achieved by running:
 
-:: 
+.. bash:: 
 
-   sudo apt-get install python-dev
+   $ sudo apt-get install python-dev
 
    
 
@@ -64,30 +64,31 @@ Installation
 Once you make sure to have all the required packages installed on your system
 and working, just type on the terminal
 
-```bash
-python setup.py install
-```
+.. bash::
+   $ python setup.py install
+
 
 while you are located in the same directory as the setup.py script is.
 
 This program is also distributed upon PyPI. You can install it by typing
 
-```bash
-pip install CellConstructor
-```
+.. bash::
+   $ pip install CellConstructor
+
 In this way you will not install the last developing version.
 
 If the compilation of the modules fails and you are using
 an anaconda module on a 64bit machine, you have to install the conda gcc version.
 You can do this by typing (on Linux):
 
-```bash
-conda install gxx_linux-64
-```
+.. bash::
+   $ conda install gxx_linux-64
+
 or (on MacOS):
-```bash
-conda install clangxx_osx-64
-```
+
+.. bash::
+   $ conda install clangxx_osx-64
+
 
 
 NOTE:

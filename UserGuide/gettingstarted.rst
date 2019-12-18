@@ -99,15 +99,8 @@ You can save them in the .scf format, that is ready to be copied on the bottom o
   for i, struct in enumerate(structures):
       struct.save_scf("random_struct{:05d}.scf".format(i))
 
-In this way, we will create 10 files named
-.. code:: bash
-
-   random_struct00000.scf
-   random_struct00001.scf
-   random_struct00002.scf
-   random_struct00003.scf
-   ...
-
+In this way, we will create 10 files named *random_struct00000.scf*,
+*random_struct00001.scf*, ...
 
 Each of them will be ready to be used in a quantum espresso pw.x calculation with ibrav=0.
 
@@ -238,6 +231,7 @@ In the following tutorial, we create a random structure, associate to it a rando
 
 
 The output of this code is shown below. Note, since we randomly initialized the dynamical matrix, the absolute value of the frequencies may change.
+
 .. code::
 
       1) -5800.6476 cm-1
@@ -348,20 +342,195 @@ Note, in some cases the symmetrization does not converge. If this happens, then 
 It could also be possible that spglib identifies some symmetries with a threshold, the code impose them, but then the symmetries are still not recognized by spglib with a lower threshold. This happens when the symmetries you are imposing are not satisfied by the unit cell.
 In that case, you have to manually edit the unit cell before imposing the symmetries.
 
-   
-
+  
 
 Symmetries of the dynamical matrix
 ----------------------------------
 
 In this tutorial we will create a random dynamical matrix of a high symmetry structure and enforce the symmetrization.
-We will do this in two ways. Firstly, we will use the builtin symmetry engine from QuantumESPRESSO, then we will try to use spglib.
+Constraining symmetries on the dynamical matrix can be achieved in two ways. Firstly, we will use the builtin symmetry engine from QuantumESPRESSO, then we will use the spglib.
+
+The builtin Quantum ESPRESSO module performs the symmetrization in q space, it is much faster than spglib in large supercells. Moreover, it is installed together with CellConstructor and no additional package is required. However, spglib is much better in finding symmetries; it is a good tool to be used when the structure is already in a supercell. The CellConstructor module interfaces with spglib symmetry identification and performs the symmetrization of the dynamical matrix.
+
+.. code:: python
+
+   from __future__ import print_function
+
+   # Import numpy
+   import numpy as np
+
+   # Import cellconstructor
+   import cellconstructor as CC
+   import cellconstructor.Structure
+   import cellconstructor.Phonons
+   import cellconstructor.symmetries
+
+   # Define a rocksalt structure
+   bcc = CC.Structure.Structure(2)
+   bcc.coords[1,:] = 5.6402 * np.array([.5, .5, .5]) # Shift the second atom in the center
+   bcc.atoms = ["Na", "Cl"]
+   bcc.unit_cell = np.eye(3) * 5.6402 # A cubic cell of 5.64 A edge
+   bcc.has_unit_cell = True # Setup periodic boundary conditions
+
+   # Setup the mass on the two atoms (Ry units)
+   bcc.masses = {"Na": 20953.89349715178,
+   "Cl": 302313.43272048925}
 
 
-The builtin Quantum ESPRESSO module performs the symmetrization in q space, thus is much faster than spglib when large supercells are involved. Moreover, it is installed together with CellConstructor, therefore, no additional package is required. However, spglib is much better in finding symmetries of the structures, and it is a good tool to be used when the structure is not a primitive cell. The CellConstructor module interfaces with spglib symmetry identification and performs the symmetrization of the dynamical matrix.
-Let us assume you imported cellconstructor and Phonons as always
 
-TODO
+   # Lets generate the random dynamical matrix
+   dynamical_matrix = CC.Phonons.Phonons(bcc)
+   dynamical_matrix.dynmats[0] = np.random.uniform(size = (3 * bcc.N_atoms,
+   3* bcc.N_atoms))
+
+   # Force the random matrix to be hermitian (so we can diagonalize it)
+   dynamical_matrix.dynmats[0] += dynamical_matrix.dynmats[0].T
    
+   # Lets compute the phonon frequencies without symmetries
+   w, pols = dynamical_matrix.DiagonalizeSupercell()
+
+   # Print on the screen the random frequencies
+   print("Non symmetric frequencies:")
+   print("\n".join(["{:d}) {:.4f} cm-1".format(i, w * CC.Units.RY_TO_CM)for i,w in enumerate(w)]))
+
+   # Symmetrize the dynamical matrix
+   dynamical_matrix.Symmetrize() # Use QE to symmetrize
+
+   # Recompute the frequencies and print them in output
+   w, pols = dynamical_matrix.DiagonalizeSupercell()
+   print()
+   print("frequencies after the symmetrization:")
+   print("\n".join(["{:d}) {:.4f} cm-1".format(i, w * CC.Units.RY_TO_CM) for i,w in enumerate(w)]))
 
 
+
+In this tutorial we first build the NaCl structure, then we generate a random force constant matrix.
+After the symmetrization, the system will have 3 frequencies to zero (the acoustic modes at gamma) and 3 identical frequencies (negative or positive).
+If you want to use this dynamical matrix, it is recommanded to force it to be positive definite with the command dynamical_matrix.ForcePositiveDefinite().
+
+The only command actually required to symmetrize is:
+
+.. code:: python
+
+   dynamical_matrix.Symmetrize() # Use QE to symmetrize
+
+This command will always use the espresso subroutines. You can, however, setup the symmetries from SPGLIB
+and force the symmetrization in the supercell. This procedure is a bit more involved, as you need to create
+and initialize manually the symmetry class.
+
+The code to perform the whole symmetrization in spglib is
+
+.. code:: python
+
+   # Initialize the symmetry class
+   syms = CC.symmetries.QE_Symmetry(bcc)
+   syms.SetupFromSPGLIB() # Setup the espresso symmetries on spglib
+
+   # Generate the real space dynamical matrix
+   superdyn = dynamical_matrix.GenerateSupercellDyn(dynamical_matrix.GetSupercell())
+
+   # Apply the symmetries to the real space matrix
+   CC.symmetries.CustomASR(superdyn.dynmats[0])
+   syms.ApplySymmetriesToV2(superdyn.dynmats[0])
+
+   # Get back the dyanmical matrix in q space
+   dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(dynamical_matrix.q_tot), dynamical_matrix.structure, superdyn.structure)
+
+   # Copy each q point of the symmetrized dynamical matrix into
+   # the original one
+   for i in range(len(dynamical_matrix.q_tot)):
+	  dynamical_matrix.dynmats[i] = dynq[i,:,:]
+
+
+
+The symmetrization here occurs in real space, therefore it is necessary in principle to transform the matrix in real space.
+In this case it is not strictly necessary, as we have only one q-point at Gamma, therefore, the dynamical_matrix.dynmats[0] can be directly passed to the symmetrization subroutines, however, this is not true when more q points are present.
+
+In this part we also showed how to explicitly perform a fourier transformation between real spaces dynamical matrices and q space quantities using the subroutine GetDynQFromFCSupercell.
+
+
+Load and Save structures
+------------------------
+
+
+Cellconstructor supports many standard structure files.
+For the structure, the basic format is the 'scf'. It is a format where both the unit cell and the cartesian position of all the atoms are explicitly given.
+It is compatible with quantum espresso, therefore it can be appended on a espresso input file to perform a calculation on the given structure.
+
+However, Cellconstructor can be interfaced with other libraries like ASE (Atomic Simulation Environment).
+ASE provide I/O facilities for all most common DFT and MD programs, as well as the ability to read and write in many format, including 'cif', 'pdb', 'xyz' and so on.
+
+To read and write in the native 'scf' format, use the following code:
+
+.. code:: python
+
+   struct = CC.Structure.Structure()
+   struct.read_scf("myfile.scf")
+
+   # --- some operation ----
+   struct.save_scf("new_file.scf")
+
+You can read all the file format supported by ASE using the read_generic_file function, however, you must have ASE installed
+
+.. code:: python
+
+   struct = CC.Structure.Structure()
+   struct.read_generic_file("myfile.cif")
+
+
+You can also directly convert an ASE Atoms into the CellConstructor Structure, and vice-versa
+
+.. code:: python
+
+   import ase
+   import cellconstructor as CC
+   import cellconstructor.Structure
+
+   # Generate the N2 molecule using ASE
+   N2_mol = ase.Atoms("2N", [(0,0,0), (0,0, 1.1)])
+   
+   struct = CC.Structure.Structure()
+   struct.generate_from_ase_atoms(N2_mol)
+   struct.save_scf("N2.scf")
+
+Vice-versa, you can generate an ASE Atoms structure using the function get_ase_atoms() of the Structure class
+
+
+.. autoclass:: Structures.Structures
+   :members: get_ase_atoms
+
+
+	     
+Load and save the dynamical matrix
+----------------------------------
+
+CellConstructor is primarly ment for phonon calculations.
+The main interface of the Phonon object is with quantum espresso.
+
+We can read a quantum espresso dynamical matrix easily.
+
+.. code:: python
+
+   import cellconstructor as CC
+   import cellconstructor.Phonons
+
+   # Load the dynamical matrix in the quantum espresso format
+   # ph.x of quantum espresso splits the output of the
+   # dynamical matrices dividing per irreducible q points of the Brilluin zone.
+   # This command will load a dynamical matrix with 3 irreducible q points.
+   # The files are dyn1, dyn2 and dyn3
+   dyn = CC.Phonons.Phonons("dyn", 3)
+
+   # -- do something --
+
+   # Now we save the dynamical matrix in the espresso format
+   dyn.save_qe("new_dyn")
+
+When loading from quantum espresso, CellConstructor will also import raman_tensor, dielectric tensor and effective charges.
+The structure is read from the first dynamical matrix (usually the gamma point).
+An experimental interface to phonopy is under developement.
+
+
+
+
+ 

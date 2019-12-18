@@ -165,6 +165,7 @@ The cellconstructor tests are based on unittest for now.
 There is a script inside *scripts/cellconstructor_test.py*
 
 Here, you will find a class that contains all the test runned when the command cellconstructor_test.py is executed. Remember, after editing each part of the code, no matter how small, always check that you did not break other parts by running the testsuite (after having reinstalled the software)
+
 .. code:: bash
 
    $ cellconstructor_test.py
@@ -221,20 +222,16 @@ Let us take a look on how the symmetrization fortran module from quantum espress
    
 
 Here, I reduced only the lines we are interested in. First. I define a list that contains all the source files. In this case ``sources`` is a list of the paths to all the files that ends with ".f90" inside the FModules directory.
-Then, I create an Exgtension object, named ``symph`` (the name of the package to be imported in python), linked to all the fortran soruce files listed inside the sources list, I specify the extra libraries needed for the link (if gfortran is used as default compiler, it will add -llapack -lblas to the compiling command). I can also specify extra flags or arguments for the fortran compiler. In this case, I use the "-cpp" flag. Then, the ``symph_ext`` object is added to the setup of the cellconstructor as an external module.
+Then, I create an Extension object, named ``symph`` (the name of the package to be imported in python), linked to all the fortran soruce files listed inside the sources list, I specify the extra libraries needed for the link (if gfortran is used as default compiler, it will add -llapack -lblas to the compiling command). I can also specify extra flags or arguments for the fortran compiler. In this case, I use the "-cpp" flag. Then, the ``symph_ext`` object is added to the setup of the cellconstructor as an external module.
 
 If you want to add a new function to the ``symph`` module, you just have to add it into the FModules directory and to the sources list (In this example, it will be recognized automatically, but in the actual setup.py all the files are manually listed, so remember to add it to the sources list).
 
 Let us see a very simple example of a ``hello_world`` fotran module.
 
-Create a new directory with the following ``hw.f90`` file
-
-.. code:: fotran
+Create a new directory with the following ``hw.f90`` file::
 
    subroutine hello_world()
-
       print *, "Hello World"
-      
    end subroutine hello_world
    
 Then we can create our python extension. Make a ``setup.py`` file::
@@ -268,8 +265,7 @@ In the previous section we managed to make a very simple fortran extension to py
 **Remember: you are not writing a Fortran program, but a Fortran extension to a Python library**.
 Keep your fortran code as simple as possible.
 
-1. Always specify explicitly the intent and dimension of the input arrays
-   .. code:: fortran
+1. Always specify explicitly the intent and dimension of the input arrays::
 
       subroutine sum(a,b,c,n)
          double precision, intent(in), dimension(n) :: a,b
@@ -293,8 +289,7 @@ Keep your fortran code as simple as possible.
 
      mat = np.zeros((100, 10), dtype = np.double)
 
-   It will be converted into a fortran array as
-   .. code:: fortran
+   It will be converted into a fortran array as::
 
       double precision, dimension(100, 10) :: mat
 
@@ -319,6 +314,6 @@ Fortran is very good to program fast tasks, however, the fortran converted subro
 This is very annoying, as it can be very difficult to debug, especially if you are using a function written by someone else. **Each time you implement a fortran subroutine, write also the python parser**.
 
 The parser is a python function that takes in input python arguments, converts them if necessary into the fortran types, verifies the size of the arrays to match exactly what the fortran function is expecting, calls the the fortran function, parses the output and return the output in python.
-It is very important that the user of CellConstructor must **never** call directly a fortran function. This extends possibly also to other developers: try to make other peaple need only to call your final python functions and not directly the fortran ones.
+It is very important that the user of CellConstructor must **never** call directly a fortran function. This should also apply to other developers: try to make other peaple need only to call your final python functions and not directly the fortran ones.
 
 
