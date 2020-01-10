@@ -532,5 +532,72 @@ An experimental interface to phonopy is under developement.
 
 
 
+Generate a video of phonon vibrations
+-------------------------------------
 
- 
+It could be very usefull to generate a video of a phonon mode, for post-processing reasons.
+
+In this tutorial I will introduce the Manipulate module, that can be used for post-processing analysis.
+
+In the following simple example, we will read the dynamical matrix ice_dyn1.
+The methods that makes the video is GenerateXYZVideoOfVibrations.
+It is quite self-explaining: it needs the dynamical matrix, the name of the file in witch to save the video,
+the index of the vibrational mode.
+
+You also need info on the video, the vibrational amplitude (in angstrom) the actual time step (in femtoseconds) and the number of time steps to be included.
+
+Take in consideration that a vibration of 800 cm-1 has a period of about 40 fs.
+In this case we are seeing a vibration of 3200 cm-1, whose period is about 10 fs.
+Therefore we pick a dt = 0.5 fs to correctly sample the vibration and a total time of 50 fs (100 steps). In this way we will have about 5 full oscillations.
+
+.. code:: python
+
+   from __future__ import print_function
+
+   import cellconstructor as CC
+   import cellconstructor.Phonons
+   import cellconstructor.Manipulate
+
+
+   # Load a dynamical matrix that represent an ice structure (at gamma)
+   dyn = CC.Phonons.Phonons("ice_dyn")
+
+   # We dyagonalize the dynamical matrix
+   w, p = dyn.DiagonalizeSupercell()
+
+   # We pick the hardest mode
+   mode_id = len(w) - 1
+
+   # We must specify the amplitude of the vibrations (in A)
+   amplitude = 0.8 #A
+
+   # The time steps between two frams (in Femtoseconds)
+   dt = 0.5
+
+   # The total number of time steps
+   N_t = 100
+
+
+   # Save the video of the trajectory in a xyz file.
+   CC.Manipulate.GenerateXYZVideoOfVibrations(dyn, "vibration.xyz",  mode_id, amplitude, dt, N_t)
+
+
+
+This code will save the video as 'vibration.xyz'. You can load this file in your favorite viewer.
+If you have ASE installed, you can view the video just typing in the console
+
+.. code:: bash
+
+   ase gui vibration.xyz
+
+
+
+Here you will find more details about this API.
+
+
+.. automodule:: Manipulate
+   :members: GenerateXYZVideoOfVibrations 
+
+
+
+

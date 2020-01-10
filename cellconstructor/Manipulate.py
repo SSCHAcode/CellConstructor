@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#!/usr/bin/env python2
+
 """
 This module contains the methods that requre to call the classes defined
 into this module.
@@ -930,11 +930,15 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
     for the giving and the accemtping molecule.
     
     The proton transfer coordinate is defined as
+
+
     .. math::
         
         \\nu = d(X Y) - d(Y Z)
         
     Then the proton transfer ratio is defined as:
+
+    .. math::
         
         \\int_0^\\infty P(\\nu) d\\nu
         
