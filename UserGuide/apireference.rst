@@ -35,7 +35,8 @@ Besides the Phonons class, some method is directly callabile in the Phonons modu
 .. automodule:: Phonons
    :members:
 
-THE MANIPULATE METHODS
+
+The Manipulate Module
 ======================
 
 This is an extra tool used to manipulate the Phonons and the
@@ -45,7 +46,9 @@ get video of vibrations.
 .. automodule:: Manipulate
    :members:
       
-THE SYMMETRY CLASS
+      
+      
+The Symmetry Class
 ==================
 
 This is the symmetry class, used to perform symmetry operation.
