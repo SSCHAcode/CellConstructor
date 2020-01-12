@@ -4,6 +4,8 @@
 This module contains the methods that requre to call the classes defined
 into this module.
 """
+
+from __future__ import print_function
 import time
 import os
 import six
@@ -24,6 +26,7 @@ from functools import partial
 import symph
 
 # Check if parallelization is available
+# TODO: Replace mpi4py parallelization with a generic wrapper
 try:
     from mpi4py import MPI
     __MPI__ = True
@@ -125,7 +128,7 @@ def LoadXYZTrajectory(fname, max_frames = -1, unit_cell = None):
     
     # Get how many frames there are
     if max_frames < 0:
-        ftmp = file(fname, "r")
+        ftmp = open(fname, "r")
         content = ftmp.readlines()
         ftmp.close()
 
@@ -345,8 +348,8 @@ def QHA_FreeEnergy(ph1, ph2, T, N_points = 2, return_interpolated_dyn = False):
             
             # Check for negative frequencies
             if np.sum( (freqs < 0).astype(int) ) >= 1:
-                print "WARNING: NEGATIVE FREQUENCIES FOUND"
-                print "        ",   np.sum( (freqs < 0).astype(int) )
+                print ("WARNING: NEGATIVE FREQUENCIES FOUND")
+                print ("        ",   np.sum( (freqs < 0).astype(int) ))
                 
                 
             # Add the free energy
@@ -974,10 +977,10 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
         rank = comm.Get_rank()
         size = comm.Get_size()
         if verbose:
-            print "Parallel ambient found: %d processes." % size
+            print ("Parallel ambient found: %d processes." % size)
     else:
         if verbose:
-            print "No parallelization found."
+            print ("No parallelization found.")
         rank = 0
         size = 1
         
@@ -1010,7 +1013,7 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
         comm.Allgather([coord_part, MPI.DOUBLE], [tot_coords, MPI.DOUBLE])
         
         if verbose:
-            print "On rank %d tot = " % rank, tot_coords
+            print ("On rank %d tot = " % rank, tot_coords)
     else:
         tot_coords = coord_part
     

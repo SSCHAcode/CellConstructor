@@ -4,6 +4,8 @@
 Created on Wed Jun  6 10:29:32 2018
 @author: pione
 """
+
+from __future__ import print_function
 import Structure
 import symmetries
 import numpy as np
@@ -429,14 +431,14 @@ class Phonons:
             norm = np.sqrt(pol_vects[:, i].dot(np.conj(pol_vects[:, i])))
             if abs(norm - 1) > __EPSILON__:
                 sys.stderr.write("WARNING: Phonon mode %d at q point %d not normalized!\n" % (i, iq))
-                print "WARNING: Normalization of the phonon %d mode at %d q = %16.8f" % (i, iq, norm)
+                print ("WARNING: Normalization of the phonon %d mode at %d q = %16.8f" % (i, iq, norm))
                 
             # Check if it is an eigenvector
             not_eigen = np.sqrt(np.sum( abs(real_dyn.dot(pol_vects[:, i]) - eigvals[i] * pol_vects[:, i])**2))
                 
             if not_eigen > 1e-2:
                 sys.stderr.write("WARNING: Phonon mode %d at q point %d not an eigenvector!\n" % (i, iq))
-                print "WARNING: Error of the phonon %d mode eigenvector %d q = %16.8f" % (i, iq, not_eigen)
+                print ("WARNING: Error of the phonon %d mode eigenvector %d q = %16.8f" % (i, iq, not_eigen))
                     
             pol_vects[:, i] /= norm
         
@@ -919,22 +921,22 @@ class Phonons:
             #        new_w[k] = scipy.optimize.anderson(new_func, new_w[k], verbose = True) 
                 
       	    for k in range(3,36):
-    		def g(w):
-    			f1= 2*w*newf[k]-1/np.tanh(w*0.5/(K_to_Ry*T))
-    			return f1
-    
-    		def g_prime(w):
-    			f2=2*newf[k]+0.5/(K_to_Ry*T*(np.sinh(w*0.5/(K_to_Ry*T)))**2)
-    			return f2
-    
-    		x_old=x_start
-    		while True : 
-    			x_new=x_old-g(x_old)/g_prime(x_old)
-    			if np.abs(g(x_new)) < threshold :
-    		  		break
-    			else:		
-    				x_old=x_new
-    		new_w[k]=x_new
+                def g(w):
+                    f1= 2*w*newf[k]-1/np.tanh(w*0.5/(K_to_Ry*T))
+                    return f1
+        
+                def g_prime(w):
+                    f2=2*newf[k]+0.5/(K_to_Ry*T*(np.sinh(w*0.5/(K_to_Ry*T)))**2)
+                    return f2
+        
+                x_old=x_start
+                while True : 
+                    x_new=x_old-g(x_old)/g_prime(x_old)
+                    if np.abs(g(x_new)) < threshold :
+                        break
+                    else:		
+                        x_old=x_new
+                new_w[k]=x_new
        
             #except ValueError:
             #    print "Error, Nan encountered during the scipy minimization (T != 0)"
@@ -2174,9 +2176,9 @@ class Phonons:
             bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
             for iq, q in enumerate(self.q_tot):
                 if Methods.get_min_dist_into_cell(bg, q, support_dyn_coarse.q_tot[iq]) > __EPSILON__:
-                    print "ERROR, NOT MATCHING Q:"
-                    print "self q1 = ", q
-                    print "support coarse q2 = ", support_dyn_coarse.q_tot[iq]
+                    print ("ERROR, NOT MATCHING Q:")
+                    print ("self q1 = ", q)
+                    print ("support coarse q2 = ", support_dyn_coarse.q_tot[iq])
                     raise ValueError("Error, the coarse support grid as a q point that does not match the self one")
         
             
@@ -2223,7 +2225,7 @@ class Phonons:
                     q_star_i += 1
                     passed_qstar = iq 
                     
-            print "WORKING ON:", q
+            print ("WORKING ON:", q)
             new_dynmat.q_stars[q_star_i].append(q)
             new_dynmat.dynmats[iq] += InterpolateDynFC(r_fcq, coarse_grid, self.structure, self.structure.generate_supercell(coarse_grid), q)
         
@@ -2568,10 +2570,10 @@ class Phonons:
         for i, sym in enumerate(symmetries):
             # Check if the structure satisfy the symmetry
             if not self.structure.check_symmetry(sym):
-                print sym
+                print (sym)
                 new_sym = sym.copy()
                 new_sym[:, :3] = np.transpose( sym[:, :3])
-                print "Satisfy transpose?", self.structure.check_symmetry(new_sym)
+                print ("Satisfy transpose?", self.structure.check_symmetry(new_sym))
                 raise ValueError("Error, the given structure do not satisfy the %d-th symmetry." % (i+1))
             
             # Get the force constant
@@ -2580,7 +2582,7 @@ class Phonons:
                 current_irt = irt[i, :]
             current_fc = self.ApplySymmetry(sym, irt = current_irt)
             
-            print i
+            print (i)
             
             # Try to add the sum rule here
             #newP = self.Copy()
@@ -2598,7 +2600,7 @@ class Phonons:
         new_fc /= len(symmetries)
         
         
-        print "DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2))
+        print ("DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2)))
         self.dynmats[0] = new_fc.copy()
         
                     

@@ -389,6 +389,8 @@ class TestStructureMethods(unittest.TestCase):
         # Check the difference between before and after
         self.assertTrue(np.max(np.abs( fc_new - fc_random)) < 1e-10)
 
+
+    @unittest.skip("Tensor Library still to be finished")
     def test_tensor_translational_invariance(self):
         """
         Test if the tensor class generates 
@@ -448,6 +450,7 @@ class TestStructureMethods(unittest.TestCase):
 
         self.assertTrue( np.sqrt(np.sum( (fc1 - fc2)**2)) < 1e-6)
 
+    @unittest.skip("Second order effective charges to be implemented")
     def test_second_order_effective_charges(self):
         """
         Here we test the effective charges second order tensor

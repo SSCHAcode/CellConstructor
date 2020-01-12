@@ -5,6 +5,7 @@ Created on Fri Sep 29 11:10:21 2017
 
 @author: darth-vader
 """
+from __future__ import print_function
 import time
 import os
 import numpy as np
@@ -207,14 +208,14 @@ class QE_Symmetry:
             nq_new, sxq, isq, imq = symph.star_q(_q_, self.QE_at, self.QE_bg, 
                                                  self.QE_nsymq, self.QE_s, self.QE_invs, 0)
         
-            print "START WITH Q:", q
-            print "FOUND STAR:"
+            print ("START WITH Q:", q)
+            print ("FOUND STAR:")
             for jq in range(nq_new):
-                print sxq[:, jq]
-            print ""
+                print (sxq[:, jq])
+            print ()
             
-            print "TELL ME THE BG:"
-            print self.QE_bg.transpose()
+            print ("TELL ME THE BG:")
+            print (self.QE_bg.transpose())
             
             # Prepare the star
             q_star = [sxq[:, k] for k in range(nq_new)]
@@ -246,7 +247,7 @@ class QE_Symmetry:
                                                          np.array(q_instar), q_point) for q_point in q_tot]
                 
                 q_index = np.argmin(q_dist)
-                print q_indices, count_q, q_index
+                print (q_indices, count_q, q_index)
                 q_indices[count_q] = q_index
                 
                 count_q += 1
@@ -535,12 +536,12 @@ class QE_Symmetry:
 
             # Check if the q star is correct
             if nq_new != nq and imq != 0:
-                print "Reciprocal lattice vectors:"
-                print self.QE_bg.transpose() 
-                print "Passed q star:"
-                print q_point_group
-                print "QE q star:"
-                print sxq[:, :nq_new].transpose()
+                print ("Reciprocal lattice vectors:")
+                print (self.QE_bg.transpose() )
+                print ("Passed q star:")
+                print (q_point_group)
+                print ("QE q star:")
+                print (sxq[:, :nq_new].transpose())
                 raise ValueError("Error, the passed q star does not match the one computed by QE")
 #            
 #            # Print the star 
@@ -598,18 +599,18 @@ class QE_Symmetry:
                         count += 1
                 
                 if count != 1:
-                    print "Original star:"
-                    print q_point_group
-                    print "Reshaped star:"
-                    print current_q
-                    print "Reciprocal lattice vectors:"
-                    print self.QE_bg.transpose() 
-                    print "STAR:"
-                    print sxq[:, :nq_new].transpose()    
-                    pta = current_q[xq,:]
-                    print "Distances of xq in the QE star:"
+                    print ("Original star:")
+                    print (q_point_group)
+                    print ("Reshaped star:")
+                    print (current_q)
+                    print ("Reciprocal lattice vectors:")
+                    print (self.QE_bg.transpose() )
+                    print ("STAR:")
+                    print (sxq[:, :nq_new].transpose()    )
+                    pta = (current_q[xq,:])
+                    print ("Distances of xq in the QE star:")
                     for yq in range(nq_new):
-                        print "%.4f %.4f %.4f  => " % (sxq[0, yq], sxq[1, yq], sxq[2, yq]), Methods.get_min_dist_into_cell(self.QE_bg.transpose(), sxq[:, yq], current_q[xq,:])
+                        print ("%.4f %.4f %.4f  => " % (sxq[0, yq], sxq[1, yq], sxq[2, yq]), Methods.get_min_dist_into_cell(self.QE_bg.transpose(), sxq[:, yq], current_q[xq,:]))
                     raise ValueError("Error, the vector (%.3f, %.3f, %.3f) has %d identification in the star" % (pta[0], pta[1], pta[2],
                                                                                                                  count))
             #print "Sorting array:"
@@ -705,20 +706,20 @@ class QE_Symmetry:
         for iq in range(nq):
             # Prepare the symmetrization
             if verbose:
-                print "Symmetries in q = ", q_points[iq, :]
+                print ("Symmetries in q = ", q_points[iq, :])
             t1 = time.time()
             self.SetupQPoint(q_points[iq,:], verbose)
             t2 = time.time()
             if verbose:
-                print " [SYMMETRIZEFCQ] Time to setup the q point %d" % iq, t2-t1, "s"
+                print (" [SYMMETRIZEFCQ] Time to setup the q point %d" % iq, t2-t1, "s")
             
             # Proceed with the sum rule if we are at Gamma
             
             if asr == "simple" or asr == "custom":
                 if np.sqrt(np.sum(q_points[iq,:]**2)) < __EPSILON__:
                     if verbose:
-                        print "q_point:", q_points[iq,:]
-                        print "Applying sum rule"
+                        print ("q_point:", q_points[iq,:])
+                        print ("Applying sum rule")
                     self.ImposeSumRule(fcq[iq,:,:], asr)
             elif asr == "crystal":
                 self.ImposeSumRule(fcq[iq, :,:], asr = asr)
@@ -729,20 +730,20 @@ class QE_Symmetry:
             
             t1 = time.time()
             if verbose:
-                print " [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s"
+                print (" [SYMMETRIZEFCQ] Time to apply the sum rule:", t1-t2, "s")
             
             # # Symmetrize the matrix
             if verbose:
                 old_fcq = fcq[iq, :,:].copy()
                 w_old = np.linalg.eigvals(fcq[iq, :, :])
-                print "FREQ BEFORE SYM:", w_old 
+                print ("FREQ BEFORE SYM:", w_old )
             self.SymmetrizeDynQ(fcq[iq, :,:], q_points[iq,:])
             t2 = time.time()
             if verbose:
-                print " [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" 
-                print " [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum(np.abs(old_fcq - fcq[iq, :,:])**2))
+                print (" [SYMMETRIZEFCQ] Time to symmetrize the %d dynamical matrix:" % iq, t2 -t1, "s" )
+                print (" [SYMMETRIZEFCQ] Difference before the symmetrization:", np.sqrt(np.sum(np.abs(old_fcq - fcq[iq, :,:])**2)))
                 w_new = np.linalg.eigvals(fcq[iq, :, :])
-                print "FREQ AFTER SYM:", w_new
+                print ("FREQ AFTER SYM:", w_new)
 
         # For each star perform the symmetrization over that star
         q0_index = 0
@@ -751,11 +752,11 @@ class QE_Symmetry:
             t1 = time.time()
             if verbose:
                 print ("Applying the q star symmetrization on:")
-                print np.array(q_stars[i])
+                print (np.array(q_stars[i]))
             self.ApplyQStar(fcq[q0_index : q0_index + q_len, :,:], np.array(q_stars[i]))
             t2 = time.time()
             if verbose:
-                print " [SYMMETRIZEFCQ] Time to apply the star q_irr = %d:" % i, t2 - t1, "s"
+                print (" [SYMMETRIZEFCQ] Time to apply the star q_irr = %d:" % i, t2 - t1, "s")
             q0_index += q_len
 
         
@@ -858,7 +859,7 @@ class QE_Symmetry:
         symph.symm_base.set_sym_bl()
         
         if verbose:
-            print "Symmetries of the bravais lattice:", symph.symm_base.nrot
+            print ("Symmetries of the bravais lattice:", symph.symm_base.nrot)
         
         
         # Now copy all the work initialized on the symmetries inside python
@@ -875,7 +876,7 @@ class QE_Symmetry:
         #print "IRT NOW:", np.shape(symph.symm_base.irt)
         
         if verbose:
-            print "Symmetries of the crystal:", symph.symm_base.nsym
+            print ("Symmetries of the crystal:", symph.symm_base.nsym)
         
         
         
@@ -899,7 +900,7 @@ class QE_Symmetry:
         symph.symm_base.inverse_s()
         
         if verbose:
-            print "Symmetries of the small group of q:", self.QE_nsymq
+            print ("Symmetries of the small group of q:", self.QE_nsymq)
         
         # Assign symmetries
         self.QE_s = np.copy(symph.symm_base.s)
@@ -1435,10 +1436,10 @@ def get_symmetries_from_ita(ita, red=False):
 
     
     if not os.path.exists(filename):
-        print "Error, ITA group not yet implemented."
-        print "You can download the symmetries for this group from the Bilbao Crystallographic Server"
-        print "And just add the %d.dat file into the SymData folder of the current program." % ita
-        print "It should take less than five minutes."
+        print ("Error, ITA group not yet implemented.")
+        print ("You can download the symmetries for this group from the Bilbao Crystallographic Server")
+        print ("And just add the %d.dat file into the SymData folder of the current program." % ita)
+        print ("It should take less than five minutes.")
         
         raise ValueError("Error, ITA group  %d not yet implemented. Check stdout on how to solve this problem." % ita)
     
@@ -1838,9 +1839,9 @@ def CheckSupercellQ(unit_cell, supercell_size, q_list):
                 break
     
     if len(correct_q) > 0:
-        print "[CHECK SUPERCELL]"
-        print " MISSING Q ARE "
-        print "\n".join([" q =%16.8f%16.8f%16.8f " % (q[0], q[1], q[2]) for q in correct_q])
+        print ("[CHECK SUPERCELL]")
+        print (" MISSING Q ARE ")
+        print ("\n".join([" q =%16.8f%16.8f%16.8f " % (q[0], q[1], q[2]) for q in correct_q]))
         return False
     return True    
 
@@ -2111,7 +2112,7 @@ def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
             if np.abs(cos_proj**2 + sin_proj**2 -1) < __thr__:
                 new_q = q
                 if crystal:
-                    new_q = CC.Methods.coovariant_coordinates(bg, q)
+                    new_q = Methods.covariant_coordinates(bg, q)
                 q_list[imu, :] = new_q
                 break
             elif cos_proj**2 + sin_proj**2 > __thr__:

@@ -4,6 +4,7 @@ Created on Wed Jun  6 10:44:27 2018
 
 @author: pione
 """
+from __future__ import print_function
 import numpy as np
 try:
     __ASE__ = True
@@ -318,7 +319,7 @@ class Structure:
         """
         
         if not __ASE__:
-            print "ASE library not found."
+            print("ASE library not found.")
             raise ImportError("Error, ASE library is required to read generic file.")
             
         atoms = ase.io.read(filename)
@@ -482,7 +483,7 @@ class Structure:
         # Print how many replica have been found
         N_rep = len(list_pop)
         if verbose:
-            print "Found %d replica" % N_rep
+            print("Found %d replica" % N_rep)
 
         # Delete the replica
         #list_pop = list(set(list_pop)) # Avoid duplicate indices
@@ -636,7 +637,7 @@ class Structure:
         # Get the symmetries
         symdata = np.loadtxt(filename, skiprows = 1)
 
-        if (progress_bar): print ""
+        if (progress_bar): print()
 
         for i in range(N_sym):
             sym_mat = symdata[3*i:3*(i+1), :]
@@ -651,7 +652,7 @@ class Structure:
 
                 sys.stderr.flush()
 
-        if (progress_bar): print ""
+        if (progress_bar): print()
 
     def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = True):
         """
@@ -719,10 +720,10 @@ class Structure:
 
             index += 1
             if (verbose):
-                print "Self-consistent iteration %d -> r = %.3e | threshold = %.3e" % (index, r, threshold)
+                print("Self-consistent iteration %d -> r = %.3e | threshold = %.3e" % (index, r, threshold))
             
         if (verbose):
-            print "Symmetrization reached in %d steps." % index
+            print("Symmetrization reached in %d steps." % index)
         
 
 
@@ -847,9 +848,9 @@ class Structure:
         """
 
         if overwrite:
-            xyz = file(filename, "w")
+            xyz = open(filename, "w")
         else:
-            xyz = file(filename, "a")
+            xyz = open(filename, "a")
             
         # Write the number of atoms
         xyz.write("%d\n" % self.N_atoms)
@@ -923,7 +924,7 @@ class Structure:
                 # Apply all the symmetries
                 for ind, sym in enumerate(syms):
                     tmp_struct.apply_symmetry(sym)
-                    print "atom %d, sym %d - NEW %d / %d" % (i, ind, tmp_struct.N_atoms, removing_struct.N_atoms)
+                    print("atom %d, sym %d - NEW %d / %d" % (i, ind, tmp_struct.N_atoms, removing_struct.N_atoms))
                 
                 if tmp_struct.N_atoms == removing_struct.N_atoms:
                     total_removed += 1
@@ -998,7 +999,7 @@ class Structure:
                                                          coords[i, 2]))
 
         # Write
-        fdata = file(filename, "w")
+        fdata = open(filename, "w")
         fdata.writelines(data)
         fdata.close()
         
@@ -1083,7 +1084,7 @@ class Structure:
         """
         
         if not __ASE__:
-            print "ASE library not found"
+            print ("ASE library not found")
             raise ImportError("Error, ASE library not found")
 
         # Get thee atom list
@@ -1307,7 +1308,7 @@ class Structure:
         
         supercell_size = (int(sx + .5), int(sy + .5), int(sz + .5))
         
-        print "SUPERCELL:", supercell_size
+        print ("SUPERCELL:", supercell_size)
         
         # Atoms in the unit cell
         nat_uc = np.shape(reference_coords)[0]
@@ -1328,7 +1329,7 @@ class Structure:
             i_y = int(cov[1] + .5)
             i_z = int(cov[2] + .5)
             
-            print cov[0], cov[1], cov[2], i_x, i_y, i_z
+            print (cov[0], cov[1], cov[2], i_x, i_y, i_z)
             
             # Get the index of the cell
             basis_index = nat_uc * (i_x + supercell_size[0] * i_y + supercell_size[0] * supercell_size[1] * i_z)
@@ -1794,7 +1795,7 @@ class Structure:
                     # Ok accepted for distance
                     # Check also the angle
                     ang = self.get_angle(index1, index2, index3)
-                    print "A> %d %d %d = %.3f" % (index1, index2, index3, ang)
+                    print ("A> %d %d %d = %.3f" % (index1, index2, index3, ang))
                     
                     if not (ang > angle - thr_ang and ang < angle + thr_ang):
                         continue
@@ -1819,14 +1820,14 @@ class Structure:
                     mol.coords[0,:] += self.coords[index1,:] - self.coords[index2,:] 
                     mol.coords[2,:] += self.coords[index3,:] - self.coords[index2,:] 
                     
-                    print "1-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2)
+                    print ("1-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2))
 
                     # If the system has a unit cell, put the second atom inside the cell
                     if self.has_unit_cell:
                         for k in range(3):
                             mol.coords[k,:] = Methods.put_into_cell(self.unit_cell, mol.coords[k,:])
                     
-                    print "2-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2)
+                    print ("2-Accepted:", mol.get_min_dist(0,1), mol.get_min_dist(1,2), mol.get_angle(0, 1, 2))
                     
                     # Append the molecule to the structure
                     molecules.append(mol)

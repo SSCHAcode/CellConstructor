@@ -4,6 +4,7 @@ Created on Wed Jun  6 10:45:50 2018
 
 @author: pione
 """
+from __future__ import print_function
 
 from numpy import *
 import numpy as np
@@ -483,8 +484,8 @@ Results
         raise ValueError("Error, Ordered = False not yet implemented. Sorry.")
 
     if strc1.N_atoms != strc2.N_atoms:
-        print "Strc1 has ", strc1.N_atoms, " atoms"
-        print "Strc2 has ", strc2.N_atoms, " atoms"
+        print( "Strc1 has ", strc1.N_atoms, " atoms")
+        print( "Strc2 has ", strc2.N_atoms, " atoms")
         raise ValueError("Error, the number of atoms are not the same in the given structures.")
 
     nat = strc1.N_atoms
