@@ -24,7 +24,7 @@ lines = fdata.readlines()
 fdata.close()
 
 # Print the total number of symmetries
-print len(lines)
+print (len(lines))
 
 for line in lines:
     # Cut off the initial space
