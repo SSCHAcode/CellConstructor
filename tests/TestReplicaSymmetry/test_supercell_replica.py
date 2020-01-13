@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import numpy as np
 import spglib
 import cellconstructor as CC
@@ -21,9 +21,9 @@ def test_supercell_replica():
 
     # Generate a supercell
     super_struct = struct.generate_supercell((2,2,1))
-    print "Space group before:"
-    print spglib.get_spacegroup(super_struct.get_ase_atoms()),
-    print len(spglib.get_symmetry(super_struct.get_ase_atoms())["translations"])
+    print ("Space group before:")
+    print (spglib.get_spacegroup(super_struct.get_ase_atoms()),)
+    print (len(spglib.get_symmetry(super_struct.get_ase_atoms())["translations"]))
 
     # Get the symmetries in the supercell using spglib
     spglib_syms = spglib.get_symmetry(super_struct.get_ase_atoms())
@@ -56,14 +56,14 @@ def test_supercell_replica():
     new_structure.coords = np.sum([x.coords for x in new_d_structures], axis = 0) / nsyms
 
     # Get again the symmetries
-    print "Symmetries after the sum:"
-    print spglib.get_spacegroup(new_structure.get_ase_atoms()), 
-    print len(spglib.get_symmetry(new_structure.get_ase_atoms())["translations"])
+    print ("Symmetries after the sum:")
+    print (spglib.get_spacegroup(new_structure.get_ase_atoms()), )
+    print (len(spglib.get_symmetry(new_structure.get_ase_atoms())["translations"]))
 
     # Lets check if the structure is the same as before 
     # Should be 0 only if the symmeties are enaugh to have 0 force.
-    print "Difference from the first one:"
-    print np.sqrt(np.sum((new_structure.coords - super_struct.coords)**2))
+    print ("Difference from the first one:")
+    print (np.sqrt(np.sum((new_structure.coords - super_struct.coords)**2)))
 
 if __name__ == "__main__":
     test_supercell_replica()

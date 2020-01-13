@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import cellconstructor as CC
 import cellconstructor.Manipulate
 import cellconstructor.Phonons
@@ -41,7 +41,7 @@ def test_qha():
     V0 = np.linalg.det(ph1.structure.unit_cell)
     V1 = np.linalg.det(ph2.structure.unit_cell)
 
-    print "The two volumes are:", V0, "Angstrom^3 and", V1, "Angstrom^3"
+    print ("The two volumes are:", V0, "Angstrom^3 and", V1, "Angstrom^3")
 
     # Take the derivative and compute the pressure [Ry/angstrom^3]
     pressure = np.diff(free_energy, axis = 0) / ((V0 - V1)/(N_points - 1))

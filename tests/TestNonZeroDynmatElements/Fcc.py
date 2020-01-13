@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 """
 This code generates a random dynamical matrix
 of a trial bcc crystal. Then it uses symmetries to
@@ -39,7 +39,7 @@ ase_atoms = struc.get_ase_atoms()
 view(ase_atoms)
 
 # Print the symmetry group
-print "Symmetry group: ", spglib.get_spacegroup(ase_atoms)
+print ("Symmetry group: ", spglib.get_spacegroup(ase_atoms))
 
 # Load the symmetries from SPGLIB
 symmetries = CC.symmetries.GetSymmetriesFromSPGLIB( spglib.get_symmetry(ase_atoms))

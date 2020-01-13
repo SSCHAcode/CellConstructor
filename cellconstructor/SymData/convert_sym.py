@@ -1,8 +1,10 @@
+from __future__ import print_function
+from __future__ import division
 from numpy import *
 import sys, os
 
 if len(sys.argv) != 2:
-    print "Error, insert the file to parse as cmd"
+    print ()"Error, insert the file to parse as cmd")
     exit()
     
 fname= sys.argv[1]
@@ -14,7 +16,7 @@ z = array([0,0,1,0])
 hf= array([0,0,0,0.5])
 
 if not os.path.exists(fname):
-    print "Error, the specified file does not exist"
+    print ()"Error, the specified file does not exist")
     exit()
 
 fdata = file(fname, "r")

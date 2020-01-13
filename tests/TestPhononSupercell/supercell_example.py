@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 """
 This code is an example on how to load a supercell phonon calculation at
 several q points.
@@ -21,12 +21,12 @@ ase_iceXI = iceXI.structure.get_ase_atoms()
 view(ase_iceXI)
 
 # Perform compute the frequency in the second q point
-print "The q point is:"
-print iceXI.q_tot[0]
-print ""
+print ("The q point is:")
+print (iceXI.q_tot[0])
+print ()
 freq, pol_vect = iceXI.DyagDinQ(0)
-print "Frequencies:"
-print np.sort(freq * RyToCm)
+print ("Frequencies:")
+print (np.sort(freq * RyToCm))
 
 
 # Test the saving method
