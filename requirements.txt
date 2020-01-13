@@ -2,3 +2,4 @@ numpy
 scipy
 ase
 spglib
+urllib2
