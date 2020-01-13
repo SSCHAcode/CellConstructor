@@ -266,6 +266,58 @@ class TestStructureMethods(unittest.TestCase):
             spacegroup = spglib.get_spacegroup(self.struct_ice.get_ase_atoms())
             self.assertEqual(spacegroup, "Cmc2_1 (36)")
 
+
+    def test_IR_modes(self):
+        """
+        This test loads a dynamical matrix with effective charges and computes the 
+        IR activity for each mode. We benchmark it against dynmat.x of quantum espresso.
+        """
+        raise NotImplementedError("Error, this test must be implemented")
+
+
+    def test_change_phonon_cell(self):
+        """
+        This tries to change the unit cell of a dynamical matrix and see if the fourier transmformation goes correctly
+        """
+
+        dyn = self.dynSnSe.Copy()
+
+        new_cell = dyn.structure.unit_cell.copy()
+        new_cell[0,:] *= 1.1
+        new_cell[1,:] *= 0.8
+        new_cell[2,:] *= 1.03
+
+        dyn.AdjustToNewCell(new_cell)
+
+        # Generate the dynamical matrix in the supercell
+        superdyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
+
+        # Now return back in q space
+        dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(dyn.q_tot), dyn.structure, superdyn.strucutre)
+
+        __tollerance__ = 1e-6
+        # Check if the dynq agrees with the correct one
+        for iq in range(len(dyn.q_tot)):
+            eps = np.max(np.abs(dyn.dynmats[iq] - dynq[iq, :, :]))
+            self.assertTrue(eps < __tollerance__)
+
+
+    def test_read_write_phonons(self):
+        """
+        We test if the writing and reading back a dynamical matrix 
+        works correctly.
+
+        We also add a raman tensor, effective charges and a random dielectric tensor
+        """
+
+        dyn = self.dynSnSe.Copy()
+
+        
+
+
+
+
+
     def test_qe_get_symmetries(self):
         syms = CC.symmetries.QE_Symmetry(self.struct_ice)
         syms.SetupQPoint()
