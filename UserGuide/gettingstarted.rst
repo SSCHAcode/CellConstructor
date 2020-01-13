@@ -596,8 +596,100 @@ Here you will find more details about this API.
 
 
 .. automodule:: Manipulate
-   :members: GenerateXYZVideoOfVibrations 
+   :members: GenerateXYZVideoOfVibrations
 
 
 
+Radial pair distribution function
+---------------------------------
 
+A very usefull quantities, directly related to the static structure factor,
+is the pair radial distribution function, defined as
+
+.. math::
+
+   g_{AB}(r) = \\frac{\\rho_{AB}^{(2)}(r)}{\\rho_A(r) \\rho_B(r)}
+
+
+This quantity probes the how many couples of the AB atoms are inside a shell of
+distance $r$ with respect to what we would expect in a non interacting system.
+
+It is a standard quantity for liquid simulation.
+
+In this tutorial we will take an harmonic dynamical matrix, generate
+the harmonic ensemble, and compute the g(r) on it.
+
+.. code:: python
+
+   from __future__ import print_function
+   import cellconstructor as CC
+   import cellconstructor.Phonons
+   import cellconstructor.Methods
+   import matplotlib.pyplot as plt
+
+
+   # Some info on the g(r)
+   ENSEMBLE_SIZE=10000
+   T = 0 # temperature in K
+
+   # The maximum distances for computing the g(r)
+   R_MAX_OH = 2
+   R_MAX_HH = 3
+
+   # The thickness of the shell
+   DR = 0.025
+
+   # The limits for the final plot
+   R_LIM_OH= (0.75, 2)
+   R_LIM_HH=(1, 3)
+
+
+   # Load the ice XI dynamical matrix
+   iceXI_dyn = CC.Phonons.Phonons("h2o.dyn", full_name = True)
+   iceXI_dyn.Symmetrize() # Impose the sum rule
+
+   # Use the dynamical matrix to generate the displacements
+   print ("Generating displacements...")
+   structures = iceXI_dyn.ExtractRandomStructures(ENSEMBLE_SIZE, T)
+
+   # Get the g(r) between O and H atoms
+   print ("Computing OH g(r)...")
+   grOH = CC.Methods.get_gr(structures, "O", "H", R_MAX_OH, DR)
+   print ("Computing HH g(r)...")
+   grHH = CC.Methods.get_gr(structures, "H", "H", R_MAX_HH, DR)
+
+   # Plot the result
+   plt.plot(grOH[:,0], grOH[:,1])
+   plt.xlabel("r [$\\AA$]")
+   plt.ylabel("$g_{OH}(r)$")
+   plt.title("O-H radial distribution function")
+   plt.xlim(R_LIM_OH)
+   plt.tight_layout()
+
+   plt.figure()
+
+   plt.plot(grHH[:,0], grHH[:,1])
+   plt.xlabel("r [$\\AA$]")
+   plt.ylabel("$g_{HH}(r)$")
+   plt.title("H-H radial distribution function")
+   plt.xlim(R_LIM_HH)
+   plt.tight_layout()
+   plt.show()
+
+
+In this example I use a ice XI harmonic dynamical matrix at :math:`\Gamma`
+computed with quantum espresso and the PBE exchange correlation functional.
+You can find this file inside the tutorials/RadialDistributionFunction,
+or you can replace it with your own dynamical matrix, to test it for your case.
+You can decide your temperature, to test temperture effects.
+
+The example is quite self-explaining, it will produce
+two figures one for HH distance and one for the OH.
+
+
+Indeed, if you are using molecular dynamics, you can load your array of structures and pass it through the get_gr functions of the Methods module.
+
+A detailed documentation of this method is available here:
+
+.. automodule:: Methods
+   :members: get_gr

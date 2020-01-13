@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import numpy as np
 
 import cellconstructor as CC
 import cellconstructor.Phonons
+
+
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
 
 
 SUPER_DYN = "../TestPhononSupercell/dynmat"
@@ -18,14 +24,14 @@ fc = dyn.GetRealSpaceFC(SUPERCELL)
 fc_new = fc.copy()
 
 
-print "Real space:"
-print fc[:6, :6]
+print("Real space:")
+print(fc[:6, :6])
 
-print "First one:"
-print dyn.dynmats[0]
+print("First one:")
+print(dyn.dynmats[0])
 
 
-print "Distances"
+print ("Distances")
 super_structure =  dyn.structure.generate_supercell(SUPERCELL)
 m =super_structure.get_masses_array()
 nq = np.prod(SUPERCELL)
@@ -49,8 +55,8 @@ for i in range(nq):
     w_old[ i * len(w) : (i+1) * len(w)] = w
 
 w_old.sort()    
-print "Freq:"
-print "\n".join ( [" %.5f vs %.5f" % (w_tot[i] * CC.Phonons.RY_TO_CM, w_old[i] * CC.Phonons.RY_TO_CM) for i in range (len(w_tot))])
+print ("Freq:")
+print ("\n".join ( [" %.5f vs %.5f" % (w_tot[i] * CC.Phonons.RY_TO_CM, w_old[i] * CC.Phonons.RY_TO_CM) for i in range (len(w_tot))]))
 
 
 # Try to revert the code
@@ -59,6 +65,6 @@ dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), dyn
 
 dyn_sc_new = CC.Phonons.GetSupercellFCFromDyn(dynmats_new, np.array(dyn.q_tot), dyn.structure, super_structure)
 
-print "Distance reverted:", np.sqrt(np.sum((dyn_sc_new - fc_new)**2) / np.sum(dyn_sc_new**2))
+print ("Distance reverted:", np.sqrt(np.sum((dyn_sc_new - fc_new)**2) / np.sum(dyn_sc_new**2)))
 
 #print "\n".join ( ["RATIO: %.5f " % (w_tot[i] / w_old[i] ) for i in range (len(w_tot))])

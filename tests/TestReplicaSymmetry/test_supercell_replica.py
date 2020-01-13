@@ -6,6 +6,12 @@ import cellconstructor as CC
 import cellconstructor.Structure
 
 
+import sys, os
+
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
 
 # Load the structure
 struct = CC.Structure.Structure()

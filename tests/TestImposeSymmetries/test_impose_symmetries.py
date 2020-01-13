@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Phonons
@@ -21,13 +21,20 @@ to detect symmetries correctly.
 NOTE: To recognize symmetries this example uses spglib.
 """
 
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
+
 # initialize the dynamical matrix
 dyn = CC.Phonons.Phonons("old_dyn", full_name=True)
 
 # Print the symmetry group at high threshold
 GROUP = spglib.get_spacegroup(dyn.structure.get_ase_atoms(), 0.04)
-print "Space group with high threshold:", spglib.get_spacegroup(dyn.structure.get_ase_atoms())
-print "Space group with low threshold:", GROUP
+s_group_expected = spglib.get_spacegroup(dyn.structure.get_ase_atoms())
+print ("Space group with high threshold:", s_group_expected)
+print ("Space group with low threshold:", GROUP)
 
 # Get the symmetries from the new spacegroup
 symmetries = spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.04)
@@ -38,4 +45,7 @@ sym_mats = CC.symmetries.GetSymmetriesFromSPGLIB(symmetries, True)
 dyn.structure.impose_symmetries(sym_mats)
 
 # Check once again the symetry
-print "New space group with high threshold:", spglib.get_spacegroup(dyn.structure.get_ase_atoms())
+s_group_after = spglib.get_spacegroup(dyn.structure.get_ase_atoms())
+print ("New space group with high threshold:", s_group_after)
+
+assert s_group_after == GROUP

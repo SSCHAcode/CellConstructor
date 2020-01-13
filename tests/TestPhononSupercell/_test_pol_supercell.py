@@ -13,6 +13,10 @@ import numpy as np
 
 import cellconstructor as CC
 import cellconstructor.Phonons
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
 
 # Print the doc in the stdout
 print(__DOC__)

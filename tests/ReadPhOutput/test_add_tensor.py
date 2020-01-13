@@ -4,6 +4,11 @@ from __future__ import division
 import cellconstructor as CC 
 import cellconstructor.Phonons
 
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
 ph_file = "phonon.pho"
 dyn_file = "dyn_"
 nqirr = 3

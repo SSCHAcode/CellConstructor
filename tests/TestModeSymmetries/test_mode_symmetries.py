@@ -4,6 +4,11 @@ from __future__ import division
 import cellconstructor as CC
 import cellconstructor.Phonons
 
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
 # Load the dynamical matrix
 dyn = CC.Phonons.Phonons("../TestPhononSupercell/dynmat")
 
@@ -20,9 +25,9 @@ w, pols = dyn.DyagDinQ(0)
 
 # Get the symmetry matrix in the polarization space
 sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, dyn.structure, pols)
-sim_modes2 = CC.symmetries.GetSymmetriesOnModesFast(symmetries, dyn.structure, pols)
+#sim_modes2 = CC.symmetries.GetSymmetriesOnModesFast(symmetries, dyn.structure, pols)
 for i in range(len(symmetries)):
     print("Symmetry:")
     print(symmetries[i])
     print("Interaction matrix:")
-    print("\n".join(["{:16.4f} cm-1  | diag_value = {:10.4f} | other = {:10.4f}".format(w[j] * CC.Phonons.RY_TO_CM, sim_modes[i,j,j], sim_modes2[i,j,j]) for j in range(len(w))]))
+    print("\n".join(["{:16.4f} cm-1  | diag_value = {:10.4f}".format(w[j] * CC.Phonons.RY_TO_CM, sim_modes[i,j,j]) for j in range(len(w))]))

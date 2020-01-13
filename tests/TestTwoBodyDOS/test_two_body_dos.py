@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import cellconstructor as CC 
 import cellconstructor.Phonons
 import cellconstructor.Methods
@@ -5,6 +7,11 @@ import cellconstructor.Methods
 from matplotlib.pyplot import *
 from numpy import *
 import scipy,scipy.signal
+
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
 
 """
 Compute the two body phonon DOS.
@@ -21,7 +28,7 @@ w_array = linspace(0, 4000, 10000) / CC.Phonons.RY_TO_CM
 
 # Get the two body DOS at gamma
 Gamma = 3 / CC.Phonons.RY_TO_CM
-DOS = dyn.get_two_phonon_dos(w_array, Gamma, 50, exclude_acustic = True)
+DOS = dyn.get_two_phonon_dos(w_array, Gamma, 50, exclude_acoustic = True)
 
 
 # Delete nan
@@ -42,7 +49,7 @@ w, pols = dyn.DyagDinQ(0)
 # Then we remove the translations (w = 0)
 trans = CC.Methods.get_translations(pols, dyn.structure.get_masses_array())
 w = w[~trans] * CC.Phonons.RY_TO_CM
-print w
+
 # Now we plot a vertical line for each mode (dashed black lines)
 vlines(w, 0, max(DOS)*1.1, linestyles = "--", color = "k")
 
@@ -52,5 +59,5 @@ dos_cmplz = 1j*scipy.signal.hilbert(DOS - min(DOS))
 plot(w_array * CC.Phonons.RY_TO_CM, real(dos_cmplz), label = "Real part")
 legend()
 tight_layout()
-show()
+#show()
 

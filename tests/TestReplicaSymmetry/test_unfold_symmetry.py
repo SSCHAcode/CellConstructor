@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 """
 Here we test the symmetry unfolding of a particular configuration.
 """
@@ -8,6 +10,14 @@ import numpy as np
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.symmetries
+
+
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
+
 
 # Load the structure
 structure = CC.Structure.Structure()
@@ -34,23 +44,23 @@ for i in range(nsyms):
     tmp.save_scf("replica_%d.scf" % i)
     new_d_structures.append(tmp)
 
-print "Symmetry of a displaced structure:"
+print ("Symmetry of a displaced structure:")
 qe_sym = CC.symmetries.QE_Symmetry(new_d_structures[0])
 qe_sym.SetupQPoint(verbose=True)
-print ""
+print ()
 
 # Average all the displacements to see if the symmetries are recovered correctly
 new_structure = structure.copy()
 new_structure.coords = np.sum([x.coords for x in new_d_structures], axis = 0) / nsyms
 
 # Get again the symmetries
-print "Symmetries after the sum:"
+print ("Symmetries after the sum:")
 qe_sym = CC.symmetries.QE_Symmetry(new_structure)
 qe_sym.SetupQPoint(verbose=True)
-print ""
+print ()
 
 # Lets check if the structure is the same as before 
 # Should be 0 only if the symmeties are enaugh to have 0 force.
-print "Difference from the first one:"
-print np.sqrt(np.sum((new_structure.coords - structure.coords)**2))
+print ("Difference from the first one:")
+print ( np.sqrt(np.sum((new_structure.coords - structure.coords)**2)))
     

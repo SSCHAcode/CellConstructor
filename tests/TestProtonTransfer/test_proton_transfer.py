@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 """
 This code is meant for show how to
 measure the proton transfer in ICE.
@@ -17,8 +19,16 @@ import cellconstructor.Phonons
 import cellconstructor.Manipulate
 import time
 
+
 import matplotlib.pyplot as plt
 import numpy as np
+
+
+
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
 
 # This handles the parallelization for the
 # Proton transfer measurements
@@ -33,7 +43,7 @@ except:
 from ase.visualize import view
 
 # Size of the ensemble and temperature
-N_SIZE = 100000
+N_SIZE = 1000
 T = 0
 # Setup the atoms involved in the proton transfers
 # These atoms are the OH-O  where OH is the covalent bond, 
@@ -42,36 +52,35 @@ MOLS = [(6,7,3), (9,11,6),(0,1,9),(3,5,0)]
 
 # Load the Ice Dynamical matrix
 dynmat = CC.Phonons.Phonons("dynmat", nqirr = 1)
+dynmat.Symmetrize()
 
-if rank == 0:
-    view (dynmat.structure.get_ase_atoms())
 #exit()
 
 # Generate an ensemble of configuration
 # According to the harmonic dynamical matrix
 if rank == 0:
-    print "Extracting random configurations..."
+    print ("Extracting random configurations...")
 structures = dynmat.ExtractRandomStructures(N_SIZE, T)
 
 if rank == 0:
-    print "Computing the proton transfer..."
+    print ("Computing the proton transfer...")
 t1 = time.time()
 pt_coords = CC.Manipulate.MeasureProtonTransfer(structures, MOLS)
 t2 = time.time()
 
 if rank == 0:
-    print "Time elapsed:", t2 - t1
+    print ("Time elapsed:", t2 - t1)
 # Plot the histogram
 if rank == 0:
-    print "Plotting the results..."
+    print ("Plotting the results...")
 h, be = np.histogram(pt_coords, 100)
 x_axis = be[:-1] + np.diff(be) / 2
 
 # Get the ratio probability of a proton transfer to occurr
 if rank == 0:
-    print "Probability of Proton transfer: ", sum((pt_coords >= 0).astype(int)) / float(len(pt_coords))
+    print ("Probability of Proton transfer: ", sum((pt_coords >= 0).astype(int)) / float(len(pt_coords)))
 
 if rank == 0:
     plt.figure()
     plt.fill_between(x_axis, h, 0, color= "r", alpha = 0.8)
-    plt.show()
+    #plt.show()

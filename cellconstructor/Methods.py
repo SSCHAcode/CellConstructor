@@ -375,6 +375,7 @@ Results
     r_min = linspace(0, r_max, N_bin) 
 
     real_dr = mean(diff(r_min))
+    #print("REAL DR:", real_dr)
     real_r = r_min + real_dr * .5
 
     # Define the counting array
@@ -394,7 +395,14 @@ Results
 
             for second in range(first + 1, struct.N_atoms):
                 if struct.atoms[second] == other_type:
-                    r = struct.get_min_dist(first, second)
+                    # Get the distance vector between the two atoms
+                    r_vec = struct.coords[first, :] - struct.coords[second,:]
+                    #print("nat: {}, indexes: {}, {}".format(struct.N_atoms, first, second))
+                    #print("r_vec:", r_vec)
+                    if struct.has_unit_cell:
+                        r_vec = get_closest_vector(struct.unit_cell, r_vec) 
+                    #r = struct.get_min_dist(first, second)
+                    r = np.sqrt(r_vec.dot(r_vec)) # The modulus
                     index_pos = int( r / real_dr)
                     if index_pos < N_bin:
                         N_r[index_pos] += 1

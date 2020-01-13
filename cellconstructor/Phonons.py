@@ -76,9 +76,9 @@ class Phonons:
         self.q_tot = []
         
         # Prepare additional information that can be loaded
-        self.dielectric_tensor = None
+        self.dielectric_tensor = None # (3x3 matrix)
         self.effective_charges = None # 3-rank (Natoms, pol electric field, atomic coords) = (nat, 3, 3)
-        self.raman_tensor = None
+        self.raman_tensor = None # 3-rank (incoming field, outcoming field, atomic coords) = (3,3, 3*nat)
         
         # This alat is read just from QE, but not used
         self.alat = 1
@@ -1513,6 +1513,20 @@ class Phonons:
         pol_vects = pol_vects[:, ~trans_mask]
         
         nat = self.structure.N_atoms
+
+        # Check that the matrix is positive definite
+        if any([w < 0 for w in ws]):
+            ERR_MSG = """
+    Error, the current matrix is not positive definite.
+           I cannot extract a random ensamble.
+           If you want to skip this error,
+           consider calling the method ForcePositiveDefinite() before extracting the ensemble.
+        
+        It could also be a consequence of a sum rule not well imposed. 
+        Try to run Symmetrize() to force the sum rule.
+    """
+
+            raise ValueError(ERR_MSG)
         
         n_modes = len(ws)
         if T == 0:
@@ -1741,7 +1755,7 @@ class Phonons:
 
             # Sum over mu nu
             for mu in range(3*nat):
-                if exclude_acustic and trans1[mu]:
+                if exclude_acoustic and trans1[mu]:
                     continue
                 w_mu = _wmu_[mu]
                 n_mu = 0
@@ -1754,7 +1768,7 @@ class Phonons:
                         n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
 
                     chi1 = 0
-                    if not (exclude_acustic and trans2[nu]):
+                    if not (exclude_acoustic and trans2[nu]):
                         chi1 = 2*smearing * w_array * (w_mu +  w_nu) * (n_nu + n_mu + 1)
                         chi1 /= 4 * smearing**2*w_array**2 + ( (w_mu + w_nu)**2 - w_array**2)**2
                         chi1 /= w_mu * w_nu
@@ -1764,7 +1778,7 @@ class Phonons:
                         n_nu = 1 / (np.exp(w_nu  / (temperature * K_to_Ry)) - 1)
 
                     chi2 = 0            
-                    if not (exclude_acustic and trans3[nu]):
+                    if not (exclude_acoustic and trans3[nu]):
                         chi2 = 2 * smearing * w_array * (w_mu - w_nu) * (n_nu - n_mu)
                         chi2 /= 4*smearing**2 *w_array**2 + ( (w_nu - w_mu)**2 - w_array**2)**2
                         chi2 /= w_mu*w_nu

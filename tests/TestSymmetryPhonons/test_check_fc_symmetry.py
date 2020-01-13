@@ -14,6 +14,14 @@ import matplotlib.pyplot as plt
 import spglib
 import time
 
+
+import sys, os
+
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
+
 """
 This script check the symmetries of a dynamical matrix.
 In the end the symmetry is constrained.
@@ -51,7 +59,8 @@ PH_new = PH.Copy()
 # Force the symmetrization
 #PH_new.SymmetrizeSupercell((1,1,1))
 qe_sym = CC.symmetries.QE_Symmetry(PH.structure)
-qe_sym.SetupQPoint(verbose = True)
+#qe_sym.SetupQPoint(verbose = True)
+qe_sym.SetupFromSPGLIB()
 #qe_sym.SymmetrizeDynQ(PH_new.dynmats[0], np.array([0,0,0]))
 qe_sym.ApplySymmetriesToV2(PH_new.dynmats[0])
 CC.symmetries.CustomASR(PH_new.dynmats[0])

@@ -1,20 +1,30 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 import numpy as np
 
 import cellconstructor as CC
 import cellconstructor.Phonons
 import cellconstructor.symmetries
 
+import sys, os
+
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
+
+
 
 # ---- INPUT PARAMETERS -----
-FILDYN = "h.333."
-NQIRR = 6
-SUPERCELL = (3,3,3)
+FILDYN = "Sym.dyn."
+NQIRR = 3
+#SUPERCELL = (3,3,3)
 # ----
 
 
 
 dynmat = CC.Phonons.Phonons(FILDYN, NQIRR)
+SUPERCELL = dynmat.GetSupercell()
 
 # Compute the frequencies
 supercell_dyn = dynmat.GenerateSupercellDyn(SUPERCELL)
@@ -22,9 +32,9 @@ w1, pols = supercell_dyn.DyagDinQ(0)
 
 # Show the modes for each q point
 for i,q in enumerate(dynmat.q_tot):
-    print "Dyagonalizing:", q
+    print ("Dyagonalizing:", q)
     w, p = dynmat.DyagDinQ(i)
-    print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
+    print (" ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w]))
 
 #dynmat.Symmetrize()
 # # Test the symmetrization
@@ -40,14 +50,14 @@ for i,q in enumerate(dynmat.q_tot):
 
 # Show the modes for each q point
 for i,q in enumerate(dynmat.q_tot):
-    print "After Dyagonalizing:", q
+    print ("After Dyagonalizing:", q)
     w, p = dynmat.DyagDinQ(i)
-    print " ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w])
+    print (" ".join(["%.4f cm-1 " % (x * CC.Phonons.RY_TO_CM) for x in w]))
 
 # Print the difference between before and after the symmetrization
-print ""
-print "Difference of the symmetrization:",
-print np.sqrt( np.sum( (after_sym - fc_dynmat_start)**2 ) / np.sum(after_sym*fc_dynmat_start))
+print ()
+print ("Difference of the symmetrization:")
+print (np.sqrt( np.sum( (after_sym - fc_dynmat_start)**2 ) / np.sum(after_sym*fc_dynmat_start)))
 
 # print ""
 
@@ -85,7 +95,14 @@ w3, pols = supercell_dyn.DyagDinQ(0)
 # Get the translations
 t = CC.Methods.get_translations(pols, supercell_dyn.structure.get_masses_array())
 
-print "Frequencies:"
-print "\n".join(["%.4f cm-1  | %.4f cm-1  | %.4f cm-1  T: %d" % (w1[i]*CC.Phonons.RY_TO_CM, w[i]*CC.Phonons.RY_TO_CM, w3[i]*CC.Phonons.RY_TO_CM, t[i]) for i in range(len(w))])
-print ""
-print "Done."
+
+# Make the assert test
+for i, _w_ in enumerate(w):
+    w2 = w3[i]
+
+    assert np.abs(_w_ - w2) < 1e-8
+
+# print "Frequencies:"
+# print "\n".join(["%.4f cm-1  | %.4f cm-1  | %.4f cm-1  T: %d" % (w1[i]*CC.Phonons.RY_TO_CM, w[i]*CC.Phonons.RY_TO_CM, w3[i]*CC.Phonons.RY_TO_CM, t[i]) for i in range(len(w))])
+# print ""
+# print "Done."

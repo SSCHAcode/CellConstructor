@@ -301,7 +301,6 @@ class TestStructureMethods(unittest.TestCase):
             eps = np.max(np.abs(dyn.dynmats[iq] - dynq[iq, :, :]))
             self.assertTrue(eps < __tollerance__)
 
-
     def test_read_write_phonons(self):
         """
         We test if the writing and reading back a dynamical matrix 
@@ -310,7 +309,51 @@ class TestStructureMethods(unittest.TestCase):
         We also add a raman tensor, effective charges and a random dielectric tensor
         """
 
-        dyn = self.dynSnSe.Copy()
+        # Perform the check for all the dynamical matrices that may have some problems
+        for i, dyn in enumerate([d.Copy() for d in [self.dynSky, self.dynSnSe]]):
+            dyn = self.dynSky.Copy()
+
+            # Create also the tensors
+            dyn.dielectric_tensor = np.random.uniform(size = (3,3))
+            dyn.effective_charges = np.random.uniform(size = (dyn.structure.N_atoms, 3, 3))
+            dyn.raman_tensor = np.random.uniform(size = (3,3,3 * dyn.structure.N_atoms))
+
+
+            nqirr = len(dyn.q_stars)
+            root_name = "tmp_dyn_{}_".format(i)
+            dyn.save_qe(root_name)
+
+            # Check the number of saved point
+            files = [f for f in os.listdir(".") if root_name in f]
+
+            print("I read the following files: ", " ".join(files))
+
+            for j in range(nqirr):
+                dyn_name = "{}{}".format(root_name, j)
+                
+                self.assertTrue(dyn_name in files)
+
+            # Try to reload the matrix
+            new_dyn = CC.Phonons.Phonons(root_name, nqirr = nqirr)
+
+            # Compare the two matrices
+            __tol__ = 1e-7
+            for iq, q in enumerate(dyn.q_tot):
+                eps = np.max(np.abs(dyn.dynmats[iq] - new_dyn.dynmats[iq]))
+                self.assertTrue(eps < __tol__)
+
+                # Test the q point
+                eps = np.abs(np.abs(q - new_dyn.q_tot[iq]))
+
+            # Check the dielectric tensor, effective charges and raman tensor
+            eps =  np.max(np.abs(dyn.dielectric_tensor - new_dyn.dielectric_tensor))
+            self.assertTrue(eps < __tol__)
+            eps =  np.max(np.abs(dyn.raman_tensor - new_dyn.raman_tensor))
+            self.assertTrue(eps < __tol__)
+            eps =  np.max(np.abs(dyn.effective_charges - new_dyn.effective_charges))
+            self.assertTrue(eps < __tol__)
+                
+
 
         
 

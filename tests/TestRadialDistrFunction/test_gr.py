@@ -4,14 +4,21 @@
 This example uses the harmonic dynamical matrix to generate
 an ensemble of configuration, and then to compute the radial distribution function.
 """
-
+from __future__ import print_function
 import cellconstructor as CC
 import cellconstructor.Phonons
 import cellconstructor.Methods
 import matplotlib.pyplot as plt
 
+
+import sys, os
+
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+
+
 # Some info
-ENSEMBLE_SIZE=10000
+ENSEMBLE_SIZE=100
 T = 0 #K
 R_MAX_OH = 2
 R_MAX_HH = 3 
@@ -22,15 +29,16 @@ R_LIM_HH=(1, 3)
 
 # Load the ice XI dynamical matrix
 iceXI_dyn = CC.Phonons.Phonons("h2o.dyn", full_name = True)
+iceXI_dyn.Symmetrize() # Impose the sum rule
 
 # Use the dynamical matrix to generate the displacements
-print "Generating displacements..."
+print ("Generating displacements...")
 structures = iceXI_dyn.ExtractRandomStructures(ENSEMBLE_SIZE, T)
 
 # Get the g(r) between O and H atoms
-print "Computing OH g(r)..."
+print ("Computing OH g(r)...")
 grOH = CC.Methods.get_gr(structures, "O", "H", R_MAX_OH, DR)
-print "Computing HH g(r)..."
+print ("Computing HH g(r)...")
 grHH = CC.Methods.get_gr(structures, "H", "H", R_MAX_HH, DR)
 
 # Plot the result
@@ -48,4 +56,4 @@ plt.xlabel("r [$\\AA$]")
 plt.ylabel("$g_{HH}(r)$")
 plt.title("H-H radial distribution function")
 plt.xlim(R_LIM_HH)
-plt.show()
+#plt.show()

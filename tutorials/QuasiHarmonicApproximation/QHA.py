@@ -7,12 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-import sys, os
-
-total_path = os.path.dirname(os.path.abspath(__file__))
-os.chdir(total_path)
-
-
 
 """
 This example file provide the quasi harmonic approximation to compute the pressure
@@ -28,8 +22,8 @@ ph1 = CC.Phonons.Phonons("V804/dynmat", nqirr = 8)
 ph2 = CC.Phonons.Phonons("V907/dynmat", nqirr = 8)
 
 
-# Perform the interpolation
-N_points = 100
+# Interpolate the dynamical matrices between the two volumes
+N_points = 100 # How many points to interpolate
 N_T = 100
 T = np.linspace(0, 300, N_T)
 free_energy = CC.Manipulate.QHA_FreeEnergy(ph1, ph2, T, N_points)
@@ -58,4 +52,4 @@ plt.title("QHA Pressure contribution")
 plt.plot(T, pressure[0,:])
 plt.xlabel("T [K]")
 plt.ylabel("P [kbar]")
-#plt.show()
+plt.show()
