@@ -795,6 +795,8 @@ class Phonons:
             for iq in range(len(self.q_stars[iqirr])):
                 self.q_stars[iqirr][iq] = new_qs[count]
                 count += 1
+
+        self.AdjustQStar()
         
         # Force the symmetrization in the new structure
         # NOTE: This will rise an exception if something is wrong        
@@ -1111,7 +1113,7 @@ class Phonons:
                 for i in range(self.structure.N_atoms):
                     fp.write("    atom # {:5d}\n".format(i+1))
                     for j in range(3):
-                        fp.write("{:24.12e} {:24.12e} {:24.12e}\n".format(*list(self.effective_charges[i, :, j])))
+                        fp.write("{:24.12e} {:24.12e} {:24.12e}\n".format(*list(self.effective_charges[i, j, :])))
             
             if not self.raman_tensor is None:
                 fp.write("\n")
@@ -2441,7 +2443,7 @@ class Phonons:
 
         # Simulate the IR signal
         Ir = self.GetIRIntensities()
-        is_ir_active = Ir > 1e-9
+        is_ir_active = Ir > 1e-9    
 
         # Delete the random effective charges if added
         if not there_are_eff_charges:

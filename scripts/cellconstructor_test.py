@@ -267,6 +267,7 @@ class TestStructureMethods(unittest.TestCase):
             self.assertEqual(spacegroup, "Cmc2_1 (36)")
 
 
+    @unittest.skip("not yet implemented test")
     def test_IR_modes(self):
         """
         This test loads a dynamical matrix with effective charges and computes the 
@@ -293,7 +294,7 @@ class TestStructureMethods(unittest.TestCase):
         superdyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
 
         # Now return back in q space
-        dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(dyn.q_tot), dyn.structure, superdyn.strucutre)
+        dynq = CC.Phonons.GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(dyn.q_tot), dyn.structure, superdyn.structure)
 
         __tollerance__ = 1e-6
         # Check if the dynq agrees with the correct one
@@ -329,7 +330,7 @@ class TestStructureMethods(unittest.TestCase):
             print("I read the following files: ", " ".join(files))
 
             for j in range(nqirr):
-                dyn_name = "{}{}".format(root_name, j)
+                dyn_name = "{}{}".format(root_name, j+1)
                 
                 self.assertTrue(dyn_name in files)
 

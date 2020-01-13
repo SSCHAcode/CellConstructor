@@ -6,35 +6,43 @@ import cellconstructor.Phonons
 
 import sys, os
 
-total_path = os.path.dirname(os.path.abspath(__file__))
-os.chdir(total_path)
+import pytest
 
-ph_file = "phonon.pho"
-dyn_file = "dyn_"
-nqirr = 3
+def test_add_tensor():
 
-INFO = """
-This script reads the dynamical matrix in the supercell and 
-adds a dielectric tensor and the effective charges computed with
-quantum espresso ph.x.
-Those are read directly from the ph.x output stored in {}
+    total_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(total_path)
 
-In this case the effective charges have been computed in a supercell 
-with distorted atoms.
-We first need to generate the supercell, and then we apply the effective charges.
-""".format(ph_file)
+    ph_file = "phonon.pho"
+    dyn_file = "dyn_"
+    nqirr = 3
 
-print(INFO)
+    INFO = """
+    This script reads the dynamical matrix in the supercell and 
+    adds a dielectric tensor and the effective charges computed with
+    quantum espresso ph.x.
+    Those are read directly from the ph.x output stored in {}
 
-# Reading the dynamical matrix
-dyn = CC.Phonons.Phonons(dyn_file, nqirr)
+    In this case the effective charges have been computed in a supercell 
+    with distorted atoms.
+    We first need to generate the supercell, and then we apply the effective charges.
+    """.format(ph_file)
 
-# Generate the dynamical matrix in the supercell
-super_dyn = dyn.GenerateSupercellDyn(dyn.GetSupercell()) 
+    print(INFO)
 
-# Now read the effective charges in the supercell
-super_dyn.ReadInfoFromESPRESSO(ph_file)
+    # Reading the dynamical matrix
+    dyn = CC.Phonons.Phonons(dyn_file, nqirr)
 
-# Print the dielectric tensor
-print("The read dielectric tensor is:")
-print(super_dyn.dielectric_tensor)
+    # Generate the dynamical matrix in the supercell
+    super_dyn = dyn.GenerateSupercellDyn(dyn.GetSupercell()) 
+
+    # Now read the effective charges in the supercell
+    super_dyn.ReadInfoFromESPRESSO(ph_file)
+
+    # Print the dielectric tensor
+    print("The read dielectric tensor is:")
+    print(super_dyn.dielectric_tensor)
+
+
+if __name__ == "__main__":
+    test_add_tensor()

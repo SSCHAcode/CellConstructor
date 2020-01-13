@@ -14,7 +14,7 @@ Test the IR activity of common ice.
 We use a simple program to test what are the IR active modes of ice XI.
 """
 
-@pytest.mark.skip(reason="Not implemented")
+#@pytest.mark.skip(reason="Not implemented")
 def test_ir_activity():
     # Change to the local path
     total_path = os.path.dirname(os.path.abspath(__file__))
@@ -29,15 +29,9 @@ def test_ir_activity():
     # Get the frequencies and the polarization vectors
     ws, pols = dyn.DyagDinQ(0)
 
-    # Extract the symmetries (using the build-in quantum-espresso module)
-    qe_sym = CC.symmetries.QE_Symmetry(dyn.structure)
-    qe_sym.SetupQPoint()
-    symmetries = qe_sym.GetSymmetries()
 
     # Analyze the polarization vectors to look for IR active modes:
-    ir_active_modes = CC.symmetries.GetIRActiveModes(symmetries,
-                                                     dyn.structure,
-                                                     pols)
+    ir_active_modes = dyn.GetIRActive()
 
     # Print the mode frequency
     print()
