@@ -1,10 +1,10 @@
 from __future__ import print_function
-from __future__ import division
+
 from numpy import *
 import sys, os
 
 if len(sys.argv) != 2:
-    print ()"Error, insert the file to parse as cmd")
+    print ("Error, insert the file to parse as cmd")
     exit()
     
 fname= sys.argv[1]
@@ -16,7 +16,7 @@ z = array([0,0,1,0])
 hf= array([0,0,0,0.5])
 
 if not os.path.exists(fname):
-    print ()"Error, the specified file does not exist")
+    print ("Error, the specified file does not exist")
     exit()
 
 fdata = file(fname, "r")
@@ -38,12 +38,12 @@ for line in lines:
     for i, v in enumerate(vectors):
         new_v = v.replace("1/2", "hf")
         matrix[i, :] = eval(new_v)
-        print   "%.8f %.8f %.8f %.8f" % (matrix[i,0],
+        print   ("%.8f %.8f %.8f %.8f" % (matrix[i,0],
                                          matrix[i,1],
                                          matrix[i,2],
-                                         matrix[i,3])
+                                         matrix[i,3]))
         
 
-    print ""
+    print ()
 
         
