@@ -4,9 +4,15 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-import urllib2
 import numpy as np
 import sys, os
+
+try:
+    # Python2
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
+
 
 import cellconstructor as CC
 import cellconstructor.Structure
@@ -144,7 +150,7 @@ def DownloadDynSnSe():
     NQ = 3
     for i in range(1,NQ +1):
         # Download from the web the dynamical matrices
-        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
+        dynfile = urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
         with open("dyn.SnSe.%d" % i,'wb') as output:
             output.write(dynfile.read())
 
@@ -174,7 +180,7 @@ def DownloadDynSky():
     NQ = 4
     for i in range(1,NQ +1):
         # Download from the web the dynamical matrices
-        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/skydyn_%d" %i)
+        dynfile = urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/skydyn_%d" %i)
         #dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/newsscha_odd%d" % i)
         with open("dyn.Sky.%d" % i,'wb') as output:
             output.write(dynfile.read())
