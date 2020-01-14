@@ -28,7 +28,7 @@ jobs:
       run: |
         sudo apt-get update
         # Install the fortran compiler with lapack and blas
-        sudo apt-get gfortran libblas-dev liblapack-dev
+        sudo apt-get install gfortran libblas-dev liblapack-dev
     - name: Install the package
       run: |
         python setup.py install --user
