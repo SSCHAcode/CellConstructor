@@ -5,6 +5,8 @@ Created on Wed Jun  6 10:44:27 2018
 @author: pione
 """
 from __future__ import print_function
+from __future__ import absolute_import
+
 import numpy as np
 try:
     __ASE__ = True
@@ -14,12 +16,15 @@ except:
     __ASE__ = False
     
 import sys, os
-import Methods
+
+import cellconstructor.Methods as Methods
+import cellconstructor.symmetries as SYM
+from cellconstructor.Units import *
 
 import symph
-import symmetries as SYM
 
-from Units import *
+
+
 
 __all__ = ["Structure"]
 BOHR_TO_ANGSTROM=0.529177249

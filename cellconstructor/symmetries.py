@@ -6,11 +6,14 @@ Created on Fri Sep 29 11:10:21 2017
 @author: darth-vader
 """
 from __future__ import print_function
+from __future__ import absolute_import
+
 import time
 import os
 import numpy as np
-import Methods
-from Units import *
+
+import cellconstructor.Methods as Methods
+from cellconstructor.Units import *
 
 # Load the fortran symmetry QE module
 import symph

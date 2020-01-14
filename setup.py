@@ -1,4 +1,5 @@
 from numpy.distutils.core import setup, Extension
+import sys
 
 symph_ext = Extension(name = "symph",
                       sources = ["FModules/symdynph_gq_new.f90", "FModules/symm_base.f90", 
@@ -20,8 +21,15 @@ symph_ext = Extension(name = "symph",
                       extra_f90_compile_args = ["-cpp"]
                       )
 
+
+# The C module extension actually depeds on the python version
+WRAPPER = "CModules/wrapper3.c"
+if sys.version_info[0] < 3:
+    print("Running python2, changing the C wrapper")
+    WRAPPER = "CModules/wrapper.c"
+    
 cc_modules_ext = Extension(name = "cc_linalg",
-                      sources = ["CModules/LinAlg.c", "CModules/wrapper.c"]
+                      sources = ["CModules/LinAlg.c", WRAPPER]
                       )
 
 

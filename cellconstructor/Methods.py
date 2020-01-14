@@ -5,11 +5,13 @@ Created on Wed Jun  6 10:45:50 2018
 @author: pione
 """
 from __future__ import print_function
+from __future__ import absolute_import
 
 from numpy import *
 import numpy as np
 import sys, os
-import Structure
+
+#from . import Structure
  
 BOHR_TO_ANGSTROM = 0.529177249
 __EPSILON__ = 1e-6

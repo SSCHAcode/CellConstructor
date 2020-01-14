@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
@@ -6,16 +7,20 @@ Created on Wed Jun  6 10:29:32 2018
 """
 
 from __future__ import print_function
-import Structure
-import symmetries
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
 
-import Methods
+
+import cellconstructor.Structure as Structure
+import cellconstructor.symmetries as symmetries
+import cellconstructor.Methods as Methods
+from cellconstructor.Units import *
+
+# Import the Fortran Code
 import symph
 
-from Units import *
+
 
 try:
     from mpi4py import MPI

@@ -12,16 +12,16 @@ import six
 
 import numpy as np
 import scipy, scipy.optimize
-
-from Structure import Structure
-from Phonons import Phonons
-import symmetries
-import Methods
 import warnings
-import Settings
-import Units
-
 from functools import partial
+
+
+from cellconstructor.Structure import Structure
+from cellconstructor.Phonons import Phonons
+import cellconstructor.symmetries as symmetries
+import cellconstructor.Methods as Methods
+import cellconstructor.Settings as Settings
+import cellconstructor.Units as Units
 
 import symph
 
