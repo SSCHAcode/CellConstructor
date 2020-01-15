@@ -7,6 +7,7 @@ Created on Fri Sep 29 11:10:21 2017
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
 import time
 import os
@@ -1013,7 +1014,7 @@ class QE_Symmetry:
             n_syms = len(symmetries)
 
         # From the point group symmetries, get the supercell
-        n_supercell = len(symmetries) / n_syms
+        n_supercell = len(symmetries) // n_syms
         self.QE_translation_nr = n_supercell
         self.QE_nsymq = n_syms
         self.QE_nsym = n_syms
@@ -1484,10 +1485,10 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = False):
     """
     
     # Check if the type is correct
-    if not spglib_sym.has_key("translations"):
+    if not "translations" in spglib_sym:
         raise ValueError("Error, your symmetry dict has no 'translations' key.")
         
-    if not spglib_sym.has_key("rotations"):
+    if not "rotations" in spglib_sym:
         raise ValueError("Error, your symmetry dict has no 'rotations' key.")
     
     # Get the number of symmetries
@@ -1532,7 +1533,7 @@ def CustomASR(fc_matrix):
     if shape[0] != shape[1]:
         raise ValueError("Error, the provided matrix is not square: (%d, %d)" % (shape[0], shape[1]))
     
-    nat = np.shape(fc_matrix)[0] / 3
+    nat = np.shape(fc_matrix)[0] // 3
     if nat*3 != shape[0]:
         raise ValueError("Error, the matrix must have a dimension divisible by 3: %d" % shape[0])
     

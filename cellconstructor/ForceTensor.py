@@ -1,8 +1,10 @@
 from __future__ import print_function
 from __future__ import division 
-import Phonons
-import Methods 
-import symmetries
+
+
+from . import Phonons
+from . import Methods 
+from . import symmetries
 
 import numpy as np
 import scipy, scipy.signal, scipy.interpolate

@@ -7,6 +7,8 @@ Created on Wed Jun  6 10:29:32 2018
 """
 
 from __future__ import print_function
+from __future__ import division 
+
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
@@ -168,7 +170,7 @@ class Phonons:
                 raise ValueError("Error, file %s does not exist." % filepath)
             
             # Load the matrix as a regular file
-            dynfile = file(filepath, "r")
+            dynfile = open(filepath, "r")
             dynlines = [line.strip() for line in dynfile.readlines()]
             dynfile.close()
             
@@ -1031,7 +1033,7 @@ class Phonons:
                 fname += str(iq+1)
             
             # Open the file
-            fp = file(fname, "w")
+            fp = open(fname, "w")
             fp.write("Dynamical matrix file\n")
         
             # Get the different number of types
@@ -2298,6 +2300,7 @@ class Phonons:
         
         self.dynmats = new_dynmats
         self.q_stars = q_stars
+        self.q_tot = [y for x in q_stars for y in x] # Unwrap the q points
         self.nqirr = len(q_stars)
 
         # # Now, the q_stars respect the correct fourier convention
@@ -2999,7 +3002,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     
     # Define the number of q points, atoms and unit cell atoms
     nq = len(q_tot)
-    nat = np.shape(dynmat)[1] /3
+    nat = np.shape(dynmat)[1] //3
     nat_sc = nq*nat
 
         
@@ -3088,8 +3091,8 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     
     # Define the number of q points, atoms and unit cell atoms
     nq = np.shape(q_tot)[0]
-    nat_sc = np.shape(fc_supercell)[0]/3
-    nat = nat_sc / nq
+    nat_sc = np.shape(fc_supercell)[0]//3
+    nat = nat_sc // nq
     
     if itau is None:
         itau = supercell_structure.get_itau(unit_cell_structure)-1
@@ -3167,8 +3170,8 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     """
     # Get some info about the size
     supercell_size = np.prod(coarse_grid)
-    natsc = np.shape(starting_fc)[0]  / 3
-    nat = natsc / supercell_size
+    natsc = np.shape(starting_fc)[0]  // 3
+    nat = natsc // supercell_size
     
     #print "nat:", nat
     #print "natsc:", natsc

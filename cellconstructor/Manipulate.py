@@ -6,6 +6,7 @@ into this module.
 """
 
 from __future__ import print_function
+from __future__ import division 
 import time
 import os
 import six
@@ -988,7 +989,7 @@ def MeasureProtonTransfer(structures, list_mol, verbose = False):
     n_coord_per_conf = len(list_mol)
     
     # Check if the structures can be divided in a perfect pool
-    n_struct_partial = len(structures) / size
+    n_struct_partial = len(structures) // size
     
     # Setup the number of initial coordinate
     n_coords_tot = n_coord_per_conf * n_struct_partial
