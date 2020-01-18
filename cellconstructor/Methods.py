@@ -23,7 +23,7 @@ __all__ = ["covariant_coordinates", "from_dynmat_to_spectrum",
            "DistanceBetweenStructures"]
 
 
-def covariant_coordinates(basis, vector):
+def covariant_coordinates(basis, vectors):
     """
     Covariant Coordinates
     =====================
@@ -41,10 +41,11 @@ def covariant_coordinates(basis, vector):
     
     Parameters
     ----------
-        - basis : NxN matrix
+        - basis : ndarray(size = (N,N))
             The basis. each :math:`\\vec e_i` is a row.
-        - vector : Nx float
-            The vector expressed in cartesian coordinates.
+        - vector : ndarray(size = (N_vectors, N))
+            The vectors expressed in cartesian coordinates.
+            It coould be just one ndarray(size=N)
             
     Results
     -------
@@ -56,14 +57,59 @@ def covariant_coordinates(basis, vector):
     M, N = np.shape(basis)
     
     metric_tensor = np.zeros((N,N))
-    for i in range(0, N):
-        for j in range(i, N):
-            metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
+
+    metric_tensor = basis.dot(basis.T)
+    # for i in range(0, N):
+    #     for j in range(i, N):
+    #         metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
 
     imt = np.linalg.inv(metric_tensor)
     
-    contra_vect = basis.dot(vector)
-    return imt.dot(contra_vect)
+    contra_vect = vectors.dot(basis.T)
+    return contra_vect.dot(imt)
+
+def cryst_to_cart(unit_cell, cryst_vectors):
+    """
+    Convert a vector from crystalline to cartesian. 
+    Many vectors counld be pased toghether, in that case the last axis must be the one with the vector.
+
+    Parameters
+    ----------
+        unit_cell : ndarray((3,3))
+            The unit cell vectors. 
+            The i-th cell vector is unit_cell[i, :]
+        cryst_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in crystalline coordinates that you want to
+            transform in cartesian coordinates
+
+    Results
+    -------
+        cart_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in cartesian coordinates
+    """
+
+    return cryst_vectors.dot(unit_cell)
+
+def cart_to_cryst(unit_cell, cart_vectors):
+    """
+    Convert a vector from cartesian to crystalline. 
+    Many vectors counld be pased toghether, in that case the last axis must be the one with the vector.
+
+    Parameters
+    ----------
+        unit_cell : ndarray((3,3))
+            The unit cell vectors. 
+            The i-th cell vector is unit_cell[i, :]
+        cart_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in cartesian coordinates that you want to
+            transform in crystalline coordinates
+
+    Results
+    -------
+        cryst_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in crystalline coordinates
+    """
+    return covariant_coordinates(unit_cell, cart_vectors)
     
 def get_equivalent_vectors(unit_cell, vectors, target, index = None):
     """
