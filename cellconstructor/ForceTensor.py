@@ -607,20 +607,15 @@ class Tensor3():
                 
                 # Enclose in one index i and j
                 total_index = i * WS_nsup + j
-                print(total_index)
 
                 # Get the crystal lattice
                 WS_xr_vector2[:, total_index] = (a2,b2,c2)
                 WS_xr_vector3[:, total_index] = (a3,b3,c3)
 
-        print("crystal v3:")
-        print(WS_xr_vector3[:,:np.prod(self.supercell_size)*8].T)
 
         # Convert all the vectors in cartesian coordinates
         WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
         WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
-        print("cart v3:")
-        print(WS_r_vector3[:,:np.prod(self.supercell_size)*8].T)
 
 
         t2 = time.time()
