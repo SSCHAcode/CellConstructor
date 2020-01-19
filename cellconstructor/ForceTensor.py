@@ -597,24 +597,30 @@ class Tensor3():
         WS_xr_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
 
         # Allocate the tensor in the WS cell
-        WS_tensor = np.zeros((WS_n_R, 3*self.nat, 3*self.nat, 3*self.nat), dtype = np.complex128)
+        WS_tensor = np.zeros((WS_n_R, 3*self.nat, 3*self.nat, 3*self.nat), dtype = np.double)
 
         # Here we prepare the vectors
         # Iterating for all the possible values of R2 and R3 in the cell that encloses the Wigner-Seitz one
         t1 = time.time()
-        for i, (a2,b2,c2) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(nq2, nq2))):
-            for j, (a3,b3,c3) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(nq2, nq2))):
+        for i, (a2,b2,c2) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
+            for j, (a3,b3,c3) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
                 
                 # Enclose in one index i and j
                 total_index = i * WS_nsup + j
+                print(total_index)
 
                 # Get the crystal lattice
                 WS_xr_vector2[:, total_index] = (a2,b2,c2)
                 WS_xr_vector3[:, total_index] = (a3,b3,c3)
 
+        print("crystal v3:")
+        print(WS_xr_vector3[:,:np.prod(self.supercell_size)*8].T)
+
         # Convert all the vectors in cartesian coordinates
-        WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2)
+        WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
         WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
+        print("cart v3:")
+        print(WS_r_vector3[:,:np.prod(self.supercell_size)*8].T)
 
 
         t2 = time.time()
@@ -625,7 +631,8 @@ class Tensor3():
         # And we save the important data
 
         # Allocate the distance between the superlattice vectors for each replica
-        total_size = (2 * Far + 1)**2
+        tot_replicas = (2*Far + 1)**3
+        total_size = tot_replicas**2
         dR_12 = np.zeros( (total_size, 3))
         dR_23 = np.zeros( (total_size, 3))
         dR_13 = np.zeros( (total_size, 3))
@@ -645,7 +652,8 @@ class Tensor3():
                 R_3 = np.array((a3, b3, c3)).dot(self.supercell_structure.unit_cell)
 
                 # Prepare an index that runs over both i and j
-                total_index = 9*i + j
+                total_index = tot_replicas*i + j
+                #print(total_index, i, j)
 
                 # Store the replica vector in crystal coordinates
                 V2_cryst[total_index, :] = np.array((a2,b2,c2)) * np.array(self.supercell_size)
@@ -657,9 +665,9 @@ class Tensor3():
                 dR_23[total_index, :] = R_3 - R_2
 
                 # Store the perimeter of this replica triplet
-                PP[total_index] = np.sqrt(R_2.dot(R_2)) 
-                PP[total_index]+= np.sqrt(R_3.dot(R_3))
-                PP[total_index]+= np.sqrt(np.sum((R_3 - R_2)**2))
+                PP[total_index] = R_2.dot(R_2)
+                PP[total_index]+= R_3.dot(R_3)
+                PP[total_index]+= np.sum((R_3 - R_2)**2)
         t2 = time.time()
 
         if self.verbose:
@@ -680,9 +688,9 @@ class Tensor3():
                 r3 = self.r_vector3[:, iR] + self.tau[at3,:]
                 
                 # Lets compute the perimeter without the replicas
-                pp = np.sqrt(np.sum((r1-r2)**2))
-                pp+= np.sqrt(np.sum((r2-r3)**2))
-                pp+= np.sqrt(np.sum((r1-r3)**2))
+                pp = np.sum((r1-r2)**2)
+                pp+= np.sum((r2-r3)**2)
+                pp+= np.sum((r1-r3)**2)
                 
                 # Get the crystalline vectors
                 x1 = Methods.cart_to_cryst(self.unitcell_structure.unit_cell, r1)
@@ -727,7 +735,7 @@ class Tensor3():
                 # with the current tensor, dividing by the number of elemets
                 new_elemet = np.tile(self.tensor[iR, 3*at1:3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3], (n_P, 1,1,1))
                 new_elemet /= n_P
-                WS_tensor[WS_i_R, 3*at1: 3*at1+3, 3*at2:3*at2, 3*at3:3*at3+3] = new_elemet
+                WS_tensor[WS_i_R, 3*at1: 3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3] = new_elemet
 
 
         t2 = time.time()
@@ -1040,6 +1048,9 @@ def get_ws_block_index(supercell_size, cryst_vectors2, cryst_vectors3):
 
     # Collect everything in the block index
     WS_i_R = i2 * WS_sup + i3 
+
+    # Convert in integer for indexing
+    WS_i_R = WS_i_R.astype(int)
 
     # Check if the block indices are correct
     assert (WS_i_R >= 0).all()
