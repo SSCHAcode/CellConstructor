@@ -1,8 +1,10 @@
 from __future__ import print_function
 from __future__ import division 
-import Phonons
-import Methods 
-import symmetries
+
+# Import for python2/3 compatibility
+import cellconstructor.Phonons as Phonons
+import cellconstructor.Methods as Methods 
+import cellconstructor.symmetries as symmetries
 
 import numpy as np
 import scipy, scipy.signal, scipy.interpolate
