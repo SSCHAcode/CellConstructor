@@ -749,111 +749,116 @@ class Tensor3():
         self.n_R = WS_n_R
 
 
-
+    def __old_centering__(self, Far=1,tol=1.0e-5):
+        """
+        This is an old and slow implementation of the centering,
+        check if it is doing the same thing as the new one.
+        """
+        print(" OLD CENTERING")
         
-        # n_sup = np.prod(self.supercell_size)
-        # tensor_new = self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat))
+        n_sup = np.prod(self.supercell_size)
+        tensor_new = self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat))
         
-        # # weight(s,t,iii,u,jjj) weight of the triangle with vertices (s,0),(t,iii),(u,jjj)
-        # weight=np.zeros([self.nat,self.nat,n_sup,self.nat,n_sup],dtype=int)
-        # RRt=np.zeros([3,self.nat,self.nat,n_sup,self.nat,n_sup,(2*Far+1)**3])
-        # RRu=np.zeros([3,self.nat,self.nat,n_sup,self.nat,n_sup,(2*Far+1)**3])
+        # weight(s,t,iii,u,jjj) weight of the triangle with vertices (s,0),(t,iii),(u,jjj)
+        weight=np.zeros([self.nat,self.nat,n_sup,self.nat,n_sup],dtype=int)
+        RRt=np.zeros([3,self.nat,self.nat,n_sup,self.nat,n_sup,(2*Far+1)**3])
+        RRu=np.zeros([3,self.nat,self.nat,n_sup,self.nat,n_sup,(2*Far+1)**3])
         
-        # lat_min=np.array([np.inf,np.inf,np.inf])
-        # lat_max=np.array([-np.inf,-np.inf,-np.inf])
-        # #
-        # for s in range(self.nat):
-        #     s_vec=self.tau[s,:]
-        #     # Loop on the supercell atoms
-        #     for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-        #         t_vec=self.tau[t,:]    
-        #         t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
-        #         # Loop on the supercell atoms
-        #         for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-        #             u_vec=self.tau[u,:] 
-        #             u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
-        #             #
-        #             perim_min=np.inf
-        #             counter=0
-        #             #
-        #             # Now we cycle moving the lattice vector to find the equivalent vectors
-        #             # That minimizes the perimeter
+        lat_min=np.array([np.inf,np.inf,np.inf])
+        lat_max=np.array([-np.inf,-np.inf,-np.inf])
+        #
+        for s in range(self.nat):
+            s_vec=self.tau[s,:]
+            # Loop on the supercell atoms
+            for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                t_vec=self.tau[t,:]    
+                t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
+                # Loop on the supercell atoms
+                for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                    u_vec=self.tau[u,:] 
+                    u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
+                    #
+                    perim_min=np.inf
+                    counter=0
+                    #
+                    # Now we cycle moving the lattice vector to find the equivalent vectors
+                    # That minimizes the perimeter
                     
 
-        #             # Perimeter
-        #             for LLt, MMt, NNt,  in itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1)):
-        #                 xt=[lt+LLt*nq0,mt+MMt*nq1,nt+NNt*nq2]
-        #                 SC_t_vec=self.unitcell_structure.unit_cell.T.dot(xt)+t_vec          
-        #                 for LLu, MMu, NNu,  in itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1)):
-        #                     xu=[lu+LLu*nq0,mu+MMu*nq1,nu+NNu*nq2]
-        #                     SC_u_vec=self.unitcell_structure.unit_cell.T.dot(xu)+u_vec                
-        #                     #
-        #                     #
-        #                     perimeter=compute_perimeter(s_vec,SC_t_vec ,SC_u_vec)
-        #                     #
-        #                     if perimeter < (perim_min - tol) :
-        #                         perim_min = perimeter
-        #                         counter = 1
-        #                         weight[s,t,t_lat,u,u_lat]=counter
-        #                         #
-        #                         RRt[:,s,t,t_lat,u,u_lat,counter-1]=xt        
-        #                         RRu[:,s,t,t_lat,u,u_lat,counter-1]=xu        
-        #                         lat_min_tmp=np.min( [ xt, xu ] , axis=0 )
-        #                         lat_max_tmp=np.max( [ xt, xu ] , axis=0 )            
-        #                     elif abs(perimeter - perim_min) <= tol:
-        #                         counter += 1
-        #                         weight[s,t,t_lat,u,u_lat]=counter
-        #                         #
-        #                         RRt[:,s,t,t_lat,u,u_lat,counter-1]=xt        
-        #                         RRu[:,s,t,t_lat,u,u_lat,counter-1]=xu        
-        #                         lat_min_tmp=np.min( [ lat_min_tmp, xt , xu ], axis=0 )
-        #                         lat_max_tmp=np.max( [ lat_max_tmp, xt , xu ], axis=0 )                
-        #             #
-        #             #
-        #             lat_min=np.min( [lat_min,lat_min_tmp], axis=0)
-        #             lat_max=np.max( [lat_max,lat_max_tmp], axis=0)
-        # #
-        # lat_len=lat_max-lat_min+np.ones(3,dtype=int)
-        # n_sup_WS=np.prod(lat_len,dtype=int)
+                    # Perimeter
+                    for LLt, MMt, NNt,  in itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1)):
+                        xt=[lt+LLt*nq0,mt+MMt*nq1,nt+NNt*nq2]
+                        SC_t_vec=self.unitcell_structure.unit_cell.T.dot(xt)+t_vec          
+                        for LLu, MMu, NNu,  in itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1)):
+                            xu=[lu+LLu*nq0,mu+MMu*nq1,nu+NNu*nq2]
+                            SC_u_vec=self.unitcell_structure.unit_cell.T.dot(xu)+u_vec                
+                            #
+                            #
+                            perimeter=compute_perimeter(s_vec,SC_t_vec ,SC_u_vec)
+                            #
+                            if perimeter < (perim_min - tol) :
+                                perim_min = perimeter
+                                counter = 1
+                                weight[s,t,t_lat,u,u_lat]=counter
+                                #
+                                RRt[:,s,t,t_lat,u,u_lat,counter-1]=xt        
+                                RRu[:,s,t,t_lat,u,u_lat,counter-1]=xu        
+                                lat_min_tmp=np.min( [ xt, xu ] , axis=0 )
+                                lat_max_tmp=np.max( [ xt, xu ] , axis=0 )            
+                            elif abs(perimeter - perim_min) <= tol:
+                                counter += 1
+                                weight[s,t,t_lat,u,u_lat]=counter
+                                #
+                                RRt[:,s,t,t_lat,u,u_lat,counter-1]=xt        
+                                RRu[:,s,t,t_lat,u,u_lat,counter-1]=xu        
+                                lat_min_tmp=np.min( [ lat_min_tmp, xt , xu ], axis=0 )
+                                lat_max_tmp=np.max( [ lat_max_tmp, xt , xu ], axis=0 )                
+                    #
+                    #
+                    lat_min=np.min( [lat_min,lat_min_tmp], axis=0)
+                    lat_max=np.max( [lat_max,lat_max_tmp], axis=0)
+        #
+        lat_len=lat_max-lat_min+np.ones(3,dtype=int)
+        n_sup_WS=np.prod(lat_len,dtype=int)
 
-        # centered=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
+        centered=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
         
-        # for s in range(self.nat):
-        #     for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-        #         t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
-        #         for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-        #             u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
-        #             for h in range(weight[s,t,t_lat,u,u_lat]):
-        #                 I=three_to_one(RRt[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)
-        #                 J=three_to_one(RRu[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)    
-        #                 #
-        #                 for alpha,beta,gamma in itertools.product(range(3),range(3),range(3)):
-        #                     jn1 = alpha + s*3
-        #                     jn2 = beta  + t*3
-        #                     jn3 = gamma + u*3
-        #                     #
-        #                     centered[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
+        for s in range(self.nat):
+            for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
+                for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                    u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
+                    for h in range(weight[s,t,t_lat,u,u_lat]):
+                        I=three_to_one(RRt[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)
+                        J=three_to_one(RRu[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)    
+                        #
+                        for alpha,beta,gamma in itertools.product(range(3),range(3),range(3)):
+                            jn1 = alpha + s*3
+                            jn2 = beta  + t*3
+                            jn3 = gamma + u*3
+                            #
+                            centered[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
 
 
-        # # Reassignement
+        # Reassignement
         
-        # self.n_R=n_sup_WS**2
+        self.n_R=n_sup_WS**2
         
-        # # Cartesian lattice vectors
-        # self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
-        # self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        # Cartesian lattice vectors
+        self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
         
-        # # Crystalline lattice vectors
-        # self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
-        # self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+        # Crystalline lattice vectors
+        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+        self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
         
-        # self.tensor=centered.reshape((self.n_R, 3*self.nat, 3*self.nat, 3*self.nat))
+        self.tensor=centered.reshape((self.n_R, 3*self.nat, 3*self.nat, 3*self.nat))
                 
-        # for index,(I,J) in enumerate(itertools.product(range(n_sup_WS),range(n_sup_WS))): 
-        #     self.x_r_vector2[:, index] = one_to_three(I,lat_min,lat_max)
-        #     self.r_vector2[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, index])       
-        #     self.x_r_vector3[:, index] = one_to_three(J,lat_min,lat_max)
-        #     self.r_vector3[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, index])       
+        for index,(I,J) in enumerate(itertools.product(range(n_sup_WS),range(n_sup_WS))): 
+            self.x_r_vector2[:, index] = one_to_three(I,lat_min,lat_max)
+            self.r_vector2[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, index])       
+            self.x_r_vector3[:, index] = one_to_three(J,lat_min,lat_max)
+            self.r_vector3[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, index])       
 
                        
     def Interpolate(self, q2, q3):
