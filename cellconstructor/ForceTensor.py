@@ -755,6 +755,11 @@ class Tensor3():
         check if it is doing the same thing as the new one.
         """
         print(" OLD CENTERING")
+
+        # The supercell total size
+        nq0=self.supercell_size[0]
+        nq1=self.supercell_size[1]
+        nq2=self.supercell_size[2]
         
         n_sup = np.prod(self.supercell_size)
         tensor_new = self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat))
