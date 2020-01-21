@@ -619,8 +619,8 @@ class Tensor3():
         WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
         WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
         
-        print("WS vectors:")
-        print(WS_r_vector2.T)
+        # print("WS vectors:")
+        # print(WS_r_vector2.T)
         
 
 
@@ -672,7 +672,7 @@ class Tensor3():
                 PP[total_index]+= R_3.dot(R_3)
                 PP[total_index]+= np.sum((R_3 - R_2)**2)
                 
-                print("R2:", R_2, "R3:", R_3, "PP:", PP[total_index])
+                #print("R2:", R_2, "R3:", R_3, "PP:", PP[total_index])
         t2 = time.time()
 
         if self.verbose:
@@ -715,17 +715,17 @@ class Tensor3():
                 P[:] += dR_23.dot(G_23)
                 P[:] += dR_13.dot(G_13)
                 
-                if self.tensor[iR, 3*at1, 3*at2, 3*at3] > 0:
-                    print("all the perimeters:")
-                    #print(P)
-                    print("The minimum:", np.min(P))
-                    index = np.argmin(P)
-                    print("R2 = ", self.r_vector2[:, iR], "R3 = ", self.r_vector3[:,iR])
-                    print("The replica perimeter:", PP[index])
-                    print("The standard perimeter:", pp)
-                    print("The the cross values:")
-                    print(dR_12.dot(G_12)[index], dR_13.dot(G_13)[index], dR_23.dot(G_23)[index]) 
-                    print("The replica vectors are:", "R2:", V2_cryst[index,:], "R3:", V3_cryst[index,:])
+                # if self.tensor[iR, 3*at1, 3*at2, 3*at3] > 0:
+                #     #print("all the perimeters:")
+                #     #print(P)
+                #     print("The minimum:", np.min(P))
+                #     index = np.argmin(P)
+                #     print("R2 = ", self.r_vector2[:, iR], "R3 = ", self.r_vector3[:,iR])
+                #     print("The replica perimeter:", PP[index])
+                #     print("The standard perimeter:", pp)
+                #     print("The the cross values:")
+                #     print(dR_12.dot(G_12)[index], dR_13.dot(G_13)[index], dR_23.dot(G_23)[index]) 
+                #     print("The replica vectors are:", "R2:", V2_cryst[index,:], "R3:", V3_cryst[index,:])
                 
                 # Now P is filled with the perimeters of all the replica
                 # We can easily find the minimum
@@ -744,14 +744,12 @@ class Tensor3():
                 # Now we can compute the crystalline coordinates of the lattice in the WS cell
                 r2_cryst = np.tile(self.x_r_vector2[:, iR], (n_P, 1)) + v2_shift
                 r3_cryst = np.tile(self.x_r_vector3[:, iR], (n_P, 1)) + v3_shift
+                verb = False
+                
 
                 # Get the block indices in the WS cell
-                WS_i_R = get_ws_block_index(self.supercell_size, r2_cryst, r3_cryst)
-                if self.tensor[iR, 3*at1, 3*at2, 3*at3] > 0:
-                    print("Assignin it to the following replicas (crystalline):")
-                    print("R2 new : ", r2_cryst)
-                    print("R3 new : ", r3_cryst)
-
+                WS_i_R = get_ws_block_index(self.supercell_size, r2_cryst, r3_cryst, verbose = verb)
+                
                 # Now we fill all the element of the WS tensor 
                 # with the current tensor, dividing by the number of elemets
                 new_elemet = np.tile(self.tensor[iR, 3*at1:3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3], (n_P, 1,1,1))
@@ -1156,7 +1154,7 @@ def one_to_three(J,v_min,v_max):
     
 
 
-def get_ws_block_index(supercell_size, cryst_vectors2, cryst_vectors3):
+def get_ws_block_index(supercell_size, cryst_vectors2, cryst_vectors3, verbose = False):
     """
     Get the block in the supercell that contains the WS cell, 
     given the crystalline positions of vectors, returns the indices of the block.
@@ -1186,27 +1184,37 @@ def get_ws_block_index(supercell_size, cryst_vectors2, cryst_vectors3):
 
     # Get the composed index in the iteration of the two vectors
     # Rescale the vectors
-    new_v2 = cryst_vectors2 
+    new_v2 = cryst_vectors2.copy() 
     new_v2 += np.array(supercell_size)
 
-    new_v3 = cryst_vectors3 
+    new_v3 = cryst_vectors3.copy()
     new_v3 += np.array(supercell_size)
 
     # Get the total dimension of the block for each vector in the WS cell
     WS_sup = np.prod(supercell_size) * 8
 
-    # Transform the two vectors in the indices of the iterator
-    i2 = cryst_vectors2[:, 2] + cryst_vectors2[:,1] * supercell_size[2] 
-    i2 += cryst_vectors2[:,0] * supercell_size[2] * supercell_size[1]
+    ws_z = 2 * supercell_size[2]
+    ws_y = 2 * supercell_size[1]
 
-    i3 = cryst_vectors3[:, 2] + cryst_vectors3[:,1] * supercell_size[2] 
-    i3 += cryst_vectors3[:,0] * supercell_size[2] * supercell_size[1]
+    # Transform the two vectors in the indices of the iterator
+    i2 = new_v2[:, 2] + new_v2[:,1] * ws_z
+    i2 += new_v2[:,0] * ws_z * ws_y
+
+    i3 = new_v3[:, 2] + new_v3[:,1] * ws_z 
+    i3 += new_v3[:,0] * ws_z * ws_y
 
     # Collect everything in the block index
     WS_i_R = i2 * WS_sup + i3 
 
     # Convert in integer for indexing
     WS_i_R = WS_i_R.astype(int)
+
+    if verbose:
+        print("All values of i2:")
+        print(i2)
+        print("All values of i3:")
+        print(i3)
+        print("The block value:", WS_i_R)
 
     # Check if the block indices are correct
     assert (WS_i_R >= 0).all()
