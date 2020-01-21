@@ -1,12 +1,15 @@
 from __future__ import print_function
 from __future__ import division 
-import Phonons
-import Methods 
-import symmetries
+
+# Import for python2/3 compatibility
+import cellconstructor.Phonons as Phonons
+import cellconstructor.Methods as Methods 
+import cellconstructor.symmetries as symmetries
 
 import numpy as np
 import scipy, scipy.signal, scipy.interpolate
 
+import time
 import itertools
 
 """
@@ -387,6 +390,8 @@ class Tensor3():
         
         self.unitcell_structure = unitcell_structure
         self.supercell_structure = supercell_structure
+
+        self.verbose = True
         
         
     def Setup(self, tensor):
@@ -558,12 +563,200 @@ class Tensor3():
 
     def Center(self,Far=1,tol=1.0e-5):
         """
+        CENTERING 
+        =========
+
+        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
+        This means that for each atomic indices in the tensor, it will be identified by the lowest 
+        perimiter between the replica of the atoms.
+        Moreover, in case of existance of other elements not included in the original supercell with
+        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
+
+        This function should be called before performing the Fourier interpolation.
         """    
         
-        print(" ")
-        print(" === Centering === ")
-        print(" ")        
+        if self.verbose:
+            print(" ")
+            print(" === Centering === ")
+            print(" ")        
         
+        # The supercell total size
+        nq0=self.supercell_size[0]
+        nq1=self.supercell_size[1]
+        nq2=self.supercell_size[2]
+
+        # We prepare the tensor for the Wigner-Seitz cell (twice as big for any direction)
+        WS_nsup = 2**3* np.prod(self.supercell_size)
+        WS_n_R = (WS_nsup)**2
+
+        # Allocate the vector in the WS cell
+        # TODO: this could be memory expensive
+        #       we could replace this tensor with an equivalent object
+        #       that stores only the blocks that are actually written
+        WS_r_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+        WS_r_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+        WS_xr_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+        WS_xr_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+
+        # Allocate the tensor in the WS cell
+        WS_tensor = np.zeros((WS_n_R, 3*self.nat, 3*self.nat, 3*self.nat), dtype = np.double)
+
+        # Here we prepare the vectors
+        # Iterating for all the possible values of R2 and R3 in the cell that encloses the Wigner-Seitz one
+        t1 = time.time()
+        for i, (a2,b2,c2) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
+            for j, (a3,b3,c3) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
+                
+                # Enclose in one index i and j
+                total_index = i * WS_nsup + j
+
+                # Get the crystal lattice
+                WS_xr_vector2[:, total_index] = (a2,b2,c2)
+                WS_xr_vector3[:, total_index] = (a3,b3,c3)
+
+
+        # Convert all the vectors in cartesian coordinates
+        WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
+        WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
+
+
+        t2 = time.time()
+        if (self.verbose):
+            print("Time elapsed to prepare vectors in the WS cell: {} s".format(t2-t1))
+
+        # Here we create the lattice images
+        # And we save the important data
+
+        # Allocate the distance between the superlattice vectors for each replica
+        tot_replicas = (2*Far + 1)**3
+        total_size = tot_replicas**2
+        dR_12 = np.zeros( (total_size, 3))
+        dR_23 = np.zeros( (total_size, 3))
+        dR_13 = np.zeros( (total_size, 3))
+        # Allocate the perimeter of the superlattice for each replica
+        PP = np.zeros(total_size)
+        # Alloca the the vector of the superlattice in crystalline units
+        V2_cryst = np.zeros((total_size,3))
+        V3_cryst = np.zeros((total_size,3))
+
+        # Lets cycle over the replica  (the first index is always in the unit cell)
+        # To store the variables that will be used to compute the perimeters of
+        # all the replica
+        t1 = time.time()
+        for i, (a2,b2,c2) in enumerate(itertools.product(range(-Far, Far+1), range(-1,Far+1),range(-Far, Far+1))):
+            R_2 = np.array((a2, b2, c2)).dot(self.supercell_structure.unit_cell)
+            for j, (a3, b3, c3) in enumerate(itertools.product(range(-1, Far+1), range(-1,Far+1),range(-Far, Far+1))):
+                R_3 = np.array((a3, b3, c3)).dot(self.supercell_structure.unit_cell)
+
+                # Prepare an index that runs over both i and j
+                total_index = tot_replicas*i + j
+                #print(total_index, i, j)
+
+                # Store the replica vector in crystal coordinates
+                V2_cryst[total_index, :] = np.array((a2,b2,c2)) * np.array(self.supercell_size)
+                V3_cryst[total_index, :] = np.array((a3,b3,c3)) * np.array(self.supercell_size)
+                
+                # Compute the distances between the replica of the indices
+                dR_12[total_index, :] = R_2
+                dR_13[total_index, :] = R_3
+                dR_23[total_index, :] = R_3 - R_2
+
+                # Store the perimeter of this replica triplet
+                PP[total_index] = R_2.dot(R_2)
+                PP[total_index]+= R_3.dot(R_3)
+                PP[total_index]+= np.sum((R_3 - R_2)**2)
+        t2 = time.time()
+
+        if self.verbose:
+            print("Time elapsed to prepare the perimeter in the replicas: {} s".format(t2 - t1))
+
+
+        # Now we cycle over all the blocks and the atoms
+        # For each triplet of atom in a block, we compute the perimeter of the all possible replica
+        # Get the metric tensor of the supercell
+        G = np.einsum("ab, cb->ac", self.supercell_structure.unit_cell, self.supercell_structure.unit_cell)
+
+        # We cycle over atoms and blocks
+        for iR in range(self.n_R):
+            for at1, at2, at3 in itertools.product(range(self.nat), range(self.nat), range(self.nat)):
+                # Get the positions of the atoms
+                r1 = self.tau[at1,:]
+                r2 = self.r_vector2[:, iR] + self.tau[at2,:]
+                r3 = self.r_vector3[:, iR] + self.tau[at3,:]
+                
+                # Lets compute the perimeter without the replicas
+                pp = np.sum((r1-r2)**2)
+                pp+= np.sum((r2-r3)**2)
+                pp+= np.sum((r1-r3)**2)
+                
+                # Get the crystalline vectors
+                x1 = Methods.cart_to_cryst(self.unitcell_structure.unit_cell, r1)
+                x2 = Methods.cart_to_cryst(self.unitcell_structure.unit_cell, r2)
+                x3 = Methods.cart_to_cryst(self.unitcell_structure.unit_cell, r3)
+                
+                # Now we compute the quantities that do not depend on the lattice replica
+                # As the current perimeter and the gg vector
+                G_12 = G.dot(x2-x1)
+                G_23 = G.dot(x3-x2)
+                G_13 = G.dot(x3-x1)
+                
+                # Now we can compute the perimeters of all the replica
+                # all toghether
+                P = PP[:] + pp
+                P[:] += dR_12.dot(G_12)
+                P[:] += dR_23.dot(G_23)
+                P[:] += dR_13.dot(G_13)
+                
+                # Now P is filled with the perimeters of all the replica
+                # We can easily find the minimum
+                P_min = np.min(P)
+                
+                # We can find how many they are and a mask on their positions
+                min_P_mask = (np.abs(P_min - P) < 1e-6).astype(bool)
+                
+                # The number of minimium perimeters
+                n_P = np.sum(min_P_mask.astype(int))
+
+                # Get the replica vector for the minimum perimeters
+                v2_shift = V2_cryst[min_P_mask, :]
+                v3_shift = V3_cryst[min_P_mask, :]
+
+                # Now we can compute the crystalline coordinates of the lattice in the WS cell
+                r2_cryst = np.tile(self.x_r_vector2[:, iR], (n_P, 1)) + v2_shift
+                r3_cryst = np.tile(self.x_r_vector3[:, iR], (n_P, 1)) + v3_shift
+
+                # Get the block indices in the WS cell
+                WS_i_R = get_ws_block_index(self.supercell_size, r2_cryst, r3_cryst)
+
+                # Now we fill all the element of the WS tensor 
+                # with the current tensor, dividing by the number of elemets
+                new_elemet = np.tile(self.tensor[iR, 3*at1:3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3], (n_P, 1,1,1))
+                new_elemet /= n_P
+                WS_tensor[WS_i_R, 3*at1: 3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3] = new_elemet
+
+
+        t2 = time.time()
+
+        if self.verbose:
+            print("Time elapsed for computing the cenetering: {} s".format( t2 - t1))
+
+        # We can update the current tensor
+        self.tensor = WS_tensor
+        self.r_vector2 = WS_r_vector2
+        self.r_vector3 = WS_r_vector3
+        self.x_r_vector2 = WS_xr_vector2
+        self.x_r_vector3 = WS_xr_vector3
+        self.n_R = WS_n_R
+
+
+    def __old_centering__(self, Far=1,tol=1.0e-5):
+        """
+        This is an old and slow implementation of the centering,
+        check if it is doing the same thing as the new one.
+        """
+        print(" OLD CENTERING")
+
+        # The supercell total size
         nq0=self.supercell_size[0]
         nq1=self.supercell_size[1]
         nq2=self.supercell_size[2]
@@ -582,10 +775,11 @@ class Tensor3():
         x=(self.nat**3)*(nq0*nq1*nq2)**2*3*3*3*3*3*3
         for s in range(self.nat):
             s_vec=self.tau[s,:]
-            #
+            # Loop on the supercell atoms
             for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
                 t_vec=self.tau[t,:]    
                 t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
+                # Loop on the supercell atoms
                 for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
                     u_vec=self.tau[u,:] 
                     u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
@@ -593,7 +787,11 @@ class Tensor3():
                     perim_min=np.inf
                     counter=0
                     #
-                    #
+                    # Now we cycle moving the lattice vector to find the equivalent vectors
+                    # That minimizes the perimeter
+                    
+
+                    # Perimeter
                     for LLt, MMt, NNt,  in itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1)):
                         xt=[lt+LLt*nq0,mt+MMt*nq1,nt+NNt*nq2]
                         SC_t_vec=self.unitcell_structure.unit_cell.T.dot(xt)+t_vec          
@@ -717,9 +915,6 @@ class Tensor3():
             P = ( 1 - Q )
             
             Q_{st}^{\alpha\beta} = 1 / nat_{sc} \left( \sum_x \delta_{x\alpha}\delta{x\beta}\right)
-            
-            \Phị_{abc} \sum_{pqr} \Phi_{pqr} P_{ap}P_{bq}P_{cr}
-            
         """
         
         # Apply the sum rule on the last index
@@ -820,3 +1015,64 @@ def one_to_three(J,v_min,v_max):
    #z              =(       J-(x-v_min[0])*v_len[1]*v_len[2]-(y-v_min[1])*v_len[2]          )                    +v_min[2]   
    #return [x,y,z]    
     
+
+
+def get_ws_block_index(supercell_size, cryst_vectors2, cryst_vectors3):
+    """
+    Get the block in the supercell that contains the WS cell, 
+    given the crystalline positions of vectors, returns the indices of the block.
+
+    The block identifies the supercell of the three atoms as
+    iR <=> (0, R_2, R_3)
+
+    This subroutines takes R_2 and R_3 in crystalline components, and computes the iR.
+    Assuming that the Wigner-Seitz cell is initialized correctly
+
+    Parameters
+    ----------
+        supercell_size : ndarray(size = (3), dtype = int)
+            The size of the original supercell (not the Wigner-Seitz)
+        cryst_vectors2 : ndarray(size= (N_vectors, 3), dtype = int)
+            The crystalline coordinates of the second vector.
+            It could also be a single vector.
+        cryst_vectors3 : ndarray(size= (N_vectors, 3), dtype = int)
+            The crystalline coordinates of the third vector.
+            It could also be a single vector.
+    
+    Results
+    -------
+        block_id : ndarray(size = N_vectors, dtype = int)
+            The index of the block for each crystalline vector.
+    """
+
+    # Get the composed index in the iteration of the two vectors
+    # Rescale the vectors
+    new_v2 = cryst_vectors2 
+    new_v2 += np.array(supercell_size)
+
+    new_v3 = cryst_vectors3 
+    new_v3 += np.array(supercell_size)
+
+    # Get the total dimension of the block for each vector in the WS cell
+    WS_sup = np.prod(supercell_size) * 8
+
+    # Transform the two vectors in the indices of the iterator
+    i2 = cryst_vectors2[:, 2] + cryst_vectors2[:,1] * supercell_size[2] 
+    i2 += cryst_vectors2[:,0] * supercell_size[2] * supercell_size[1]
+
+    i3 = cryst_vectors3[:, 2] + cryst_vectors3[:,1] * supercell_size[2] 
+    i3 += cryst_vectors3[:,0] * supercell_size[2] * supercell_size[1]
+
+    # Collect everything in the block index
+    WS_i_R = i2 * WS_sup + i3 
+
+    # Convert in integer for indexing
+    WS_i_R = WS_i_R.astype(int)
+
+    # Check if the block indices are correct
+    assert (WS_i_R >= 0).all()
+    assert (WS_i_R < WS_sup**2).all()
+
+    return WS_i_R
+
+
