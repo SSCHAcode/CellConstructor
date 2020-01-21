@@ -579,6 +579,7 @@ class Tensor3():
         lat_min=np.array([np.inf,np.inf,np.inf])
         lat_max=np.array([-np.inf,-np.inf,-np.inf])
         #
+        x=(self.nat**3)*(nq0*nq1*nq2)**2*3*3*3*3*3*3
         for s in range(self.nat):
             s_vec=self.tau[s,:]
             #
@@ -621,15 +622,21 @@ class Tensor3():
                                 lat_min_tmp=np.min( [ lat_min_tmp, xt , xu ], axis=0 )
                                 lat_max_tmp=np.max( [ lat_max_tmp, xt , xu ], axis=0 )                
                     #
+                            
+                            x-=1
+                            print(x)
                     #
                     lat_min=np.min( [lat_min,lat_min_tmp], axis=0)
                     lat_max=np.max( [lat_max,lat_max_tmp], axis=0)
+                    
         #
         lat_len=lat_max-lat_min+np.ones(3,dtype=int)
         n_sup_WS=np.prod(lat_len,dtype=int)
 
         centered=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
         
+        
+        x=(self.nat**3)*(nq0*nq1*nq2)*np.max(weight)
         for s in range(self.nat):
             for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
                 t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
@@ -645,9 +652,10 @@ class Tensor3():
                             jn3 = gamma + u*3
                             #
                             centered[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
-
-
+                            x-=1 
+                            print(x)
         # Reassignement
+        print('ok')
         
         self.n_R=n_sup_WS**2
         
@@ -660,13 +668,15 @@ class Tensor3():
         self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
         
         self.tensor=centered.reshape((self.n_R, 3*self.nat, 3*self.nat, 3*self.nat))
-                
+        
+        x=n_sup_WS*n_sup_WS
         for index,(I,J) in enumerate(itertools.product(range(n_sup_WS),range(n_sup_WS))): 
             self.x_r_vector2[:, index] = one_to_three(I,lat_min,lat_max)
             self.r_vector2[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, index])       
             self.x_r_vector3[:, index] = one_to_three(J,lat_min,lat_max)
             self.r_vector3[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, index])       
-
+            x-=1
+            print(x)
                        
     def Interpolate(self, q2, q3):
         """
