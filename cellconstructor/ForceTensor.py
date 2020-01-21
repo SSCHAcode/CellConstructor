@@ -913,11 +913,18 @@ class Tensor3():
         lat_min=np.array([np.inf,np.inf,np.inf])
         lat_max=np.array([-np.inf,-np.inf,-np.inf])
         
-        lat_min_tmp=np.array([-Far,-Far,-Far])
-        lat_max_tmp=np.array([Far,Far,Far])
         
-        centered_tmp=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
-        n_sup_WS_tmp=np.prod(lat_len,dtype=int)        
+        
+        # allocazioni temporanee
+        #
+        lat_min_tmpo=np.array([-Far,-Far,-Far])
+        lat_max_tmpo=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
+        lat_len_tmpo=lat_max_tmpo-lat_min_tmpo+np.ones(3,dtype=int)
+        
+        n_sup_WS_tmpo=np.prod(lat_len_tmpo,dtype=int)        
+        
+        centered_tmpo=np.zeros([n_sup_WS_tmpo,n_sup_WS_tmpo,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
+
         
         #
         for s in range(self.nat):
@@ -966,35 +973,66 @@ class Tensor3():
                                 RRu[:,s,t,t_lat,u,u_lat,counter-1]=xu        
                                 lat_min_tmp=np.min( [ lat_min_tmp, xt , xu ], axis=0 )
                                 lat_max_tmp=np.max( [ lat_max_tmp, xt , xu ], axis=0 )                
-                    #
-                    #
-                    lat_min=np.min( [lat_min,lat_min_tmp], axis=0)
-                    lat_max=np.max( [lat_max,lat_max_tmp], axis=0)
-                    
-        #
-        lat_len=lat_max-lat_min+np.ones(3,dtype=int)
-        n_sup_WS=np.prod(lat_len,dtype=int)
-
-        centered=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
-        
-        for s in range(self.nat):
-            for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-                t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
-                for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
-                    u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
+                    # Assign
                     for h in range(weight[s,t,t_lat,u,u_lat]):
-                        I=three_to_one(RRt[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)
-                        J=three_to_one(RRu[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)    
+                        I=three_to_one(RRt[:,s,t,t_lat,u,u_lat,h],lat_min_tmpo,lat_max_tmpo)
+                        J=three_to_one(RRu[:,s,t,t_lat,u,u_lat,h],lat_min_tmpo,lat_max_tmpo)    
                         #
                         for alpha,beta,gamma in itertools.product(range(3),range(3),range(3)):
                             jn1 = alpha + s*3
                             jn2 = beta  + t*3
                             jn3 = gamma + u*3
                             #
-                            centered[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
+                            centered_tmpo[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
+
+                    #
+                    #
+                    lat_min=np.min( [lat_min,lat_min_tmp], axis=0)
+                    lat_max=np.max( [lat_max,lat_max_tmp], axis=0)
+                    
+        #
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+
+        centered=np.zeros([n_sup_WS,n_sup_WS,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
+        
+        #for s in range(self.nat):
+            #for t,lt,mt,nt in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                #t_lat=three_to_one_len([lt,mt,nt],[0,0,0],[nq0,nq1,nq2])
+                #for u,lu,mu,nu in itertools.product(range(self.nat),range(nq0),range(nq1),range(nq2)):
+                    #u_lat=three_to_one_len([lu,mu,nu],[0,0,0],[nq0,nq1,nq2])
+                    #for h in range(weight[s,t,t_lat,u,u_lat]):
+                        #I=three_to_one(RRt[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)
+                        #J=three_to_one(RRu[:,s,t,t_lat,u,u_lat,h],lat_min,lat_max)    
+                        ##
+                        #for alpha,beta,gamma in itertools.product(range(3),range(3),range(3)):
+                            #jn1 = alpha + s*3
+                            #jn2 = beta  + t*3
+                            #jn3 = gamma + u*3
+                            ##
+                            #centered[I,J,jn1,jn2,jn3]=tensor_new[t_lat,u_lat,jn1,jn2,jn3]/weight[s,t,t_lat,u,u_lat]
 
         # Reassignement
-        
+        lat_len=lat_max-lat_min+np.ones(3,dtype=int)
+        n_sup_WS=np.prod(lat_len,dtype=int)
         self.n_R=n_sup_WS**2
         
         # Cartesian lattice vectors
@@ -1008,6 +1046,9 @@ class Tensor3():
         self.tensor=centered.reshape((self.n_R, 3*self.nat, 3*self.nat, 3*self.nat))
         
         for index,(I,J) in enumerate(itertools.product(range(n_sup_WS),range(n_sup_WS))): 
+            
+            v2=one_to_three(I,lat_min,lat_max)
+            
             self.x_r_vector2[:, index] = one_to_three(I,lat_min,lat_max)
             self.r_vector2[:, index] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, index])       
             self.x_r_vector3[:, index] = one_to_three(J,lat_min,lat_max)
