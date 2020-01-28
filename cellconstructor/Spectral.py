@@ -122,7 +122,8 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         
         # Rotation of phi3 in the mode space
         d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
-        
+
+        np.save("d3_pols.npy", d3_pols)
 
         
         
@@ -132,11 +133,16 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         tmp_bubble += thirdorder.third_order_bubble.compute_static_bubble(T,np.array([w_mq,w_k,w_q_mk]).T,
                                                                        np.array([is_mq_gamma,is_k_gamma,is_q_mk_gamma]),
                                                                        d3_pols,n_mod=3*dyn.structure.N_atoms)
+
+        np.save("tmp_bubble.npy", tmp_bubble)
     
     # Rotate the bubble in cartesian  
     d_bubble = np.einsum("ab, ai, bj -> ij", tmp_bubble, pols_mq, np.conj(pols_mq))
     # multiply by the -1/(2N_k) factor
-    d_bubble /= -2.0*len(k_points) 
+    d_bubble /= -8.0*len(k_points) 
+
+    np.save("tmp_odd.npy", d_bubble)
+
     # add to the SSCHA dynamical matrix in q
     d2_final_q = np.conj(d2_mq) + d_bubble
     # and mutiply by the masses ( -> FC)
