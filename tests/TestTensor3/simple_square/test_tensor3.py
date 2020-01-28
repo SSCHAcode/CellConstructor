@@ -60,14 +60,15 @@ def test_save_simple_tensor():
     
     #t3_matrix[1,1,1] = 1.0
     #t3_matrix[0,0,0] = 1.0 
-    t3_matrix[0,6,6] = 1.0     
+    t3_matrix[0,6,9] = 1.0     
     
     tensor1 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
-    tensor2 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
+    #tensor2 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
+    #tensor3 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
     
     tensor1.Setup(t3_matrix)
-    tensor2.Setup(t3_matrix)    
-    
+    #tensor2.Setup(t3_matrix)    
+    #tensor3.Setup(t3_matrix)        
     
 
     
@@ -77,11 +78,12 @@ def test_save_simple_tensor():
     #tensor.WriteOnFile("prova_3RD_reload")
 
     tensor1.Center(1)
-    tensor2.__old_centering__(1)
+    #tensor2.CenteringF(1)
+    #tensor3.__old_centering2__(1)
     
     tensor1.WriteOnFile("prova_3RD_centrato")
-    tensor2.WriteOnFile("prova_3RD_centrato_old")
-
+    #tensor2.WriteOnFile("prova_3RD_centratoF")
+    #tensor3.WriteOnFile("prova_3RD_centrato_old2")
 
 if __name__ == "__main__":
     test_save_simple_tensor()

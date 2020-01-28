@@ -1270,3 +1270,71 @@ def get_closest_vector(unit_cell, v_dist):
     new_v = v_dist + n_min.dot(unit_cell)
     return new_v
 
+def three_to_one_len(v,v_min,v_len):
+    """
+    This subroutine converts a triplet index v,
+    of length v_len and starting from v_min, 
+    into a single progressive index starting from 0
+    """    
+    res=(v[0]-v_min[0])*v_len[1]*v_len[2]+(v[1]-v_min[1])*v_len[2]+(v[2]-v_min[2])
+    return int(res)
+
+def three_to_one(v,v_min,v_max):
+    """
+    This subroutine converts a triplet index v,
+    going from v_min to v_max, into a single progressive
+    index starting from 0
+    """    
+    v_len=np.array(v_max)-np.array(v_min)+np.ones(3,dtype=int)
+    res=(v[0]-v_min[0])*v_len[1]*v_len[2]+(v[1]-v_min[1])*v_len[2]+(v[2]-v_min[2])
+    return int(res)
+
+def one_to_three_len(J,v_min,v_len):
+    """
+    This subroutine converts a single progressive
+    index J starting from 0, to a triplet of progressive
+    indexes starting from v_min, of length v_len
+    """
+    x              =   J // (v_len[2] * v_len[1])              + v_min[0]
+    y              = ( J %  (v_len[2] * v_len[1])) // v_len[2] + v_min[1]
+    z              =   J %   v_len[2]                          + v_min[2]   
+    return np.array([x,y,z],dtype=int) 
+
+def one_to_three(J,v_min,v_max):
+    """
+    This subroutine coonverts a single progressive
+    index J starting from 0, to a triplet of progressive
+    indexes going from v_min to v_max
+    """        
+    v_len=np.array(v_max)-np.array(v_min)+np.ones(3,dtype=int)    
+    x              =   J // (v_len[2] * v_len[1])              + v_min[0]
+    y              = ( J %  (v_len[2] * v_len[1])) // v_len[2] + v_min[1]
+    z              =   J %   v_len[2]                          + v_min[2]   
+    return np.array([x,y,z],dtype=int) 
+
+
+
+def is_gamma(unit_cell, q):
+    """
+    Defines if the q point in cartesian (A^-1) is gamma or not 
+    given the unit cell
+    
+    Parameters
+    ----------
+        unit_cell : ndarray (size =3,3)
+            The unit cell of the structure
+        q : ndarray(size=3)
+            The q point that you want to check
+    
+    Results
+    -------
+        is_gamma : bool
+    """
+    
+    bg = get_reciprocal_vectors(unit_cell)
+    new_q = get_closest_vector(bg, q)
+    
+    
+    return (np.abs(new_q) < 1e-6).all()
+    
+    
