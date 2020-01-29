@@ -86,6 +86,9 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
     for k in k_points:
         # we want the matrix at -q, k, q - k
         phi3 = tensor3.Interpolate(k, q - k)
+
+        np.save("phi3.npy", phi3)
+
         # phi2 in k
         phi2_k = CC.Phonons.InterpolateDynFC(superdyn.dynmats[0], dyn.GetSupercell(),
                                            dyn.structure, superdyn.structure,
@@ -119,6 +122,8 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         
         # Dividing the phi3 by the sqare root of masses
         d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
+
+        np.save("d3_divmass.npy", d3)
         
         # Rotation of phi3 in the mode space
         d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
