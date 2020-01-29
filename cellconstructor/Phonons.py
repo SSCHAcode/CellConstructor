@@ -13,7 +13,7 @@ import numpy as np
 import os, sys
 import scipy, scipy.optimize
 
-
+import itertools
 import cellconstructor.Structure as Structure
 import cellconstructor.symmetries as symmetries
 import cellconstructor.Methods as Methods
@@ -1438,6 +1438,64 @@ class Phonons:
         
         return v
     
+    def GetRamanActive(self, use_spglib = False):
+        """
+        This simple subroutines tries to guess by symmetry analisys which mode is active or not.
+        If a raman tensor is present, it will be used to test the activity, otherwise, a random one will
+        be generated
+
+        Parameters
+        ----------
+            use_spblib: bool
+                If True the spglib library is used to initialize symmetries.
+                Usefull if the phonon matrix is in a super cell.
+
+        Results
+        -------
+            raman_activity_mask : ndarray(size = (3*nat), dtype = bool)
+                A mask that is False or True if a mode in the unit cell is Raman-active or not.
+        """
+
+        there_is_raman_tensor = True
+        if self.raman_tensor is None:
+            there_is_raman_tensor = False 
+            self.raman_tensor = np.zeros((3,3, 3*self.structure.N_atoms), dtype = np.double)
+            self.raman_tensor[:,:,:] = np.random.uniform( size = self.raman_tensor.shape)
+
+            # Get the symmetries
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+            if use_spglib:
+                qe_sym.SetupFromSPGLIB()
+            else:
+                qe_sym.SetupQPoint()
+            
+            # Symmetrize the effective charges
+            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
+
+        # Save a debugging one
+        self.save_qe("Raman")
+
+        # Simulate the Raman signal for all possible incoming and outcoming polarizations
+        res = np.zeros(self.structure.N_atoms * 3, dtype = np.double)
+        for i, j in itertools.product(range(3) , range(3)):
+            pol_in = np.zeros(3)
+            pol_in[i] = 1
+            pol_out = np.zeros(3)
+            pol_out[j] = 1
+
+            res += self.GetRamanResponce(pol_in, pol_out)
+        
+        print("total_raman_res:", res)
+
+        is_raman_active = res > 1e-5    
+
+        # Delete the random raman tensor if any
+        if not there_is_raman_tensor:
+            self.raman_tensor = None
+
+        return is_raman_active
+
+
 
     def GenerateSupercellDyn(self, supercell_size):
         """
@@ -2341,8 +2399,14 @@ class Phonons:
         
         for iq, q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
+
+        # Symmetrize also the effective charges and the Raman Tensor if any
+        if not self.effective_charges is None:
+            qe_sym.ApplySymmetryToEffCharge(self.eff_charges)
+        if not self.raman_tensor is None:
+            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
         
-    def Symmetrize(self, verbose = False, asr = "custom"):
+    def Symmetrize(self, verbose = False, asr = "custom", use_spglib = False):
         """
         SYMMETRIZE THE DYNAMICAL MATRIX
         ===============================
@@ -2357,7 +2421,12 @@ class Phonons:
             asr : string
                 The kind of the acustic sum rule. Allowed are 'crystal', 'simple' or 'custom'.
                 for crystal and simple refer to the quantum-espresso guide.
+            use_spglib : bool
+                If True, the simmetrization is performed with SPGLIB in the supercell
         """
+
+        if use_spglib:
+            self.SymmetrizeSupercell()
         
         qe_sym = symmetries.QE_Symmetry(self.structure)
         
@@ -2366,6 +2435,13 @@ class Phonons:
         
         for iq,q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
+
+        # Symmetrize also the effective charges and the Raman Tensor if any
+        if not self.effective_charges is None:
+            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+        if not self.raman_tensor is None:
+            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
+
     
 
     def ApplySumRule(self, kind = "custom"):
@@ -2451,7 +2527,7 @@ class Phonons:
 
         # Simulate the IR signal
         Ir = self.GetIRIntensities()
-        is_ir_active = Ir > 1e-9    
+        is_ir_active = Ir > 1e-8    
 
         # Delete the random effective charges if added
         if not there_are_eff_charges:
