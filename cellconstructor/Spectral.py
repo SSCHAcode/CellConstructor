@@ -126,6 +126,8 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         
         # Dividing the phi3 by the sqare root of masses
         d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
+
+        np.save("d3_divmass.npy", d3)
         
         # Rotation of phi3 in the mode space
         #d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
