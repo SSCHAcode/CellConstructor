@@ -134,9 +134,10 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
                                                                        d3_pols,n_mod=3*dyn.structure.N_atoms)
     
     # Rotate the bubble in cartesian  
-    d_bubble = np.einsum("ab, ai, bj -> ij", tmp_bubble, pols_mq, np.conj(pols_mq))
-    # multiply by the -1/(2N_k) factor
-    d_bubble /= -2.0*len(k_points) 
+    d_bubble = np.einsum("ab, ia, jb -> ij", tmp_bubble, pols_mq, np.conj(pols_mq))
+    # multiply by the N_k factor
+    d_bubble /= len(k_points) 
+        # np.save("bubble_only.npy", d_bubble * mm_mat)
     # add to the SSCHA dynamical matrix in q
     d2_final_q = np.conj(d2_mq) + d_bubble
     # and mutiply by the masses ( -> FC)

@@ -39,17 +39,72 @@ subroutine compute_static_bubble(T,freq,is_gamma,D3,n_mod,bubble)
     DO rho3=1,n_mod
         DO rho2=1,n_mod
             !
-            bose_P   = 1 + bose(rho2,2) + bose(rho3,3)
-            omega_P  = freq(rho3,3)+freq(rho2,2)
-!             omega_P2 = omega_P**2
-            bose_M   = bose(rho3,3)-bose(rho2,2)
-            omega_M  = freq(rho3,3)-freq(rho2,2)
-!             omega_M2 = omega_M**2
+            
+            
+!             bose_P   = 1 + bose(rho2,2) + bose(rho3,3)
+!             omega_P  = freq(rho3,3)+freq(rho2,2)
+! !             omega_P2 = omega_P**2
+!             bose_M   = bose(rho3,3)-bose(rho2,2)
+!             omega_M  = freq(rho3,3)-freq(rho2,2)
+! !             omega_M2 = omega_M**2
+!             !
+! !             IF(sigma<0._dp)THEN
+! !               ctm_P =  2 * bose_P *omega_P/(omega_P2+sigma**2)
+! !               ctm_M =  2 * bose_M *omega_M/(omega_M2+sigma**2)
+! !             ELSE IF (sigma==0._dp)THEN
+!             IF(ABS(omega_P)>0._dp)THEN
+!                 ctm_P = 2 * bose_P /omega_P
+!             ELSE
+!                 ctm_P = 0._dp
+!             ENDIF
+!               !
+!             IF(ABS(omega_M)>1.e-5_dp)THEN
+!                 ctm_M =  2 * bose_M /omega_M
+!             ELSE
+!                 IF(T>0._dp.and.ABS(omega_P)>0._dp)THEN
+!                   ctm_M =  2* df_bose(0.5_dp * omega_P, T)
+!                 ELSE
+!                   ctm_M = 0._dp
+!                 ENDIF
+!             ENDIF
+!             print*,bose_P,ctm_M
+!             !
+!             !
+!             freqm1_23 = freqm1(rho2,2)*freqm1(rho3,3)
+!             !
+            
+            DO nu = 1,n_mod
+              DO mu = 1,n_mod
+!                 bubble(mu,nu) = bubble(mu,nu) + (ctm_P - ctm_M) * freqm1_23 &
+!                                      * D3(mu,rho2,rho3) * CONJG(D3(nu,rho2,rho3)) 
+                  bubble(mu,nu) =   bubble(mu,nu) +  & 
+                                    D3(mu,rho2,rho3) &
+                                    *Lambda(T,freq(rho2,2),freq(rho3,3),bose(rho2,3),bose(rho2,3),freqm1(rho2,2),freqm1(rho3,3)) &
+                                    *CONJG(D3(nu,rho2,rho3))
+              END DO
+            END DO 
+ 
+        END DO
+    END DO    
+    
+    
+    
+    !
+end subroutine compute_static_bubble
+!
+FUNCTION lambda(T,w2,w3,n2,n3,w2m1,w3m1)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    REAL(kind=DP) :: lambda 
+    real(kind=DP), intent(in) :: w2,w3,n2,n3,w2m1,w3m1,T
+    real(kind=DP) :: bose_P, bose_M, omega_P, omega_M, ctm_P, ctm_M
             !
-!             IF(sigma<0._dp)THEN
-!               ctm_P =  2 * bose_P *omega_P/(omega_P2+sigma**2)
-!               ctm_M =  2 * bose_M *omega_M/(omega_M2+sigma**2)
-!             ELSE IF (sigma==0._dp)THEN
+            bose_P   = 1 + n2 + n3
+            omega_P  = w3+w2
+            !
+            bose_M   = n3-n2
+            omega_M  = w3-w2
+            !
             IF(ABS(omega_P)>0._dp)THEN
                 ctm_P = 2 * bose_P /omega_P
             ELSE
@@ -66,21 +121,10 @@ subroutine compute_static_bubble(T,freq,is_gamma,D3,n_mod,bubble)
                 ENDIF
             ENDIF
             !
+            lambda=-(ctm_P - ctm_M) * w2m1*w3m1/8.0_dp
             !
-            freqm1_23 = freqm1(rho2,2)*freqm1(rho3,3)
-            !
-            DO nu = 1,n_mod
-              DO mu = 1,n_mod
-                bubble(mu,nu) = bubble(mu,nu) + (ctm_P - ctm_M) * freqm1_23 &
-                                     * D3(mu,rho2,rho3) * CONJG(D3(nu,rho2,rho3)) 
-              END DO
-            END DO 
- 
-        END DO
-    END DO    
-    !
-end subroutine compute_static_bubble
-!
+end function lambda
+
 SUBROUTINE bose_freq(T, n_mod, freq, bose)
     IMPLICIT NONE
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
