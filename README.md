@@ -5,7 +5,7 @@ Welcome to the CellConstructor python package!
 ## Requirements
 
 To correnctly install and use the package, you need to have
-1. python >= 2.7 and < 3
+1. python >= 2.7
 2. ASE : Atomic Simulation Environment (suggested but not mandatory)
 3. numpy
 4. scipy
@@ -36,6 +36,18 @@ If you are using anaconda or pip, it should be automatically installed.
 
 
 ## Installation
+
+To install prerequisites you can use the pip installation:
+```bash
+pip install -r requirements.txt
+```
+If you are running python2, then ase will fail the installation probably (as it requires python3).
+To solve the issue, you can replace the ase line inside requirements.txt with:
+ase==3.16.0
+This will make it work also with python2.
+
+Be sure you have also python-dev package, otherwise you will experience error while importing Python.h.
+Also, you need gfortran and lapack, blas libraries installed.
 
 Once you make sure to have all the required packages installed on your system
 and working, just type on the terminal
