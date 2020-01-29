@@ -14,6 +14,8 @@ import thirdorder
 import cellconstructor as CC
 import cellconstructor.symmetries
 
+import time
+
 """
 In this module we compute the Spectral function 
 using the interpolation on the third order force constant matrix
@@ -83,9 +85,13 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
                           dtype = np.complex128, order = "F")
     
     
-    for k in k_points:
+    
+    for i_k, k in enumerate(k_points):
         # we want the matrix at -q, k, q - k
-        phi3 = tensor3.Interpolate(k, q - k)
+        t1 = time.time()
+        #phi3 = tensor3.Interpolate_fort(k, q - k)
+        phi3=tensor3.Interpolate(k,q-k)
+        t2 = time.time()
         # phi2 in k
         phi2_k = CC.Phonons.InterpolateDynFC(superdyn.dynmats[0], dyn.GetSupercell(),
                                            dyn.structure, superdyn.structure,
@@ -94,6 +100,7 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         phi2_q_mk = CC.Phonons.InterpolateDynFC(superdyn.dynmats[0], dyn.GetSupercell(),
                                            dyn.structure, superdyn.structure,
                                            q - k)
+        t3 = time.time()
         
         # Divide by the masses
         d2_k = phi2_k * mm_inv_mat
@@ -121,17 +128,30 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
         d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
         
         # Rotation of phi3 in the mode space
-        d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
+        #d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
+        d3_pols = np.einsum("abc, ai -> ibc", d3, pols_mq)
+        d3_pols = np.einsum("abc, bi -> aic", d3_pols, pols_k)
+        d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_q_mk)
+        
         
 
         
-        
+        t4 = time.time()
         
         # Fortran duty ====
         # The bubble out  in mode space
         tmp_bubble += thirdorder.third_order_bubble.compute_static_bubble(T,np.array([w_mq,w_k,w_q_mk]).T,
                                                                        np.array([is_mq_gamma,is_k_gamma,is_q_mk_gamma]),
                                                                        d3_pols,n_mod=3*dyn.structure.N_atoms)
+        
+        t5 = time.time()
+        
+        
+        print("K point number {}".format(i_k))
+        print("Time to interpolate the third order: {} s".format(t2 - t1))
+        print("Time to interpolate the second order: {} s".format(t3 - t2))
+        print("Time to transform the tensors: {} s".format(t4 - t3))
+        print("Time to compute the bubble: {} s".format(t5 - t4))
     
     # Rotate the bubble in cartesian  
     d_bubble = np.einsum("ab, ia, jb -> ij", tmp_bubble, pols_mq, np.conj(pols_mq))

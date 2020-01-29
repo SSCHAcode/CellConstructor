@@ -3,89 +3,72 @@ module third_order_ASR
 
 contains 
 
-subroutine impose_ASR(phi,nat,n_sup_WS,lat_min,lat_max,phi_ASR)
+subroutine impose_ASR(phi,n_sup_WS,xR2,xR3,phi_ASR,nat)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    real(kind=DP), intent(in), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS) :: phi 
-    integer, intent(in) :: nat, n_sup_WS, lat_min(3), lat_max(3)
+    real(kind=DP), intent(in), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS) :: phi 
+    integer, intent(in) :: nat, n_sup_WS,xR2(3,n_sup_WS*n_sup_WS),xR3(3,n_sup_WS*n_sup_WS)
     !
     real(kind=DP), intent(out), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS) :: phi_ASR     
     !
-    real(kind=DP),  dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS) :: phi_ASR_tmp,Px,Py 
+    real(kind=DP),  dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS) :: phi_ASR_tmp,Px,Py 
     integer :: counter, I, J
         
     phi_ASR_tmp=phi
     !
     !
-    
-!     call computeP3(nat,n_sup_WS,phi_ASR_tmp,Px)
-!     
-!     phi_ASR_tmp=phi_ASR_tmp-Px
-!     
-!     call computeP2(nat,n_sup_WS,phi_ASR_tmp,Px)
-!      
-!     phi_ASR_tmp=phi_ASR_tmp-Px
+    call computeP3(nat,n_sup_WS,phi_ASR_tmp,Px)
 
-    call computeP1(nat,n_sup_WS,lat_min,lat_max,phi_ASR_tmp,Px)
+    phi_ASR_tmp=phi_ASR_tmp-Px
+    
+    call computeP2(nat,n_sup_WS,phi_ASR_tmp,Px)
+      
+    phi_ASR_tmp=phi_ASR_tmp-Px
+
+    call computeP1(nat,n_sup_WS,xR2,xR3,phi_ASR_tmp,Px)
     
     phi_ASR_tmp=phi_ASR_tmp-Px
   
-    call computeP1(nat,n_sup_WS,lat_min,lat_max,phi_ASR_tmp,Px)
-    
-    print*,'test= ',SUM(ABS(Px))
-    
-    !
-    !
-!     phi_ASR=RESHAPE(phi_ASR_tmp,(/3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS/))
-    
-    
-    ! RESHAPE 
-    
-    counter=0
-    
-    do I=1,n_sup_WS
-     do J=1,n_sup_WS
-     
-        counter=counter+1
-     
-        phi_ASR(:,:,:,counter)=phi_ASR_tmp(:,:,:,I,J)
-     
-     end do
-    end do  
-    
+
+    phi_ASR=phi_ASR_tmp
     
 end subroutine impose_ASR    
 !=================================================================================
 subroutine computeP3(nat,n_sup_WS,phi,P3)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(out) :: P3
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(out) :: P3
     !
     integer , intent(in)  :: nat, n_sup_WS
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(in) :: phi
     !
-    integer               :: jn1,jn2,jn3,gamma,u,I,J
+    integer               :: jn1,jn2,jn3,gamma,u,I2,I3,i_block
     real(kind=DP)         :: x
     
     P3 = 0.0_dp
     !                                                                           
-    do jn1 = 1,3*nat                                                            
-        do jn2 = 1,3*nat                                                        
-            do gamma = 1,3                                                      
-                do I =1, n_sup_WS                                               
+
+    do I2 =1, n_sup_WS                                               
+        do jn1 = 1,3*nat
+            do jn2 = 1,3*nat 
+                do gamma = 1,3                                                            
                     !                                                           
                     x=0.0_dp                                                    
-                    do J = 1, n_sup_WS                                          
+                    do I3 = 1, n_sup_WS                                          
                     do u = 1, nat                                               
-                            jn3=gamma+(u-1)*3                                   
-                            x=x+phi(jn1,jn2,jn3,I,J)                            
+                            jn3=gamma+(u-1)*3  
+                            i_block=I3+(I2-1)*n_sup_WS
+                            x=x+phi(jn3,jn2,jn1,i_block)                            
                     end do                                                      
                     end do                                                      
-                    !                                                           
+                    !  
+                    do I3 = 1, n_sup_WS
                     do u = 1, nat                                               
-                            jn3=gamma+(u-1)*3                                   
-                            P3(jn1,jn2,jn3,I,:)=x                               
-                    end do                                                      
+                            jn3=gamma+(u-1)*3     
+                            i_block=I3+(I2-1)*n_sup_WS
+                            P3(jn3,jn2,jn1,i_block)=x                               
+                    end do 
+                    end do
                     !                                                           
                 end do
             end do
@@ -99,33 +82,37 @@ end subroutine computeP3
 subroutine computeP2(nat,n_sup_WS,phi,P2)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(out) :: P2
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(out) :: P2
     !
     integer , intent(in)  :: nat, n_sup_WS
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(in) :: phi
     !
-    integer               :: jn1,jn2,jn3,beta,t,I,J
+    integer               :: jn1,jn2,jn3,beta,t,I2,I3,i_block
     real(kind=DP)         :: x
     
     P2 = 0.0_dp
     !
-    do jn1 = 1,3*nat
-        do beta = 1,3
-            do jn3 = 1,3*nat
-                do J =1, n_sup_WS
+    do I3 =1, n_sup_WS
+        do jn1 = 1,3*nat
+            do beta = 1,3
+                do jn3 = 1,3*nat                
                     !
                     x=0.0_dp
-                    do I = 1, n_sup_WS
+                    do I2 = 1, n_sup_WS
                     do t = 1, nat
                             jn2=beta+(t-1)*3
-                            x=x+phi(jn1,jn2,jn3,I,J)
+                            i_block=I3+(I2-1)*n_sup_WS
+                            x=x+phi(jn3,jn2,jn1,i_block)
                     end do
                     end do
                     !
-                    do t = 1, nat
+                    do I2 = 1, n_sup_WS
+                    do t = 1, nat                    
                             jn2=beta+(t-1)*3
-                            P2(jn1,jn2,jn3,:,J)=x
-                    end do                    
+                            i_block=I3+(I2-1)*n_sup_WS
+                            P2(jn1,jn2,jn3,i_block)=x
+                    end do
+                    end do
                     !
                 end do
             end do
@@ -136,175 +123,170 @@ subroutine computeP2(nat,n_sup_WS,phi,P2)
     !
 end subroutine computeP2    
 !=================================================================================
-subroutine computeP1(nat,n_sup_WS,lat_min,lat_max,phi,P1)
+subroutine computeP1(nat,n_sup_WS,xR2,xR3,phi,P1)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    real(kind=DP), dimension(3,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(out) :: P1
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(out) :: P1
     !
-    integer , intent(in)  :: nat, n_sup_WS, lat_min(3), lat_max(3)
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
+    integer , intent(in)  :: nat, n_sup_WS, xR2(3,n_sup_WS*n_sup_WS), xR3(3,n_sup_WS*n_sup_WS)
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(in) :: phi
     !
-    integer               :: jn1,jn2,jn3,alpha,s,I,J,H
+    integer               :: jn1,jn2,jn3,alpha,s,i_block,&
+                             j_block,list(n_sup_WS*n_sup_WS,n_sup_Ws*n_sup_WS),&
+                             num(n_sup_WS*n_sup_WS),xx,h
     real(kind=DP)         :: x
-    integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS),tot_weight
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,0:n_sup_WS,0:n_sup_WS) :: phi_masked   
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,0:n_sup_WS,0:n_sup_WS) :: P1_masked
+    integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS),tot_weight(n_sup_WS)
+    real(kind=DP) :: tol=1.0d-6
     
     
-    
-    phi_masked=0.0_dp
-    phi_masked(:,:,:,1:n_sup_WS,1:n_sup_WS)=phi(:,:,:,1:n_sup_WS,1:n_sup_WS)
+    do i_block=1,n_sup_WS*n_sup_WS
+        !
+        xx=0
+        do j_block=1,n_sup_WS*n_sup_WS
+            if  (SUM(ABS(xR3(:,j_block)-xR3(:,i_block)-xR2(:,j_block)+xR2(:,i_block))) < tol) then
+             xx=xx+1
+             list(xx,i_block)=j_block
+            end if 
+        end do
+        num(i_block)=xx
+    end do  
     !
-    do I = 1, n_sup_WS 
-       xR(:,I)=one_to_three(I,lat_min,lat_max)
-       do H=1, n_sup_WS 
-         J=three_to_one(xR(:,I)-xR(:,H),lat_min,lat_max)
-         if ( J >= 1 .and. J <= n_sup_WS) then
-         sec_minus_first(H,I)=J
-         else
-         sec_minus_first(H,I)=0
-         end if
-       end do
-    end do 
     !
-    P1_masked = 0.0_dp
+    P1 = 0.0_dp
     !
-    do alpha = 1,3
-        do jn2 = 1,3*nat
-            do jn3 = 1,3*nat
-                do I = 1, n_sup_WS
-                    do J = 1, n_sup_WS
+    do i_block=1,n_sup_WS*n_sup_WS
+        do alpha = 1,3
+            do jn2 = 1,3*nat
+                do jn3 = 1,3*nat
                         !
                         x=0.0_dp
-                        do H = 1, n_sup_WS
+                        do h=1,num(i_block)
                         do s = 1, nat
                                 jn1=alpha+(s-1)*3
-                                x=x+phi_masked(jn1,jn2,jn3,sec_minus_first(H,I),sec_minus_first(H,J))
+                                x=x+phi(jn3,jn2,jn1,list(h,i_block))
                         end do
                         end do
                         ! 
-                        do H = 1, n_sup_WS                        
+!                         do h=1,num(i_block)                        
                         do s = 1, nat
                                 jn1=alpha+(s-1)*3 
-                                P1_masked(jn1,jn2,jn3,sec_minus_first(H,I),sec_minus_first(H,J))=x
+                                P1(jn3,jn2,jn1,i_block)=x/num(i_block)
                         end do    
-                        end do
+!                         end do
                         !
-                    end do
                 end do
             end do
         end do
     end do    
     !
-    P1(:,:,:,1:n_sup_WS,1:n_sup_WS)=P1_masked(:,:,:,1:n_sup_WS,1:n_sup_WS)
-    P1=P1/(nat*n_sup_WS)
+    P1=P1/(nat)
     !
-end subroutine computeP1    
+ end subroutine computeP1    
 !=================================================================================    
-subroutine check_ASR(lat_min,lat_max,phi,printout,filename,nat,n_sup_WS,MAXabsASR)
-    implicit none
-    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    !
-    integer, intent(in)  :: nat, n_sup_WS, lat_min(3), lat_max(3)
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
-    logical, intent(in)  :: printout
-    character(len=*)     :: filename
-    !    
-    real(kind=DP), intent(out)         :: MAXabsASR
-    !
-    integer               :: jn1,jn2,jn3,alpha,beta,gamma,s,t,u,H,I,J
-    integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS)
-    real(kind=DP)         :: ASR
-    real(kind=DP), dimension(3*nat,3*nat,3*nat,0:n_sup_WS,0:n_sup_WS) :: phi_masked
-    !
-    !
-    phi_masked=0.0_dp
-    phi_masked(:,:,:,1:n_sup_WS,1:n_sup_WS)=phi(:,:,:,1:n_sup_WS,1:n_sup_WS)
-    !
-    do I = 1, n_sup_WS 
-       xR(:,I)=one_to_three(I,lat_min,lat_max)
-       do H=1, n_sup_WS 
-         J=three_to_one(xR(:,I)-xR(:,H),lat_min,lat_max)
-         if ( J >= 1 .and. J<= n_sup_WS) then
-         sec_minus_first(H,I)=J
-         else
-         sec_minus_first(H,I)=0
-         end if
-       end do
-    end do 
-    !    
-    if (printout) open(unit=666,file=filename,status="REPLACE")
-    !
-    ! check third index
-!     if (printout) write(666,*) "# Third index"
-    do jn1=1,3*nat
-    do jn2=1,3*nat
-    do I=1,n_sup_WS
-    do gamma=1,3
-        !
-        ASR=0.0_dp
-        do J=1,n_sup_WS
-        do u=1,nat
-          jn3=gamma+(u-1)*3
-          ASR=ASR+phi(jn1,jn2,jn3,I,J)
-        end do
-        end do
-        !
-!         if (printout) write(666,*) jn1,jn2,gamma,I,ASR
-        MAXabsASR=MAX(abs(ASR),MAXabsASR)
-    end do
-    end do
-    end do
-    end do
-    ! check second index
-!     if (printout) write(666,*) "# Second index"    
-    do jn1=1,3*nat
-    do jn3=1,3*nat
-    do J=1,n_sup_WS
-    do beta=1,3
-        !
-        ASR=0.0_dp
-        do I=1,n_sup_WS
-        do t=1,nat
-          jn2=beta+(t-1)*3
-          ASR=ASR+phi(jn1,jn2,jn3,I,J)
-        end do
-        end do
-        !
-!         if (printout) write(666,*) jn1,beta,jn3,J,ASR
-        MAXabsASR=MAX(abs(ASR),MAXabsASR)
-    end do
-    end do
-    end do
-    end do    
-    ! check first index
-    if (printout) write(666,*) "# First index"    
-    do alpha=1,3
-    do jn2=1,3*nat
-    do jn3=1,3*nat
-    do I=1,n_sup_WS
-    do J=1,n_sup_WS
-        !
-        ASR=0.0_dp
-        do H=1,n_sup_WS 
-        do s=1,nat
-            jn1=alpha+(s-1)*3
-          ASR=ASR+phi_masked(jn1,jn2,jn3,sec_minus_first(H,I),sec_minus_first(H,J))
-        end do
-        end do        
-        !
-        if (printout) write(666,*) alpha,jn2,jn3,I,J,ASR
-        MAXabsASR=MAX(abs(ASR),MAXabsASR)        
-    end do
-    end do
-    end do
-    end do    
-    end do
-    !
-    !
-    if (printout) close(unit=666)    
-    !
-end subroutine check_ASR
+! subroutine check_ASR(lat_min,lat_max,phi,printout,filename,nat,n_sup_WS,MAXabsASR)
+!     implicit none
+!     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+!     !
+!     integer, intent(in)  :: nat, n_sup_WS, lat_min(3), lat_max(3)
+!     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
+!     logical, intent(in)  :: printout
+!     character(len=*)     :: filename
+!     !    
+!     real(kind=DP), intent(out)         :: MAXabsASR
+!     !
+!     integer               :: jn1,jn2,jn3,alpha,beta,gamma,s,t,u,H,I,J
+!     integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS)
+!     real(kind=DP)         :: ASR
+!     real(kind=DP), dimension(3*nat,3*nat,3*nat,0:n_sup_WS,0:n_sup_WS) :: phi_masked
+!     !
+!     !
+!     phi_masked=0.0_dp
+!     phi_masked(:,:,:,1:n_sup_WS,1:n_sup_WS)=phi(:,:,:,1:n_sup_WS,1:n_sup_WS)
+!     !
+!     do I = 1, n_sup_WS 
+!        xR(:,I)=one_to_three(I,lat_min,lat_max)
+!        do H=1, n_sup_WS 
+!          J=three_to_one(xR(:,I)-xR(:,H),lat_min,lat_max)
+!          if ( J >= 1 .and. J<= n_sup_WS) then
+!          sec_minus_first(H,I)=J
+!          else
+!          sec_minus_first(H,I)=0
+!          end if
+!        end do
+!     end do 
+!     !    
+!     if (printout) open(unit=666,file=filename,status="REPLACE")
+!     !
+!     ! check third index
+! !     if (printout) write(666,*) "# Third index"
+!     do jn1=1,3*nat
+!     do jn2=1,3*nat
+!     do I=1,n_sup_WS
+!     do gamma=1,3
+!         !
+!         ASR=0.0_dp
+!         do J=1,n_sup_WS
+!         do u=1,nat
+!           jn3=gamma+(u-1)*3
+!           ASR=ASR+phi(jn1,jn2,jn3,I,J)
+!         end do
+!         end do
+!         !
+! !         if (printout) write(666,*) jn1,jn2,gamma,I,ASR
+!         MAXabsASR=MAX(abs(ASR),MAXabsASR)
+!     end do
+!     end do
+!     end do
+!     end do
+!     ! check second index
+! !     if (printout) write(666,*) "# Second index"    
+!     do jn1=1,3*nat
+!     do jn3=1,3*nat
+!     do J=1,n_sup_WS
+!     do beta=1,3
+!         !
+!         ASR=0.0_dp
+!         do I=1,n_sup_WS
+!         do t=1,nat
+!           jn2=beta+(t-1)*3
+!           ASR=ASR+phi(jn1,jn2,jn3,I,J)
+!         end do
+!         end do
+!         !
+! !         if (printout) write(666,*) jn1,beta,jn3,J,ASR
+!         MAXabsASR=MAX(abs(ASR),MAXabsASR)
+!     end do
+!     end do
+!     end do
+!     end do    
+!     ! check first index
+!     if (printout) write(666,*) "# First index"    
+!     do alpha=1,3
+!     do jn2=1,3*nat
+!     do jn3=1,3*nat
+!     do I=1,n_sup_WS
+!     do J=1,n_sup_WS
+!         !
+!         ASR=0.0_dp
+!         do H=1,n_sup_WS 
+!         do s=1,nat
+!             jn1=alpha+(s-1)*3
+!           ASR=ASR+phi_masked(jn1,jn2,jn3,sec_minus_first(H,I),sec_minus_first(H,J))
+!         end do
+!         end do        
+!         !
+!         if (printout) write(666,*) alpha,jn2,jn3,I,J,ASR
+!         MAXabsASR=MAX(abs(ASR),MAXabsASR)        
+!     end do
+!     end do
+!     end do
+!     end do    
+!     end do
+!     !
+!     !
+!     if (printout) close(unit=666)    
+!     !
+! end subroutine check_ASR
 !=================================================================================    
 function three_to_one_len(v,v_min,v_len)
    implicit none

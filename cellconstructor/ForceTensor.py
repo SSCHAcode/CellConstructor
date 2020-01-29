@@ -12,6 +12,7 @@ import scipy, scipy.signal, scipy.interpolate
 import symph
 import time
 import itertools
+import thirdorder
 
 """
 In this module we create a tensor class.
@@ -565,6 +566,194 @@ class Tensor3():
             
             
 
+
+    def Center(self, Far=1,tol=1.0e-5):
+        """
+        CENTERING 
+        =========
+
+        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
+        This means that for each atomic indices in the tensor, it will be identified by the lowest 
+        perimiter between the replica of the atoms.
+        Moreover, in case of existance of other elements not included in the original supercell with
+        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
+
+        This function should be called before performing the Fourier interpolation.
+        """    
+
+        t1 = time.time()
+        
+        if self.verbose:
+            print(" ")
+            print(" ======================= Centering ==========================")
+            print(" ")         
+
+        # The supercell total size
+        #
+        nq0=self.supercell_size[0]
+        nq1=self.supercell_size[1]
+        nq2=self.supercell_size[2]
+        
+        n_sup = np.prod(self.supercell_size)
+        tensor_new = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+        alat=self.unitcell_structure.unit_cell
+        
+        lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
+        lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
+        lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
+        n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
+        
+        centered_tmp, self.lat_min, self.lat_max =thirdorder.third_order_centering.center(Far,
+                                       nq0,nq1,nq2,tol, 
+                                       self.unitcell_structure.unit_cell, self.tau, tensor_new,self.nat)  
+        
+        #
+        # Reassignement
+        #
+        lat_len=self.lat_max-self.lat_min+np.ones(3,dtype=int)
+        n_sup_WS=np.prod(lat_len,dtype=int)
+    
+        self.n_sup=n_sup_WS
+        self.n_R=n_sup_WS**2
+        self.tensor=np.zeros([self.n_R,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
+        self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")        
+        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+        self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+                
+        centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
+                thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,self.lat_min,
+                                                  self.lat_max,n_sup_WS,self.nat,n_sup_WS_prev)
+                
+        self.tensor=np.transpose(centered, axes=[3,0,1,2])
+        
+        t2 = time.time() 
+        if self.verbose:               
+            print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+            print(" ")
+            print(" ============================================================")
+
+
+
+    
+    def Interpolate(self, q2, q3):
+        """
+        Interpolate the third order to the q2 and q3 points
+        
+        Parameters
+        ----------
+            q2, q3 : ndarray(3)
+                The q points
+        
+        Results
+        -------
+            Phi3 : ndarray(size = (3*nat, 3*nat, 3*nat))
+                The third order force constant in the defined q points.
+                atomic indices runs over the unit cell
+        """
+        
+        final_fc = np.zeros((3*self.nat, 3*self.nat, 3*self.nat), 
+                            dtype = np.complex128)
+        for i in range(self.n_R):
+            arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
+                                q3.dot(self.r_vector3[:, i]))
+            
+            phase =  np.complex128(np.exp(1j * arg))
+            
+            final_fc += phase * self.tensor[i, :, :, :]
+        return final_fc
+            
+    def ApplySumRule(self) :
+        
+        t1 = time.time()
+        
+        if self.verbose:
+            print(" ")
+            print(" ======================= Imposing ASR ==========================")
+            print(" ")         
+        
+        n_sup_WS=self.n_sup
+        
+        #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+        tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
+        phi_asr=thirdorder.third_order_asr.impose_asr(tensor_new,n_sup_WS,self.x_r_vector2,self.x_r_vector3,self.nat)
+            
+        self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
+
+        t2 = time.time() 
+        if self.verbose:               
+            print(" Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
+            print(" ")
+            print(" ============================================================")
+ 
+ 
+    def checkASR(self,printout=False,filename="") :
+        
+        n_sup_WS=self.n_sup
+        
+        #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+        
+        # self.tensor(nR,jn1,jn2,jn3) the fast index is the rightmost. nR=(R2,R3), R3, is faster
+        # pass to fortran 
+        
+        tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
+        
+        print(self.lat_min)
+        print(self.lat_max)
+        print(np.shape(tensor_new))
+        
+        max_abs_asr=thirdorder.third_order_asr.check_asr(self.xR2,self.xR3,tensor_new,printout,filename,self.nat,n_sup_WS)
+        
+        print("max abs ASR: ",max_abs_asr)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+# ============================================================================================================================================ 
+# Slower/To check  =========================================================================================================================== 
+# ============================================================================================================================================   
+  
+    def Interpolate_fort(self, q2, q3): # OK but slower
+       """
+       Interpolate the third order to the q2 and q3 points
+       
+       Parameters
+       ----------
+           q2, q3 : ndarray(3)
+               The q points
+       
+       Results
+       -------
+           Phi3 : ndarray(size = (3*nat, 3*nat, 3*nat))
+               The third order force constant in the defined q points.
+               atomic indices runs over the unit cell
+       """
+       tensor_new = np.zeros( shape = (3*self.nat, 3*self.nat, 3*self.nat, self.n_R), order = "F", dtype = np.complex128)
+       tensor_new[:,:,:,:] = np.transpose(self.tensor,axes=[3,2,1,0])
+       interpolated_fc_tmp=thirdorder.third_order_interpol.interpol(tensor_new,
+                                                           self.r_vector2,self.r_vector3,
+                                                           q2,q3,self.n_R,self.nat)
+       
+       interpolated_fc=np.transpose(interpolated_fc_tmp,axes=[2,1,0])
+       #final_fc = np.zeros((3*self.nat, 3*self.nat, 3*self.nat), 
+                           #dtype = np.complex128)
+       #for i in range(self.n_R):
+           #arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
+                               #q3.dot(self.r_vector3[:, i]))
+           
+           #phase =  np.complex128(np.exp(1j * arg))
+           
+           #final_fc += phase * self.tensor[i, :, :, :]
+       return interpolated_fc       
+    
+
     def Center_py(self,Far=1,tol=1.0e-5):
         """
         CENTERING 
@@ -774,137 +963,7 @@ class Tensor3():
         self.x_r_vector3 = WS_xr_vector3
         self.n_R = WS_n_R
 
-    def Center(self, Far=1,tol=1.0e-5):
-        """
-        CENTERING 
-        =========
-
-        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
-        This means that for each atomic indices in the tensor, it will be identified by the lowest 
-        perimiter between the replica of the atoms.
-        Moreover, in case of existance of other elements not included in the original supercell with
-        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
-
-        This function should be called before performing the Fourier interpolation.
-        """    
-
-        t1 = time.time()
-        
-        if self.verbose:
-            print(" ")
-            print(" ======================= Centering ==========================")
-            print(" ")         
-
-        # The supercell total size
-        #
-        nq0=self.supercell_size[0]
-        nq1=self.supercell_size[1]
-        nq2=self.supercell_size[2]
-        
-        n_sup = np.prod(self.supercell_size)
-        tensor_new = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        alat=self.unitcell_structure.unit_cell
-        
-        lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
-        lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
-        lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
-        n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
-        
-        centered_tmp, self.lat_min, self.lat_max =symph.third_order_centering.center(Far,
-                                       nq0,nq1,nq2,tol, 
-                                       self.unitcell_structure.unit_cell, self.tau, tensor_new,self.nat)  
-        
-        #
-        # Reassignement
-        #
-        lat_len=self.lat_max-self.lat_min+np.ones(3,dtype=int)
-        n_sup_WS=np.prod(lat_len,dtype=int)
     
-        self.n_sup=n_sup_WS
-        self.n_R=n_sup_WS**2
-        self.tensor=np.zeros([self.n_R,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
-        self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
-        self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")        
-        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
-        self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
-                
-        centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
-                symph.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,self.lat_min,
-                                                  self.lat_max,n_sup_WS,self.nat,n_sup_WS_prev)
-                
-        self.tensor=np.transpose(centered, axes=[3,0,1,2])
-        
-        t2 = time.time() 
-        if self.verbose:               
-            print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
-            print(" ")
-            print(" ============================================================")
-
-    def Interpolate(self, q2, q3):
-        """
-        Interpolate the third order to the q2 and q3 points
-        
-        Parameters
-        ----------
-            q2, q3 : ndarray(3)
-                The q points
-        
-        Results
-        -------
-            Phi3 : ndarray(size = (3*nat, 3*nat, 3*nat))
-                The third order force constant in the defined q points.
-                atomic indices runs over the unit cell
-        """
-        
-        final_fc = np.zeros((3*self.nat, 3*self.nat, 3*self.nat), 
-                            dtype = np.complex128)
-        for i in range(self.n_R):
-            arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
-                                q3.dot(self.r_vector3[:, i]))
-            
-            phase =  np.complex128(np.exp(1j * arg))
-            
-            final_fc += phase * self.tensor[i, :, :, :]
-        return final_fc
-            
-    def ApplySumRule(self) :
-        
-        t1 = time.time()
-        
-        if self.verbose:
-            print(" ")
-            print(" ======================= Imposing ASR ==========================")
-            print(" ")         
-        
-        n_sup_WS=self.n_sup
-        
-        tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        
-        phi_asr=symph.third_order_asr.impose_asr(tensor_new,self.lat_min,self.lat_max,self.nat,n_sup_WS)
-            
-        self.tensor=np.transpose(phi_asr, axes=[3,0,1,2])  
-
-        t2 = time.time() 
-        if self.verbose:               
-            print("Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
-            print(" ")
-            print(" ============================================================")
- 
- 
-    def checkASR(self,printout=False,filename="") :
-        
-        n_sup_WS=self.n_sup
-        
-        tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        
-        print(self.lat_min)
-        print(self.lat_max)
-        print(np.shape(tensor_new))
-        
-        max_abs_asr=symph.third_order_asr.check_asr(self.lat_min,self.lat_max,tensor_new,printout,filename,self.nat,n_sup_WS)
-        
-        print("max abs ASR: ",max_abs_asr)
-            
     def ApplySumRule_py(self):
         r"""
         Enforce the sum rule by projecting the third order force constant

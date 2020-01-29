@@ -995,6 +995,12 @@ class QE_Symmetry:
             # Extract the rotation and the fractional translation
             rot = sym[:,:3]
 
+            # Check if the rotation is equal to the first one
+            if np.sum( (rot - symmetries[0][:,:3])**2 ) < 0.1 and n_syms == 0 and i > 0:
+                # We got all the rotations
+                n_syms = i 
+                break
+            
             # Extract the point group
             if n_syms == 0:
                 self.QE_s[:,:, i] = rot.T
@@ -1003,11 +1009,6 @@ class QE_Symmetry:
                 irt = GetIRT(self.structure, sym)
                 self.QE_irt[i, :] = irt + 1 #Py to Fort
 
-            # Check if the rotation is equal to the first one
-            if np.sum( (rot - symmetries[0][:,:3])**2 ) < 0.1 and n_syms == 0 and i > 0:
-                # We got all the rotations
-                n_syms = i 
-                break
         
         if n_syms == 0:
             n_syms = len(symmetries)
