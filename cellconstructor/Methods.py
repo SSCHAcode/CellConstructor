@@ -24,7 +24,7 @@ __all__ = ["covariant_coordinates", "from_dynmat_to_spectrum",
            "DistanceBetweenStructures"]
 
 
-def covariant_coordinates(basis, vector):
+def covariant_coordinates(basis, vectors):
     """
     Covariant Coordinates
     =====================
@@ -42,10 +42,11 @@ def covariant_coordinates(basis, vector):
     
     Parameters
     ----------
-        - basis : NxN matrix
+        - basis : ndarray(size = (N,N))
             The basis. each :math:`\\vec e_i` is a row.
-        - vector : Nx float
-            The vector expressed in cartesian coordinates.
+        - vector : ndarray(size = (N_vectors, N))
+            The vectors expressed in cartesian coordinates.
+            It coould be just one ndarray(size=N)
             
     Results
     -------
@@ -57,14 +58,59 @@ def covariant_coordinates(basis, vector):
     M, N = np.shape(basis)
     
     metric_tensor = np.zeros((N,N))
-    for i in range(0, N):
-        for j in range(i, N):
-            metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
+
+    metric_tensor = basis.dot(basis.T)
+    # for i in range(0, N):
+    #     for j in range(i, N):
+    #         metric_tensor[i, j] = metric_tensor[j,i] = basis[i,:].dot(basis[j, :])
 
     imt = np.linalg.inv(metric_tensor)
     
-    contra_vect = basis.dot(vector)
-    return imt.dot(contra_vect)
+    contra_vect = vectors.dot(basis.T)
+    return contra_vect.dot(imt)
+
+def cryst_to_cart(unit_cell, cryst_vectors):
+    """
+    Convert a vector from crystalline to cartesian. 
+    Many vectors counld be pased toghether, in that case the last axis must be the one with the vector.
+
+    Parameters
+    ----------
+        unit_cell : ndarray((3,3))
+            The unit cell vectors. 
+            The i-th cell vector is unit_cell[i, :]
+        cryst_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in crystalline coordinates that you want to
+            transform in cartesian coordinates
+
+    Results
+    -------
+        cart_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in cartesian coordinates
+    """
+
+    return cryst_vectors.dot(unit_cell)
+
+def cart_to_cryst(unit_cell, cart_vectors):
+    """
+    Convert a vector from cartesian to crystalline. 
+    Many vectors counld be pased toghether, in that case the last axis must be the one with the vector.
+
+    Parameters
+    ----------
+        unit_cell : ndarray((3,3))
+            The unit cell vectors. 
+            The i-th cell vector is unit_cell[i, :]
+        cart_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in cartesian coordinates that you want to
+            transform in crystalline coordinates
+
+    Results
+    -------
+        cryst_vectors : ndarray((N_vectors, 3)) or ndarray(3)
+            The vector(s) in crystalline coordinates
+    """
+    return covariant_coordinates(unit_cell, cart_vectors)
     
 def get_equivalent_vectors(unit_cell, vectors, target, index = None):
     """
@@ -1225,3 +1271,71 @@ def get_closest_vector(unit_cell, v_dist):
     new_v = v_dist + n_min.dot(unit_cell)
     return new_v
 
+def three_to_one_len(v,v_min,v_len):
+    """
+    This subroutine converts a triplet index v,
+    of length v_len and starting from v_min, 
+    into a single progressive index starting from 0
+    """    
+    res=(v[0]-v_min[0])*v_len[1]*v_len[2]+(v[1]-v_min[1])*v_len[2]+(v[2]-v_min[2])
+    return int(res)
+
+def three_to_one(v,v_min,v_max):
+    """
+    This subroutine converts a triplet index v,
+    going from v_min to v_max, into a single progressive
+    index starting from 0
+    """    
+    v_len=np.array(v_max)-np.array(v_min)+np.ones(3,dtype=int)
+    res=(v[0]-v_min[0])*v_len[1]*v_len[2]+(v[1]-v_min[1])*v_len[2]+(v[2]-v_min[2])
+    return int(res)
+
+def one_to_three_len(J,v_min,v_len):
+    """
+    This subroutine converts a single progressive
+    index J starting from 0, to a triplet of progressive
+    indexes starting from v_min, of length v_len
+    """
+    x              =   J // (v_len[2] * v_len[1])              + v_min[0]
+    y              = ( J %  (v_len[2] * v_len[1])) // v_len[2] + v_min[1]
+    z              =   J %   v_len[2]                          + v_min[2]   
+    return np.array([x,y,z],dtype=int) 
+
+def one_to_three(J,v_min,v_max):
+    """
+    This subroutine coonverts a single progressive
+    index J starting from 0, to a triplet of progressive
+    indexes going from v_min to v_max
+    """        
+    v_len=np.array(v_max)-np.array(v_min)+np.ones(3,dtype=int)    
+    x              =   J // (v_len[2] * v_len[1])              + v_min[0]
+    y              = ( J %  (v_len[2] * v_len[1])) // v_len[2] + v_min[1]
+    z              =   J %   v_len[2]                          + v_min[2]   
+    return np.array([x,y,z],dtype=int) 
+
+
+
+def is_gamma(unit_cell, q):
+    """
+    Defines if the q point in cartesian (A^-1) is gamma or not 
+    given the unit cell
+    
+    Parameters
+    ----------
+        unit_cell : ndarray (size =3,3)
+            The unit cell of the structure
+        q : ndarray(size=3)
+            The q point that you want to check
+    
+    Results
+    -------
+        is_gamma : bool
+    """
+    
+    bg = get_reciprocal_vectors(unit_cell)
+    new_q = get_closest_vector(bg, q)
+    
+    
+    return (np.abs(new_q) < 1e-6).all()
+    
+    

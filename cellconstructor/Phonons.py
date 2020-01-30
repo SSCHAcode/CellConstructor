@@ -3132,7 +3132,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
 
 
 def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure, itau = None):
-    """
+    r"""
     GET THE DYNAMICAL MATRICES
     ==========================
     
@@ -3141,10 +3141,10 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     
     .. math::
         
-        \\tilde C_{k\\alpha k'\\beta}(q) = \\sum_{b}C_{k\\alpha,k'\\beta}(0, b)e^{i\\vec q \\cdot \\vec R_b}
+        \tilde C_{k\alpha k'\beta}(q) = \sum_{b}C_{k\alpha,k'\beta}(0, b)e^{i\vec q \cdot \vec R_b}
         
         
-    Here :math:`k` is the atom index in the unit cell, :math:`a` is the supercell index, :math:`\\alpha` is the
+    Here :math:`k` is the atom index in the unit cell, :math:`a` is the supercell index, :math:`\alpha` is the
     cartesian indices.
     
     

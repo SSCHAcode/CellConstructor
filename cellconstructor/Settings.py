@@ -11,7 +11,7 @@ try:
     __PARALLEL_TYPE__ = "mpi4py"
 except:
     try:
-        __PARALLEL_TYPE__ = "mp"
+        __PARALLEL_TYPE__ = "serial"
         import multiprocessing as mp
     except:
         __PARALLEL_TYPE__ = "serial"
@@ -51,8 +51,7 @@ def get_rank():
         return 0
     else:
         raise NotImplementedError("Error, I do not know what is the rank with the {} parallelization".format(__PARALLEL_TYPE__))
-
-
+        
 def broadcast(list_of_values):
     """
     Broadcast the list to all the processors from the master.
@@ -62,6 +61,8 @@ def broadcast(list_of_values):
     if __PARALLEL_TYPE__ == "mpi4py":
         comm = mpi4py.MPI.COMM_WORLD
         return comm.bcast(list_of_values, root = 0)
+    elif __PARALLEL_TYPE__ == "serial":
+        return list_of_values
     else:
         raise NotImplementedError("broadcast not implemented for {} parallelization.".format(__PARALLEL_TYPE__))
 
@@ -136,7 +137,7 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
         raise ValueError("Error, wrong parallelization type: %s\nSupported types: %s" % (__PARALLEL_TYPE__, " ".join(__SUPPORTED_LIBS__)))
         
     
-    if __PARALLEL_TYPE__ in __MPI_LIBRARIES__:
+    if __PARALLEL_TYPE__ in __MPI_LIBRARIES__ or __PARALLEL_TYPE__ == "serial":
         if not reduce_op is None:
             if not reduce_op in ["*", "+"]:
                 raise NotImplementedError("Error, reduction '{}' not implemented.".format(reduce_op))
@@ -175,6 +176,8 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             if __PARALLEL_TYPE__ == "mpi4py":
                 comm = mpi4py.MPI.COMM_WORLD
                 results = comm.allgather(result) 
+            elif __PARALLEL_TYPE__ == "serial":
+                return result
             else:
                 raise NotImplementedError("Error, not implemented {}".format(__PARALLEL_TYPE__))
 
@@ -190,12 +193,13 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             return result 
         else:
             raise NotImplementedError("Error, for now parallelization with MPI implemented only with reduction")
-        
+    else:
+        raise NotImplementedError("Something went wrong: {}".format(__PARALLEL_TYPE__))
 
-    elif __PARALLEL_TYPE__ == "mp":
-        p = mp.Pool(__NPROC__)
-        return p.map(function, list_of_inputs)
-    elif __PARALLEL_TYPE__ == "serial":
-        return map(function, list_of_inputs)
+    #elif __PARALLEL_TYPE__ == "mp":
+        #p = mp.Pool(__NPROC__)
+        #return p.map(function, list_of_inputs)
+    #elif __PARALLEL_TYPE__ == "serial":
+        #return map(function, list_of_inputs)
         
     

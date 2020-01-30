@@ -1079,7 +1079,7 @@ class QE_Symmetry:
                 # We got all the rotations
                 n_syms = i 
                 break
-
+                
             # Extract the point group
             if n_syms == 0:
                 self.QE_s[:,:, i] = rot.T
