@@ -6,6 +6,10 @@ import cellconstructor.Phonons as Phonons
 import cellconstructor.Methods as Methods 
 import cellconstructor.symmetries as symmetries
 
+import cellconstructor.Settings as Settings
+from cellconstructor.Settings import ParallelPrint as print 
+
+
 import numpy as np
 import scipy, scipy.signal, scipy.interpolate
 
@@ -583,56 +587,88 @@ class Tensor3():
 
         t1 = time.time()
         
-        if self.verbose:
-            print(" ")
-            print(" ======================= Centering ==========================")
-            print(" ")         
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Centering ==========================")
+                print(" ")         
 
-        # The supercell total size
-        #
-        nq0=self.supercell_size[0]
-        nq1=self.supercell_size[1]
-        nq2=self.supercell_size[2]
+            # The supercell total size
+            #
+            nq0=self.supercell_size[0]
+            nq1=self.supercell_size[1]
+            nq2=self.supercell_size[2]
+            
+            n_sup = np.prod(self.supercell_size)
+            tensor_new = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            alat=self.unitcell_structure.unit_cell
+            
+            lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
+            lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
+            lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
+            n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
+            
+            centered_tmp, self.lat_min, self.lat_max =thirdorder.third_order_centering.center(Far,
+                                        nq0,nq1,nq2,tol, 
+                                        self.unitcell_structure.unit_cell, self.tau, tensor_new,self.nat)  
+            
+            #
+            # Reassignement
+            #
+            lat_len=self.lat_max-self.lat_min+np.ones(3,dtype=int)
+            n_sup_WS=np.prod(lat_len,dtype=int)
         
-        n_sup = np.prod(self.supercell_size)
-        tensor_new = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        alat=self.unitcell_structure.unit_cell
-        
-        lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
-        lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
-        lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
-        n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
-        
-        centered_tmp, self.lat_min, self.lat_max =thirdorder.third_order_centering.center(Far,
-                                       nq0,nq1,nq2,tol, 
-                                       self.unitcell_structure.unit_cell, self.tau, tensor_new,self.nat)  
-        
-        #
-        # Reassignement
-        #
-        lat_len=self.lat_max-self.lat_min+np.ones(3,dtype=int)
-        n_sup_WS=np.prod(lat_len,dtype=int)
-    
-        self.n_sup=n_sup_WS
-        self.n_R=n_sup_WS**2
-        self.tensor=np.zeros([self.n_R,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
-        self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
-        self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")        
-        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
-        self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+            self.n_sup=n_sup_WS
+            self.n_R=n_sup_WS**2
+            #self.tensor=np.zeros([self.n_R,self.nat*3,self.nat*3,self.nat*3],dtype=np.double)
+            #self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+            #self.r_vector3 = np.zeros((3, self.n_R), dtype = np.double, order = "F")        
+            #self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+            #self.x_r_vector3 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
+                    
+            centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
+                    thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,self.lat_min,
+                                                    self.lat_max,n_sup_WS,self.nat,n_sup_WS_prev)
                 
-        centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
-                thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,self.lat_min,
-                                                  self.lat_max,n_sup_WS,self.nat,n_sup_WS_prev)
-                
-        self.tensor=np.transpose(centered, axes=[3,0,1,2])
-        
-        t2 = time.time() 
-        if self.verbose:               
-            print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
-            print(" ")
-            print(" ============================================================")
+                    
+            
+            
+            t2 = time.time() 
+            
+            centered = np.transpose(centered, axes=[3,0,1,2])
+                    
+            # Select the element different from zero
+            tensor_block_nonzero = np.sum(centered**2, axis = (1,2,3)) > 1e-8
+            
+            self.tensor = centered[tensor_block_nonzero, :, :, :]
+            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
+            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
+            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
+            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
+            self.n_R = np.sum(tensor_block_nonzero.astype(int))
+            
+            if self.verbose:               
+                print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+                #print("Memory required for the not centered tensor {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print("Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
+                print("Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
 
+           
+        
+        self.tensor = Settings.broadcast(self.tensor)
+        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.n_R = Settings.broadcast(self.n_R)
+        self.n_sup = Settings.broadcast(self.n_sup)
+        self.lat_max = Settings.broadcast(self.lat_max)
+        self.lat_min = Settings.broadcast(self.lat_min)
+        
 
 
     
