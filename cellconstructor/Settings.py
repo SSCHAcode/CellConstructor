@@ -51,8 +51,7 @@ def get_rank():
         return 0
     else:
         raise NotImplementedError("Error, I do not know what is the rank with the {} parallelization".format(__PARALLEL_TYPE__))
-
-
+        
 def broadcast(list_of_values):
     """
     Broadcast the list to all the processors from the master.
@@ -160,8 +159,6 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
         
         # Work!
         results = [function(x) for x in computing_list]
-        
-        print("Got {} values".format(len(results)))
 
         # Perform the reduction
         if reduce_op == "+":
@@ -173,8 +170,6 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             result = results[0]
             for i in range(1,len(results)):
                 result*= results[i]
-                
-        
 
         # If a reduction must be done, return
         if not reduce_op is None:

@@ -7,6 +7,7 @@ Created on Fri Sep 29 11:10:21 2017
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
 import time
 import os
@@ -356,6 +357,84 @@ class QE_Symmetry:
         for i in range(nat):
             eff_charges[i, :, :] = Methods.convert_matrix_cart_cryst(new_eff_charges[i, :, :], self.QE_at.T, True)
 
+    def ApplySymmetryToRamanTensor(self, raman_tensor):
+        """
+        SYMMETRIZE RAMAN TENSOR
+        ============================
+
+        This subroutine applies the symmetries to the raman tensor
+
+        As always, the raman_tensor will be modified by this subroutine.
+
+        Parameters
+        ----------
+            - raman_tensor : ndarray (size = (3, 3, 3*nat))
+                The raman tensor. The first two indices indicate
+                the polarization of the incoming/outcoming field, while the last one
+                is the atomic/cartesian coordinate
+        """
+    
+        pol1, pol2, at_cart = np.shape(raman_tensor)
+
+        assert pol1 == pol2 
+        assert pol2 == 3
+        assert at_cart == 3*self.QE_nat, "Error, the structure and effective charges are not compatible"
+
+        # Apply the permutation on the electric fields
+        raman_tensor += np.einsum("abc->bac", raman_tensor)
+        raman_tensor /= 2
+
+        # Apply the sum rule
+        # The sum over all the atom for each cartesian coordinate should be zero.
+        rt_reshaped = raman_tensor.reshape((3,3,self.QE_nat, 3))
+
+        # Sum over all the atomic indices
+        tot_sum = np.sum(rt_reshaped, axis = 2)
+
+        # Rebuild the shift to the tensor of the correct shape
+        shift = np.tile(tot_sum, (self.QE_nat, 1, 1, 1))
+
+        # Place the number of atoms at the correct position
+        # From the first to the third
+        shift = np.einsum("abcd->bcad", shift)
+        
+        # Now we apply the sum rule
+        rt_reshaped -= shift / self.QE_nat
+        new_tensor = np.zeros(np.shape(rt_reshaped), dtype = np.double)
+
+        # Get the raman tensor in crystal components
+        for i in range(self.QE_nat):
+            rt_reshaped[:,:, i, :] = Methods.convert_3tensor_to_cryst(rt_reshaped[:,:, i, :], self.QE_at.T)
+
+        # Apply translations
+        if self.QE_translation_nr > 1:
+            for i in range(self.QE_translation_nr):
+                irt = self.QE_translations_irt[:, i] - 1
+                for j in range(self.QE_nat):
+                    new_mat = rt_reshaped[:,:, irt[j], :]
+                    new_tensor += new_mat
+
+            rt_reshaped = new_tensor / self.QE_translation_nr
+            new_tensor[:,:,:,:] = 0.
+
+        # Apply rotations
+        for i in range(self.QE_nsym):
+            irt = self.QE_irt[i, :] - 1
+
+            for j in range(self.QE_nat):
+                # Apply the symmetry to the 3 order tensor
+                new_mat = np.einsum("ai, bj, ck, ijk", self.QE_s[:,:,i], self.QE_s[:,:,i], self.QE_s[:,:,i], rt_reshaped[:,:, irt[j], :])
+                #new_mat = self.QE_s[:,:, i].dot( eff_charges[irt[j], :, :].dot(self.QE_s[:,:,i].T))
+                new_tensor[:,:,j,:] += new_mat
+
+        new_tensor /= self.QE_nsym
+
+        # Convert back into cartesian
+        for i in range(self.QE_nat):
+            rt_reshaped[:, :, i, :] = Methods.convert_3tensor_to_cryst(new_tensor[:,:,i,:], self.QE_at.T, True)
+
+        # Compress again the notation
+        raman_tensor[:,:,:] = rt_reshaped.reshape((3,3, 3*self.QE_nat))
 
 
     def ApplySymmetryToSecondOrderEffCharge(self, dM_drdr, apply_asr = True):
@@ -1000,7 +1079,7 @@ class QE_Symmetry:
                 # We got all the rotations
                 n_syms = i 
                 break
-            
+                
             # Extract the point group
             if n_syms == 0:
                 self.QE_s[:,:, i] = rot.T
@@ -1012,9 +1091,9 @@ class QE_Symmetry:
         
         if n_syms == 0:
             n_syms = len(symmetries)
-
+        
         # From the point group symmetries, get the supercell
-        n_supercell = len(symmetries) / n_syms
+        n_supercell = len(symmetries) // n_syms
         self.QE_translation_nr = n_supercell
         self.QE_nsymq = n_syms
         self.QE_nsym = n_syms
@@ -1485,10 +1564,10 @@ def GetSymmetriesFromSPGLIB(spglib_sym, regolarize = False):
     """
     
     # Check if the type is correct
-    if not spglib_sym.has_key("translations"):
+    if not "translations" in spglib_sym:
         raise ValueError("Error, your symmetry dict has no 'translations' key.")
         
-    if not spglib_sym.has_key("rotations"):
+    if not "rotations" in spglib_sym:
         raise ValueError("Error, your symmetry dict has no 'rotations' key.")
     
     # Get the number of symmetries
@@ -1533,7 +1612,7 @@ def CustomASR(fc_matrix):
     if shape[0] != shape[1]:
         raise ValueError("Error, the provided matrix is not square: (%d, %d)" % (shape[0], shape[1]))
     
-    nat = np.shape(fc_matrix)[0] / 3
+    nat = np.shape(fc_matrix)[0] // 3
     if nat*3 != shape[0]:
         raise ValueError("Error, the matrix must have a dimension divisible by 3: %d" % shape[0])
     

@@ -1,6 +1,7 @@
 from __future__ import print_function
 from __future__ import division 
 
+
 # Import for python2/3 compatibility
 import cellconstructor.Phonons as Phonons
 import cellconstructor.Methods as Methods 

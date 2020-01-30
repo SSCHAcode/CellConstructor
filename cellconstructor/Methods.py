@@ -6,6 +6,7 @@ Created on Wed Jun  6 10:45:50 2018
 """
 from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
 
 from numpy import *
 import numpy as np
@@ -1009,7 +1010,7 @@ def get_translations(pols, masses):
 
 
     # Get the number of atoms and the number of polarization vectors
-    n_atoms = len(pols[:, 0]) / 3
+    n_atoms = len(pols[:, 0]) // 3
     n_pols = len(pols[0,:])
 
     # Prepare a mask filled with false

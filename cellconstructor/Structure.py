@@ -951,6 +951,28 @@ class Structure:
             
         fp.close()
 
+    def get_xcoords(self):
+        """
+        Returns the crystalline coordinates
+        """
+
+        assert self.has_unit_cell
+
+        xcoords = np.zeros(self.coords)
+        for i in range(self.N_atoms):
+            xcoords[i,:] = Methods.covariant_coordinates(self.unit_cell, self.coords[i,:])
+
+        return xcoords
+    def set_from_xcoords(self, xcoords):
+        """
+        Set the cartesian coordinates from crystalline
+        """
+
+        assert self.has_unit_cell
+
+        for i in range(self.N_atoms):
+            self.coords[i,:]  = self.unit_cell.T.dot(xcoords[i,:])
+
 
     def save_scf(self, filename, alat = 1, avoid_header=False):
         """
@@ -1024,6 +1046,17 @@ class Structure:
 
         # Delete duplicate atoms
         self.delete_copies()
+
+    def fix_wigner_seitz(self):
+        """
+        Atoms will be replaced in the periodic images inside the wigner_seitz cell
+        """
+
+        assert self.has_unit_cell, "Error, the wigner_seitz is defined for periodic boundary conditions"
+
+        for i in range(self.N_atoms):
+            new_r = Methods.get_closest_vector(self.unit_cell, self.coords[i,:])
+            self.coords[i, :] = new_r
         
     def get_strct_conventional_cell(self):
         """
@@ -1143,7 +1176,12 @@ class Structure:
         ----------
             - unit_cell_structure : Structure()
                 The structure of the unit cell used to generate this supercell structure.
-                
+
+        Results
+        -------
+            - itau : ndarray (size = nat_sc, type = int)
+                For each atom in the supercell contains the index of the corrisponding
+                atom in the unit_cell, starting from 1 to unit_cell_structure.N_atoms (included)
         """
         
         itau = np.zeros( self.N_atoms, dtype = np.intc)
@@ -1158,6 +1196,15 @@ class Structure:
             itau[i] = np.argmin(d) + 1
             
         return itau
+
+    def get_sublattice_vectors(self, unit_cell_structure):
+        """
+        Get the lattice vectors that connects the atom of this supercell structure to those of
+        the unit_cell structure.
+        """
+
+        itau = self.get_itau(unit_cell_structure) - 1 
+        return self.coords[:,:] - unit_cell_structure.coords[itau[:], :]
 
     def generate_supercell(self, dim, itau = None, QE_convention = True, get_itau = False):
         """

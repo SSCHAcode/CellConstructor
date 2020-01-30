@@ -4,9 +4,15 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-import urllib2
 import numpy as np
 import sys, os
+
+try:
+    # Python2
+    from urllib2 import urlopen
+except ImportError:
+    from urllib.request import urlopen
+
 
 import cellconstructor as CC
 import cellconstructor.Structure
@@ -144,7 +150,7 @@ def DownloadDynSnSe():
     NQ = 3
     for i in range(1,NQ +1):
         # Download from the web the dynamical matrices
-        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
+        dynfile = urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/SnSe.dyn.2x2x2%d" % i)
         with open("dyn.SnSe.%d" % i,'wb') as output:
             output.write(dynfile.read())
 
@@ -174,7 +180,7 @@ def DownloadDynSky():
     NQ = 4
     for i in range(1,NQ +1):
         # Download from the web the dynamical matrices
-        dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/skydyn_%d" %i)
+        dynfile = urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/skydyn_%d" %i)
         #dynfile = urllib2.urlopen("https://raw.githubusercontent.com/mesonepigreco/CellConstructor/master/tests/TestSymmetriesSupercell/newsscha_odd%d" % i)
         with open("dyn.Sky.%d" % i,'wb') as output:
             output.write(dynfile.read())
@@ -236,6 +242,23 @@ class TestStructureMethods(unittest.TestCase):
         self.dynSnSe = DownloadDynSnSe()
         self.dynSky = DownloadDynSky()
 
+        # Test a simple NaCl setup
+        a = 5.41
+        self.NaCl = CC.Structure.Structure(2)
+        self.NaCl.atoms = ["Na","Cl"]
+        self.NaCl.coords[1,:] = (a/2, a/2, a/2)
+        self.NaCl.unit_cell[0,:] = (a/2, a/2, 0)
+        self.NaCl.unit_cell[1,:] = (a/2, 0, a/2)
+        self.NaCl.unit_cell[2,:] = (0, a/2, a/2)
+        self.NaCl.has_unit_cell = True
+        self.NaCl.set_masses({"Na": 22.989769, "Cl": 35.453})
+        self.NaCldyn = CC.Phonons.Phonons(self.NaCl)
+        self.NaCldyn.dynmats[0][:,:] = np.random.uniform(size = (6, 6))
+        self.NaCldyn.dynmats[0] += self.NaCldyn.dynmats[0].T
+        self.NaCldyn.Symmetrize()
+
+
+
 
         
     def test_generate_supercell(self):
@@ -274,6 +297,39 @@ class TestStructureMethods(unittest.TestCase):
         IR activity for each mode. We benchmark it against dynmat.x of quantum espresso.
         """
         raise NotImplementedError("Error, this test must be implemented")
+
+    def test_IR_Raman_on_NaCl(self):
+        """
+        We generate a simple NaCl structure and predict using symmetries if the mode is IR or Raman active
+        """
+        self.setUp()
+        self.NaCldyn.Symmetrize()
+
+        for i in range(100):
+            get_ir_activity = self.NaCldyn.GetIRActive()
+            assert (get_ir_activity == [False, False, False, True, True, True]).all(), get_ir_activity
+
+        for i in range(100):
+            get_raman_activity = self.NaCldyn.GetRamanActive()
+            assert not get_raman_activity.any()
+
+        # Check if the activity vector is actually good
+        self.NaCldyn.dynmats[0][:,:] = np.random.uniform(size = (3*self.NaCl.N_atoms, 3*self.NaCl.N_atoms))
+        self.NaCldyn.effective_charges = np.random.uniform(size = (self.NaCl.N_atoms, 3, 3))
+        self.NaCldyn.raman_tensor = np.random.uniform(size = (3, 3, 3 * self.NaCl.N_atoms))
+
+        self.NaCldyn.Symmetrize()
+
+        # Check that the raman tensor is really zero
+        assert np.max(np.abs(self.NaCldyn.raman_tensor)) < 1e-10
+
+        # Get the IR responce
+        ir_responce = self.NaCldyn.GetIRIntensities()
+
+        # Check that if the intensities along the degenerate modes are all equal
+        assert np.max(np.abs(ir_responce[3:] - ir_responce[3])) < 1e-10
+
+
 
 
     def test_change_phonon_cell(self):

@@ -32,15 +32,18 @@ def test_ir_activity():
 
     # Analyze the polarization vectors to look for IR active modes:
     ir_active_modes = dyn.GetIRActive()
+    raman_active_modes = dyn.GetRamanActive()
 
     # Print the mode frequency
     print()
     for i, w in enumerate(ws * CC.Phonons.RY_TO_CM):
-        print("{:4d}) {:16.8f} cm-1 | IR active? {}".format(i, w ,
-                                                            ir_active_modes[i]))
+        print("{:4d}) {:16.8f} cm-1 | IR active? {} | Raman active? {}".format(i, w ,
+                                                            ir_active_modes[i],
+                                                            raman_active_modes[i]))
     print("Done.")
-                                                        
-    
+
+
+
 if __name__ == "__main__":
     print(INFO)
     test_ir_activity()
