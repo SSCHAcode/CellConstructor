@@ -364,7 +364,7 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     # Get the length of the q path
     x_length = np.zeros(len(q_path))
     q_tot = np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1)
-    x_lenght[1:] = q_tot
+    x_length[1:] = q_tot
     
     frequencies = np.zeros((len(q_path), 3 * dyn.structure.N_atoms))
     
@@ -378,7 +378,7 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
         
         frequencies[iq, :] = w * CC.Units.RY_TO_CM
     
-    return x_lenght, frequencies
+    return x_length, frequencies
         
     
     
