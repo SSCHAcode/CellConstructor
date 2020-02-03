@@ -363,7 +363,6 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     
     # Get the length of the q path
     x_length = np.zeros(len(q_path))
-    
     q_tot = np.sqrt(np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1))
     x_length[1:] = q_tot
     
@@ -384,7 +383,6 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     x_length_new=np.expand_dims(x_length,axis=0) 
 
     return np.hstack((x_length_new.T,frequencies))
-        
     
     
     

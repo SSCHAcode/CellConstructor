@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import cellconstructor as CC
 import cellconstructor.ForceTensor
 import cellconstructor.Structure
@@ -28,7 +30,7 @@ def test_save_simple_tensor():
                 # Get the atom in the supercell corresponding to the one in the unit cell
                 na_vect = simple_structure.coords[na, :] + simple_structure.unit_cell.T.dot([l,m,n])
                 na_sc = np.argmin( [np.sum( (supercell_structure.coords[k, :] - na_vect)**2) for k in range(nat_sc)])
-                print na,l,m,n,na_sc
+                print (na,l,m,n,na_sc)
     
     
     
