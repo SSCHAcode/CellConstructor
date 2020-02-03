@@ -270,6 +270,11 @@ class Phonons:
             while reading_dyn:
                 # Advance in the reading
                 index += 1
+
+                if index >= len(dynlines):
+                    reading_dyn = False
+                    self.dynmats.append(current_dyn.copy())
+                    continue
                 
                 # Setup what I'm reading
                 if "Diagonalizing" in dynlines[index]:
