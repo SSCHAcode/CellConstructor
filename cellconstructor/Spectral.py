@@ -315,7 +315,7 @@ def get_static_bubble(dyn, tensor3, k_grid, q, T = 0):
     CC.Settings.SetupParallel()
     tmp_bubble = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
     
-    print("SHAPE:", np.shape(tmp_bubble))
+    #print("SHAPE:", np.shape(tmp_bubble))
     
     # Rotate the bubble in cartesian  
     d_bubble = np.einsum("ab, ia, jb -> ij", tmp_bubble, pols_mq, np.conj(pols_mq))
@@ -363,13 +363,15 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     
     # Get the length of the q path
     x_length = np.zeros(len(q_path))
-    q_tot = np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1)
+    q_tot = np.sqrt(np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1))
     x_length[1:] = q_tot
+    
+    x_length=np.cumsum(x_length)
     
     frequencies = np.zeros((len(q_path), 3 * dyn.structure.N_atoms))
     
     dynq = get_static_correction(dyn, tensor3, k_grid, q_path, T)
-    
+       
     for iq in range(len(q_path)):
         tmp_dyn = dyn.Copy()
         tmp_dyn.dynmats[0] = dynq[iq,:,:]
@@ -377,9 +379,10 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
         w, p = tmp_dyn.DyagDinQ(0)
         
         frequencies[iq, :] = w * CC.Units.RY_TO_CM
-    
-    return x_length, frequencies
-        
+
+    x_length_new=np.expand_dims(x_length,axis=0) 
+
+    return np.hstack((x_length_new.T,frequencies))
     
     
     
