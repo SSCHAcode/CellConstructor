@@ -371,7 +371,7 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     
     frequencies = np.zeros((len(q_path), 3 * dyn.structure.N_atoms))
     
-    dynq = get_static_correction(dyn, tensor3, k_grid, q_path, T)
+    dynq = get_static_correction(dyn, tensor3*0.0, k_grid, q_path, T)
        
     for iq in range(len(q_path)):
         tmp_dyn = dyn.Copy()
