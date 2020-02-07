@@ -512,33 +512,28 @@ class Tensor3():
                                 x = xyz // 9
                                 f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))
        
-    def WriteOnFile_sparse(self, filename):
-        """
-        """
-        
-    
-        with open(filename, "w") as f:
-            #TODD Print header...
-            f.write("{:>5}\n".format(self.n_R_sparse))
-            
-        
-            for i_block  in range(self.n_R_sparse):
-                            f.write("{:d}\n".format(i_block+1))
-                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2_sparse[:, i_block])))
-                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3_sparse[:, i_block])))
-                                                        
-                            nat=self.atom_sparse[:,i_block]                            
-                            f.write("{:>6d} {:>6d} {:>6d}\n".format(nat[0]+1,nat[1]+1,nat[2]+1))
-                        
-                            #
-                            for xyz in range(27):
-                                z = xyz % 3
-                                y = (xyz %9)//3
-                                x = xyz // 9
-                                f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[self.r_blocks_sparse_list[i_block], 3*nat[0] + x, 3*nat[1] + y, 3*nat[2] + z]))
-       
+# ========================== temporary =======================================================
 
+    def Write_mat3R(self):
+        """
+        """
+        
     
+        with open('mat3R', "w") as f:
+            #TODD Print header...
+
+            for nat1 in range(self.nat):
+                for nat2 in range(self.nat):
+                    for nat3 in range(self.nat):
+                        for alpha in range(3):
+                            for beta in range(3):
+                                for gamma in range(3):
+                                    f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d}\n".format(alpha+1,beta+1,gamma+1,nat1+1, nat2+1, nat3+1))
+                                    f.write("{:>5}\n".format(self.n_R))
+                                    for r_block  in range(self.n_R):
+                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
+                                            
+     
     def ReadFromFile(self, filename):
         f = open(filename, "r")
         lines = [l.strip() for l in f.readlines()]
@@ -685,7 +680,7 @@ class Tensor3():
         self.n_R = Settings.broadcast(self.n_R)
         
 
-    def Center_no_sparse_initialitation(self, Far=1,tol=1.0e-5):
+    def Center(self, Far=1,tol=1.0e-5):
         """
         CENTERING 
         =========
@@ -762,7 +757,131 @@ class Tensor3():
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
-    def Center(self, Far=1,tol=1.0e-5):
+    def Interpolate(self, q2, q3):
+        """
+        Interpolate the third order to the q2 and q3 points
+        
+        Parameters
+        ----------
+            q2, q3 : ndarray(3)
+                The q points
+        
+        Results
+        -------
+            Phi3 : ndarray(size = (3*nat, 3*nat, 3*nat))
+                The third order force constant in the defined q points.
+                atomic indices runs over the unit cell
+        """
+        
+        final_fc = np.zeros((3*self.nat, 3*self.nat, 3*self.nat), 
+                            dtype = np.complex128)
+        for i in range(self.n_R):
+            arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
+                                q3.dot(self.r_vector3[:, i]))
+            
+            phase =  np.complex128(np.exp(-1j * arg))
+            final_fc += phase * self.tensor[i, :, :, :]
+        return final_fc
+
+            
+    def ApplySumRule(self) :
+        
+        t1 = time.time()
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Imposing ASR ==========================")
+                print(" ")         
+            
+
+            
+            #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            
+           
+        
+            
+            #xR2_list, xR2_block_index, xR2_num_tot=np.unique(self.x_r_vector2, axis = 1, return_index = True, return_counts=True )
+            #xR3_list, xR3_block_index, xR3_num_tot=np.unique(self.x_r_vector3, axis = 1, return_index = True, return_counts=True )            
+            
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            
+            totnum_R=xR_list.shape[1]
+            
+            
+            #xR2_block_index=[  xR2_num_tot[i]  for i in xR3_block_index ]
+            
+            #print(np.sum(xR2_list-xR3_list))
+            #print(np.sum(xR2_block_index-xR3_block_index))            
+            #print(np.sum(xR2_num_tot-xR3_num_tot))
+                       
+            tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
+            phi_asr=thirdorder.third_order_asr.impose_asr(tensor_new,xR_list,self.x_r_vector2,self.x_r_vector3,self.n_R,totnum_R,self.nat)
+                
+            self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
+
+            t2 = time.time() 
+            if self.verbose:               
+                print(" Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
+                print(" ")
+                print(" ============================================================")
+ 
+ 
+        self.tensor = Settings.broadcast(self.tensor)
+ 
+    def checkASR(self,printout=False,filename="") :
+        
+        n_sup_WS=self.n_sup
+        
+        #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+        
+        # self.tensor(nR,jn1,jn2,jn3) the fast index is the rightmost. nR=(R2,R3), R3, is faster
+        # pass to fortran 
+        
+        tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
+        
+        print(self.lat_min)
+        print(self.lat_max)
+        print(np.shape(tensor_new))
+        
+        max_abs_asr=thirdorder.third_order_asr.check_asr(self.xR2,self.xR3,tensor_new,printout,filename,self.nat,n_sup_WS)
+        
+        print("max abs ASR: ",max_abs_asr)
+    
+
+
+# ============================================================================================================================================ 
+# Tentative Sparse  ========================================================================================================================== 
+# ============================================================================================================================================   
+    def WriteOnFile_sparse(self, filename):
+        """
+        """
+        
+    
+        with open(filename, "w") as f:
+            #TODD Print header...
+            f.write("{:>5}\n".format(self.n_R_sparse))
+            
+        
+            for i_block  in range(self.n_R_sparse):
+                            f.write("{:d}\n".format(i_block+1))
+                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2_sparse[:, i_block])))
+                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3_sparse[:, i_block])))
+                                                        
+                            nat=self.atom_sparse[:,i_block]                            
+                            f.write("{:>6d} {:>6d} {:>6d}\n".format(nat[0]+1,nat[1]+1,nat[2]+1))
+                        
+                            #
+                            for xyz in range(27):
+                                z = xyz % 3
+                                y = (xyz %9)//3
+                                x = xyz // 9
+                                f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[self.r_blocks_sparse_list[i_block], 3*nat[0] + x, 3*nat[1] + y, 3*nat[2] + z]))
+       
+    
+    
+    def Center_sparse(self, Far=1,tol=1.0e-5):
         """
         CENTERING 
         =========
@@ -853,103 +972,7 @@ class Tensor3():
         self.r_vector3_sparse = Settings.broadcast(self.r_vector3_sparse)
         self.n_R_sparse = Settings.broadcast(self.n_R_sparse)
         self.atom_sparse = Settings.broadcast(self.atom_sparse)
-        self.r_blocks_sparse_list = Settings.broadcast(self.r_blocks_sparse_list)
-        
-    def Interpolate(self, q2, q3):
-        """
-        Interpolate the third order to the q2 and q3 points
-        
-        Parameters
-        ----------
-            q2, q3 : ndarray(3)
-                The q points
-        
-        Results
-        -------
-            Phi3 : ndarray(size = (3*nat, 3*nat, 3*nat))
-                The third order force constant in the defined q points.
-                atomic indices runs over the unit cell
-        """
-        
-        final_fc = np.zeros((3*self.nat, 3*self.nat, 3*self.nat), 
-                            dtype = np.complex128)
-        for i in range(self.n_R):
-            arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
-                                q3.dot(self.r_vector3[:, i]))
-            
-            phase =  np.complex128(np.exp(1j * arg))
-            
-            final_fc += phase * self.tensor[i, :, :, :]
-        return final_fc
-            
-    def ApplySumRule(self) :
-        
-        t1 = time.time()
-        
-        if Settings.am_i_the_master():
-        
-            if self.verbose:
-                print(" ")
-                print(" ======================= Imposing ASR ==========================")
-                print(" ")         
-            
-
-            
-            #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-            
-           
-        
-            
-            #xR2_list, xR2_block_index, xR2_num_tot=np.unique(self.x_r_vector2, axis = 1, return_index = True, return_counts=True )
-            #xR3_list, xR3_block_index, xR3_num_tot=np.unique(self.x_r_vector3, axis = 1, return_index = True, return_counts=True )            
-            
-            xR_list=np.unique(self.x_r_vector3, axis = 1)
-            
-            totnum_R=xR_list.shape[1]
-            
-            
-            #xR2_block_index=[  xR2_num_tot[i]  for i in xR3_block_index ]
-            
-            #print(np.sum(xR2_list-xR3_list))
-            #print(np.sum(xR2_block_index-xR3_block_index))            
-            #print(np.sum(xR2_num_tot-xR3_num_tot))
-                       
-            tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
-            phi_asr=thirdorder.third_order_asr.impose_asr(tensor_new,xR_list,self.x_r_vector2,self.x_r_vector3,self.n_R,totnum_R,self.nat)
-                
-            self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
-
-            t2 = time.time() 
-            if self.verbose:               
-                print(" Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
-                print(" ")
-                print(" ============================================================")
- 
- 
-        self.tensor = Settings.broadcast(self.tensor)
- 
-    def checkASR(self,printout=False,filename="") :
-        
-        n_sup_WS=self.n_sup
-        
-        #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        
-        # self.tensor(nR,jn1,jn2,jn3) the fast index is the rightmost. nR=(R2,R3), R3, is faster
-        # pass to fortran 
-        
-        tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
-        
-        print(self.lat_min)
-        print(self.lat_max)
-        print(np.shape(tensor_new))
-        
-        max_abs_asr=thirdorder.third_order_asr.check_asr(self.xR2,self.xR3,tensor_new,printout,filename,self.nat,n_sup_WS)
-        
-        print("max abs ASR: ",max_abs_asr)
-    
-    
-    
-    
+        self.r_blocks_sparse_list = Settings.broadcast(self.r_blocks_sparse_list)    
     
     
     

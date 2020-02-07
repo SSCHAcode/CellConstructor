@@ -14,90 +14,68 @@ subroutine compute_static_bubble(T,freq,is_gamma,D3,n_mod,bubble)
     complex(kind=DP), dimension(n_mod,n_mod,n_mod), intent(IN) :: D3
     integer, intent(IN) :: n_mod
     !
-    real(kind=DP) :: freqm1(n_mod,3),freqm1_23,bose(n_mod,3)   
-    real(kind=DP) :: bose_P, bose_M, omega_P, omega_M, ctm_P, ctm_M
+    real(kind=DP) :: Lambda_23,q2(n_mod,3),q3(n_mod,3)
     integer :: i, rho2, rho3, nu,mu
+
+    
+    ! 
+!     do i = 1,n_mod
+!         q2(i,1)=freq(i,2)
+!         q2(i,2)=freqm1(i,2)
+!         q2(i,3)=bose(i,2) 
+!         q3(i,1)=freq(i,3)
+!         q3(i,2)=freqm1(i,3)        
+!         q3(i,3)=bose(i,3)        
+!     end do
     !
-    !     freq(:,1)=w_mq
-    !     freq(:,2)=w_k    
-    !     freq(:,3)=w_q_mk    
-     
-     
-    freqm1=0.0_dp
+    
+    q2(:,1)=freq(:,2)
+    q3(:,1)=freq(:,3) 
+ 
+    q2(:,2)=0.0_dp
+    q3(:,2)=0.0_dp
     do i = 1, n_mod
-      if (.not. is_gamma(1) .or. i > 3) freqm1(i,1)=1.0_dp/freq(i,1)
-      if (.not. is_gamma(2) .or. i > 3) freqm1(i,2)=1.0_dp/freq(i,2)
-      if (.not. is_gamma(3) .or. i > 3) freqm1(i,3)=1.0_dp/freq(i,3)
+      if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
+      if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
     end do    
 
-    call bose_freq(T, n_mod, freq(:,1), bose(:,1))
-    call bose_freq(T, n_mod, freq(:,2), bose(:,2))
-    call bose_freq(T, n_mod, freq(:,3), bose(:,3))    
+    call bose_freq(T, n_mod, freq(:,2), q2(:,3))
+    call bose_freq(T, n_mod, freq(:,3), q3(:,3))        
 
+    !
     bubble=(0.0_dp,0.0_dp)
     !
     DO rho3=1,n_mod
-        DO rho2=1,n_mod
+    DO rho2=1,n_mod
             !
-            
-            
-!             bose_P   = 1 + bose(rho2,2) + bose(rho3,3)
-!             omega_P  = freq(rho3,3)+freq(rho2,2)
-! !             omega_P2 = omega_P**2
-!             bose_M   = bose(rho3,3)-bose(rho2,2)
-!             omega_M  = freq(rho3,3)-freq(rho2,2)
-! !             omega_M2 = omega_M**2
-!             !
-! !             IF(sigma<0._dp)THEN
-! !               ctm_P =  2 * bose_P *omega_P/(omega_P2+sigma**2)
-! !               ctm_M =  2 * bose_M *omega_M/(omega_M2+sigma**2)
-! !             ELSE IF (sigma==0._dp)THEN
-!             IF(ABS(omega_P)>0._dp)THEN
-!                 ctm_P = 2 * bose_P /omega_P
-!             ELSE
-!                 ctm_P = 0._dp
-!             ENDIF
-!               !
-!             IF(ABS(omega_M)>1.e-5_dp)THEN
-!                 ctm_M =  2 * bose_M /omega_M
-!             ELSE
-!                 IF(T>0._dp.and.ABS(omega_P)>0._dp)THEN
-!                   ctm_M =  2* df_bose(0.5_dp * omega_P, T)
-!                 ELSE
-!                   ctm_M = 0._dp
-!                 ENDIF
-!             ENDIF
-!             print*,bose_P,ctm_M
-!             !
-!             !
-!             freqm1_23 = freqm1(rho2,2)*freqm1(rho3,3)
-!             !
-            
+            Lambda_23=Lambda(T,q2(rho2,:),q3(rho3,:))
+            !
             DO nu = 1,n_mod
-              DO mu = 1,n_mod
-!                 bubble(mu,nu) = bubble(mu,nu) + (ctm_P - ctm_M) * freqm1_23 &
-!                                      * D3(mu,rho2,rho3) * CONJG(D3(nu,rho2,rho3)) 
-                  bubble(mu,nu) =   bubble(mu,nu) +  & 
-                                    D3(mu,rho2,rho3) &
-                                    *Lambda(T,freq(rho2,2),freq(rho3,3),bose(rho2,3),bose(rho2,3),freqm1(rho2,2),freqm1(rho3,3)) &
-                                    *CONJG(D3(nu,rho2,rho3))
-              END DO
+            DO mu = 1,n_mod
+                   bubble(mu,nu) = bubble(mu,nu) +  & 
+                                     CONJG(D3(mu,rho2,rho3))*Lambda_23*D3(nu,rho2,rho3)
+            END DO
             END DO 
- 
-        END DO
+            !
+    END DO
     END DO    
-    
-    
-    
     !
 end subroutine compute_static_bubble
 !
-FUNCTION lambda(T,w2,w3,n2,n3,w2m1,w3m1)
+FUNCTION Lambda(T,w_q2,w_q3)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
     REAL(kind=DP) :: lambda 
-    real(kind=DP), intent(in) :: w2,w3,n2,n3,w2m1,w3m1,T
+    real(kind=DP), intent(in) :: T,w_q2(3),w_q3(3)
+    real(kind=DP) :: w2,w3,n2,n3,w2m1,w3m1
     real(kind=DP) :: bose_P, bose_M, omega_P, omega_M, ctm_P, ctm_M
+            !  
+            w2=w_q2(1)
+            w3=w_q3(1)            
+            w2m1=w_q2(2)
+            w3m1=w_q3(2)
+            n2=w_q2(3)
+            n3=w_q3(3)            
             !
             bose_P   = 1 + n2 + n3
             omega_P  = w3+w2
@@ -106,24 +84,24 @@ FUNCTION lambda(T,w2,w3,n2,n3,w2m1,w3m1)
             omega_M  = w3-w2
             !
             IF(ABS(omega_P)>0._dp)THEN
-                ctm_P = 2 * bose_P /omega_P
+                ctm_P = bose_P /omega_P
             ELSE
                 ctm_P = 0._dp
             ENDIF
               !
             IF(ABS(omega_M)>1.e-5_dp)THEN
-                ctm_M =  2 * bose_M /omega_M
+                ctm_M =  bose_M /omega_M
             ELSE
                 IF(T>0._dp.and.ABS(omega_P)>0._dp)THEN
-                  ctm_M =  2* df_bose(0.5_dp * omega_P, T)
+                  ctm_M = df_bose(0.5_dp * omega_P, T)
                 ELSE
                   ctm_M = 0._dp
                 ENDIF
             ENDIF
             !
-            lambda=-(ctm_P - ctm_M) * w2m1*w3m1/8.0_dp
+            lambda=-(ctm_P - ctm_M) * w2m1*w3m1/4.0_dp
             !
-end function lambda
+end function Lambda
 
 SUBROUTINE bose_freq(T, n_mod, freq, bose)
     IMPLICIT NONE
