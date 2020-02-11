@@ -55,7 +55,7 @@ subroutine computeP3(nat,n_blocks,xR2,totnum_R2,xR2_list,phi,P3)
     !                                                                               
     do i_R2=1,totnum_R2 ! loop on (different) R2 
         ! Look for blocks having xR2_list(:,i_R2) as R2
-        xx=0.0_dp
+        xx=0
         do i_block=1, n_blocks  ! loop on blocks
             if (SUM(ABS(xR2(:,i_block)-xR2_list(:,i_R2))) < tol) then ! the block has this R2
                 xx=xx+1
@@ -120,7 +120,7 @@ subroutine computeP2(nat,n_blocks,xR3,totnum_R3,xR3_list,phi,P2)
     !                                                                                                            
     do i_R3=1,totnum_R3 ! loop on (different) R3 
         ! Look for blocks having xR3_list(:,i_R3) as R3
-        xx=0.0_dp
+        xx=0
         do i_block=1, n_blocks  ! loop on blocks
             if (SUM(ABS(xR3(:,i_block)-xR3_list(:,i_R3))) < tol) then ! the block has this R3
                 xx=xx+1
