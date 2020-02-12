@@ -757,7 +757,7 @@ class Tensor3():
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
-    def Interpolate(self, q2, q3):
+    def Interpolate(self, q2, q3, asr = True):
         """
         Interpolate the third order to the q2 and q3 points
         
@@ -765,6 +765,8 @@ class Tensor3():
         ----------
             q2, q3 : ndarray(3)
                 The q points
+            asr : bool
+                If true, the Acoustic sum rule is applied directly in q space
         
         Results
         -------
@@ -781,6 +783,34 @@ class Tensor3():
             
             phase =  np.complex128(np.exp(-1j * arg))
             final_fc += phase * self.tensor[i, :, :, :]
+
+        # Apply the acoustic sum rule if necessary
+        if asr:
+            # Get the reciprocal lattice vectors
+            bg = Methods.get_reciprocal_vectors(self.unitcell_structure.unit_cell) / (2* np.pi)
+
+            nat = self.unitcell_structure.N_atoms
+
+            # Create the projector
+            trans = np.eye(3*nat, dtype = np.double)
+            for i in range(3):
+                v1 = np.zeros(nat*3, dtype = np.double)
+                v1[3*np.arange(nat) + i] = 1
+                v1 /= np.sqrt(v1.dot(v1))
+                
+                trans -= np.outer(v1, v1)
+
+            # Check if the ASR must be imposed
+            __tol__ = 1e-7
+            if Methods.get_min_dist_into_cell(bg, q3, np.zeros(3)) < __tol__:
+                final_fc = np.einsum("abi, ci-> abc", final_fc, trans)
+            if Methods.get_min_dist_into_cell(bg, q2, np.zeros(3)) < __tol__:
+                final_fc = np.einsum("aic, bi-> abc", final_fc, trans)
+            if Methods.get_min_dist_into_cell(bg, q2, -q3) < __tol__:
+                final_fc = np.einsum("ibc, ai-> abc", final_fc, trans)
+
+
+        
         return final_fc
 
             
