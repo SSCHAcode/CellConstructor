@@ -3,37 +3,76 @@ module third_order_ASR
 
 contains 
 
-subroutine impose_ASR(phi,n_blocks,totnum_R,xR_list,xR2,xR3,phi_ASR,nat)
+subroutine enlarge(phi_in,xR2_out,xR3_out,xR2_in,xR3_in,phi_out,nat,n_blocks_out,n_blocks_in)
+implicit none
+INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+integer, intent(in) :: nat,n_blocks_in,n_blocks_out
+integer, intent(in) :: xR2_in(3,n_blocks_in),xR3_in(3,n_blocks_in)
+integer, intent(in) :: xR2_out(3,n_blocks_out),xR3_out(3,n_blocks_out)
+real(kind=DP), intent(in), dimension(3*nat,3*nat,3*nat,n_blocks_in) :: phi_in
+!
+real(kind=DP), intent(out), dimension(3*nat,3*nat,3*nat,n_blocks_out) :: phi_out
+!
+integer :: i_block,j_block,block_index(n_blocks_in)
+! ===================
+do i_block=1,n_blocks_in
+ do j_block=1,n_blocks_out
+  if ( SUM(ABS(xR2_in(:,i_block)-xR2_out(:,j_block))+ABS(xR3_in(:,i_block)-xR3_out(:,j_block))) < 1.0d-7) then
+     block_index(i_block)=j_block
+    cycle
+  end if
+ end do 
+end do
+!
+phi_out=0.0_dp
+do i_block=1,n_blocks_in
+    phi_out(:,:,:,block_index(i_block))=phi_in(:,:,:,i_block)
+end do
+! ====================
+end subroutine enlarge
+!
+subroutine impose_ASR(phi,xRlen,xR_list,totnum_Rdiff,xRdiff_list,xR2,xR3,phi_ASR,n_blocks,totnum_R,nat)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
     real(kind=DP), intent(in), dimension(3*nat,3*nat,3*nat,n_blocks) :: phi 
     integer, intent(in) :: nat ! # atoms
     integer, intent(in) :: xR2(3,n_blocks),xR3(3,n_blocks), n_blocks ! R2 and R3 vectors in the blocks
     integer, intent(in) :: xR_list(3,totnum_R),totnum_R ! list different R vectors
+    integer, intent(in) :: xRdiff_list(3,totnum_Rdiff),totnum_Rdiff ! list R2-R3 vectors
+    integer, intent(in) :: xRlen(3)
     !
     real(kind=DP), intent(out), dimension(3*nat,3*nat,3*nat,n_blocks) :: phi_ASR     
     !
-    real(kind=DP),  dimension(3*nat,3*nat,3*nat,n_blocks) :: Pgamma 
+    real(kind=DP),  dimension(3*nat,3*nat,3*nat,n_blocks) :: Pi
+    !
+    !
     !
     !
     phi_ASR=phi
     !
     !
-    call computeP3(nat,n_blocks,xR2,totnum_R,xR_list,phi_ASR,Pgamma)
+    call computeP3(nat,n_blocks,xR2,totnum_R,xR_list,phi_ASR,Pi) 
+    
+        phi_ASR=phi_ASR-Pi
 
-    phi_ASR=phi_ASR-Pgamma
+    call computeP2(nat,n_blocks,xR3,totnum_R,xR_list,phi_ASR,Pi) 
     
-    call computeP2(nat,n_blocks,xR3,totnum_R,xR_list,phi_ASR,Pgamma)
-      
-    phi_ASR=phi_ASR-Pgamma
-
-    call computeP1(nat,n_blocks,xR2,xR3,phi_ASR,Pgamma)
+        phi_ASR=phi_ASR-Pi    
     
-    phi_ASR=phi_ASR-Pgamma
-    !
-    !
+    call computeP1(nat,n_blocks,xRlen,xR2,xR3,totnum_Rdiff,xRdiff_list,phi_ASR,Pi) 
     
-end subroutine impose_ASR    
+        phi_ASR=phi_ASR-Pi        
+!    
+! TEST
+! 
+ call computeP3(nat,n_blocks,xR2,totnum_R,xR_list,phi_ASR,Pi)
+ print*,"test1= ",SUM(ABS(Pi))
+ call computeP2(nat,n_blocks,xR3,totnum_R,xR_list,phi_ASR,Pi) 
+ print*,"test2= ",SUM(ABS(Pi))
+ call computeP1(nat,n_blocks,xRlen,xR2,xR3,totnum_Rdiff,xRdiff_list,phi_ASR,Pi)  
+ print*,"test3= ",SUM(ABS(Pi)) 
+ 
+end subroutine impose_ASR
 !=================================================================================
 subroutine computeP3(nat,n_blocks,xR2,totnum_R2,xR2_list,phi,P3)
     implicit none
@@ -65,6 +104,7 @@ subroutine computeP3(nat,n_blocks,xR2,totnum_R2,xR2_list,phi,P3)
         num_blocks_R2(i_R2)=xx ! total number of blocks with this R2
         !
     end do
+!     print*,num_blocks_R2
     !
     !
     P3 = 0.0_dp 
@@ -130,6 +170,7 @@ subroutine computeP2(nat,n_blocks,xR3,totnum_R3,xR3_list,phi,P2)
         num_blocks_R3(i_R3)=xx ! total number of blocks with this R3
         !
     end do
+!     print*,num_blocks_R3
     !
     !
     P2 = 0.0_dp
@@ -165,60 +206,111 @@ subroutine computeP2(nat,n_blocks,xR3,totnum_R3,xR3_list,phi,P2)
     
 end subroutine computeP2    
 !=================================================================================
-subroutine computeP1(nat,n_blocks,xR2,xR3,phi,P1)
+subroutine computeP23(nat,n_blocks,phi,P23)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(out) :: P23
+    !
+    integer , intent(in)  :: nat, n_blocks
+    real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(in) :: phi
+    !
+    integer               :: jn1,jn2,jn3,beta,gamma,t,u
+    integer               :: h
+    real(kind=DP)         :: x
+    
+
+    !
+    !
+    P23 = 0.0_dp
+    ! 
+    do jn1  = 1,3*nat
+    do beta  = 1,3                                                            
+    do gamma = 1,3 
+        !    
+        !
+        x=0.0_dp                                                                        
+        do h=1,n_blocks ! 
+        do t = 1, nat
+        do u = 1, nat
+            jn2=beta+(t-1)*3
+            jn3=gamma+(u-1)*3
+            x=x+phi(jn3,jn2,jn1,h)
+        end do
+        end do
+        end do
+        ! 
+        do h=1,n_blocks
+        do t = 1, nat
+        do u = 1, nat
+            jn2=beta+(t-1)*3
+            jn3=gamma+(u-1)*3
+            P23(jn3,jn2,jn1,h)=x/n_blocks
+        end do    
+        end do
+        end do
+        !                  
+        !                                                           
+    end do
+    end do
+    end do
+    !
+    P23=P23/(nat*nat)
+    
+end subroutine computeP23    
+!=================================================================================
+subroutine computeP1(nat,n_blocks,leng,xR2,xR3,totnum_Rdiff,xRdiff_list,phi,P1)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(out) :: P1
     !
-    integer , intent(in)  :: nat, n_blocks, xR2(3,n_blocks), xR3(3,n_blocks)
+    integer, intent(in)  :: nat, n_blocks, leng(3),xR2(3,n_blocks), xR3(3,n_blocks)
+    integer, intent(in)  :: totnum_Rdiff, xRdiff_list(3,totnum_Rdiff)
     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(in) :: phi
     !
-    integer               :: jn1,jn2,jn3,alpha,s,i_block,j_block
-    integer :: list(n_blocks,n_blocks),num(n_blocks)  ! list(:,i_block) is list of blocks
-                             ! having R3-R2 equal to the R3-R2 of the i_block
-                             ! the number of these blocks is num(i_blocks)
-    integer :: xx,h
+    integer               :: jn1,jn2,jn3,alpha,s,i_block,i_Rdiff
+    integer :: num_blocks_Rdiff(totnum_Rdiff),index_blocks_Rdiff(n_blocks,totnum_Rdiff)  ! 
+    integer :: xx,h,v(3)
     real(kind=DP)         :: x
     real(kind=DP) :: tol=1.0d-6
     
-      
-    !
-    ! Find blocks with a fixed (R3-R2) value
-    !               
-    do i_block=1,n_blocks ! select a xR3(:,i_block)-xR2(:,i_block) value
-        !
+    
+    
+    
+    do i_Rdiff=1,totnum_Rdiff ! loop on (different) Rdiff 
+        ! Look for blocks having xR_list(:,i_R3) as R3
         xx=0
-        do j_block=1,n_blocks
-            if  (SUM(ABS(xR3(:,j_block)-xR3(:,i_block)-xR2(:,j_block)+xR2(:,i_block))) < tol) then
-             xx=xx+1
-             list(xx,i_block)=j_block
+        do i_block=1, n_blocks  ! loop on blocks
+            v=(xR2(:,i_block)-xR3(:,i_block))
+            if (Geq(v,xRdiff_list(3,i_Rdiff),leng) ) then ! the block has this R3
+                xx=xx+1
+                index_blocks_Rdiff(xx,i_Rdiff)=i_block 
             end if 
         end do
-        num(i_block)=xx
-    end do  
-    !
+        num_blocks_Rdiff(i_Rdiff)=xx ! total number of blocks with this R3
+        !
+    end do    
     !
     P1 = 0.0_dp
     !
-    do i_block=1,n_blocks ! loop on  R3-R2
+    do i_Rdiff=1,totnum_Rdiff
     do alpha = 1,3
     do jn2 = 1,3*nat
     do jn3 = 1,3*nat
                         ! loop on blocks with this fixed R3-R2
                         x=0.0_dp
-                        do h=1,num(i_block)
+                        do h=1,num_blocks_Rdiff(i_Rdiff)
                         do s = 1, nat
                                 jn1=alpha+(s-1)*3
-                                x=x+phi(jn3,jn2,jn1,list(h,i_block))
+                                x=x+phi(jn3,jn2,jn1,index_blocks_Rdiff(h,i_Rdiff))
                         end do
                         end do
                         ! 
-!                         do h=1,num(i_block)                        
+                        do h=1,num_blocks_Rdiff(i_Rdiff)                     
                         do s = 1, nat
                                 jn1=alpha+(s-1)*3 
-                                P1(jn3,jn2,jn1,i_block)=x/num(i_block)
-                        end do    
-!                         end do
+                                P1(jn3,jn2,jn1,index_blocks_Rdiff(h,i_Rdiff))=x/num_blocks_Rdiff(i_Rdiff)
+                        end do  
+                        end do
                         !
     end do
     end do
@@ -228,234 +320,6 @@ subroutine computeP1(nat,n_blocks,xR2,xR3,phi,P1)
     P1=P1/(nat)
     !
  end subroutine computeP1    
-! =================================================================================
-! ! ! ! !=================================================================================
-! ! ! ! subroutine computeP2(nat,n_blocks,xR3,totnum_R3,xR3_list,phi,P2)
-! ! ! !     implicit none
-! ! ! !     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-! ! ! !     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(out) :: P2
-! ! ! !     !
-! ! ! !     integer , intent(in)  :: nat, n_sup_WS
-! ! ! !     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_blocks), intent(in) :: phi
-! ! ! !     !
-! ! ! !     integer               :: jn1,jn2,jn3,beta,t,i_R3,i_block,xx
-! ! ! !     real(kind=DP)         :: x
-! ! ! !     real(kind=DP) :: tol=1.0d-6
-! ! ! !     
-! ! ! !     !
-! ! ! !     !                                                                               
-! ! ! !     do i_R3=1,totnum_R3 ! loop sui vettori R3
-! ! ! !         xx=0.0_dp
-! ! ! !         do i_block=1, n_blocks  ! loop sui blocchi
-! ! ! !             if (SUM(ABS(xR3(:,i_block)-xR3_list(:,i_R3))) < tol) then ! il blocco ha questo R3
-! ! ! !                 xx=xx+1
-! ! ! !                 index_blocks_R3(xx,i_R3)=i_block ! aggiung quest indic d blocco per qst R3
-! ! ! !             end if 
-! ! ! !         end do
-! ! ! !         num_blocks_R3(i_R3)=xx ! numero totale di blocchi per i_R3_vec-th vettore R3
-! ! ! !     end do
-! ! ! !     !
-! ! ! !     ! index_blocks_R3(1:num_blocks_R3(i_R3),i_R3) indici dei "num_blocks(i_R3)" blocchi
-! ! ! !     ! che hanno come vettore R3, il vettore xR3_list(i_R3) 
-! ! ! !     ! 
-! ! ! !     P2 = 0.0_dp
-! ! ! !     !
-! ! ! !     do i_R3=1,totnum_R3 ! lista di vettori R3 diversi
-! ! ! !         do jn1 = 1,3*nat
-! ! ! !             do beta = 1,3
-! ! ! !                 do jn3 = 1,3*nat                
-! ! ! !                     ! 
-! ! ! !                     !
-! ! ! !                     x=0.0_dp                                                                        
-! ! ! !                     do h=1,num_blocks_R3(i_R3) ! numero blocchi con questo R3,
-! ! ! !                                                ! con indice  index_blocks_R3(h,i_R3_vec)
-! ! ! !                     do t = 1, nat
-! ! ! !                             jn2=beta+(t-1)*3
-! ! ! !                             x=x+phi(jn3,jn2,jn1,index_blocks_R3(h,i_R3))
-! ! ! !                     end do
-! ! ! !                     end do
-! ! ! !                     ! 
-! ! ! !                     do h=1,num_blocks_R3(i_R3)             
-! ! ! !                     do t = 1, nat
-! ! ! !                             jn2=beta+(t-1)*3 
-! ! ! !                             P2(jn3,jn2,jn1,index_blocks_R3(h,i_R3))=x/num_blocks_R3(i_R3)
-! ! ! !                     end do    
-! ! ! !                     end do
-! ! ! !                     !                  
-! ! ! !                     !                                                                          
-! ! ! !                 end do
-! ! ! !             end do
-! ! ! !         end do
-! ! ! !     end do
-! ! ! !     !
-! ! ! !     P2=P2/(nat)
-! ! ! !     !
-! ! ! ! end subroutine computeP2    
-! ! ! ! !=================================================================================
-! ! ! ! subroutine computeP1(nat,n_sup_WS,xR2,xR3,phi,P1)
-! ! ! !     implicit none
-! ! ! !     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-! ! ! !     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(out) :: P1
-! ! ! !     !
-! ! ! !     integer , intent(in)  :: nat, n_sup_WS, xR2(3,n_sup_WS*n_sup_WS), xR3(3,n_sup_WS*n_sup_WS)
-! ! ! !     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS*n_sup_WS), intent(in) :: phi
-! ! ! !     !
-! ! ! !     integer               :: jn1,jn2,jn3,alpha,s,i_block,&
-! ! ! !                              j_block,list(n_sup_WS*n_sup_WS,n_sup_Ws*n_sup_WS),&
-! ! ! !                              num(n_sup_WS*n_sup_WS),xx,h
-! ! ! !     real(kind=DP)         :: x
-! ! ! !     integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS),tot_weight(n_sup_WS)
-! ! ! !     real(kind=DP) :: tol=1.0d-6
-! ! ! !     
-! ! ! !     
-! ! ! !     do i_block=1,n_blocks
-! ! ! !         !
-! ! ! !         xx=0
-! ! ! !         do j_block=1,n_blocks
-! ! ! !             if  (SUM(ABS(xR3(:,j_block)-xR3(:,i_block)-xR2(:,j_block)+xR2(:,i_block))) < tol) then
-! ! ! !              xx=xx+1
-! ! ! !              list(xx,i_block)=j_block
-! ! ! !             end if 
-! ! ! !         end do
-! ! ! !         num(i_block)=xx
-! ! ! !     end do  
-! ! ! !     !
-! ! ! !     !
-! ! ! !     P1 = 0.0_dp
-! ! ! !     !
-! ! ! !     do i_block=1,n_sup_WS*n_sup_WS
-! ! ! !         do alpha = 1,3
-! ! ! !             do jn2 = 1,3*nat
-! ! ! !                 do jn3 = 1,3*nat
-! ! ! !                         !
-! ! ! !                         x=0.0_dp
-! ! ! !                         do h=1,num(i_block)
-! ! ! !                         do s = 1, nat
-! ! ! !                                 jn1=alpha+(s-1)*3
-! ! ! !                                 x=x+phi(jn3,jn2,jn1,list(h,i_block))
-! ! ! !                         end do
-! ! ! !                         end do
-! ! ! !                         ! 
-! ! ! ! !                         do h=1,num(i_block)                        
-! ! ! !                         do s = 1, nat
-! ! ! !                                 jn1=alpha+(s-1)*3 
-! ! ! !                                 P1(jn3,jn2,jn1,i_block)=x/num(i_block)
-! ! ! !                         end do    
-! ! ! ! !                         end do
-! ! ! !                         !
-! ! ! !                 end do
-! ! ! !             end do
-! ! ! !         end do
-! ! ! !     end do    
-! ! ! !     !
-! ! ! !     P1=P1/(nat)
-! ! ! !     !
-! ! ! !  end subroutine computeP1    
-!=================================================================================    
-! subroutine check_ASR(lat_min,lat_max,phi,printout,filename,nat,n_sup_WS,MAXabsASR)
-!     implicit none
-!     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-!     !
-!     integer, intent(in)  :: nat, n_sup_WS, lat_min(3), lat_max(3)
-!     real(kind=DP), dimension(3*nat,3*nat,3*nat,n_sup_WS,n_sup_WS), intent(in) :: phi
-!     logical, intent(in)  :: printout
-!     character(len=*)     :: filename
-!     !    
-!     real(kind=DP), intent(out)         :: MAXabsASR
-!     !
-!     integer               :: jn1,jn2,jn3,alpha,beta,gamma,s,t,u,H,I,J
-!     integer               :: xR(3,n_sup_WS),sec_minus_first(n_sup_WS,n_sup_WS)
-!     real(kind=DP)         :: ASR
-!     real(kind=DP), dimension(3*nat,3*nat,3*nat,0:n_sup_WS,0:n_sup_WS) :: phi_masked
-!     !
-!     !
-!     phi_masked=0.0_dp
-!     phi_masked(:,:,:,1:n_sup_WS,1:n_sup_WS)=phi(:,:,:,1:n_sup_WS,1:n_sup_WS)
-!     !
-!     do I = 1, n_sup_WS 
-!        xR(:,I)=one_to_three(I,lat_min,lat_max)
-!        do H=1, n_sup_WS 
-!          J=three_to_one(xR(:,I)-xR(:,H),lat_min,lat_max)
-!          if ( J >= 1 .and. J<= n_sup_WS) then
-!          sec_minus_first(H,I)=J
-!          else
-!          sec_minus_first(H,I)=0
-!          end if
-!        end do
-!     end do 
-!     !    
-!     if (printout) open(unit=666,file=filename,status="REPLACE")
-!     !
-!     ! check third index
-! !     if (printout) write(666,*) "# Third index"
-!     do jn1=1,3*nat
-!     do jn2=1,3*nat
-!     do I=1,n_sup_WS
-!     do gamma=1,3
-!         !
-!         ASR=0.0_dp
-!         do J=1,n_sup_WS
-!         do u=1,nat
-!           jn3=gamma+(u-1)*3
-!           ASR=ASR+phi(jn1,jn2,jn3,I,J)
-!         end do
-!         end do
-!         !
-! !         if (printout) write(666,*) jn1,jn2,gamma,I,ASR
-!         MAXabsASR=MAX(abs(ASR),MAXabsASR)
-!     end do
-!     end do
-!     end do
-!     end do
-!     ! check second index
-! !     if (printout) write(666,*) "# Second index"    
-!     do jn1=1,3*nat
-!     do jn3=1,3*nat
-!     do J=1,n_sup_WS
-!     do beta=1,3
-!         !
-!         ASR=0.0_dp
-!         do I=1,n_sup_WS
-!         do t=1,nat
-!           jn2=beta+(t-1)*3
-!           ASR=ASR+phi(jn1,jn2,jn3,I,J)
-!         end do
-!         end do
-!         !
-! !         if (printout) write(666,*) jn1,beta,jn3,J,ASR
-!         MAXabsASR=MAX(abs(ASR),MAXabsASR)
-!     end do
-!     end do
-!     end do
-!     end do    
-!     ! check first index
-!     if (printout) write(666,*) "# First index"    
-!     do alpha=1,3
-!     do jn2=1,3*nat
-!     do jn3=1,3*nat
-!     do I=1,n_sup_WS
-!     do J=1,n_sup_WS
-!         !
-!         ASR=0.0_dp
-!         do H=1,n_sup_WS 
-!         do s=1,nat
-!             jn1=alpha+(s-1)*3
-!           ASR=ASR+phi_masked(jn1,jn2,jn3,sec_minus_first(H,I),sec_minus_first(H,J))
-!         end do
-!         end do        
-!         !
-!         if (printout) write(666,*) alpha,jn2,jn3,I,J,ASR
-!         MAXabsASR=MAX(abs(ASR),MAXabsASR)        
-!     end do
-!     end do
-!     end do
-!     end do    
-!     end do
-!     !
-!     !
-!     if (printout) close(unit=666)    
-!     !
-! end subroutine check_ASR
 !=================================================================================    
 function three_to_one_len(v,v_min,v_len)
    implicit none
@@ -551,5 +415,23 @@ function cryst_to_cart(v,alat)
     end do
     !   
 end function cryst_to_cart
+!==========================================================================================
+function Geq(v1,v2,leng)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    logical    :: Geq
+    integer, dimension(3), intent(in)          :: v1,v2,leng
+    !
+    integer :: w(3)
+    !  
+    w=v1-v2
+
+    Geq=.false.
+    if (mod(w(1),leng(1))==0 .and. mod(w(2),leng(2))==0 .and. mod(w(3),leng(3))==0 )then
+    Geq =.true.
+    end if
+    !   
+end function Geq
+!==========================================================================================
 
 end module third_order_ASR
