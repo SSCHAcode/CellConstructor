@@ -514,25 +514,54 @@ class Tensor3():
        
 # ========================== temporary =======================================================
 
-    def Write_mat3R(self):
+    def WriteOnFile_new(self,filename,file_format='Phonopy'):
         """
         """
         
+        if file_format == 'Phonopy':
+            
+            with open(filename, "w") as f:
+            
+                f.write("{:>5}\n".format(self.n_R * self.nat**3))
+                
+            
+                i_block = 1
+                for r_block  in range(self.n_R):
+                    for nat1 in range(self.nat):
+                        for nat2 in range(self.nat):
+                            for nat3 in range(self.nat):
+                                f.write("{:d}\n".format(i_block))
+                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
+                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
+                                f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
+                                i_block += 1
+                                #
+                                for xyz in range(27):
+                                    z = xyz % 3
+                                    y = (xyz %9)//3
+                                    x = xyz // 9
+                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
+        
+        
+        elif file_format == 'D3Q':
     
-        with open('mat3R', "w") as f:
-            #TODD Print header...
+            with open(filename, "w") as f:
+                #TODD Print header...
 
-            for nat1 in range(self.nat):
-                for nat2 in range(self.nat):
-                    for nat3 in range(self.nat):
-                        for alpha in range(3):
-                            for beta in range(3):
-                                for gamma in range(3):
-                                    f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d}\n".format(alpha+1,beta+1,gamma+1,nat1+1, nat2+1, nat3+1))
-                                    f.write("{:>5}\n".format(self.n_R))
-                                    for r_block  in range(self.n_R):
-                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                        for nat3 in range(self.nat):
+                            for alpha in range(3):
+                                for beta in range(3):
+                                    for gamma in range(3):
+                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d}\n".format(alpha+1,beta+1,gamma+1,nat1+1, nat2+1, nat3+1))
+                                        f.write("{:>5}\n".format(self.n_R))
+                                        for r_block  in range(self.n_R):
+                                            f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
                                             
+     
+     
+     
      
     def ReadFromFile(self, filename):
         f = open(filename, "r")
@@ -587,99 +616,6 @@ class Tensor3():
                 self.tensor[total_lat_vec, 3*nat1+xx, 3*nat2+yy, 3*nat3+zz] = np.double(data[-1])
             
             
-
-    def Center_fast(self, Far=1,tol=1.0e-5):
-        """
-        CENTERING 
-        =========
-
-        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
-        This means that for each atomic indices in the tensor, it will be identified by the lowest 
-        perimiter between the replica of the atoms.
-        Moreover, in case of existance of other elements not included in the original supercell with
-        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
-
-        This function should be called before performing the Fourier interpolation.
-        
-        Faster but more memory demanding
-        """    
-
-        t1 = time.time()
-        
-        
-        if Settings.am_i_the_master():
-        
-            if self.verbose:
-                print(" ")
-                print(" ======================= Centering ==========================")
-                print(" ")         
-
-            # The supercell total size
-            #
-            nq0=self.supercell_size[0]
-            nq1=self.supercell_size[1]
-            nq2=self.supercell_size[2]
-            
-            n_sup = np.prod(self.supercell_size)
-            tensor_reshaped = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-            alat=self.unitcell_structure.unit_cell
-            
-            lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
-            lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
-            lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
-            n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
-               
-            centered_tmp, lat_min_new, lat_max_new =thirdorder.third_order_centering.pre_center(Far,
-                                        nq0,nq1,nq2,tol, 
-                                        self.unitcell_structure.unit_cell, self.tau, tensor_reshaped,self.nat)  
-            
-            #
-            # Reassignement
-            #
-            lat_len=lat_max_new-lat_min_new+np.ones(3,dtype=int)
-            n_sup_WS=np.prod(lat_len,dtype=int)
-        
-            
-            self.n_R=n_sup_WS**2
-                 
-            centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
-                    thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,lat_min_new,
-                                                    lat_max_new,n_sup_WS,self.nat,n_sup_WS_prev)
-                
-                    
-            
-            
-            t2 = time.time() 
-            
-            centered = np.transpose(centered, axes=[3,0,1,2])
-                    
-            # Select the element different from zero
-            tensor_block_nonzero = np.sum(centered**2, axis = (1,2,3)) > 1e-8
-            
-            self.tensor = centered[tensor_block_nonzero, :, :, :]
-            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
-            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
-            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
-            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
-            self.n_R = np.sum(tensor_block_nonzero.astype(int))
-            
-            if self.verbose:               
-                print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
-                print("Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
-                print("Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
-                print(" ")
-                print(" ============================================================")
-
-           
-        
-        self.tensor = Settings.broadcast(self.tensor)
-        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
-        self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
-        self.n_R = Settings.broadcast(self.n_R)
-        
-
     def Center(self, Far=1,tol=1.0e-5):
         """
         CENTERING 
@@ -749,6 +685,249 @@ class Tensor3():
 
            
         
+        self.tensor = Settings.broadcast(self.tensor)
+        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.n_R = Settings.broadcast(self.n_R)
+        self.n_sup = Settings.broadcast(self.n_sup)
+
+    def ApplySumRule(self) :
+        
+        t1 = time.time()
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Imposing ASR ==========================")
+                print(" ")         
+            
+
+            
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            totnum_R=xR_list.shape[1]
+          
+            xRmin=np.min(xR_list,1) 
+            xRmax=np.max(xR_list,1) 
+            xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+            n_Rnew=np.prod(xRlen)**2          
+          
+            if n_Rnew != self.n_R: 
+                if self.verbose:
+                    print("*********")
+                    print("Enlarging")
+                    print("*********")                    
+                # reassignement
+                xr2_old=self.x_r_vector2
+                xr3_old=self.x_r_vector3
+                #
+                self.x_r_vector2=np.zeros((3,n_Rnew),dtype=np.int)
+                self.x_r_vector3=np.zeros((3,n_Rnew),dtype=np.int)
+                self.r_vector2=np.zeros((3,n_Rnew))
+                self.r_vector3=np.zeros((3,n_Rnew))                
+                for index_cell2 in range(np.prod(xRlen)):                
+                    n_cell_x2,n_cell_y2,n_cell_z2=Methods.one_to_three_len(index_cell2,v_min=xRmin,v_len=xRlen)
+                    for index_cell3 in range(np.prod(xRlen)):
+                        n_cell_x3,n_cell_y3,n_cell_z3=Methods.one_to_three_len(index_cell3,v_min=xRmin,v_len=xRlen)      
+                        #
+                        total_index_cell = index_cell3 + np.prod(xRlen) * index_cell2
+                        #
+                        self.x_r_vector2[:, total_index_cell] = (n_cell_x2, n_cell_y2, n_cell_z2)
+                        self.r_vector2[:, total_index_cell] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, total_index_cell])
+                        self.x_r_vector3[:, total_index_cell] =  n_cell_x3, n_cell_y3, n_cell_z3
+                        self.r_vector3[:, total_index_cell] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, total_index_cell])                        
+                ###                
+                tensor_trnsp = np.transpose(self.tensor,axes=[3,2,1,0])
+                tensor=thirdorder.third_order_asr.enlarge(tensor_trnsp,
+                                                          self.x_r_vector2,self.x_r_vector3,
+                                                          xr2_old,xr3_old,
+                                                          self.nat,n_Rnew,self.n_R)
+                      
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            totnum_R=xR_list.shape[1]
+          
+            xRmin=np.min(xR_list,1) 
+            xRmax=np.max(xR_list,1) 
+            xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+            self.n_R=np.prod(xRlen)**2          
+           
+          
+            xRdiff_list=np.unique(self.x_r_vector2-self.x_r_vector3, axis = 1)
+            totnum_Rdiff=xRdiff_list.shape[1]
+
+
+            #phi_asr=thirdorder.third_order_asr.impose_asr(tensor,xR_list,xRdiff_list,self.x_r_vector2,self.x_r_vector3,totnum_Rdiff,self.n_R,totnum_R,self.nat)
+            phi_asr=thirdorder.third_order_asr.impose_asr(tensor,xRlen,xR_list,xRdiff_list,
+                                                          self.x_r_vector2,self.x_r_vector3,
+                                                          totnum_Rdiff,self.n_R,totnum_R,self.nat)
+
+            phi_asr=np.transpose(phi_asr, axes=[3,2,1,0])  
+
+           # Select the element different from zero ########################
+            tensor_block_nonzero = np.sum(phi_asr**2, axis = (1,2,3)) > 1e-8 
+            
+            self.tensor = phi_asr[tensor_block_nonzero, :, :, :]
+            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
+            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
+            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
+            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
+            self.n_R = np.sum(tensor_block_nonzero.astype(int))
+            t2 = time.time()
+            if self.verbose:               
+                print("Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
+                print("Memory required for the ASR centered tensor: {} Gb".format(phi_asr.nbytes / 1024.**3))
+                print("Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
+
+
+ 
+        self.tensor = Settings.broadcast(self.tensor)
+        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.n_R = Settings.broadcast(self.n_R)
+        self.n_sup = Settings.broadcast(self.n_sup)
+
+
+
+    def Center_and_ApplySumRule(self,Far=1,tol=1.0e-5) :
+        
+        t1 = time.time()
+        
+        if Settings.am_i_the_master():
+
+
+            if self.verbose:
+                print(" ")
+                print(" ======================= Centering ==========================")
+                print(" ")         
+
+            # The supercell total size
+            #
+            nq0=self.supercell_size[0]
+            nq1=self.supercell_size[1]
+            nq2=self.supercell_size[2]
+            
+            n_sup = np.prod(self.supercell_size)
+            tensor_reshaped = np.transpose(self.tensor.reshape((n_sup, n_sup, 
+                                                                3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            alat=self.unitcell_structure.unit_cell
+            
+            weight,xR2,xR3 =thirdorder.third_order_centering.analysis(Far,
+                                        nq0,nq1,nq2,tol, 
+                                        self.unitcell_structure.unit_cell, self.tau, tensor_reshaped,self.nat)  
+            
+            
+            xR2_reshaped=np.reshape(xR2,(3,(2*Far+1)*(2*Far+1)*(2*Far+1)*n_sup*self.nat*self.nat*self.nat*n_sup*n_sup))
+            xR3_reshaped=np.reshape(xR3,(3,(2*Far+1)*(2*Far+1)*(2*Far+1)*n_sup*self.nat*self.nat*self.nat*n_sup*n_sup))
+            xR23 = np.unique(np.vstack((xR2_reshaped,xR3_reshaped)),axis=1)
+            
+            self.n_R=xR23.shape[1]
+            self.x_r_vector2,self.x_r_vector3 = np.vsplit(xR23,2)
+            self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+            self.r_vector3=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3)
+    
+            centered=thirdorder.third_order_centering.center(tensor_reshaped,weight,
+                                                             self.x_r_vector2,xR2,self.x_r_vector3,xR3,
+                                                             Far,self.nat,n_sup,self.n_R)
+            
+            t2 = time.time() 
+            
+            self.tensor = np.transpose(centered, axes=[3,0,1,2])
+  
+            if self.verbose:               
+                print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+                print(" Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
+
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Imposing ASR ==========================")
+                print(" ")         
+            
+
+            
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            totnum_R=xR_list.shape[1]
+          
+            xRmin=np.min(xR_list,1) 
+            xRmax=np.max(xR_list,1) 
+            xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+            n_Rnew=np.prod(xRlen)**2          
+          
+            if n_Rnew != self.n_R: 
+                if self.verbose:
+                    print("*********")
+                    print("Enlarging")
+                    print("*********")                    
+                # reassignement
+                xr2_old=self.x_r_vector2
+                xr3_old=self.x_r_vector3
+                #
+                self.x_r_vector2=np.zeros((3,n_Rnew),dtype=int)
+                self.x_r_vector3=np.zeros((3,n_Rnew),dtype=int)
+                self.r_vector2=np.zeros((3,n_Rnew))
+                self.r_vector3=np.zeros((3,n_Rnew))                
+                for index_cell2 in range(np.prod(xRlen)):                
+                    n_cell_x2,n_cell_y2,n_cell_z2=Methods.one_to_three_len(index_cell2,v_min=xRmin,v_len=xRlen)
+                    for index_cell3 in range(np.prod(xRlen)):
+                        n_cell_x3,n_cell_y3,n_cell_z3=Methods.one_to_three_len(index_cell3,v_min=xRmin,v_len=xRlen)      
+                        #
+                        total_index_cell = index_cell3 + np.prod(xRlen) * index_cell2
+                        #
+                        self.x_r_vector2[:, total_index_cell] = (n_cell_x2, n_cell_y2, n_cell_z2)
+                        self.r_vector2[:, total_index_cell] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, total_index_cell])
+                        self.x_r_vector3[:, total_index_cell] =  n_cell_x3, n_cell_y3, n_cell_z3
+                        self.r_vector3[:, total_index_cell] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, total_index_cell])                        
+                ###                
+                tensor_trnsp = np.transpose(self.tensor,axes=[3,2,1,0])
+                tensor=thirdorder.third_order_asr.enlarge(tensor_trnsp,
+                                                          self.x_r_vector2,self.x_r_vector3,
+                                                          xr2_old,xr3_old,
+                                                          self.nat,n_Rnew,self.n_R)
+                      
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            totnum_R=xR_list.shape[1]
+          
+            xRmin=np.min(xR_list,1) 
+            xRmax=np.max(xR_list,1) 
+            xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+            self.n_R=np.prod(xRlen)**2          
+           
+          
+            xRdiff_list=np.unique(self.x_r_vector2-self.x_r_vector3, axis = 1)
+            totnum_Rdiff=xRdiff_list.shape[1]
+
+
+            #phi_asr=thirdorder.third_order_asr.impose_asr(tensor,xR_list,xRdiff_list,self.x_r_vector2,self.x_r_vector3,totnum_Rdiff,self.n_R,totnum_R,self.nat)
+            phi_asr=thirdorder.third_order_asr.impose_asr(tensor,xRlen,xR_list,xRdiff_list,
+                                                          self.x_r_vector2,self.x_r_vector3,
+                                                          totnum_Rdiff,self.n_R,totnum_R,self.nat)
+
+            phi_asr=np.transpose(phi_asr, axes=[3,2,1,0])  
+
+           # Select the element different from zero
+            tensor_block_nonzero = np.sum(phi_asr**2, axis = (1,2,3)) > 1e-8
+            
+            self.tensor = phi_asr[tensor_block_nonzero, :, :, :]
+            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
+            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
+            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
+            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
+            self.n_R = np.sum(tensor_block_nonzero.astype(int))
+ 
+            t3 = time.time() 
+            if self.verbose:               
+                print(" Time elapsed for imposing the ASR: {} s".format( t3 - t2)) 
+                print(" Memory required for the ASR centered tensor: {} Gb".format(phi_asr.nbytes / 1024.**3))
+                print(" Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
+ 
         self.tensor = Settings.broadcast(self.tensor)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
@@ -868,77 +1047,11 @@ class Tensor3():
         
         return final_fc
 
-            
-    def ApplySumRule(self) :
-        
-        t1 = time.time()
-        
-        if Settings.am_i_the_master():
-        
-            if self.verbose:
-                print(" ")
-                print(" ======================= Imposing ASR ==========================")
-                print(" ")         
-            
-
-            
-            #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-            
-           
-        
-            
-            #xR2_list, xR2_block_index, xR2_num_tot=np.unique(self.x_r_vector2, axis = 1, return_index = True, return_counts=True )
-            #xR3_list, xR3_block_index, xR3_num_tot=np.unique(self.x_r_vector3, axis = 1, return_index = True, return_counts=True )            
-            
-            xR_list=np.unique(self.x_r_vector3, axis = 1)
-            
-            totnum_R=xR_list.shape[1]
-            
-            
-            #xR2_block_index=[  xR2_num_tot[i]  for i in xR3_block_index ]
-            
-            #print(np.sum(xR2_list-xR3_list))
-            #print(np.sum(xR2_block_index-xR3_block_index))            
-            #print(np.sum(xR2_num_tot-xR3_num_tot))
-                       
-            tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
-            phi_asr=thirdorder.third_order_asr.impose_asr(tensor_new,xR_list,self.x_r_vector2,self.x_r_vector3,self.n_R,totnum_R,self.nat)
-                
-            self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
-
-            t2 = time.time() 
-            if self.verbose:               
-                print(" Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
-                print(" ")
-                print(" ============================================================")
- 
- 
-        self.tensor = Settings.broadcast(self.tensor)
- 
-    def checkASR(self,printout=False,filename="") :
-        
-        n_sup_WS=self.n_sup
-        
-        #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
-        
-        # self.tensor(nR,jn1,jn2,jn3) the fast index is the rightmost. nR=(R2,R3), R3, is faster
-        # pass to fortran 
-        
-        tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
-        
-        print(self.lat_min)
-        print(self.lat_max)
-        print(np.shape(tensor_new))
-        
-        max_abs_asr=thirdorder.third_order_asr.check_asr(self.xR2,self.xR3,tensor_new,printout,filename,self.nat,n_sup_WS)
-        
-        print("max abs ASR: ",max_abs_asr)
-    
-
 
 # ============================================================================================================================================ 
 # Tentative Sparse  ========================================================================================================================== 
 # ============================================================================================================================================   
+    
     def WriteOnFile_sparse(self, filename):
         """
         """
@@ -964,8 +1077,6 @@ class Tensor3():
                                 x = xyz // 9
                                 f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[self.r_blocks_sparse_list[i_block], 3*nat[0] + x, 3*nat[1] + y, 3*nat[2] + z]))
        
-    
-    
     def Center_sparse(self, Far=1,tol=1.0e-5):
         """
         CENTERING 
@@ -1066,8 +1177,270 @@ class Tensor3():
     
     
 # ============================================================================================================================================ 
-# Slower/To check  =========================================================================================================================== 
-# ============================================================================================================================================   
+# Slower/To check/Old  ======================================================================================================================= 
+# ============================================================================================================================================  
+
+
+    def ApplySumRule_old(self) :
+        
+        t1 = time.time()
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Imposing ASR ==========================")
+                print(" ")         
+            
+
+            
+            #tensor_new = np.transpose(self.tensor.reshape((n_sup_WS, n_sup_WS, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            
+           
+        
+            
+            #xR2_list, xR2_block_index, xR2_num_tot=np.unique(self.x_r_vector2, axis = 1, return_index = True, return_counts=True )
+            #xR3_list, xR3_block_index, xR3_num_tot=np.unique(self.x_r_vector3, axis = 1, return_index = True, return_counts=True )            
+            
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+            totnum_R=xR_list.shape[1]
+          
+            xRdiff_list=np.unique(self.x_r_vector2-self.x_r_vector3, axis = 1)
+            totnum_Rdiff=xRdiff_list.shape[1]
+
+
+            #xRmin=np.min(xR_list,1) 
+            #xRmax=np.max(xR_list,1) 
+            #xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+            #n_sup=np.prod(xRlen)**2
+
+            
+            #xR2_block_index=[  xR2_num_tot[i]  for i in xR3_block_index ]
+            
+            #print(np.sum(xR2_list-xR3_list))
+            #print(np.sum(xR2_block_index-xR3_block_index))            
+            #print(np.sum(xR2_num_tot-xR3_num_tot))
+                       
+            tensor_new = np.transpose(self.tensor,axes=[3,2,1,0])
+            phi_asr=thirdorder.third_order_asr.impose_asr(tensor_new,xR_list,xRdiff_list,self.x_r_vector2,self.x_r_vector3,totnum_Rdiff,self.n_R,totnum_R,self.nat)
+
+            #phi_asr=thirdorder.third_order_asr.impose_asr(tensor_trnsp,xRlen,n_sup,xR_list,xRdiff_list,
+                                                          #self.x_r_vector2,self.x_r_vector3,
+                                                          #totnum_Rdiff,
+                                                          #self.n_R,totnum_R,self.nat)
+
+                
+                
+          
+            self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
+
+
+            # DEBUG        
+            tensor_block_nonzero = np.sum(self.tensor**2, axis = (1,2,3)) > 1e-8        
+            nn_R = np.sum(tensor_block_nonzero.astype(int))                    
+            print(nn_R)
+            ##################
+
+
+
+            t2 = time.time() 
+            if self.verbose:               
+                print(" Time elapsed for imposing the ASR: {} s".format( t2 - t1)) 
+                print(" ")
+                print(" ============================================================")
+ 
+ 
+        self.tensor = Settings.broadcast(self.tensor)
+
+
+
+    def Center_fast(self, Far=1,tol=1.0e-5):
+        """
+        CENTERING 
+        =========
+
+        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
+        This means that for each atomic indices in the tensor, it will be identified by the lowest 
+        perimiter between the replica of the atoms.
+        Moreover, in case of existance of other elements not included in the original supercell with
+        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
+
+        This function should be called before performing the Fourier interpolation.
+        
+        Faster but more memory demanding
+        """    
+
+        t1 = time.time()
+        
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Centering ==========================")
+                print(" ")         
+
+            # The supercell total size
+            #
+            nq0=self.supercell_size[0]
+            nq1=self.supercell_size[1]
+            nq2=self.supercell_size[2]
+            
+            n_sup = np.prod(self.supercell_size)
+            tensor_reshaped = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            alat=self.unitcell_structure.unit_cell
+            
+            lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
+            lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
+            lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
+            n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
+               
+            centered_tmp, lat_min_new, lat_max_new =thirdorder.third_order_centering.pre_center(Far,
+                                        nq0,nq1,nq2,tol, 
+                                        self.unitcell_structure.unit_cell, self.tau, tensor_reshaped,self.nat)  
+            
+            #
+            # Reassignement
+            #
+            lat_len=lat_max_new-lat_min_new+np.ones(3,dtype=int)
+            n_sup_WS=np.prod(lat_len,dtype=int)
+        
+            
+            self.n_R=n_sup_WS**2
+                 
+            centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
+                    thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,lat_min_new,
+                                                    lat_max_new,n_sup_WS,self.nat,n_sup_WS_prev)
+                
+                    
+            
+            
+            t2 = time.time() 
+            
+            centered = np.transpose(centered, axes=[3,0,1,2])
+                    
+                    
+            # Select the element different from zero
+            tensor_block_nonzero = np.sum(centered**2, axis = (1,2,3)) > 1e-8
+            
+            self.tensor = centered[tensor_block_nonzero, :, :, :]
+            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
+            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
+            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
+            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
+            self.n_R = np.sum(tensor_block_nonzero.astype(int))
+
+            if self.verbose:               
+                print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+                print("Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
+                print("Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
+
+           
+        
+        self.tensor = Settings.broadcast(self.tensor)
+        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.n_R = Settings.broadcast(self.n_R)
+
+
+    def Center_fast_noreduce(self, Far=1,tol=1.0e-5):
+        """
+        CENTERING 
+        =========
+
+        This subrouine will center the third order force constant inside the Wigner-Seitz supercell.
+        This means that for each atomic indices in the tensor, it will be identified by the lowest 
+        perimiter between the replica of the atoms.
+        Moreover, in case of existance of other elements not included in the original supercell with
+        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
+
+        This function should be called before performing the Fourier interpolation.
+        
+        Faster but more memory demanding
+        """    
+
+        t1 = time.time()
+        
+        
+        if Settings.am_i_the_master():
+        
+            if self.verbose:
+                print(" ")
+                print(" ======================= Centering ==========================")
+                print(" ")         
+
+            # The supercell total size
+            #
+            nq0=self.supercell_size[0]
+            nq1=self.supercell_size[1]
+            nq2=self.supercell_size[2]
+            
+            n_sup = np.prod(self.supercell_size)
+            tensor_reshaped = np.transpose(self.tensor.reshape((n_sup, n_sup, 3*self.nat, 3*self.nat, 3*self.nat)),axes=[2,3,4,0,1])
+            alat=self.unitcell_structure.unit_cell
+            
+            lat_min_prev=np.array([-Far*nq0,-Far*nq1,-Far*nq2])
+            lat_max_prev=np.array([nq0-1+Far*nq0,nq1-1+Far*nq1,nq2-1+Far*nq2])
+            lat_len_prev=lat_max_prev-lat_min_prev+np.ones(3,dtype=int)
+            n_sup_WS_prev=np.prod(lat_len_prev,dtype=int)        
+               
+            centered_tmp, lat_min_new, lat_max_new =thirdorder.third_order_centering.pre_center(Far,
+                                        nq0,nq1,nq2,tol, 
+                                        self.unitcell_structure.unit_cell, self.tau, tensor_reshaped,self.nat)  
+            
+            #
+            # Reassignement
+            #
+            lat_len=lat_max_new-lat_min_new+np.ones(3,dtype=int)
+            n_sup_WS=np.prod(lat_len,dtype=int)
+        
+            
+            self.n_R=n_sup_WS**2
+                 
+            centered,self.x_r_vector2,self.x_r_vector3,self.r_vector2,self.r_vector3= \
+                    thirdorder.third_order_centering.assign(alat,lat_min_prev,lat_max_prev,centered_tmp,lat_min_new,
+                                                    lat_max_new,n_sup_WS,self.nat,n_sup_WS_prev)
+                
+                    
+            
+            
+            t2 = time.time() 
+            
+            centered = np.transpose(centered, axes=[3,0,1,2])
+                    
+ 
+                    
+            # Select the element different from zero
+            tensor_block_nonzero = np.sum(centered**2, axis = (1,2,3)) > -10 
+            
+            self.tensor = centered[tensor_block_nonzero, :, :, :]
+            self.x_r_vector2 = self.x_r_vector2[:, tensor_block_nonzero]
+            self.x_r_vector3 = self.x_r_vector3[:, tensor_block_nonzero]
+            self.r_vector2 = self.r_vector2[:, tensor_block_nonzero]
+            self.r_vector3 = self.r_vector3[:, tensor_block_nonzero]
+            self.n_R = np.sum(tensor_block_nonzero.astype(int))
+            print(self.n_R)
+            if self.verbose:               
+                print("Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+                print("Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
+                print("Memory required after removing zero elements: {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
+
+           
+        
+        #self.tensor = Settings.broadcast(self.tensor)
+        #self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        #self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
+        #self.r_vector2 = Settings.broadcast(self.r_vector2)
+        #self.r_vector3 = Settings.broadcast(self.r_vector3)
+        #self.n_R = Settings.broadcast(self.n_R)        
+
+
   
     def Interpolate_fort(self, q2, q3): # OK but slower
        """
