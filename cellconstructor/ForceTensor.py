@@ -757,7 +757,7 @@ class Tensor3():
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
-    def Interpolate(self, q2, q3, asr = True):
+    def Interpolate(self, q2, q3, asr = True, verbose = False):
         """
         Interpolate the third order to the q2 and q3 points
         
@@ -767,6 +767,8 @@ class Tensor3():
                 The q points
             asr : bool
                 If true, the Acoustic sum rule is applied directly in q space
+            verbose : bool
+                If true print debugging info
         
         Results
         -------
@@ -791,23 +793,76 @@ class Tensor3():
 
             nat = self.unitcell_structure.N_atoms
 
-            # Create the projector
-            trans = np.eye(3*nat, dtype = np.double)
+            # Create the projector on the orthonormal space to the ASR
+            Q_proj = np.zeros((3*nat, 3*nat), dtype = np.double)
             for i in range(3):
                 v1 = np.zeros(nat*3, dtype = np.double)
                 v1[3*np.arange(nat) + i] = 1
                 v1 /= np.sqrt(v1.dot(v1))
                 
-                trans -= np.outer(v1, v1)
+                Q_proj += np.outer(v1, v1)
+            
+            # Get the N_i in the centered cell
+            # First we get the list of vectors in crystal coordinates
+            xR_list=np.unique(self.x_r_vector3, axis = 1)
+          
+            # We pick the minimum and maximum values of the lattice vectors
+            # in crystal coordinates
+            xRmin=np.min(xR_list, axis = 1)
+            xRmax=np.max(xR_list, axis = 1)
 
-            # Check if the ASR must be imposed
-            __tol__ = 1e-7
-            if Methods.get_min_dist_into_cell(bg, q3, np.zeros(3)) < __tol__:
-                final_fc = np.einsum("abi, ci-> abc", final_fc, trans)
-            if Methods.get_min_dist_into_cell(bg, q2, np.zeros(3)) < __tol__:
-                final_fc = np.einsum("aic, bi-> abc", final_fc, trans)
-            if Methods.get_min_dist_into_cell(bg, q2, -q3) < __tol__:
-                final_fc = np.einsum("ibc, ai-> abc", final_fc, trans)
+            # Now we can obtain the dimension of the cell along each direction.
+            N_i = xRmax-xRmin+np.ones((3,),dtype=int)
+
+            if verbose:
+                print("Centered supercell: ", N_i)
+
+            # We check if they are even, in that case we add 1
+            # f(q) is real only if we sum on odd cells
+            for ik in range(3):
+                if (N_i[ik] % 2 == 0):
+                    N_i[ik] += 1
+            
+            if verbose:
+                print("Supercell all odd:", N_i)
+
+            
+            # We compute the f(q) function
+            at = self.unitcell_structure.unit_cell
+
+            __tol__ = 1e-8
+            f_q3i = np.ones(3, dtype = np.double)
+            f_q2i = np.ones(3, dtype = np.double)
+            f_q1i = np.ones(3, dtype = np.double)
+
+            # We use mask to avoid division by 0,
+            # As we know that the 0/0 limit is 1 in this case
+
+            mask3 = np.abs(np.sin(at.dot(q3) * np.pi)) > __tol__ 
+            f_q3i[mask3] = np.sin(N_i[mask3] * at[mask3,:].dot(q3) * np.pi) / (N_i[mask3] * np.sin(at[mask3,:].dot(q3) * np.pi))
+            f_q3 = np.prod(f_q3i)
+
+            mask2 = np.abs(np.sin(at.dot(q2) * np.pi)) > __tol__
+            f_q2i[mask2] = np.sin(N_i[mask2] * at[mask2,:].dot(q2) * np.pi) / (N_i[mask2] * np.sin(at[mask2,:].dot(q2) * np.pi))
+            f_q2 = np.prod(f_q2i)
+
+            q1 = -q2 - q3
+            mask1 = np.abs(np.sin(at.dot(q1) * np.pi)) > __tol__
+            f_q1i[mask1] = np.sin(N_i[mask1] * at[mask1,:].dot(q1) * np.pi) / (N_i[mask1] * np.sin(at[mask1,:].dot(q1) * np.pi))
+            f_q1 = np.prod(f_q1i)
+
+            if verbose:
+                print("The fq factors:")
+                print("{:16.8f} {:16.8f} {:16.8f}".format(f_q1, f_q2, f_q3))
+                print("q1 = ", Methods.covariant_coordinates(bg * 2 * np.pi, q1))
+                print("q2 = ", Methods.covariant_coordinates(bg * 2 * np.pi, q2))
+                print("q3 = ", Methods.covariant_coordinates(bg * 2 * np.pi, q3))
+
+            # Now we can impose the acustic sum rule
+            final_fc -= np.einsum("abi, ci-> abc", final_fc, Q_proj) * f_q3 
+            final_fc -= np.einsum("aic, bi-> abc", final_fc, Q_proj) * f_q2
+            final_fc -= np.einsum("ibc, ai-> abc", final_fc, Q_proj) * f_q1 
+
 
 
         
