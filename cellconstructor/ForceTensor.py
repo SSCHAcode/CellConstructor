@@ -33,16 +33,21 @@ class GenericTensor:
     This should be used only to define new tensors.
     """
 
-    def __init__(self, structure):
+    def __init__(self,  unitcell_structure, supercell_structure, supercell_size):
         """
         Define the tensors
         """
-        self.structure = structure
-        self.tensor = None
-        self.r_vectors = None 
-        self.distances = None
-        self.supercell = structure.unit_cell.copy()
+        self.supercell_size = supercell_size 
+        self.itau = supercell_structure.get_itau(unitcell_structure) - 1
+        
+        self.tau=unitcell_structure.coords
+        
+        self.nat = unitcell_structure.N_atoms
 
+        self.unitcell_structure = unitcell_structure
+        self.supercell_structure = supercell_structure
+
+        self.verbose = True
 
         
 
@@ -51,9 +56,15 @@ class Tensor2(GenericTensor):
     This class defines the 2rank tensors, like force constant matrices.
     """
 
-    def __init__(self, *args, **kwargs):
-        GenericTensor.__init__(self, *args, **kwargs)
+    def __init__(self, unitcell_structure, supercell_structure, supercell_size):
+        GenericTensor.__init__(self, unitcell_structure, supercell_structure, supercell_size)
         
+        # Setup from the tensor
+        self.n_R = np.prod(np.prod(supercell_size))
+        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        self.tensor = np.zeros((self.n_R, 3*nat, 3*nat), dtype = np.double)
+
 
     def SetupFromPhonons(self, phonons):
         """
@@ -67,9 +78,6 @@ class Tensor2(GenericTensor):
             - phonons : Phonons.Phonons()
                 The dynamical matrix from which you want to setup the tensor
         """
-
-        self.structure = phonons.structure 
-
         # Get the dynamical matrix in the supercell
         super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
 
@@ -110,22 +118,60 @@ class Tensor2(GenericTensor):
 
         assert natsc3 == natsc3_, "Error, the given tensor must be a square matrix"
 
-        # Prepare the tensor
-        self.tensor = np.zeros( (nat, nat_sc, 3, 3), order = "C", dtype = np.double)
-        self.r_vectors = np.zeros((nat, nat_sc, 3), order = "C", dtype = np.double)
-        self.distances = np.zeros((nat, nat_sc), dtype = np.double, order = "C")
+        nat = self.unitcell_structure.N_atoms
+        nat_sc = nat * self.n_R
 
-        for i in range(nat):
-            for j in range(nat_sc):
-                self.tensor[i, j, :, :] = tensor[3*i: 3*i+3, 3*j:3*j+3]
-                v_dist = superstructure.coords[i, :] - superstructure.coords[j,:]
-                close_vect = Methods.get_closest_vector(superstructure.unit_cell, v_dist) 
-                self.r_vectors[i, j, :] = close_vect
+        for i_x in range(self.supercell[0]):
+            for i_y in range(self.supercell[1]):
+                for i_z in range(self.supercell[2]):
+                    i_block = self.supercell[1] * self.supercell[2] * i_x
+                    i_block += self.supercell[2] * i_y 
+                    i_block += i_z 
+                    self.x_r_vector2[:, i_block] = np.array 
+                    self.r_vector2[:, i_block] = self.unitcell_structure.unit_cell.dot(self.x_r_vector2[:, i_block])
 
-                # Store the distance corresponding to this matrix element
-                self.distances[i, j] = np.sqrt(close_vect.dot(close_vect))
+                    for na1 in range(nat):
+                        for na2 in range(nat):
+                            # Get the atom in the supercell corresponding to the one in the unit cell
+                            na2_vect = self.unitcell_structure.coords[na2, :] + self.r_vector2[:, i_block]
+                            nat2_sc = np.argmin( [np.sum( (supercell_structure.coords[k, :] - na2_vect)**2) for k in range(nat_sc)])
+                            
+                            self.tensor[i_block, 3*na1:3*na1+3, 3*na2: 3*na2+3] = tensor[3*na1 : 3*na1+3, 3*nat2_sc : 3*nat2_sc + 3]
 
-        self.multiplicity = np.ones( (nat, nat_sc), order= "C", dtype = np.double)
+
+
+    def Center(self, Far = 1, tol = 1.0e-5):
+        """
+        CENTERING
+        =========
+
+        This subroutine will center the second order force constant
+        matrix. 
+        For each atomic indices, it will be identified by the lowest perimeter
+        between the replica of the atoms.
+
+        This function should be called before performing the Fourier interpolation.
+        """
+
+        t1 = time.time()
+
+        if Settings.am_i_the_master():
+
+            if self.verbose:
+                print(" ")
+                print(" ======================= Centering ==========================")
+                print(" ")       
+            
+            nq0 = self.supercell_size[0]
+            nq1 = self.supercell_size[1]
+            n_sup = self.n_R
+
+
+            weight,xR2 =thirdorder.third_order_centering.analysis(Far,
+                                        nq0,nq1,nq2,tol, 
+                                        self.unitcell_structure.unit_cell, self.tau, self.tensor,self.nat)  
+            
+            
 
 
     def GenerateSupercellTensor(self, supercell):

@@ -40,7 +40,7 @@ subroutine analysis(Far,nat,nq1,nq2,nq3,tol, alat, tau, tensor,weight,xR2,xR3)
         u_vec=tau(u,:)
         xu_cell_orig=one_to_three( u_lat,(/0,0,0/),(/nq1-1,nq2-1,nq3-1/) ) 
            !
-           ! Check total value  ==================================================================
+           ! Check if the tensor at this block is empty, if so, cycle to the next block
            summa=0.0_dp
            !
            do alpha=1,3
