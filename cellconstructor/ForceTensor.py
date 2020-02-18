@@ -509,7 +509,11 @@ class Tensor2(GenericTensor):
                     r_dist = self.r_vector2[:, i_R] + self.tau[at_2,:] - self.tau[at_1, :]
                     
                     tensor = self.tensor[i_R, 3*at_1 : 3*at_1 + 3, 3*at_2: 3*at_2 + 3]
-                    intensity = np.trace(tensor.dot(tensor.T))
+                    intensity = np.sqrt(np.trace(tensor.dot(tensor.T)))
+
+                    # Skip zero values
+                    if intensity < 1e-10:
+                        continue
 
                     r_mod = np.sqrt(r_dist.dot(r_dist))
 
