@@ -1,5 +1,7 @@
 ! Memory optimized centering
 module second_order_centering
+
+    use third_order_centering, only: one_to_three
     contains
 
     subroutine analysis(Far, nat, nq1, nq2, nq3, tol, alat, tau, tensor, weight, xR2)
@@ -9,19 +11,20 @@ module second_order_centering
         double precision, intent(in), dimension(nat,3) :: tau 
         integer, intent(in) :: Far 
         double precision, intent(in) :: tol 
-        double precision, intent(in), dimension(nq1*nq2*nq3, 3*nat, 3*nat, 3*nat) :: tensor 
+        double precision, intent(in), dimension(nq1*nq2*nq3, 3*nat, 3*nat) :: tensor 
 
         integer, intent(out) :: weight(nat, nat, nq1*nq2*nq3) 
         integer, intent(out) :: xR2(3, (2*Far + 1)*(2*Far + 1)*(2*Far + 1), nat,nat,nq1*nq2*nq3)
 
         ! Here the variable we need for the computations
-        integer :: s, t, t_lat, xt_cell_orig(3), xt(3), alpha, beta, RRt(3, (2*Far+1)**3)
+        integer :: s, t, t_lat, xt_cell_orig(3), xt(3), alpha, beta, RRt(3, (2*Far+1)*(2*Far+1)*(2*Far+1) )
         integer :: LLt, MMt, NNt, ww, h 
         double precision, dimension(3) :: s_vec, t_vec, r_vect 
         double precision :: summa, dist_min, dist
         
 
         ! Ok, lets start by cycling over the atomic indices
+        xR2(:, :, :, :, :) = 0.0d0
         do s = 1, nat
             ! Get the vector to the first atom
             ! in the unit cell
@@ -31,12 +34,13 @@ module second_order_centering
                 ! Get the second vector on the unit cell
                 t_vec = tau(t, :)
 
-                ! Get the crystal coordinate of the lattice vector
-                ! that represent the t atom
-                xt_cell_orig = one_to_three
 
                 ! Cycle on the lattice for the second atom
                 do t_lat = 1, nq1*nq2*nq3
+
+                    ! Get the crystal coordinate of the lattice vector
+                    ! that represent the t atom
+                    xt_cell_orig = one_to_three(t_lat, (/0,0,0/), (/nq1-1, nq2-1, nq3-1/))
 
                     summa = 0.0d0
                     do alpha = 1, 3
@@ -100,6 +104,59 @@ module second_order_centering
             enddo
         enddo
     end subroutine analysis
+
+
+    ! Perform the centering
+    ! Parameter list
+    ! --------------
+    !   original : the original tensor before centering
+    !   weight : the weights as they results from the analysis subroutine
+    !   xR2_lsit : The list of the R2 vectors (crystal coordinates) that contains recentered elements
+    !   xR2 : The total list of crystal coordinates for each lattice vectors (recentered)
+    !   nat : the number of atoms in the unit cell
+    !   n_sup : The overall dimension of the supercell
+    !   Far : The parameter used for the recentering in analysis
+    !   n_blocks : The number of non zero blocks
+    subroutine center(original, weight, xR2_list, xR2, nat, n_sup, centered, Far, n_blocks)
+        integer, intent(in) :: nat, n_sup, n_blocks, Far 
+        integer, intent(in), dimension(3, n_blocks) :: xR2_list
+        integer, intent(in), dimension(3, (2*Far + 1)*(2*Far + 1)*(2*Far + 1), nat, nat, n_sup) :: xR2
+        integer, intent(in) :: weight(nat, nat, n_sup)
+        double precision, intent(in), dimension(n_sup, 3*nat, 3*nat) :: original
+        double precision, intent(out), dimension(n_blocks, 3*nat, 3*nat) :: centered 
+
+        ! Define variable used during the computation
+        integer :: s, t, t_lat, h, i_block, jn1, jn2
+
+        ! Initialized the final tensor
+        centered(:,:,:) = 0.0d0 
+
+        ! Cycle over the atomic indices
+        do s = 1, nat 
+            do t = 1, nat 
+                do t_lat = 1, n_sup 
+
+                    ! Cycle over the replicas with the same distance
+                    do h = 1, weight(s, t, t_lat) 
+
+                        ! Check which block correspond to the current element
+                        do i_block = 1, n_blocks 
+                            if ( sum(abs(xR2_list(:, i_block) - xR2(:, h, s, t, t_lat))) < 1.0d-8) then
+
+                                ! Copy the tensor into the centered one with the correct weighting
+                                do jn1 = 1 + (s-1)*3, 3+(s-1)*3
+                                    do jn2 = 1 + (t-1)*3, 3+(t-1)*3
+                                        centered(i_block, jn1, jn2) = original(t_lat, jn1, jn2) / weight(s, t, t_lat)
+                                    enddo
+                                enddo
+                            endif
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+            
+    end subroutine center 
 
 
     

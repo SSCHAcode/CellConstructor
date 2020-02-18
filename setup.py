@@ -26,7 +26,8 @@ thirdorder_ext = Extension(name = "thirdorder",
                       sources = ["FModules/third_order_centering.f90",
                                  "FModules/third_order_ASR.f90",
                                  "FModules/third_order_interpol.f90",
-                                 "FModules/third_order_dynbubble.f90"],
+                                 "FModules/third_order_dynbubble.f90",
+                                 "FModules/second_order_centering.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )

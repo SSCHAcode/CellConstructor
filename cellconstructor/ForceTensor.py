@@ -59,11 +59,10 @@ class Tensor2(GenericTensor):
     def __init__(self, unitcell_structure, supercell_structure, supercell_size):
         GenericTensor.__init__(self, unitcell_structure, supercell_structure, supercell_size)
         
-        # Setup from the tensor
         self.n_R = np.prod(np.prod(supercell_size))
         self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
         self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
-        self.tensor = np.zeros((self.n_R, 3*nat, 3*nat), dtype = np.double)
+        self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
 
 
     def SetupFromPhonons(self, phonons):
@@ -82,10 +81,10 @@ class Tensor2(GenericTensor):
         super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
 
         # Setup from the supercell dynamical matrix
-        self.SetupFromTensor(super_dyn.dynmats[0], super_dyn.structure)
+        self.SetupFromTensor(super_dyn.dynmats[0])
 
 
-    def SetupFromTensor(self, tensor, superstructure):
+    def SetupFromTensor(self, tensor):
         """
         SETUP FROM A TENSOR
         ===================
@@ -100,14 +99,11 @@ class Tensor2(GenericTensor):
         ----------
             - tensor : ndarray( size=(3*nat_sc, 3*nat_sc))
                 The matrix to be converted in this Tensor2.
-            - superstructure : Structures.Structure()
-                The structure in the supercell that define the tensor. 
                 
         """
 
-        nat = self.structure.N_atoms
-        nat_sc = superstructure.N_atoms
-        self.supercell = superstructure.unit_cell.copy()
+        nat = self.nat
+        nat_sc = self.supercell_structure.N_atoms
 
         # Check if the passed structure is a good superstructure
         assert nat_sc % nat == 0, "Error, the given superstructure has a wrong number of atoms"
@@ -121,20 +117,20 @@ class Tensor2(GenericTensor):
         nat = self.unitcell_structure.N_atoms
         nat_sc = nat * self.n_R
 
-        for i_x in range(self.supercell[0]):
-            for i_y in range(self.supercell[1]):
-                for i_z in range(self.supercell[2]):
-                    i_block = self.supercell[1] * self.supercell[2] * i_x
-                    i_block += self.supercell[2] * i_y 
+        for i_x in range(self.supercell_size[0]):
+            for i_y in range(self.supercell_size [1]):
+                for i_z in range(self.supercell_size[2]):
+                    i_block = self.supercell_size[1] * self.supercell_size[2] * i_x
+                    i_block += self.supercell_size[2] * i_y 
                     i_block += i_z 
-                    self.x_r_vector2[:, i_block] = np.array 
-                    self.r_vector2[:, i_block] = self.unitcell_structure.unit_cell.dot(self.x_r_vector2[:, i_block])
+                    self.x_r_vector2[:, i_block] = np.array([i_x, i_y, i_z])
+                    self.r_vector2[:, i_block] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, i_block])
 
                     for na1 in range(nat):
                         for na2 in range(nat):
                             # Get the atom in the supercell corresponding to the one in the unit cell
                             na2_vect = self.unitcell_structure.coords[na2, :] + self.r_vector2[:, i_block]
-                            nat2_sc = np.argmin( [np.sum( (supercell_structure.coords[k, :] - na2_vect)**2) for k in range(nat_sc)])
+                            nat2_sc = np.argmin( [np.sum( (self.supercell_structure.coords[k, :] - na2_vect)**2) for k in range(nat_sc)])
                             
                             self.tensor[i_block, 3*na1:3*na1+3, 3*na2: 3*na2+3] = tensor[3*na1 : 3*na1+3, 3*nat2_sc : 3*nat2_sc + 3]
 
@@ -153,25 +149,196 @@ class Tensor2(GenericTensor):
         This function should be called before performing the Fourier interpolation.
         """
 
-        t1 = time.time()
+        nq0 = self.supercell_size[0]
+        nq1 = self.supercell_size[1]
+        nq2 = self.supercell_size[2]
+        n_sup = nq0*nq1*nq2 
 
+        assert self.n_R == n_sup, "Error, maybe the tensor has already been centered?"
+        assert self.tensor.shape[0] == n_sup, "Error, maybe the tensor has already been centered?"
+
+        # The centering may require a lot of memory, it is safer to use only one processor
         if Settings.am_i_the_master():
+
+            t1 = time.time()
 
             if self.verbose:
                 print(" ")
                 print(" ======================= Centering ==========================")
                 print(" ")       
             
-            nq0 = self.supercell_size[0]
-            nq1 = self.supercell_size[1]
-            n_sup = self.n_R
 
 
-            weight,xR2 =thirdorder.third_order_centering.analysis(Far,
+            # Analyze the centering to prepare the weights and the vectors that contains the centered elements
+            weight,xR2 =thirdorder.second_order_centering.analysis(Far,
                                         nq0,nq1,nq2,tol, 
-                                        self.unitcell_structure.unit_cell, self.tau, self.tensor,self.nat)  
+                                        self.unitcell_structure.unit_cell, self.tau, self.tensor,self.nat)
+
+            # Prepare the blocks that contains the centered elements
+            xR2_reshaped = np.reshape(xR2, (3, (2*Far+1)**3 * self.nat**2 * n_sup))
             
+            # Pick only the unique vectors
+            self.x_r_vector2 = np.unique(xR2_reshaped, axis = 1)
+            self.n_R = self.x_r_vector2.shape[1]
+            # Force the F ordering for a faster Fourier interpolation
+            self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+            self.r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+
+            # Now copy the centered tensor into the new tensor
+            self.tensor = thirdorder.second_order_centering.center(self.tensor, weight, self.x_r_vector2, xR2, Far, self.nat, n_sup, self.n_R)
+
+                        
+            t2 = time.time() 
+            if self.verbose:
+                print("Time elapsed for computing the centering (2nd order): {} s".format(t2 - t1))
+                print("Memory required by the centered matrix (2nd order): {} Gb".format(self.tensor.nbytes / 1024.**3))
+                print()
             
+        # Broadcast the centered tensor to all the processors
+        self.tensor = Settings.broadcast(self.tensor)
+        self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
+        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.n_R = Settings.broadcast(self.n_R)
+
+    def WriteOnFile(self, fname):
+        """
+        WRITE ON FILE
+        =============
+
+        Save the tensor on a file.
+        This is usefull if you want to check if everything is working as you expect.
+
+        The file format is the same as phono3py 
+        In the first line there is the total number of blocks.
+        Then for each block there is the lattice vector followed by the atomic index in the unit cell.
+        Then there is the tensor for each cartesian coordinate
+        
+        As follows:
+
+        N_blocks
+        Block_index
+        R_x R_y R_z
+        at_1 at_2
+        coord_1 coord_2 tensor_value
+        coord_1 coord_2 tensor_value
+        ...
+
+
+        Parameters
+        ----------
+            fname : string
+                Path to the file on which you want to save the tensor.
+        """
+
+        with open(fname, "w") as f:
+            # Write the total number of blocks
+            f.write("{:>5}\n".format(self.n_R * self.nat**2))
+
+            i_block = 1
+            for r_block in range(self.n_R):
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                        # Write the info on the current block
+                        f.write("{:d}\n".format(i_block))
+                        f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
+                        f.write("{:>6d} {:>6d}\n".format(nat1 + 1, nat2+1))
+                        i_block += 1
+
+                        # Write the tensor for the block
+                        # For each cartesian coordinate
+                        for x in range(3):
+                            for y in range(3):
+                                f.write("{:>2d} {:>2d} {:>20.10e}\n".format(x+1, y+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y]))
+
+
+    def Interpolate(self, q2, asr = True, verbose = False):
+        """
+        Perform the Fourier interpolation to obtain the force constant matrix at a given q
+        This subroutine automatically performs the ASR
+
+        Parameters
+        ----------
+            q2 : ndarray(size = 3) 
+                The q vector in A^-1
+            asr : bool
+                If true, apply the acousitc sum rule
+            verbose : bool
+                Print some debugging info
+
+        Results
+        -------
+            phi2 : ndarray(size = (3*nat, 3*nat), dtype = np.complex128)
+                The second order force constant at q2. Atomic indices runs over the unit cell
+        """
+
+        final_fc = np.zeros((3*self.nat, 3*self.nat), dtype = np.complex128)
+
+        for i in range(self.n_R):
+            arg = 2 * np.pi * (q2.dot(self.r_vector2[:, i]))
+            phase = np.exp(np.complex128(1j) * arg)
+            final_fc += phase * self.tensor[i, :, :]
+
+        # Apply the acoustic sum rule
+        if asr:
+            # Get the reciprocal lattice vectors
+            bg = Methods.get_reciprocal_vectors(self.unitcell_structure.unit_cell) / (2*np.pi)
+            nat = self.unitcell_structure.N_atoms
+
+            # Create the ASR projector
+            Q_proj = np.zeros((3*nat, 3*nat), dtype = np.double)
+            for i in range(3):
+                v1 = np.zeros(nat*3, dtype = np.double)
+                v1[3*np.arange(nat) + i] = 1
+                v1 /= np.sqrt(v1.dot(v1)) 
+
+                Q_proj += np.outer(v1,v1) 
+
+            # Lets pick the minimum and maximum lattice vectors
+            xRmin = np.min(self.x_r_vector2, axis = 1)
+            xRmax = np.max(self.x_r_vector2, axis = 1)
+
+            # Now we obtain the total cell size that contains the ASR
+            N_i = xRmax - xRmin + np.ones((3,), dtype = np.intc) 
+            
+            if verbose:
+                print("Supercell WS:", N_i)
+
+            # We check if they are even, in that case we add 1
+            # f(q) is real only if we sum on odd cells
+            for ik in range(3):
+                if (N_i[ik] % 2 == 0):
+                    N_i[ik] += 1
+            
+            if verbose:
+                print("Supercell all odd:", N_i)
+
+            
+            # We compute the f(q) function
+            at = self.unitcell_structure.unit_cell
+
+            __tol__ = 1e-8
+            f_q2i = np.ones(3, dtype = np.double)
+
+            # We use mask to avoid division by 0,
+            # As we know that the 0/0 limit is 1 in this case
+            mask2 = np.abs(np.sin(at.dot(q2) * np.pi)) > __tol__
+            f_q2i[mask2] = np.sin(N_i[mask2] * at[mask2,:].dot(q2) * np.pi) / (N_i[mask2] * np.sin(at[mask2,:].dot(q2) * np.pi))
+            f_q2 = np.prod(f_q2i)
+
+            if verbose:
+                print("The fq:")
+                print("{:16.8f} {:16.8f}".format(f_q2, f_q2))
+                print("q1 = ", Methods.covariant_coordinates(bg * 2 * np.pi, -q2))
+                print("q2 = ", Methods.covariant_coordinates(bg * 2 * np.pi, q2))
+
+            # Now we can impose the acustic sum rule
+            final_fc -= np.einsum("ai, bi-> ab", final_fc, Q_proj) * f_q2
+            final_fc -= np.einsum("ib, ai-> ab", final_fc, Q_proj) * f_q2 
+
+
+        return final_fc
+
+    
 
 
     def GenerateSupercellTensor(self, supercell):
@@ -272,7 +439,7 @@ class Tensor2(GenericTensor):
 
         return new_tensor
 
-    def GeneratePhonons(self, supercell):
+    def GeneratePhonons(self, supercell, asr = True):
         """
         GENERATE PHONONS
         ================
@@ -287,6 +454,9 @@ class Tensor2(GenericTensor):
         ----------
             - supercell : (nx, ny, nz)
                 The supercell of the dynamical matrix
+            - asr : bool
+                If true, the ASR is imposed during the interpolation.
+                This is the best way to correct the modes even close to gamma
         
         Results
         -------
@@ -296,23 +466,18 @@ class Tensor2(GenericTensor):
         """
 
         # Prepare the phonons for this supercell
-        dynmat = Phonons.Phonons(self.structure)
+        dynmat = Phonons.Phonons(self.unitcell_structure)
 
         # Prepare the q_points
-        dynmat.q_tot = symmetries.GetQGrid(self.structure.unit_cell, supercell)
-        dynmat.q_stars = [dynmat.q_tot]
+        dynmat.q_tot = symmetries.GetQGrid(self.unitcell_structure.unit_cell, supercell)
+        q_vectors = [x.copy() for x in dynmat.q_tot]
+        dynmat.q_stars = [q_vectors]
         dynmat.dynmats = []
 
-        # Compute the force constant matrix in the supercell
-        fc_matrix = self.GenerateSupercellTensor(supercell)
-
-        super_structure = self.structure.generate_supercell(supercell)
-
-        # Get the list of dynamical matrices for each q point
-        dynq = Phonons.GetDynQFromFCSupercell(fc_matrix, np.array(dynmat.q_tot), self.structure, super_structure)
-
-        for iq, q in enumerate(dynmat.q_tot):
-            dynmat.dynmats.append(dynq[iq,:,:])
+        # Interpolate over the q points
+        for i, q_vector in enumerate(q_vectors):
+            dynq = self.Interpolate(q_vector, asr = asr)
+            dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
         dynmat.AdjustQStar()
@@ -343,13 +508,14 @@ class Tensor2(GenericTensor):
                 The mean squared value of the tensor over the
                 corresponding distance.
         """
-
+        raise NotImplementedError("Error, function not yet implemented")
         tensor_magnitude = np.sqrt(np.einsum("...ab, ...ba", self.tensor, self.tensor))
 
         assert tensor_magnitude.shape == self.distances.shape
 
         # Get the unique radius
-        real_r, counts = np.unique(self.distances, return_counts=True)
+        distances = np.sqrt(np.sum(self.r_vector2**2, axis = 0))
+        real_r, counts = np.unique(distances, return_counts=True)
 
         # Compute the square average around it
         mean_square = np.zeros(len(real_r), dtype = np.double)
