@@ -49,6 +49,12 @@ class GenericTensor:
 
         self.verbose = True
 
+
+
+
+
+
+
         
 
 class Tensor2(GenericTensor):
@@ -485,46 +491,53 @@ class Tensor2(GenericTensor):
         return dynmat
 
 
+
     def GetRDecay(self):
         """
-        This function returns a 2d array ready to be plotted
-        to show the localization of the tensor.
+        Get a plot of the R decay.
 
-        It will have the distance between the indices of the tensor
-        and the average mean square value of the tensor corresponding 
-        to that distance.
-
-        It is the absolute distance in a Tensor2, 
-        the perimeter between the three elements in Tensor3 and so on.
-
-        This function is general for any kind of tensor.
-
-        Returns
-        -------
-            - distances : ndarray
-                The list of the distances, sorted, between all the indices
-                of the tensors.
-            - mean_square : ndarray (size = len(distances))
-                The mean squared value of the tensor over the
-                corresponding distance.
+        For each element of the block, plots the maximum intensity in the distance between the data
         """
-        raise NotImplementedError("Error, function not yet implemented")
-        tensor_magnitude = np.sqrt(np.einsum("...ab, ...ba", self.tensor, self.tensor))
 
-        assert tensor_magnitude.shape == self.distances.shape
+        r_total = []
+        max_intensity = []
 
-        # Get the unique radius
-        distances = np.sqrt(np.sum(self.r_vector2**2, axis = 0))
-        real_r, counts = np.unique(distances, return_counts=True)
+        for i_R in range(self.n_R):
+            # Get the distance for each atomic couple in the block
+            for at_1 in range(self.nat):
+                for at_2 in range(self.nat):
+                    r_dist = self.r_vector2[:, i_R] + self.tau[at_2,:] - self.tau[at_1, :]
+                    
+                    tensor = self.tensor[i_R, 3*at_1 : 3*at_1 + 3, 3*at_2: 3*at_2 + 3]
+                    intensity = np.trace(tensor.dot(tensor.T))
 
-        # Compute the square average around it
-        mean_square = np.zeros(len(real_r), dtype = np.double)
-        for i,r in enumerate(real_r):
-            mask = self.distances == r 
-            mean_square[i] = np.sum( tensor_magnitude[mask]**2) / counts[i]
-        mean_square = np.sqrt(mean_square)
+                    r_mod = np.sqrt(r_dist.dot(r_dist))
 
-        return real_r, mean_square
+                    if len(r_total) == 0:
+                        r_total.append(r_mod)
+                        max_intensity.append(intensity)
+                        continue 
+
+                    # Check if another vector with the same distance has already been found
+                    distances = np.abs(r_mod - np.array(r_total))
+
+                    if np.min(distances) < 1e-7:
+                        # Compute the tensor intensity
+
+                        index = np.argmin(distances)
+                        if max_intensity[index] < intensity:
+                            max_intensity[index] = intensity
+                    else:
+                        r_total.append(r_mod)
+                        max_intensity.append(intensity)
+
+        
+        r_total = np.array(r_total)
+        max_intensity = np.array(max_intensity)
+
+        # Return the value sorted by R distance
+        sort_mask = np.argsort(r_total) 
+        return r_total[sort_mask], max_intensity[sort_mask]
 
 
     def ApplyKaiserWindow(self, rmax, beta=14, N_sampling = 1000):
@@ -565,6 +578,8 @@ class Tensor2(GenericTensor):
         for i in range(nat):
             for j in range(nat_sc):
                 self.tensor[i, j, :, :] *= kaiser_window[i,j]
+
+
                 
                 
                 
