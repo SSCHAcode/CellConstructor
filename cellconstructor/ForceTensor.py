@@ -122,7 +122,7 @@ class Tensor2(GenericTensor):
 
         nat = self.unitcell_structure.N_atoms
         nat_sc = nat * self.n_R
-
+        
         for i_x in range(self.supercell_size[0]):
             for i_y in range(self.supercell_size [1]):
                 for i_z in range(self.supercell_size[2]):

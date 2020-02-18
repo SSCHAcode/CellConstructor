@@ -22,6 +22,7 @@ from cellconstructor.Units import *
 # Import the Fortran Code
 import symph
 
+import time
 
 
 try:
@@ -3089,11 +3090,14 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
     
     #print "NQ:", nq
+
+    fc = symph.fast_ft_real_space_from_dynq(unit_cell_structure.coords, supercell_structure.coords, itau+1, np.array(q_tot), dynmat, unit_cell_structure.N_atoms, supercell_structure.N_atoms, q_tot.shape[0])
     
     
-    
+    """ 
     for i in range(nat_sc):
         i_uc = itau[i]
+        t1 = time.time()
         for j in range(nat_sc):
             j_uc = itau[j]
             R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
@@ -3102,8 +3106,13 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
             # q_dot_R is 1d array that for each q contains the scalar product with R
             q_dot_R = q_tot.dot(R)
             
+            t2 = time.time()
             fc[3*i : 3*i + 3, 3*j : 3*j + 3] += np.einsum("abc, a", dynmat[:, 3*i_uc : 3*i_uc + 3, 3*j_uc: 3*j_uc + 3], np.exp(1j * 2*np.pi * q_dot_R)) / nq
-            
+            t3 = time.time()
+
+            print("Time to do a single cycle: ", t3 - t2)
+            print("Total number of cycles = {} / {}".format(nat_sc * i + j + 1, nat_sc**2)) 
+        print("Time for a whole cycle: ", t3 - t1) """
 #    
 #    # For now, to test, just the unit cell
 #    for i in range(nq):
