@@ -319,7 +319,7 @@ def get_static_bubble_old(dyn, tensor3, k_grid, q, T = 0):
     #new_dyn.save_qe("dyn_plus_odd")
         
         
-def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T):
+def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T, asr = True):
     """
     Get the dyn + static bubble correction for the list of q points
     """
@@ -331,7 +331,7 @@ def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T):
     tensor2.Center()
     
     for iq, q in enumerate(list_of_q_points):
-        dynq[iq, :, :] = get_static_bubble(tensor2, tensor3, k_grid, np.array(q),T)  
+        dynq[iq, :, :] = get_static_bubble(tensor2, tensor3, k_grid, np.array(q),T, asr = asr)  
 
     return dynq
 

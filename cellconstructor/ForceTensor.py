@@ -257,7 +257,7 @@ class Tensor2(GenericTensor):
                                 f.write("{:>2d} {:>2d} {:>20.10e}\n".format(x+1, y+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y]))
 
 
-    def Interpolate(self, q2, asr = True, verbose = False):
+    def Interpolate(self, q2, asr = True, verbose = False, asr_range = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -268,6 +268,11 @@ class Tensor2(GenericTensor):
                 The q vector in A^-1
             asr : bool
                 If true, apply the acousitc sum rule
+            asr_range : float, optional
+                If it is given, then use a gaussian as a activation function
+                for the asr, with asr_range equal to sigma. 
+                Otherwise, a sin(Nq)/(Nsin(q)) will be used, equal to apply the sum rule on a
+                grid.
             verbose : bool
                 Print some debugging info
 
@@ -309,6 +314,8 @@ class Tensor2(GenericTensor):
             if verbose:
                 print("Supercell WS:", N_i)
 
+            N_i = np.array([2*x + 1 for x in self.supercell_size], dtype = np.intc)     
+            
             # We check if they are even, in that case we add 1
             # f(q) is real only if we sum on odd cells
             for ik in range(3):
@@ -327,9 +334,13 @@ class Tensor2(GenericTensor):
 
             # We use mask to avoid division by 0,
             # As we know that the 0/0 limit is 1 in this case
-            mask2 = np.abs(np.sin(at.dot(q2) * np.pi)) > __tol__
-            f_q2i[mask2] = np.sin(N_i[mask2] * at[mask2,:].dot(q2) * np.pi) / (N_i[mask2] * np.sin(at[mask2,:].dot(q2) * np.pi))
-            f_q2 = np.prod(f_q2i)
+            if asr_range is None:
+                mask2 = np.abs(np.sin(at.dot(q2) * np.pi)) > __tol__
+                f_q2i[mask2] = np.sin(N_i[mask2] * at[mask2,:].dot(q2) * np.pi) / (N_i[mask2] * np.sin(at[mask2,:].dot(q2) * np.pi))
+                f_q2 = np.prod(f_q2i)
+            else:
+                closest_q = Methods.get_closest_vector(bg * 2 * np.pi, q2)
+                f_q2 = np.exp( - np.linalg.norm(closest_q)**2 / (2 * asr_range**2))
 
             if verbose:
                 print("The fq:")
