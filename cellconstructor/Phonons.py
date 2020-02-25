@@ -3093,7 +3093,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
     
-    #print "NQ:", nq
+    #print "NQ:", nq 
     
     
     
