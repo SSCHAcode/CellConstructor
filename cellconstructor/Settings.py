@@ -203,3 +203,99 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
         #return map(function, list_of_inputs)
         
     
+def GoParallelTuple(function, list_of_inputs, reduce_op = None):
+    """
+    GO PARALLEL TUPLE
+    ==================
+    
+    Perform a parallel evaluation of the provided function with the spawned
+    list of inputs, and returns a list of output. It works well if function returns more than one result
+    
+    Parameters
+    ----------
+        function : pointer to function
+            The function to be executed in parallel. It must return a tuple, and each element of the tuple must be defined
+        list_of_inputs : list
+            A list containing the inputs to be passed to the function.
+        reduce_op : string
+            If a reduction must be performed on output, specify the operator, 
+            accepted are "+", "*". For now this is implemented only with MPI
+            
+    """
+    if not __PARALLEL_TYPE__ in __SUPPORTED_LIBS__:
+        raise ValueError("Error, wrong parallelization type: %s\nSupported types: %s" % (__PARALLEL_TYPE__, " ".join(__SUPPORTED_LIBS__)))
+        
+    
+    if __PARALLEL_TYPE__ in __MPI_LIBRARIES__ or __PARALLEL_TYPE__ == "serial":
+        if not reduce_op is None:
+            if not reduce_op in ["*", "+"]:
+                raise NotImplementedError("Error, reduction '{}' not implemented.".format(reduce_op))
+
+        # Here we create the poll manually
+        n_proc = GetNProc()
+        rank = get_rank()
+
+        # broadcast the values
+        list_of_inputs = broadcast(list_of_inputs)
+
+        # Prepare the work for the current processor
+        # TODO: Use a generator
+        computing_list = []
+        for i in range(rank, len(list_of_inputs), n_proc):
+            computing_list.append(list_of_inputs[i])
+
+        #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
+        
+        # Work!
+        results = [function(x) for x in computing_list]
+
+        # Perform the reduction
+        if reduce_op == "+":
+            result = list(results[0])
+            for i in range(1,len(results)):
+                for j in range(len(results[i])):
+                    result[j] += results[i][j]
+
+        if reduce_op == "*":
+            result = list(results[0])
+            for i in range(1,len(results)):
+                for j in range(len(results[i])):
+                    result[j] *= results[i][j]
+
+
+        # If a reduction must be done, return
+        if not reduce_op is None:
+            if __PARALLEL_TYPE__ == "mpi4py":
+                comm = mpi4py.MPI.COMM_WORLD
+                results = []
+                for i in range(len(result)):
+                    results.append(comm.allgather(result[i]))
+
+            elif __PARALLEL_TYPE__ == "serial":
+                return result
+            else:
+                raise NotImplementedError("Error, not implemented {}".format(__PARALLEL_TYPE__))
+
+
+            result = results[0]
+            for j in range(len(results)):
+                # Perform the last reduction
+                if reduce_op == "+":
+                    for i in range(1,len(results[j])):
+                        result[j]+= results[j][i]
+                elif reduce_op == "*":
+                    for i in range(1,len(results[j])):
+                        result[j]*= results[j][i]
+
+            return result 
+        else:
+            raise NotImplementedError("Error, for now parallelization with MPI implemented only with reduction")
+    else:
+        raise NotImplementedError("Something went wrong: {}".format(__PARALLEL_TYPE__))
+
+    #elif __PARALLEL_TYPE__ == "mp":
+        #p = mp.Pool(__NPROC__)
+        #return p.map(function, list_of_inputs)
+    #elif __PARALLEL_TYPE__ == "serial":
+        #return map(function, list_of_inputs)
+        
