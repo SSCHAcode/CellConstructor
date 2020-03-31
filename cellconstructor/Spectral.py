@@ -93,7 +93,7 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = True, verbose = 
     def compute_k(k):
         # phi3 in q, k, -q - k
         t1 = time.time()        
-        phi3=tensor3.Interpolate(k,-q-k)
+        phi3=tensor3.Interpolate(k,-q-k, asr = asr)
         t2 = time.time()
         # phi2 in k
         phi2_k = tensor2.Interpolate(k, asr = asr) 
@@ -385,7 +385,7 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
     
         
 
-def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
+def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T, asr = True):
     """
     Get the dyn + static bubble correction on the give path in a plottable fashion.
     
@@ -412,7 +412,7 @@ def get_static_correction_along_path(dyn, tensor3, k_grid, q_path, T):
     m = np.tile(dyn.structure.get_masses_array(), (3,1)).T.ravel()
     mm_mat = np.sqrt(np.outer(m, m))
     #
-    dynq = get_static_correction(dyn, tensor3, k_grid, q_path, T)
+    dynq = get_static_correction(dyn, tensor3, k_grid, q_path, T, asr = asr)
     # ==============================
     for iq in range(len(q_path)):
         #
