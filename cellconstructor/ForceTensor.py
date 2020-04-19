@@ -51,12 +51,6 @@ class GenericTensor:
 
 
 
-
-
-
-
-        
-
 class Tensor2(GenericTensor):
     """
     This class defines the 2rank tensors, like force constant matrices.
@@ -206,7 +200,8 @@ class Tensor2(GenericTensor):
         self.r_vector2 = Settings.broadcast(self.r_vector2)
         self.n_R = Settings.broadcast(self.n_R)
 
-    def WriteOnFile(self, fname):
+
+    def WriteOnFile(self, fname,file_format='Phonopy'):
         """
         WRITE ON FILE
         =============
@@ -214,7 +209,7 @@ class Tensor2(GenericTensor):
         Save the tensor on a file.
         This is usefull if you want to check if everything is working as you expect.
 
-        The file format is the same as phono3py 
+        The file format is the same as phono3py or D3Q
         In the first line there is the total number of blocks.
         Then for each block there is the lattice vector followed by the atomic index in the unit cell.
         Then there is the tensor for each cartesian coordinate
@@ -236,25 +231,106 @@ class Tensor2(GenericTensor):
                 Path to the file on which you want to save the tensor.
         """
 
-        with open(fname, "w") as f:
-            # Write the total number of blocks
-            f.write("{:>5}\n".format(self.n_R * self.nat**2))
+        if  file_format == 'Phonopy':
+            
+            print("  ")
+            print(" Writing FC2 on "+fname )
+            print(" (Phonopy format) ") 
+            print("  ") 
 
-            i_block = 1
-            for r_block in range(self.n_R):
+            with open(fname, "w") as f:
+                # Write the total number of blocks
+                f.write("{:>5}\n".format(self.n_R * self.nat**2))
+
+                i_block = 1
+                for r_block in range(self.n_R):
+                    for nat1 in range(self.nat):
+                        for nat2 in range(self.nat):
+                            # Write the info on the current block
+                            f.write("{:d}\n".format(i_block))
+                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
+                            f.write("{:>6d} {:>6d}\n".format(nat1 + 1, nat2+1))
+                            i_block += 1
+
+                            # Write the tensor for the block
+                            # For each cartesian coordinate
+                            for x in range(3):
+                                for y in range(3):
+                                    f.write("{:>2d} {:>2d} {:>20.10e}\n".format(x+1, y+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y]))
+
+
+        elif file_format == 'D3Q':
+            
+            print("  ")
+            print(" Writing FC2 on "+fname )
+            print(" (D3Q format) ") 
+            print("  ")      
+            
+            with open(fname, "w") as f:
+                #TODD Print header...
+
                 for nat1 in range(self.nat):
                     for nat2 in range(self.nat):
-                        # Write the info on the current block
-                        f.write("{:d}\n".format(i_block))
-                        f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                        f.write("{:>6d} {:>6d}\n".format(nat1 + 1, nat2+1))
-                        i_block += 1
+                            for alpha in range(3):
+                                for beta in range(3):
+                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} \n".format(alpha+1,beta+1,nat1+1, nat2+1))
+                                        f.write("{:>5}\n".format(self.n_R))
+                                        for r_block  in range(self.n_R):
+                                            f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
+                                            
 
-                        # Write the tensor for the block
-                        # For each cartesian coordinate
-                        for x in range(3):
-                            for y in range(3):
-                                f.write("{:>2d} {:>2d} {:>20.10e}\n".format(x+1, y+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y]))
+    def ReadFromFile(self, fname,file_format='Phonopy'):
+        
+        if file_format == 'Phonopy':      
+            
+            print("  ")
+            print(" FC2 Phonopy reading format: TODO" )
+            print("  ")            
+
+        elif file_format == 'D3Q': 
+           
+            print("  ")
+            print(" Reading FC2 from "+fname)
+            print(" (D3Q format) " )
+            print("  ")
+            
+            first_nR_read = True
+            with open(fname, "r") as f:
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                            for alpha in range(3):
+                                for beta in range(3):
+                                        [alpha_read,beta_read,
+                                        nat1_read, nat2_read]=[int(l)-1 for l in f.readline().split()]
+                                        
+                                        assert ([nat1,nat2,alpha,beta]==[nat1_read,nat2_read,
+                                                                                    alpha_read,beta_read])
+                                    
+
+                                        nR_read=int(f.readline().split()[0])
+                                        
+                                        if (first_nR_read) :
+                                            self.n_R=nR_read
+                                            self.tensor=np.zeros((self.n_R,3*self.nat,3*self.nat),dtype=np.float64)
+                                            self.x_r_vector2=np.zeros((3,self.n_R),dtype=np.int16)
+                                            first_nR_read = False
+                                        else :
+                                            assert ( nR_read == self.n_R ), " Format unknown - different blocks size "
+                                
+                                        for iR in range(self.n_R):
+                                                
+                                                res=[l for l in f.readline().split()] 
+                                                
+                                                [self.x_r_vector2[0, iR],
+                                                self.x_r_vector2[1, iR],
+                                                self.x_r_vector2[2, iR]]=[int(l) for l in res[:-1]] 
+                                                 
+                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta]=np.double(res[-1])
+                                                
+                self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+        
+
+
 
 
     def Interpolate(self, q2, asr = True, verbose = False, asr_range = None):
@@ -265,7 +341,7 @@ class Tensor2(GenericTensor):
         Parameters
         ----------
             q2 : ndarray(size = 3) 
-                The q vector in A^-1
+                The q vector in 2pi/A
             asr : bool
                 If true, apply the acousitc sum rule
             asr_range : float, optional
@@ -595,12 +671,6 @@ class Tensor2(GenericTensor):
                 self.tensor[i, j, :, :] *= kaiser_window[i,j]
 
 
-                
-                
-                
-                
-                
-                
 # Third order force constant tensor
 class Tensor3():
     """
@@ -727,42 +797,19 @@ class Tensor3():
                                                                   3*nat3_sc : 3*nat3_sc + 3]
     
     
-    def WriteOnFile(self, filename):
-        """
-        """
-        
-    
-        with open(filename, "w") as f:
-            #TODD Print header...
-            f.write("{:>5}\n".format(self.n_R * self.nat**3))
-            
-        
-            i_block = 1
-            for r_block  in range(self.n_R):
-                for nat1 in range(self.nat):
-                    for nat2 in range(self.nat):
-                        for nat3 in range(self.nat):
-                            f.write("{:d}\n".format(i_block))
-                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                            f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
-                            f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
-                            i_block += 1
-                            #
-                            for xyz in range(27):
-                                z = xyz % 3
-                                y = (xyz %9)//3
-                                x = xyz // 9
-                                f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))
-       
-# ========================== temporary =======================================================
-
-    def WriteOnFile_new(self,filename,file_format='Phonopy'):
+                                
+    def WriteOnFile(self,fname,file_format='Phonopy'):
         """
         """
         
         if file_format == 'Phonopy':
             
-            with open(filename, "w") as f:
+            print("  ")
+            print(" Writing FC3 on "+ fname)
+            print(" (Phonopy format) " )
+            print("  ")
+            
+            with open(fname, "w") as f:
             
                 f.write("{:>5}\n".format(self.n_R * self.nat**3))
                 
@@ -786,8 +833,13 @@ class Tensor3():
         
         
         elif file_format == 'D3Q':
-    
-            with open(filename, "w") as f:
+            
+            print("  ")
+            print(" Writing FC3 on "+ fname)
+            print(" (D3Q format) " )
+            print("  ")      
+            
+            with open(fname, "w") as f:
                 #TODD Print header...
 
                 for nat1 in range(self.nat):
@@ -803,61 +855,117 @@ class Tensor3():
                                             
      
      
-     
-     
-    def ReadFromFile(self, filename):
-        f = open(filename, "r")
-        lines = [l.strip() for l in f.readlines()]
-        f.close()
-        
-        n_blocks = int(lines[0])
-        
-        id_block = 0
-        total_lat_vec = 0
-        lat_vect_2 = 0
-        lat_vect_3 = 0
-        nat1 = 0
-        nat2 = 0
-        nat3 = 0
-        reading_lat2 = False
-        reading_lat3 = False 
-        reading_atoms = False
-        for i, line in enumerate(lines):
-            if i == 0:
-                continue
+    def ReadFromFile(self, fname,file_format='Phonopy'):
+
+
+        if file_format == 'Phonopy':    
             
-            data = line.split()
-            if len(data) == 0:
-                continue
+            print("  ")
+            print(" Reading FC3 from " + fname)
+            print(" (Phonopy format) " )
+            print("  ")
+                    
+            f = open(fname, "r")
+            lines = [l.strip() for l in f.readlines()]
+            f.close()
             
-            if len(data) == 1:
-                id_block = int(data[0]) - 1
-                total_lat_vec = id_block // self.nat**3
-                nat_id = id_block % self.nat**3
-                reading_lat2 = True
-                continue
+            n_blocks = int(lines[0])
             
-            if reading_lat2:
-                self.r_vector2[:, total_lat_vec] = [float(x) for x in data]
-                self.x_r_vector2[:, total_lat_vec] = Methods.covariant_coordinates(self.unitcell_structure.unit_cell, self.r_vector2[:, total_lat_vec])
-                reading_lat2 = False
-                reading_lat3 = True
-            elif reading_lat3:
-                self.r_vector3[:, total_lat_vec] = [float(x) for x in data]
-                self.x_r_vector3[:, total_lat_vec] = Methods.covariant_coordinates(self.unitcell_structure.unit_cell, self.r_vector3[:, total_lat_vec])
-                reading_lat3 = False
-                reading_atoms = True
-            elif reading_atoms:
-                nat1, nat2, nat3 = [int(x) - 1 for x in data]
-                reading_atoms = False
-                print("Reading the vectors: ", self.r_vector2[:, total_lat_vec], self.r_vector3[:, total_lat_vec], total_lat_vec)
-            
-            if len(data) == 4:
-                xx, yy, zz = [int(x)-1 for x in data[:3]]
+            id_block = 0
+            total_lat_vec = 0
+            lat_vect_2 = 0
+            lat_vect_3 = 0
+            nat1 = 0
+            nat2 = 0
+            nat3 = 0
+            reading_lat2 = False
+            reading_lat3 = False 
+            reading_atoms = False
+            for i, line in enumerate(lines):
+                if i == 0:
+                    continue
                 
-                self.tensor[total_lat_vec, 3*nat1+xx, 3*nat2+yy, 3*nat3+zz] = np.double(data[-1])
+                data = line.split()
+                if len(data) == 0:
+                    continue
+                
+                if len(data) == 1:
+                    id_block = int(data[0]) - 1
+                    total_lat_vec = id_block // self.nat**3
+                    nat_id = id_block % self.nat**3
+                    reading_lat2 = True
+                    continue
+                
+                if reading_lat2:
+                    self.r_vector2[:, total_lat_vec] = [float(x) for x in data]
+                    self.x_r_vector2[:, total_lat_vec] = Methods.covariant_coordinates(self.unitcell_structure.unit_cell, self.r_vector2[:, total_lat_vec])
+                    reading_lat2 = False
+                    reading_lat3 = True
+                elif reading_lat3:
+                    self.r_vector3[:, total_lat_vec] = [float(x) for x in data]
+                    self.x_r_vector3[:, total_lat_vec] = Methods.covariant_coordinates(self.unitcell_structure.unit_cell, self.r_vector3[:, total_lat_vec])
+                    reading_lat3 = False
+                    reading_atoms = True
+                elif reading_atoms:
+                    nat1, nat2, nat3 = [int(x) - 1 for x in data]
+                    reading_atoms = False
+                    print("Reading the vectors: ", self.r_vector2[:, total_lat_vec], self.r_vector3[:, total_lat_vec], total_lat_vec)
+                
+                if len(data) == 4:
+                    xx, yy, zz = [int(x)-1 for x in data[:3]]
+                    
+                    self.tensor[total_lat_vec, 3*nat1+xx, 3*nat2+yy, 3*nat3+zz] = np.double(data[-1])     
+     
+        elif file_format == 'D3Q': 
             
+            print("  ")
+            print(" Reading FC3 from "+ fname )
+            print(" (D3Q format) " )            
+            print("  ")            
             
+            first_nR_read = True
+            with open(fname, "r") as f:
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                        for nat3 in range(self.nat):
+                            for alpha in range(3):
+                                for beta in range(3):
+                                    for gamma in range(3):
+                                        [alpha_read,beta_read,
+                                        gamma_read,nat1_read, 
+                                        nat2_read, nat3_read]=[int(l)-1 for l in f.readline().split()]
+                                        
+                                        assert ([nat1,nat2,nat3,alpha,beta,gamma]==[nat1_read,nat2_read,nat3_read,
+                                                                                    alpha_read,beta_read,gamma_read])
+                                    
+                                        nR_read=int(f.readline().split()[0])
+                                        
+                                        if (first_nR_read) :
+                                            self.n_R=nR_read
+                                            self.tensor=np.zeros((self.n_R,3*self.nat,3*self.nat,3*self.nat),dtype=np.float64)
+                                            self.x_r_vector2=np.zeros((3,self.n_R),dtype=np.int16)
+                                            self.x_r_vector3=np.zeros((3,self.n_R),dtype=np.int16)
+                                            first_nR_read = False
+                                        else :
+                                            assert ( nR_read == self.n_R ), " Format unknown - different blocks size "
+                                
+                                        for iR in range(self.n_R):
+                                                
+                                                res=[l for l in f.readline().split()] 
+                                                
+                                                [self.x_r_vector2[0, iR],
+                                                self.x_r_vector2[1, iR],
+                                                self.x_r_vector2[2, iR],
+                                                self.x_r_vector3[0, iR],
+                                                self.x_r_vector3[1, iR],
+                                                self.x_r_vector3[2, iR]]=[int(l) for l in res[:-1]] 
+                                                 
+                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]=np.double(res[-1])
+                                                
+                self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+                self.r_vector3=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3)
+
+        
     def Center(self, Far=1,tol=1.0e-5):
         """
         CENTERING 
