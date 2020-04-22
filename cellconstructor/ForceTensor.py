@@ -362,7 +362,7 @@ class Tensor2(GenericTensor):
 
         for i in range(self.n_R):
             arg = 2 * np.pi * (q2.dot(self.r_vector2[:, i]))
-            phase = np.exp(np.complex128(1j) * arg)
+            phase = np.exp(np.complex128(-1j) * arg)
             final_fc += phase * self.tensor[i, :, :]
 
         # Apply the acoustic sum rule
@@ -958,9 +958,9 @@ class Tensor3():
                                                 self.x_r_vector2[2, iR],
                                                 self.x_r_vector3[0, iR],
                                                 self.x_r_vector3[1, iR],
-                                                self.x_r_vector3[2, iR]]=[int(l) for l in res[:-1]] 
+                                                self.x_r_vector3[2, iR]]=[int(l) for l in res[:6]] 
                                                  
-                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]=np.double(res[-1])
+                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]=np.double(res[6])
                                                 
                 self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
                 self.r_vector3=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3)
@@ -1310,9 +1310,8 @@ class Tensor3():
                             dtype = np.complex128)
         for i in range(self.n_R):
             arg = 2  * np.pi * (q2.dot(self.r_vector2[:, i]) + 
-                                q3.dot(self.r_vector3[:, i]))
-            
-            phase =  np.complex128(np.exp(-1j * arg))
+                                q3.dot(self.r_vector3[:, i]))            
+            phase =  np.exp(np.complex128(-1j) * arg)
             final_fc += phase * self.tensor[i, :, :, :]
 
         # Apply the acoustic sum rule if necessary
@@ -1585,11 +1584,11 @@ class Tensor3():
             self.tensor=np.transpose(phi_asr, axes=[3,2,1,0])  
 
 
-            # DEBUG        
-            tensor_block_nonzero = np.sum(self.tensor**2, axis = (1,2,3)) > 1e-8        
-            nn_R = np.sum(tensor_block_nonzero.astype(int))                    
-            print(nn_R)
-            ##################
+            ## DEBUG        
+            #tensor_block_nonzero = np.sum(self.tensor**2, axis = (1,2,3)) > 1e-8        
+            #nn_R = np.sum(tensor_block_nonzero.astype(int))                    
+            #print(nn_R)
+            ##
 
 
 

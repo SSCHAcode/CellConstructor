@@ -28,7 +28,7 @@ using the interpolation on the third order force constant matrix
 
 # ========================== STATIC ==================================================
 
-def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = False, verbose = False):
+def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
     """
     COMPUTE THE STATIC BUBBLE
     =========================
@@ -97,15 +97,17 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = False, verbose =
                           dtype = np.complex128, order = "F")
     
     def compute_k(k):
-        # phi3 in q, k, -q - k
+        
+        # phi3 in q, k, -q-k
         t1 = time.time()        
         phi3=tensor3.Interpolate(k,-q-k, asr = asr)
         t2 = time.time()
+ 
         # phi2 in k
         phi2_k = tensor2.Interpolate(k, asr = asr) 
 
         # phi2 in -q-k
-        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = asr)
+        phi2_mq_mk = tensor2.Interpolate(-q-k, asr = asr)
 
         t3 = time.time()
         
@@ -116,8 +118,7 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = False, verbose =
         # Diagonalize the dynamical matrices
         w2_k, pols_k = np.linalg.eigh(d2_k)
         w2_mq_mk, pols_mq_mk = np.linalg.eigh(d2_mq_mk)
-        
-        
+                
         is_k_gamma = CC.Methods.is_gamma(structure.unit_cell, k)
         is_mq_mk_gamma = CC.Methods.is_gamma(structure.unit_cell, -q-k)
 
@@ -143,21 +144,19 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = False, verbose =
         d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
 
         # d3 in mode components
-        #d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
+        # d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
         d3_pols = np.einsum("abc, ai -> ibc", d3, pols_q)
-        d3_pols = np.einsum("abc, bi -> aic", d3_pols, pols_k)
-        d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
+        d3_pols = np.einsum("ibc, bj -> ijc", d3_pols, pols_k)
+        d3_pols = np.einsum("ijc, ck -> ijk", d3_pols, pols_mq_mk)
         
         t4 = time.time()
         
-        
         # Fortran duty ====
-        
+
         tmp_bubble = thirdorder.third_order_bubble.compute_static_bubble(T,np.array([w_q,w_k,w_mq_mk]).T,
                                                                        np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
-                                                                       d3_pols,n_mod=3*structure.N_atoms)        
-        
-            
+                                                                       d3_pols,
+                                                                       n_mod=3*structure.N_atoms)        
         
         t5 = time.time()
         
@@ -175,17 +174,17 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T = 0, asr = False, verbose =
     # divide by the N_k factor
     tmp_bubble /= len(k_points) 
     # bubble in cartesian  
-    d_bubble = np.einsum("ab, ia, jb -> ij", tmp_bubble, pols_q, np.conj(pols_q))
+    #d_bubble = np.einsum("ab, ia, jb -> ij", tmp_bubble, pols_q, np.conj(pols_q))
+    
+    d_bubble = np.einsum("ij, ai -> aj", tmp_bubble, pols_q)
+    d_bubble = np.einsum("aj, bj -> ab", d_bubble, np.conj(pols_q))
+
     # add to the SSCHA dynamical matrix in q
-    d2_final_q = d2_q + d_bubble 
+    d2_final_q = d2_q + d_bubble  
     # and mutiply by the masses ( -> FC)
     phi2_final_q = d2_final_q * mm_mat
-    
+ 
     return phi2_final_q, w_q
-    #new_dyn = CC.Phonons.Phonons(dyn.structure)
-    #new_dyn.q_tot = [q]
-    #new_dyn.dynmats[0] = phi2_final_q
-    #new_dyn.save_qe("dyn_plus_odd")
         
 def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T, asr = True):
     """
@@ -246,7 +245,6 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
     # Adjust the dynamical matrix q points and the stars
     new_dyn.AdjustQStar()
 
-
     return new_dyn
 
 def get_static_correction_along_path(dyn, tensor3, k_grid,
@@ -257,7 +255,7 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
                                      asr = False,
                                      filename_st="v2+d3static_freq.dat",
                                      print_dyn = False,
-                                     name_dyn = "sscha_plus_odd_dyn_",
+                                     name_dyn = "sscha_plus_odd_dyn",
                                      d3_scale_factor = None,
                                      tensor2 = None):
     """
@@ -269,16 +267,14 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     Results
     -------
     """
-    
-    
+        
     if ( tensor2 == None ):
         
         # Prepare the tensor2
         tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
         tensor2.SetupFromPhonons(dyn)
         tensor2.Center()    
-    
-    
+
     # Scale the FC3 ===========================================================================
     if  d3_scale_factor != None :
             print(" ")
@@ -309,16 +305,31 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     mm_mat = np.sqrt(np.outer(m, m))
     
     # Allocate frequencies array
-    n_mod=3 * dyn.structure.N_atoms
+    
+    nat=dyn.structure.N_atoms
+    n_mod=3 * nat
     frequencies = np.zeros((len(q_path), n_mod), dtype = np.float64 ) # SSCHA+odd freq
     v2_wq = np.zeros( (len(q_path), n_mod), dtype = np.float64 ) # pure SSCHA freq
         
     # =============== core calculation ===========================================
     for iq, q in enumerate(q_path):
-        dynq, v2_wq[iq,:] = get_static_bubble(tensor2, tensor3, k_grid, np.array(q), 
-                                         T, asr, verbose = False)
+        dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3, 
+                                              k_grid=k_grid, q=np.array(q), 
+                                         T=T, asr=asr, verbose = False)
+
         if print_dyn:
-            dyn.save_qe(name_dyn)
+            with open(name_dyn,'w') as f:
+                fmt1="{:>5d}\t{:>5d}\n"
+                fmt2=3*"{:12.8f}  {:12.8f}\t"+"\n"
+                for n1 in range(nat):
+                    for n2 in range(nat):
+                        f.write(fmt1.format(n1+1,n2+1))
+                        for j1 in range(3):
+                            im=[dynq[3*n1+j1,3*n2+j2].imag for j2 in range(3)]
+                            re=[dynq[3*n1+j1,3*n2+j2].real for j2 in range(3)]
+                            out=(re[0],im[0],re[1],im[1],re[2],im[2])
+                            f.write(fmt2.format(*out))
+            
         w2, p = np.linalg.eigh(dynq / mm_mat)
         frequencies[iq,:] = np.sign(w2)*np.sqrt(np.abs(w2))
     # ============================================================================    
@@ -330,9 +341,6 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     fmt_txt='%7.3f\t\t'+n_mod*'%11.7f\t'+'\t'+n_mod*'%11.7f\t'
     np.savetxt(filename_st,result,fmt=fmt_txt)         
     # ==================================================================================   
- 
- 
- 
  
  
  # ================================= DYNAMIC =========================================   
@@ -501,8 +509,13 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
     no_gamma_pick=bool(is_q_gamma*notransl)
     #    
     # 
-    spectral_func=thirdorder.third_order_bubble.compute_spectralf(smear_id,energies,d2_q,d_bubble_cart,no_gamma_pick,
-                                                              structure.get_masses_array(),structure.N_atoms,ne,nsm)  
+    spectral_func=thirdorder.third_order_bubble.compute_spectralf(smear_id,
+                                                                  energies,
+                                                                  d2_q,
+                                                                  d_bubble_cart,
+                                                                  no_gamma_pick,
+                                                              structure.get_masses_array(),
+                                                              structure.N_atoms,ne,nsm)  
     
     return spectral_func
 
@@ -883,19 +896,17 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # ======================================
                     
         if self_consist:
-            res=np.zeros((len(q_path),n_mod,2),dtype=np.float64)      #   frequenze shifted e linewidht self-consist 
-            res_os=np.zeros((len(q_path),n_mod,2),dtype=np.float64)   #   frequenze shifted e linewidht one shot      
-            res_pert=np.zeros((len(q_path),n_mod,2),dtype=np.float64) #   frequenze shifted e linewidht perturbative  
+            res=np.zeros((len(q_path),n_mod,2),dtype=np.float64)      #   shifted freq and self-consist linewidht  
+            res_os=np.zeros((len(q_path),n_mod,2),dtype=np.float64)   #   shifted freq and one-shot linewidth      
+            res_pert=np.zeros((len(q_path),n_mod,2),dtype=np.float64) #   freq shifted and perturbative linewidht   
             for iq,leng in enumerate(x_length):
                 for ifreq in range(n_mod):
-                    print(ifreq)
                     freqold=wq[iq,ifreq]
                     freqoldold=freqold
                     for i in range(numiter):
                         x=findne(freqold,e0,de) 
                         if i==0: xbanale=x    
-                        freqshifted=np.real(z[iq,x-1,ism,ifreq]) # la parte reale di z e la frequenza nuova
-                        print(freqshifted, freqold,freqoldold)
+                        freqshifted=np.real(z[iq,x-1,ism,ifreq]) # Re(z) is the shifted freq
                         if abs(freqshifted-freqold)<eps:
                             break
                         elif abs(freqshifted-freqoldold)<1.0e-10:                           
@@ -1307,4 +1318,4 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
                                      hwhm_sorted[iq,:,ism]))                 
                  f.write(fmt.format(leng,*out))     
 
- # ==================================================================================  
+ # ================================================================================== 
