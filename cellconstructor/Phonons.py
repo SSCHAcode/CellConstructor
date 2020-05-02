@@ -559,7 +559,14 @@ class Phonons:
         type_cal = np.float64#np.complex128
         
         super_struct = self.structure.generate_supercell(self.GetSupercell())
-        no_trans = ~Methods.get_translations(pols, super_struct.get_masses_array())
+        trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
+
+        # Exclude also other w = 0 modes
+        locked_original = np.abs(w) < __EPSILON__
+        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+            trans_mask = locked_original
+
+        no_trans = ~trans_mask
 
         # Discard translations
         w = w[no_trans]
@@ -1545,9 +1552,7 @@ class Phonons:
         =========================
         
         This method is used to extract a pool of random structures according to the current dinamical matrix.
-        
-        NOTE: for now available only at gamma. To execute it in a supercell generate a supercell dynamical matrix
-        
+                
         Parameters
         ----------
             size : int
@@ -1566,10 +1571,6 @@ class Phonons:
         """
         K_to_Ry=6.336857346553283e-06
 
-        
-        if self.nqirr != 1:
-            raise ValueError("Error, not yet implemented with supercells")
-            
             
         # Check if isolate atoms is good
         if len(isolate_atoms):
@@ -1577,14 +1578,21 @@ class Phonons:
                 raise ValueError("Error, index in isolate_atoms out of boundary")
             
         # Now extract the values
-        ws, pol_vects = self.DyagDinQ(0)
+        ws, pol_vects = self.DiagonalizeSupercell()
+        super_structure = self.structure.generate_supercell(self.GetSupercell())
         
         # Remove translations
-        trans_mask = Methods.get_translations(pol_vects, self.structure.get_masses_array())
+        trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
+
+        # Exclude also other w = 0 modes
+        locked_original = np.abs(ws) < __EPSILON__
+        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+            trans_mask = locked_original
+
         ws = ws[~trans_mask]
         pol_vects = pol_vects[:, ~trans_mask]
         
-        nat = self.structure.N_atoms
+        nat = self.structure.N_atoms * np.prod(self.GetSupercell())
 
         # Check that the matrix is positive definite
         if any([w < 0 for w in ws]):
@@ -1611,7 +1619,7 @@ class Phonons:
         rand = np.random.normal(size = (size, n_modes))
         
         # Get the masses for the final multiplication
-        mass1 = np.tile(self.structure.get_masses_array(), (3, 1)).T.ravel()
+        mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
             
         total_coords = np.einsum("ij, i, j, kj->ik", np.real(pol_vects), 1/np.sqrt(mass1), a_mu, rand)
 
@@ -1633,7 +1641,7 @@ class Phonons:
         # Prepare the structures
         final_structures = []
         for i in range(size):
-            tmp_str = self.structure.copy()
+            tmp_str = super_structure.copy()
             # Prepare the new atomic positions 
             for k in range(tmp_str.N_atoms):
                 tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] 
@@ -1690,6 +1698,12 @@ class Phonons:
             # Remove translations
             if iq == 0:
                 tmask = Methods.get_translations(pols, self.structure.get_masses_array())
+                        
+                # Exclude also other w = 0 modes
+                locked_original = np.abs(w) < __EPSILON__
+                if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
+                    tmask = locked_original
+
                 w = w[ ~tmask ]
                 
             # if imaginary frequencies are allowed, put w->0
