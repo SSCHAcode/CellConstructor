@@ -1009,14 +1009,17 @@ class Tensor3():
                     
             - Far [default= 1]: integer
             
-                    2*Far+1 is the number of equivalent supercell replicas considered for each atom 
-                    in the centering
+                    In the centering, supercell equivalent atoms are considered within 
+                    -Far,+Far multiples of the super-lattice vectors
         """    
 
-        t1 = time.time()
+        
         
         
         if Settings.am_i_the_master():
+            
+            
+            t1 = time.time()
         
             if self.verbose:
                 print(" ")
@@ -1194,16 +1197,228 @@ class Tensor3():
  #=============================================================================================================================================
     def Check_perm_sym(self):
 
-        tensor= np.transpose(self.tensor,axes=[1,2,3,0]) 
-        tensor_reshaped = tensor.reshape((3*self.nat, 3*self.nat, 3*self.nat,self.n_sup,self.n_sup))
-        symmcheck=thirdorder.third_order_sym_perm.checksym(tensor_reshaped)
+        #tensor= np.transpose(self.tensor,axes=[1,2,3,0]) 
+        #tensor_reshaped = tensor.reshape((3*self.nat, 3*self.nat, 3*self.nat,self.n_sup,self.n_sup))
+        #symmcheck=thirdorder.third_order_sym_perm.checksym(tensor_reshaped) 
+        
+      ## Permutations
+        
+      # 1.                       0     R2     R3  a b c 1 2 3
+
+      # 2.                       0     R3     R2  a c b 1 3 2       
+      # 3.  R3 0  R2  c a b  ->  0    -R3  R2-R3  c a b 3 1 2             
+      # 4.  R3 R2 0   c b a  ->  0  R2-R3    -R3  c b a 3 2 1            
+      # 5.  R2 R3 0   b c a  ->  0  R3-R2    -R2  b c a 2 3 1
+      # 6.  R2 0  R3  b a c  ->  0    -R2  R3-R2  b a c 2 1 3
+
+      #i_block[j_block,0,1,2,3,4]]
+            
+      #R23[j_block      
+
+      # a R23 aggiungere eventualmente i vettori che mancano -R2,R2-R3,...
+      # ricreare R2,R3
+      # estendere eventualmente tensor con questi indici nuovi con valori nulli
+      # creare corrispondenza indici ind2ind[i_block,0,1,2,3,4]
+      # definire itensori con tenosr[abc,i,x]=tenosr[perm(x),ind2ind[i,x]]
+      # tensor_new=sum tensot[abc,i,.] axis=2/6
+      # delta=np.sum(np.abs(tenslr-tensor_new))
+      # tensor=tensor_new
+      # genero la R23 ampliata e le 5 permutationzi
+      # R23 -> R23, Pindex_2, Pindex_3, Pindex_4, Pindex_5, Pindex_6
+      # tensor -> tensorr1(a,b,c,i) (solo aggiungo elementi zero)
+      
+      
+        def Op2(x):
+            return [ x[3], x[4], x[5], x[0]     , x[1]     , x[2]      ]
+        def Op3(x):
+            return [-x[3],-x[4],-x[5], x[0]-x[3], x[1]-x[4], x[2]-x[5] ]
+        def Op4(x):
+            return [ x[0]-x[3],x[1]-x[4],x[2]-x[5],-x[3], -x[4],- x[5] ]    
+        def Op5(x):
+            return [x[3]-x[0], x[4]-x[1],x[5]-x[2],        -x[0],-x[1],-x[2] ]
+        def Op6(x):
+            return [       -x[0],-x[1],-x[2],  x[3]-x[0], x[4]-x[1],x[5]-x[2] ]
+
+    
+    
+        # xR23=  x2[0] y2[0] x2[0]  x3[0] y3[0] x3[0]
+        #        x2[1] y2[1] x2[1]  x3[1] y3[1] x3[1] 
+        #        x2[2] y2[2] x2[2]  x3[2] y3[2] x3[2]
+        #                        .
+        #                        .
+        #                        .
+                 
+                 
+        xR23 = np.vstack((self.x_r_vector2,self.x_r_vector3)).T 
+        xR23=xR23.tolist()
+        
+        len_old=len(xR23)
+        last=len(xR23)
+        
+        Pindex2=[]
+        Pindex3=[]
+        Pindex4=[]        
+        Pindex5=[]
+        Pindex6=[]
+
+        for i,x in enumerate(xR23):
+                         
+            xOp2=Op2(x)
+            xOp3=Op3(x)
+            xOp4=Op4(x)
+            xOp5=Op5(x)
+            xOp6=Op6(x)
+
+            found2=False 
+            found3=False 
+            found4=False 
+            found5=False 
+            found6=False
+            
+            for j,y in enumerate(xR23):
+                
+                if np.array_equal(y,xOp2):
+                    Pindex2.append(j)
+                    found2=True
+                if np.array_equal(y,xOp3):
+                    Pindex3.append(j)
+                    found3=True
+                if np.array_equal(y,xOp4):
+                    Pindex4.append(j)
+                    found4=True
+                if np.array_equal(y,xOp5):
+                    Pindex5.append(j)
+                    found5=True
+                if np.array_equal(y,xOp6):
+                    Pindex6.append(j)
+                    found6=True
+
+                
+                if found2 and found3 and found4 and found5 and found6 :  break
+
+            if not found2:
+                xR23.append(xOp2)
+                Pindex2.append(last)
+                last+=1
+            if not found3:
+                xR23.append(xOp3)
+                Pindex3.append(last)
+                last+=1
+            if not found4:
+                xR23.append(xOp4)
+                Pindex4.append(last)
+                last+=1
+            if not found5:
+                xR23.append(xOp5)
+                Pindex5.append(last)
+                last+=1
+            if not found6:
+                xR23.append(xOp6)
+                Pindex6.append(last)
+                last+=1
+        
+        
+        # =============================================================================
+        diff=last-len_old
+        if  diff > 0 :
+            print(" ")
+            print(" Warning: new triplets found during the permutation symmetry initialization ")
+            print(" {:5d} new blocks found ".format(diff))            
+            print(" ")
+            xR23=np.array(xR23).T 
+            self.x_r_vector2,self.x_r_vector3 = np.vsplit(xR23,2)
+            xx=np.zeros((diff,3*self.nat,3*self.nat,3*self.nat))
+            self.tensor=np.append(self.tensor,xx,axis=0)         
+        # =============================================================================
+        
+        inverse2= np.arange(len(Pindex2))[np.argsort(Pindex2)] 
+        inverse3= np.arange(len(Pindex3))[np.argsort(Pindex3)] 
+        inverse4= np.arange(len(Pindex4))[np.argsort(Pindex4)] 
+        inverse5= np.arange(len(Pindex5))[np.argsort(Pindex5)] 
+        inverse6= np.arange(len(Pindex6))[np.argsort(Pindex6)]         
+  
+  
+  
+        # Actual symmetrization ==============================
+  
+        tensor_sym=np.copy(self.tensor)
+
+        #tensor_tmp=np.transpose(self.tensor,(0,1,3,2))
+        #tensor_tmp=tensor_tmp[inverse2,:,:,:]
+        #tensor_sym+=tensor_tmp
+
+        tensor_tmp=np.transpose(self.tensor,(0,3,1,2))
+        tensor_tmp=tensor_tmp[inverse3,:,:,:]
+        #tensor_tmp=tensor_tmp[Pindex3,:,:,:]
+        self.tensor=tensor_tmp
+
+        #tensor_sym+=tensor_tmp
+
+        #tensor_tmp=np.transpose(self.tensor,(0,3,2,1))
+        #tensor_tmp=tensor_tmp[inverse4,:,:,:]
+        #tensor_sym+=tensor_tmp
+
+        #tensor_tmp=np.transpose(self.tensor,(0,2,3,1))
+        #tensor_tmp=tensor_tmp[inverse5,:,:,:]
+        #tensor_sym+=tensor_tmp
+
+        #tensor_tmp=np.transpose(self.tensor,(0,2,1,3))
+        #tensor_tmp=tensor_tmp[inverse6,:,:,:]
+        #tensor_sym+=tensor_tmp
+        
+        #tensor_sym/=6        
+        
+        #delta=np.sum(np.abs(self.tensor-tensor_sym))
+        #print(" Variation due to symmetrization: {:11.7f} ".format(delta))
+
+        #self.tensor=tensor_sym
+        
+        
 #=============================================================================================================================================
 
+    def Apply_ASR(self,PBC=False,power=2,maxiter=1000,threshold=1.0e-12):
+
+
+        
+        if Settings.am_i_the_master():
+        
+        
+            t1 = time.time()
+           
+            if self.verbose:
+                print(" ")
+                print(" =======================    ASR    ========================== ")
+                print(" ")         
+
+
+            xR23 = np.vstack((self.x_r_vector2,self.x_r_vector3))
+            xR2list=np.unique(self.x_r_vector2,axis=1)
+            totnum_R2=xR2list.shape[1]
+        
+            xRmin=np.min(self.x_r_vector3,1) 
+            xRmax=np.max(self.x_r_vector3,1) 
+            SClat=xRmax-xRmin+np.ones((3,),dtype=int)
+
+
+            tensor=np.transpose(self.tensor,axes=[1,2,3,0])
+
+            tensor_out=thirdorder.third_order_asr.impose_asr(tensor,xR23,self.x_r_vector2,xR2list,power,SClat,PBC,threshold,maxiter,self.verbose,totnum_R2,self.nat,self.n_R)
+        
+            self.tensor=np.transpose(tensor_out,axes=[3,0,1,2]) 
+
+            t2 = time.time() 
+
+            if self.verbose: 
+                print(" ")
+                print(" Time elapsed for imposing ASR: {} s".format( t2 - t1)) 
+                print(" ")
+                print(" ============================================================ ")
 
 
 
+        self.tensor = Settings.broadcast(self.tensor)
 
-
+#============================================================================================================
         
  
     def Interpolate(self, q2, q3, asr = True, verbose = False):
