@@ -1377,7 +1377,39 @@ class Tensor3():
 #=============================================================================================================================================
 
     def Apply_ASR(self,PBC=False,power=2,maxiter=1000,threshold=1.0e-12):
+        """
+        Apply_ASR 
+        =========
 
+        This subroutine apply the ASR to the third order force constants iteratively.
+        For each iteration, the ASR is imposed on the third index 
+        (any of the three indeces would be equivalent, apart from the subtleties that 
+        would require the implementation for the first index, due to the representation chosen),
+        and, subsequently, the symmetry by permutation of the three indeces is imposed.
+        
+
+        Optional Parameters
+        --------------------
+            - PBC [default=False]: logical
+            
+                If True, periodic boundary conditions are considered. This is necessary, for example,
+                to apply this routine to non-centered tensors.
+            
+            - power [default=2]: float >= 0
+            
+                The way the ASR is imposed on the third index:                
+                phi(i,j,k,abc)=phi(i,j,k,a,b,c)-[\sum_c phi(i,j,k,a,b,c)]* |phi(i,j,k,a,b,c)|^pow / [sum_c |phi(i,j,k,a,b,c)|^pow]
+            
+            - maxiter [default= 1000]: integer > 0
+
+                Maximum number of iteration to reach the convergence. 
+                If a file STOP is found, the iteration stops.
+                
+            - threshold [default= 1.0e-12]: float > 0                
+ 
+               Threshold for the convergence. The convergence is on two values: the value of sum on the third index and the 
+               variation of the phi after the imposition of the permutation symmetry (both divided by sum |phi|)
+        """    
 
         
         if Settings.am_i_the_master():
@@ -1402,7 +1434,12 @@ class Tensor3():
 
             tensor=np.transpose(self.tensor,axes=[1,2,3,0])
 
-            tensor_out=thirdorder.third_order_asr.impose_asr(tensor,xR23,self.x_r_vector2,xR2list,power,SClat,PBC,threshold,maxiter,self.verbose,totnum_R2,self.nat,self.n_R)
+            tensor_out=thirdorder.third_order_asr.impose_asr(tensor,xR23,
+                                                             self.x_r_vector2,xR2list,
+                                                             power,SClat,
+                                                             PBC,threshold,
+                                                             maxiter,self.verbose,
+                                                             totnum_R2,self.nat,self.n_R)
         
             self.tensor=np.transpose(tensor_out,axes=[3,0,1,2]) 
 
@@ -1417,6 +1454,19 @@ class Tensor3():
 
 
         self.tensor = Settings.broadcast(self.tensor)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #============================================================================================================
         

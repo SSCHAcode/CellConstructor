@@ -132,6 +132,7 @@ perm_initialized =.true.
 end subroutine initialize_perm
 
 !==========================================================================================
+
 function Geq(v1,v2,Lat,PBC)
     implicit none
     logical    :: Geq
@@ -154,6 +155,17 @@ function F(x)
     implicit none
     integer :: F(6,2:6)
     integer, intent(in) :: x(6)
+    
+    
+    ! Permutations of 0 R2 R3 a b c, exploiting the translation
+    ! symmetry to keep the first lattice vector equal to 0
+
+    ! 2.  0  R3 R2  a c b      0     R3     R2  a c b        
+    ! 3.  R3  0 R2  c a b  ->  0    -R3  R2-R3  c a b              
+    ! 4.  R3 R2  0  c b a  ->  0  R2-R3    -R3  c b a             
+    ! 5.  R2 R3  0  b c a  ->  0  R3-R2    -R2  b c a 
+    ! 6.  R2  0 R3  b a c  ->  0    -R2  R3-R2  b a c 
+    
     !
     F(:,2)=(/      x(4),      x(5),      x(6),      x(1),      x(2),      x(3) /)
     F(:,3)=(/     -x(4),     -x(5),     -x(6), x(1)-x(4), x(2)-x(5), x(3)-x(6) /)
@@ -205,11 +217,11 @@ subroutine impose_perm_sym(FC,R23,SClat,PBC,verbose,FCvar,FC_sym,nat,n_blocks)
     FC_sym=FC_sym/6.0_dp
 
 
-    FCvar=SUM(ABS(FC-FC_sym))
+    FCvar=SUM(ABS(FC-FC_sym))/ SUM(ABS(FC)) 
 
     if (verbose) then
     write(*, * ) ""
-    write(*,  "(' FC variation due to permut. symm.= 'F13.5)") FCvar
+    write(*,  "(' FC variation due to permut. symm.= 'e20.6)") FCvar
     write(*, * ) ""
     end if
     !
@@ -313,7 +325,8 @@ subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
     end do
     end do
     !    
-    FCvar=SUM(ABS(FC-FC_ASR))  
+    FCvar=SUM(ABS(FC-FC_ASR))/ SUM(ABS(FC)) 
+    sum3rd=sum3rd/SUM(ABS(FC))
     !
     if (verbose) then
     if ( pow > 0.01_dp ) then
@@ -322,17 +335,17 @@ subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
         
         write(*, * ) ""   
         write(*, "(' ASR imposition on 3rd index with pow= 'f5.3)") pow
-        write(*, "(' Previous values: sum(|sum_3rd phi|)=       'F13.5' eV/A**3')" ) sum3rd
-        write(*, "('                  sum(|phi|**pow)**(1/pow)= 'F13.5' eV/A**3')" ) d1**invpow
-        write(*, "(' FC variation= 'F13.5)" ) FCvar    
+        write(*, "(' Previous values: sum(|sum_3rd phi|)/sum(|phi|)=       'e20.6)" ) sum3rd
+        write(*, "('                  sum(|phi|**pow)**(1/pow)/sum(|phi|)= 'e20.6)" ) d1**invpow/SUM(ABS(FC))
+        write(*, "(' FC variation= 'e20.6)" ) FCvar    
         write(*, * ) "" 
     
     else
 
         write(*, * ) ""   
         write(*, "(' ASR imposition on 3rd index with pow= 0' )") 
-        write(*, "(' Previous value: sum(|sum_3rd phi|)= 'F13.5' eV/A**3')" ) sum3rd
-        write(*, "(' FC variation= 'F13.5)" ) FCvar    
+        write(*, "(' Previous value: sum(|sum_3rd phi|)= 'e20.6' eV/A**3')" ) sum3rd
+        write(*, "(' FC variation= 'e20.6)" ) FCvar    
         write(*, * ) ""     
     
     
@@ -360,7 +373,8 @@ real(kind=DP), intent(out) :: FC_out(3*nat,3*nat,3*nat,n_blocks)
 !
 real(kind=DP)   :: FC_tmp(3*nat,3*nat,3*nat,n_blocks)
 integer         :: ite, ios
-real(kind=DP)   :: FCvar, delta
+real(kind=DP)   :: FCvar, sum3rd
+logical :: converged
 
 if (verbose) then
 write(*,*) " "
@@ -371,31 +385,26 @@ end if
 call initialize_perm(R23, n_blocks,SClat,PBC)
 call initialize_R2index(xR2,xR2list,totnum_R2, n_blocks,SCLat,PBC)
 
-FC_tmp=FC
+
+ converged = .false.
+ FC_tmp=FC
 
 do ite=1,maxite
 
     if (verbose) write(*,"(' Iter #' I5 '  ====')") ite
     if (verbose) write(*,*) ""
-        call impose_ASR_3rd(FC_tmp,xR2,xR2list,pow,SClat,PBC,.false.,FCvar,delta,FC_out,totnum_R2,nat,n_blocks)
-    if (verbose) write(*,"('         Sum on 3rd='  e20.6  ' eV/A**3   Imp. ASR on 3rd:  => delta FC=' e20.6' eV/A**3')") delta,FCvar
+        call impose_ASR_3rd(FC_tmp,xR2,xR2list,pow,SClat,PBC,.false.,FCvar,sum3rd,FC_out,totnum_R2,nat,n_blocks)
+    if (verbose) write(*,"('         Sum on 3rd='  e20.6  '    Imp. ASR on 3rd:  => delta FC=' e20.6)") sum3rd,FCvar
         call impose_perm_sym(FC_out,R23,SClat,PBC,.false.,FCvar,FC_tmp,nat,n_blocks)
-    if (verbose) write(*,"('                    '  20X    '           Imp. permut sym:  => delta FC=' e20.6' eV/A**3')") FCvar
+    if (verbose) write(*,"('                    '  20X    '    Imp. permut sym:  => delta FC=' e20.6)") FCvar
     if (verbose) write(*,*) ""
 
-
-!     write(*,"(' Iteraz #' I6 ' ======')") ite
-!     call impose_ASR_3rd(FC_tmp,xR2,xR2list,pow,SClat,PBC,.false.,FCvar,delta,FC_out,totnum_R2,nat,n_blocks)
-!         write(*,"('         Imposition ASR on 3rd: sum on 3rd='  e20.6  '=> delta FC=' e20.6)") delta,FCvar
-!     call impose_perm_sym(FC_out,R23,SClat,PBC,.false.,FCvar,FC_tmp,nat,n_blocks)
-!         write(*,"('         Imposition permut. sym:                      => delta FC=' e20.6)") FCvar
- 
-
    !  check converg
-   if ( delta < threshold  .and. FCvar < threshold ) then
-        if (verbose) write(*,*) " "
-        if (verbose) write(*,"( ' * Convergence reached within threshold:' e20.6 ' eV/A**3')") threshold
-        if (verbose) write(*,*) " "
+   if ( sum3rd < threshold  .and. FCvar < threshold ) then
+        write(*,*) " "
+        write(*,"( ' * Convergence reached within threshold:' e20.6 ' eV/A**3')") threshold
+        write(*,*) " "
+        converged = .True.
         EXIT
    end if
    
@@ -408,6 +417,15 @@ do ite=1,maxite
    ENDIF
    
 end do
+
+
+if (.not. converged ) then
+   write(*,*) " "
+   write(*,"( ' Max number of iteration reached ('I6')' )") maxite
+   write(*,"( ' Convergence not reached within threshold:' e20.6 )") threshold
+   write(*,*) " "
+end if   
+
 
 end subroutine impose_ASR
 
