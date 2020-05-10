@@ -15,6 +15,8 @@ import thirdorder
 import cellconstructor as CC
 import cellconstructor.symmetries
 import cellconstructor.Settings
+import cellconstructor.Methods as Methods 
+
 
 import time
 
@@ -28,7 +30,7 @@ using the interpolation on the third order force constant matrix
 
 # ========================== STATIC ==================================================
 
-def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
+def get_static_bubble(tensor2, tensor3, k_grid, q, T , verbose = False):
     """
     COMPUTE THE STATIC BUBBLE
     =========================
@@ -49,8 +51,6 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
             The q point at which compute the bubble.
         T : float
             The tempearture of the calculation (default 0 K)
-        asr : bool
-            If true, impose the acoustic sum rule during the Fourier transform
         verbose : bool
             If true print debugging and timing info
             
@@ -67,7 +67,7 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
     
         
     # Get the phi2 in q
-    phi2_q = tensor2.Interpolate(q, asr = asr)
+    phi2_q = tensor2.Interpolate(q, asr = False)
 
 
     # dynamical matrix in q
@@ -93,21 +93,22 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
     w_q=np.sqrt(w2_q)    
     
     # Allocate the memory for the bubble
-    tmp_bubble = np.zeros((3*structure.N_atoms, 3*structure.N_atoms),
+    n_mod=3*structure.N_atoms
+    tmp_bubble = np.zeros((n_mod, n_mod),
                           dtype = np.complex128, order = "F")
     
     def compute_k(k):
         
         # phi3 in q, k, -q-k
         t1 = time.time()        
-        phi3=tensor3.Interpolate(k,-q-k, asr = asr)
+        phi3=tensor3.Interpolate(k,-q-k, asr = False)
         t2 = time.time()
  
         # phi2 in k
-        phi2_k = tensor2.Interpolate(k, asr = asr) 
+        phi2_k = tensor2.Interpolate(k, asr = False) 
 
         # phi2 in -q-k
-        phi2_mq_mk = tensor2.Interpolate(-q-k, asr = asr)
+        phi2_mq_mk = tensor2.Interpolate(-q-k, asr = False)
 
         t3 = time.time()
         
@@ -156,7 +157,7 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
         tmp_bubble = thirdorder.third_order_bubble.compute_static_bubble(T,np.array([w_q,w_k,w_mq_mk]).T,
                                                                        np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                                        d3_pols,
-                                                                       n_mod=3*structure.N_atoms)        
+                                                                       n_mod=n_mod)        
         
         t5 = time.time()
         
@@ -186,7 +187,7 @@ def get_static_bubble(tensor2, tensor3, k_grid, q, T , asr , verbose = False):
  
     return phi2_final_q, w_q
         
-def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T, asr = True):
+def get_static_correction(dyn, tensor3, k_grid, list_of_q_points, T, asr = False):
     """
     Get the dyn + static bubble correction for the list of q points
     """
@@ -214,11 +215,11 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
         tensor3 : Tensor3()
             The third order force constant matrix
         T : float
-            The temperature
+            The temperature 
         new_supercell : list(len = 3)
             The new supercell on which you want to interpolate the results
         k_grid : list(len = 3)
-            The integration grid on the Brilluin zone
+            The integration grid on the Brillouin zone
 
     Results
     -------
@@ -247,29 +248,90 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
 
     return new_dyn
 
-def get_static_correction_along_path(dyn, tensor3, k_grid,
+def get_static_correction_along_path(dyn, 
+                                     tensor3, 
+                                     k_grid,
                                      T=0,
                                      q_path=[0.0,0.0,0.0],                                           
                                      q_path_file=None,
                                      print_path = True,                                           
-                                     asr = False,
                                      filename_st="v2+d3static_freq.dat",
                                      print_dyn = False,
                                      name_dyn = "sscha_plus_odd_dyn",
                                      d3_scale_factor = None,
                                      tensor2 = None):
     """
-    Get the dyn + static bubble correction on the give path in a plottable fashion.
+    Get the dyn + static bubble correction along a given path and prints the SSCHA and the 
+    corrected frequencies in the file filename_st (path length in 2pi/Angstrom, SSCHA frequencies (cm-1),
+    SSCHA+static odd correction frequencies (cm-1)).
+    If print_dyn = True, the dyn+static bubble dynamical matrices are printed in QE format.
     
     Parameters
     ----------
+    
+        dyn : Phonons()
+            The harmonic / SSCHA dynamical matrix
+        tensor3 : Tensor3()
+            The third order force constant matrix
+        k_grid : list(len = 3)
+            The integration grid on the Brillouin zone
         
-    Results
-    -------
+        Optional
+        --------
+        
+        T : float
+            The temperature 
+            (default: 0 K)
+        q_path : list of triplets
+                 Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
+                 where the caculation is performed 
+                 (defualt: [0.0,0.0,0.0])            
+        q_path_file : string
+                      Name of the file where the q_path can be read. 
+                      Format: column of triples, q points in 2pi/Angstrom
+                      If the name of the file is present, it has the
+                      priority over the q_path value 
+                      (default: None)
+        print_path : logical
+                     If True (and the path is composed of more then one q-point), 
+                     a file 'path_len.dat' is printed.
+                     Format: column of 4 values, coordinates of 
+                     the q-point and path length (in 2pi/Angstrom) .
+                     (default: True)  
+        filename_st : string 
+                      File where the result is written. 
+                      Format: length of the path (in 2pi/Alat), 
+                      SSCHA freq (cm-1),SSCHA+static bubble freq. (cm-1)
+                      (default: "v2+d3static_freq.dat")        
+        print_dyn : logical 
+                    If True, the dyn+odd dynamical matrices are printed
+                    for the q-points of the path (in QE format)
+                    (default: False) 
+        name_dyn :   string
+                    Prefix of the name of the dyn+odd dynamical matrix printed
+                    name: prefix#q(progressive_number)
+                    (default: "sscha_plus_odd_dyn")
+        d3_scale_factor : float 
+                          If present, the 3rd order FC is multiplied by this factor
+                          (e.g. it can be used to make tests about the perturbative limit)
+                          (default: None)
+        tensor2 : ndarray( size = (3*nat, 3*nat), dtype = np.float)
+                  If present, this 2nd order FC overwrites the one 
+                  obtained from dyn.
+                  (default: None)  
+        
     """
+     
+    print(" ") 
+    print(" ====================================" ) 
+    print("      Bubble static correction       " ) 
+    print(" ====================================" )
+    print(" ") 
+    print(" T= {:>5.1f} K".format(T))
+    print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
+    print(" ")    
         
-    if ( tensor2 == None ):
-        
+    if ( tensor2 == None ):        
         # Prepare the tensor2
         tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
         tensor2.SetupFromPhonons(dyn)
@@ -278,13 +340,16 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     # Scale the FC3 ===========================================================================
     if  d3_scale_factor != None :
             print(" ")
-            print("d3 scaling : d3 -> d3 x {:>7.3f}".format(d3_scale_factor))
+            print(" d3 scaling : d3 -> d3 x {:>7.3f}".format(d3_scale_factor))
             print(" ")
             tensor3.tensor=tensor3.tensor*d3_scale_factor
-    #  ================================== q-PATH ===============================================
+    #  ================================== q-PATH ===============================================   
     if  q_path_file == None:
         q_path=np.array(q_path)
     else:
+        print(" ")
+        print(" q_path read from "+q_path_file)
+        print(" ")        
         q_path=np.loadtxt(q_path_file)
     if len(q_path.shape) == 1 : q_path=np.expand_dims(q_path,axis=0)    
     # Get the length of the q path
@@ -295,9 +360,12 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     x_length_exp=np.expand_dims(x_length,axis=0) 
     # print the path q-points and length
     if print_path and (q_path.shape[0] > 1) :
-        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%7.3f\t']
-        result=np.hstack((q_path,x_length_exp.T))
-        np.savetxt('path_len.dat',result,fmt=fmt_txt)     
+        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%10.6f\t']
+        result=np.hstack((q_path,x_length_exp.T))        
+        np.savetxt('path_len.dat',result,fmt=fmt_txt)
+        print(" ")
+        print(" Path printed in path_len.dat ")
+        print(" ")        
     # ==========================================================================================    
    
     # Mass matrix
@@ -305,52 +373,58 @@ def get_static_correction_along_path(dyn, tensor3, k_grid,
     mm_mat = np.sqrt(np.outer(m, m))
     
     # Allocate frequencies array
-    
     nat=dyn.structure.N_atoms
     n_mod=3 * nat
     frequencies = np.zeros((len(q_path), n_mod), dtype = np.float64 ) # SSCHA+odd freq
     v2_wq = np.zeros( (len(q_path), n_mod), dtype = np.float64 ) # pure SSCHA freq
         
     # =============== core calculation ===========================================
+    if print_dyn:
+        print(" ")
+        print(" dyn+odd dynamical matrices printed in "+name_dyn+"#q")
+        print(" ")        
     for iq, q in enumerate(q_path):
         dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3, 
                                               k_grid=k_grid, q=np.array(q), 
-                                         T=T, asr=asr, verbose = False)
+                                         T=T, verbose = False)
 
-        if print_dyn:
-            with open(name_dyn,'w') as f:
-                fmt1="{:>5d}\t{:>5d}\n"
-                fmt2=3*"{:12.8f}  {:12.8f}\t"+"\n"
-                for n1 in range(nat):
-                    for n2 in range(nat):
-                        f.write(fmt1.format(n1+1,n2+1))
-                        for j1 in range(3):
-                            im=[dynq[3*n1+j1,3*n2+j2].imag for j2 in range(3)]
-                            re=[dynq[3*n1+j1,3*n2+j2].real for j2 in range(3)]
-                            out=(re[0],im[0],re[1],im[1],re[2],im[2])
-                            f.write(fmt2.format(*out))
-            
-        w2, p = np.linalg.eigh(dynq / mm_mat)
+        w2, pol = np.linalg.eigh(dynq / mm_mat)
         frequencies[iq,:] = np.sign(w2)*np.sqrt(np.abs(w2))
+    
+        if print_dyn:            
+            Methods.save_qe(dyn,q,dynq,frequencies[iq,:],pol,fname=name_dyn+str(iq+1))
     # ============================================================================    
 
     # === print result ==================================
     frequencies *= CC.Units.RY_TO_CM
     v2_wq *= CC.Units.RY_TO_CM
     result=np.hstack((x_length_exp.T,v2_wq,frequencies))     
-    fmt_txt='%7.3f\t\t'+n_mod*'%11.7f\t'+'\t'+n_mod*'%11.7f\t'
-    np.savetxt(filename_st,result,fmt=fmt_txt)         
+    fmt_txt='%10.6f\t\t'+n_mod*'%11.7f\t'+'\t'+n_mod*'%11.7f\t'
+    np.savetxt(filename_st,result,fmt=fmt_txt)   
+    print(" ")
+    print(" Results printed in "+filename_st)
+    print(" ------------------------------------------------------------------------ ")
+    print(" len (2pi/Angstrom), sscha freq (cm-1), sscha + static bubble freq (cm-1) ")
+    print(" ")     
     # ==================================================================================   
  
+
+
+
+
+
+
+
+
+
  
- # ================================= DYNAMIC =========================================   
  
  # ========================= FULL DYNAMIC =========================
 
 def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q, 
                             smear_id, smear, energies,
                             T,
-                            static_limit, asr, 
+                            static_limit, 
                             notransl, diag_approx,
                             verbose = False ):
     
@@ -385,7 +459,7 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
         dynq : ndarray( size = (3*nat, 3*nat), dtype = np.complex128)
             The bubble matrix at the specified q point (only bubble).
     """
-    
+ 
     structure = tensor2.unitcell_structure
     
     # Get the integration points 
@@ -393,7 +467,7 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
     
         
     # Get the phi2 in q
-    phi2_q = tensor2.Interpolate(q, asr = asr)
+    phi2_q = tensor2.Interpolate(q, asr = False)
 
 
     # dynamical matrix in q
@@ -428,13 +502,13 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
     def compute_k(k):
         # phi3 in q, k, -q - k
         t1 = time.time()        
-        phi3=tensor3.Interpolate(k,-q-k, asr = asr)
+        phi3=tensor3.Interpolate(k,-q-k, asr = False)
         t2 = time.time()
         # phi2 in k
-        phi2_k = tensor2.Interpolate(k, asr = asr) 
+        phi2_k = tensor2.Interpolate(k, asr = False) 
 
         # phi2 in -q-k
-        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = asr)
+        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = False)
 
         t3 = time.time()
         
@@ -476,17 +550,14 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
         d3_pols = np.einsum("abc, ai -> ibc", d3, pols_q)
         d3_pols = np.einsum("abc, bi -> aic", d3_pols, pols_k)
         d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
-        
+                
         t4 = time.time()
-        
         
         # Fortran duty ====
         tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(energies,smear,static_limit,T,
                                                             np.array([w_q,w_k,w_mq_mk]).T,
                                                             np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                             d3_pols,diag_approx,ne,nsm,n_mod=3*structure.N_atoms)        
-        
-            
         
         t5 = time.time()
         
@@ -507,7 +578,12 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
     d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
     # get the spectral function
     no_gamma_pick=bool(is_q_gamma*notransl)
-    #    
+    #
+    if no_gamma_pick :
+        print(" ")
+        print(" The acoustic pick in Gamma is discarded ")
+        print(" ")
+    #   
     # 
     spectral_func=thirdorder.third_order_bubble.compute_spectralf(smear_id,
                                                                   energies,
@@ -520,7 +596,9 @@ def get_full_dynamic_bubble(tensor2, tensor3, k_grid, q,
     return spectral_func
 
 
-def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,  
+def get_full_dynamic_correction_along_path(dyn, 
+                                           tensor3, 
+                                           k_grid,  
                                            e1, de, e0,
                                            sm1, sm0, 
                                            sm1_id, sm0_id,
@@ -530,12 +608,107 @@ def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,
                                            q_path_file=None,
                                            print_path = True,                                           
                                            static_limit = False, 
-                                           notransl = True, diag_approx = False, 
-                                           asr = False, 
-                                           filename='full_spectral_func',d3_scale_factor=None,
+                                           notransl = True, 
+                                           diag_approx = False, 
+                                           filename_sp='full_spectral_func',
+                                           d3_scale_factor=None,
                                            tensor2 = None):
  
+    """
+    Get the spectral function for a list of energies, and several q along a given path.
+    The calculations are performed for several values of smearings to calculate the self-energy
+    and the Green function. The resuls is printed in the file
+    filename_sp_[id_smear]_[smear].dat (path length in 2pi/Angstrom, energies (cm-1),
+    spectral function (1/cm-1)).
+    
+    Parameters
+    ----------
+    
+        dyn : Phonons()
+            The harmonic / SSCHA dynamical matrix
+        tensor3 : Tensor3()
+            The third order force constant matrix
+        k_grid : list(len = 3)
+            The integration grid on the Brillouin zone        
+        e1, de ,e0: float
+                    The list of energies considered (cm-1), from e0 to e1, with interval de
+        sm0, sm1 : float      
+              Minimum and maximum value of the smearing (cm-1) to compute the self-energy   
+        sm0_id, sm1_id : float      
+              Minimum and maximum value of the smearing (cm-1) for the term of the Green function 
+              proportional to the identity        
+
+        Optional
+        --------
+
+        nsm : integer
+              Number of smearings to consider         
+              (default = 1)
+        T : float
+            The temperature 
+            (default: 0 K)
+        q_path : list of triplets
+                 Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
+                 where the caculation is performed 
+                 (defualt: [0.0,0.0,0.0])            
+        q_path_file : string
+                      Name of the file where the q_path can be read. 
+                      Format: column of triples, q points in 2pi/Angstrom
+                      If the name of the file is present, it has the
+                      priority over the q_path value 
+                      (default: None)
+        print_path : logical
+                     If True (and the path is composed of more then one q-point), 
+                     a file 'path_len.dat' is printed.
+                     Format: column of 4 values, coordinates of 
+                     the q-point and path length (in 2pi/Angstrom) .
+                     (default: True)  
+        static limit : logical
+                      If True the self-energy is evaluated at E=0.
+                      The spectral function is given by delta peaks in correspondence
+                      of the frequencies of the sscha + static bubble correction
+                      (default : False)
+        notransl : logical
+                    If True, the contribution to the spectral function given by the acoustic
+                    phonons in Gamma is discarded.
+                    (defaul = True)
+        diag approx : logical
+                    If True, the off-diagonal terms of the slef-energy are discarded
+                    (the same result can be obtained in a cheaper way by using the 
+                    corresponding function)
+                    (default : False)
+        filename_sp  : string 
+                      filename_sp_[id_smear]_[smear].dat
+                      is the file where the result is written. 
+                      Format: length of the path (in 2pi/Alat), 
+                      energy (cm-1),spectral function (1/cm-1)
+                      (default: "full_spectral_func")        
+        d3_scale_factor : float 
+                          If present, the 3rd order FC is multiplied by this factor
+                          (e.g. it can be used to make tests about the perturbative limit)
+                          (default: None)
+        tensor2 : ndarray( size = (3*nat, 3*nat), dtype = np.float)
+                  If present, this 2nd order FC overwrites the one 
+                  obtained from dyn.
+                  (default: None)  
+        
+    """
  
+    print(" ") 
+    print(" ===========================================" ) 
+    print("        Bubble full dynamic correction      " ) 
+    print(" ===========================================" )
+    print(" ") 
+    print(" T= {:>5.1f} K".format(T))
+    print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
+    if static_limit :
+        print(" ")
+        print(" - The static limit is considered - ")
+        print(" ")
+    if diag_approx :
+        print(" ")
+        print(" - The off-diagonal terms of the self-energy are discarded - ")
+        print(" ")     
  
  
     if ( tensor2 == None ):
@@ -551,11 +724,13 @@ def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,
             print("d3 scaling : d3 -> d3 x {:>7.3f}".format(d3_scale_factor))
             print(" ")
             tensor3.tensor=tensor3.tensor*d3_scale_factor
-    
-    #  ================================== q-PATH ===============================================
+    #  ================================== q-PATH ===============================================   
     if  q_path_file == None:
         q_path=np.array(q_path)
     else:
+        print(" ")
+        print(" q_path read from "+q_path_file)
+        print(" ")        
         q_path=np.loadtxt(q_path_file)
     if len(q_path.shape) == 1 : q_path=np.expand_dims(q_path,axis=0)    
     # Get the length of the q path
@@ -566,12 +741,14 @@ def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,
     x_length_exp=np.expand_dims(x_length,axis=0) 
     # print the path q-points and length
     if print_path and (q_path.shape[0] > 1) :
-        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%7.3f\t']
-        result=np.hstack((q_path,x_length_exp.T))
-        np.savetxt('path_len.dat',result,fmt=fmt_txt)     
-    # ========================================================================================== 
-    
-    
+        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%10.6f\t']
+        result=np.hstack((q_path,x_length_exp.T))        
+        np.savetxt('path_len.dat',result,fmt=fmt_txt)
+        print(" ")
+        print(" Path printed in path_len.dat ")
+        print(" ")        
+    # ==========================================================================================     
+ 
     #  ======================= Energy & Smearing ==========================================    
     # energy   in input is in cm-1
     # smearing in input is in cm-1
@@ -594,7 +771,7 @@ def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,
     for iq, q in enumerate(q_path):
         spectralf[iq, :, :] = get_full_dynamic_bubble(tensor2, tensor3, k_grid, np.array(q),
                                                       smear_id, smear, energies, T,   
-                                                      static_limit, asr , notransl , 
+                                                      static_limit, notransl , 
                                                       diag_approx, verbose=False )    
     
     # convert from 1/Ry to 1/cm-1
@@ -605,24 +782,48 @@ def get_full_dynamic_correction_along_path(dyn, tensor3, k_grid,
     energies *= CC.Units.RY_TO_CM 
     
 
+    # ==================================================================================   
+ 
     # print the result
     for  ism in range(nsm):
         #
-        name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:5.2f}".format(smear[ism]).strip()
+        name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:6.1f}".format(smear[ism]).strip()
         #
-        filename_new=filename+'_'+name+'.dat'
+        filename_new=filename_sp+'_'+name+'.dat'
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
              for ie, ene in enumerate(energies):
-                 f.write("{:>7.3f}\t{:>11.7f}\t{:>11.7f}\n".format(leng,ene,spectralf[iq,ie,ism]))
-    
- # ========================= DIAGONAL SELF-ENERGY DYNAMIC CORRECTION  =========================      
+                 f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(leng,ene,spectralf[iq,ie,ism]))
+ 
+ 
+    print(" ")
+    print(" Results printed in "+filename_sp+'_[id_smear]_[smear].dat')
+    print(" ------------------------------------------------------------------------ ")
+    print(" len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1) ")
+    print(" ")      
+ 
+ 
+ 
 
-def get_diag_dynamic_bubble(tensor2, tensor3, 
-                            k_grid, q, 
-                            smear_id, smear, energies,
+
+
+
+
+
+
+
+ 
+# ========================= DIAGONAL SELF-ENERGY DYNAMIC CORRECTION  =========================      
+
+def get_diag_dynamic_bubble(tensor2, 
+                            tensor3, 
+                            k_grid, 
+                            q, 
+                            smear_id, 
+                            smear, 
+                            energies,
                             T,
-                            asr, verbose = False ):
+                            verbose = False ):
     
     
     structure = tensor2.unitcell_structure
@@ -632,7 +833,7 @@ def get_diag_dynamic_bubble(tensor2, tensor3,
     
         
     # Get the phi2 in q
-    phi2_q = tensor2.Interpolate(q, asr = asr)
+    phi2_q = tensor2.Interpolate(q, asr = False)
 
 
     # dynamical matrix in q
@@ -660,20 +861,22 @@ def get_diag_dynamic_bubble(tensor2, tensor3,
     # Allocate the memory for the bubble
     ne=energies.shape[0]
     nsm=smear.shape[0]
-    tmp_bubble = np.zeros((ne,nsm,3*structure.N_atoms, 3*structure.N_atoms),
+    nat=structure.N_atoms
+    n_mod=3*nat
+    tmp_bubble = np.zeros((ne,nsm,n_mod,n_mod),
                           dtype = np.complex128, order = "F")
 
     
     def compute_k(k):
         # phi3 in q, k, -q - k
         t1 = time.time()        
-        phi3=tensor3.Interpolate(k,-q-k, asr = asr)
+        phi3=tensor3.Interpolate(k,-q-k, asr = False)
         t2 = time.time()
         # phi2 in k
-        phi2_k = tensor2.Interpolate(k, asr = asr) 
+        phi2_k = tensor2.Interpolate(k, asr = False) 
 
         # phi2 in -q-k
-        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = asr)
+        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = False)
 
         t3 = time.time()
         
@@ -725,7 +928,7 @@ def get_diag_dynamic_bubble(tensor2, tensor3,
         tmp_bubble  = thirdorder.third_order_bubble.compute_diag_dynamic_bubble(energies,smear,T,
                                                             np.array([w_q,w_k,w_mq_mk]).T,
                                                             np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
-                                                            d3_pols,ne,nsm,n_mod=3*structure.N_atoms)                
+                                                            d3_pols,ne,nsm,n_mod=n_mod)                
 
         t5 = time.time()
         
@@ -747,7 +950,7 @@ def get_diag_dynamic_bubble(tensor2, tensor3,
     #
     spectralf=thirdorder.third_order_bubble.compute_spectralf_diag(smear_id,energies,w_q,
                                                                    d_bubble_mod,
-                                                                   structure.N_atoms,ne,nsm)    
+                                                                   nat,ne,nsm)    
                                                                     # (ne, n_mod, nsmear)
 
     w2_q_ext=w2_q[None,None,...]
@@ -758,6 +961,8 @@ def get_diag_dynamic_bubble(tensor2, tensor3,
     
     return spectralf, z, z_pert, w_q
 
+
+
 def get_diag_dynamic_correction_along_path(dyn, tensor3, 
                                            k_grid,                                            
                                            e1, de, e0,
@@ -765,21 +970,132 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                                            sm1_id, sm0_id,
                                            nsm=1,
                                            q_path=[0.0,0.0,0.0],
-                                           q_path_file=None,                                           
+                                           q_path_file=None, 
+                                           print_path = True,
                                            T=0.0,
-                                           asr = False, 
                                            filename_sp       = 'spectral_func',
                                            filename_z       =  'z_func',
-                                           filename_freq_v2  = 'freq_v2_w_corr',                                           
                                            filename_freq_dyn = 'freq_dynamic',
                                            filename_shift_lw  = 'v2_freq_shit_hwhm',
-                                           eps=1.0e-7,
                                            self_consist = True,
                                            numiter=20,
-                                           print_path = True,
+                                           eps=1.0e-7,                                           
                                            d3_scale_factor=None,
                                            tensor2 = None):                                           
   
+
+    """
+    Get the spectral function for a list of energies, and several q along a given path,
+    in the diagonal approximation (off-diagonal terms of the self-energies are discarded).
+    The calculations are performed for several values of smearings to calculate the self-energy
+    and the Green function. The resuls is printed in the file
+    filename_sp_[id_smear]_[smear].dat (path length in 2pi/Angstrom, energies (cm-1),
+    spectral function (1/cm-1), mode components of the spectral function (1/cm-1) ).
+    The Z function [PRB 97 214101 (A20)] is also printed in filename_z_[id_smear]_[smear].dat.
+    The frequency shift (with respect to the SSCHA frequency) and linewidth are computed in three ways
+    (one optional). 1. One shot, evaluating the Z function in the SSCHA frequency value.2. Perturbative,
+    evaluating the perturbative correction. 3. (optional) solving the self-consistent relation (details
+    in [PRB 97 214101 (A21)]). The corresponding Lorenzian spectral functions are then printed.
+    
+    Parameters
+    ----------
+    
+        dyn : Phonons()
+            The harmonic / SSCHA dynamical matrix
+        tensor3 : Tensor3()
+            The third order force constant matrix
+        k_grid : list(len = 3)
+            The integration grid on the Brillouin zone        
+        e1, de ,e0: float
+                    The list of energies considered (cm-1), from e0 to e1, with interval de
+        sm0, sm1 : float      
+              Minimum and maximum value of the smearing (cm-1) to compute the self-energy   
+        sm0_id, sm1_id : float      
+              Minimum and maximum value of the smearing (cm-1) for the term of the Green function 
+              proportional to the identity        
+
+        Optional
+        --------
+
+        nsm : integer
+              Number of smearings to consider         
+              (default = 1)
+        T : float
+            The temperature 
+            (default: 0 K)
+        q_path : list of triplets
+                 Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
+                 where the caculation is performed 
+                 (defualt: [0.0,0.0,0.0])            
+        q_path_file : string
+                      Name of the file where the q_path can be read. 
+                      Format: column of triples, q points in 2pi/Angstrom
+                      If the name of the file is present, it has the
+                      priority over the q_path value 
+                      (default: None)
+        print_path : logical
+                     If True (and the path is composed of more then one q-point), 
+                     a file 'path_len.dat' is printed.
+                     Format: column of 4 values, coordinates of 
+                     the q-point and path length (in 2pi/Angstrom) .
+                     (default: True)  
+        filename_sp  : string 
+                      filename_sp_[id_smear]_[smear].dat
+                      is the file where the spectral function is written. 
+                      Format: length of the path (in 2pi/Alat), 
+                      energy (cm-1),spectral function (1/cm-1),
+                      single mode contributions to spectral function (1/cm-1)
+                      (default: "spectral_func")   
+        filename_z  :  string             
+                      filename_z_[id_smear]_[smear].dat
+                      is the file where the z function is written
+                      Format: length of the path (in 2pi/Alat), 
+                      energy (cm-1), z function (cm-1),
+                      (default: "z_func")
+        filename_shift_lw : string      
+                            filename_shift_lw_[method]_[id_smear]_[smear].dat
+                            is the file where
+                            len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1)
+                            are printed. [method] are "one shot", "perturb" and "self-consistent" 
+                            (the last one optional)
+                            (default: "v2_freq_shit_hwhm")
+        filename_freq_dyn :  string                   
+                             filename_freq_dyn_[method]_[id_smear]_[smear].dat
+                             is the file where
+                             len (2pi/Angstrom), freq (cm-1) (sorted in ascending order), HWHM (cm-1)
+                             are printed. [method] are "one shot", "perturb" and "self-consistent" 
+                             (the last one optional)
+                             (default: "freq_dynamic")                                       
+        self_consist : Logical
+                       If True, the dynamical frequency is found solving the self-consistent 
+                       relation [PRB 97 214101 (A21)]
+                       (default: True)
+        numiter      : integer
+                       Number of maximum steps to find the self-consistency         
+                       (default : 20)
+        eps          : float
+                       threshold to verify the self-consistency 
+                       (default : 1.0e-7 cm-1)        
+        d3_scale_factor : float 
+                          If present, the 3rd order FC is multiplied by this factor
+                          (e.g. it can be used to make tests about the perturbative limit)
+                          (default: None)
+        tensor2 : ndarray( size = (3*nat, 3*nat), dtype = np.float)
+                  If present, this 2nd order FC overwrites the one 
+                  obtained from dyn.
+                  (default: None)  
+        
+    """
+ 
+
+
+    print(" ") 
+    print(" ===========================================" ) 
+    print("     Bubble diagonal dynamic correction     " ) 
+    print(" ===========================================" )
+    print(" ") 
+    print(" T= {:>5.1f} K".format(T))
+    print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
  
  
     if ( tensor2 == None ):
@@ -789,15 +1105,35 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         tensor2.SetupFromPhonons(dyn)
         tensor2.Center()      
 
-
-    n_mod=3*dyn.structure.N_atoms
-    # Scale the FC3
+    # Scale the FC3 ===========================================================================
     if  d3_scale_factor != None :
             print(" ")
             print("d3 scaling : d3 -> d3 x {:>7.3f}".format(d3_scale_factor))
             print(" ")
             tensor3.tensor=tensor3.tensor*d3_scale_factor
-  
+    #  ================================== q-PATH ===============================================   
+    if  q_path_file == None:
+        q_path=np.array(q_path)
+    else:
+        print(" ")
+        print(" q_path read from "+q_path_file)
+        print(" ")        
+        q_path=np.loadtxt(q_path_file)
+    if len(q_path.shape) == 1 : q_path=np.expand_dims(q_path,axis=0)    
+    # Get the length of the q path
+    x_length = np.zeros(len(q_path))        
+    q_tot = np.sqrt(np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1))
+    x_length[1:] = q_tot
+    x_length=np.cumsum(x_length)
+    x_length_exp=np.expand_dims(x_length,axis=0) 
+    # print the path q-points and length
+    if print_path and (q_path.shape[0] > 1) :
+        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%10.6f\t']
+        result=np.hstack((q_path,x_length_exp.T))        
+        np.savetxt('path_len.dat',result,fmt=fmt_txt)
+        print(" ")
+        print(" Path printed in path_len.dat ")
+        print(" ")        
     #  ======================= Energy & Smearing ==========================================      
     #
     # energy   in input is in cm-1
@@ -813,25 +1149,10 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         sm1_id=sm0_id
     smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
     smear_id=np.linspace(sm0_id,sm1_id,nsm)/CC.Units.RY_TO_CM
-    #      
-    #  ================================== q-PATH ===============================================
-    if  q_path_file == None:
-        q_path=np.array(q_path)
-    else:
-        q_path=np.loadtxt(q_path_file)
-    if len(q_path.shape) == 1 : q_path=np.expand_dims(q_path,axis=0)    
-    # Get the length of the q path
-    x_length = np.zeros(len(q_path))        
-    q_tot = np.sqrt(np.sum(np.diff(np.array(q_path), axis = 0)**2, axis = 1))
-    x_length[1:] = q_tot
-    x_length=np.cumsum(x_length)
-    x_length_exp=np.expand_dims(x_length,axis=0) 
-    # print the path q-points and length
-    if print_path and (q_path.shape[0] > 1) :
-        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%7.3f\t']
-        result=np.hstack((q_path,x_length_exp.T))
-        np.savetxt('path_len.dat',result,fmt=fmt_txt)     
+    #  
     # ========================================================================================== 
+    #
+    n_mod=3*dyn.structure.N_atoms
     #
     spectralf   = np.zeros( (len(q_path), ne, n_mod, nsm), dtype = np.float64 )
     z           = np.zeros( (len(q_path), ne, nsm, n_mod), dtype = np.complex128 )
@@ -843,7 +1164,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         spectralf[iq, :, :, :], z[iq, :, :, :], z_pert[iq, :, :, :], wq[iq,:]  = get_diag_dynamic_bubble(tensor2, tensor3,
                                                          k_grid, np.array(q),
                                                          smear_id, smear, energies,
-                                                         T, asr=asr,  verbose=False )            
+                                                         T,  verbose=False )            
     
     #
     # convert from Ry to cm-1
@@ -863,18 +1184,80 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         #return int( round(  ((val-e0)/de)+1 )   )
         return int(round( (val-e0)/de  ) )    
     
+    
+    print(" ")
+    print(" Spectral function, in diagonal approximation, printed in "+filename_sp+"_[smear_id]_[smear].dat")
+    print(" --------------------------------------------------------------------------------------------------------------- ")
+    print(" len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1), mode component of the spectral function (1/cm-1) ")
+    print(" ")       
+    print(" ")
+    print(" Z function [PRB 97 214101 (A21)], printed in "+filename_z+"_[smear_id]_[smear].dat")
+    print(" ---------------------------------------------------- ")
+    print(" len (2pi/Angstrom), energy (cm-1), z function (cm-1) ")
+    print(" ")       
+
+    print(" ========================================= ")
+    print(" Frequncies shifts and widths calculations ")
+    print(" ========================================= ")
+    print(" ")
+    print(" Frequencies shifts and linewidths computed with perturbative approximation and one-shot calculation in: ")
+    print(" ")
+    print(" "+filename_shift_lw +"_perturb_[smear_id]_[smear].dat")        
+    print(" "+filename_shift_lw +"_one_shot_[smear_id]_[smear].dat")    
+    print(" ----------------------------------------------------------------- ")
+    print(" len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) ")
+    print(" ")
+    print(" ")
+    print(" Dynamical frequencies sorted, with HWHM: ")    
+    print(" ")
+    print(" "+filename_freq_dyn +"_perturb_[smear_id]_[smear].dat")        
+    print(" "+filename_freq_dyn +"_one_shot_[smear_id]_[smear].dat")    
+    print(" ------------------------------------------------------------ ")
+    print(" len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) ")
+    print(" ")
+    print(" ")
+    print(" Relative spectral functions in Lorenzian approximation: ")
+    print(" ")
+    print(" "+filename_sp+"_lorenz_perturb_[smear_id]_[smear].dat")        
+    print(" "+filename_sp+"_one_shot_[smear_id]_[smear].dat")    
+    print(" -------------------------------------------------------------------------------------------------------------- ")
+    print(" len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1), mode component of the spectral function (1/cm-1)")    
+    print(" ")
+    if self_consist:
+        print(" ************************************************ ")
+        print(" Self-consistent search for dynamical frequencies ")
+        print(" ************************************************ ")
+        print(" ")
+        print(" Results printed in: ")    
+        print(" ")
+        print(" "+filename_shift_lw +"_[smear_id]_[smear].dat")            
+        print(" ----------------------------------------------------------------- ")        
+        print(" len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) ")
+        print(" ")     
+        print(" ")
+        print(" "+filename_freq_dyn +"_[smear_id]_[smear].dat") 
+        print(" ----------------------------------------------------------------- ")        
+        print(" len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) ")       
+        print(" ")
+        print(" ")
+        print(" "+filename_sp+"_lorenz_[smear_id]_[smear].dat") 
+        print(" -------------------------------------------------------------------------------------------------------------- ")
+        print(" len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1), mode component of the spectral function (1/cm-1)")    
+        print(" ")
+        print(" ")
+        
     for  ism in range(nsm):
         #
         # pre-name for writing data
         #
-        name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:5.2f}".format(smear[ism]).strip()#
+        name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:6.1f}".format(smear[ism]).strip()#
         #
         # write spectral and z function
         #
         # spectral func
         #
         filename_new=filename_sp+'_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
              for ie, ene in enumerate(energies):
@@ -884,7 +1267,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # z func
         # =======
         filename_new=filename_z+'_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
              for ie, ene in enumerate(energies):
@@ -943,21 +1326,21 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         
         if self_consist:
             filename_new=filename_shift_lw+'_'+name+'.dat'
-            fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+            fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
             with open(filename_new,'w') as f:
                 for iq,leng in enumerate(x_length):
                     out=np.concatenate((wq[iq,:],res[iq,:,0]-wq[iq,:], res[iq,:,1]))
                     f.write(fmt.format(leng,*out))                
         #         
         filename_new=filename_shift_lw+'_one_shot_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq[iq,:],res_os[iq,:,0]-wq[iq,:], res_os[iq,:,1]))
                  f.write(fmt.format(leng,*out))                         
         #         
         filename_new=filename_shift_lw+'_perturb_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq[iq,:],res_pert[iq,:,0]-wq[iq,:], res_pert[iq,:,1]))
@@ -982,7 +1365,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             # freq, freq +/- hwhm
             #
             filename_new=filename_freq_dyn+'_'+name+'.dat'
-            fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+            fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
             with open(filename_new,'w') as f:
                 for iq,leng in enumerate(x_length):
                     out=np.concatenate((wq_shifted_sorted[iq,:],
@@ -993,7 +1376,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             # Lorenztian spectral func 
             #
             filename_new=filename_sp+'_lorenz_'+name+'.dat'
-            fmt="{:>7.3f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
+            fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
             with open(filename_new,'w') as f:
                 for iq,leng in enumerate(x_length):
                     Lor_spectralf=np.zeros((ne,n_mod),dtype=np.float64)       
@@ -1018,7 +1401,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # freq, freq +/- hwhm
         #
         filename_new=filename_freq_dyn+'_one_shot_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq_shifted_sorted[iq,:],
@@ -1030,7 +1413,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # Lorenztian spectral func 
         #
         filename_new=filename_sp+'_lorenz_one_shot_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                 Lor_spectralf=np.zeros((ne,n_mod),dtype=np.float64)       
@@ -1055,7 +1438,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # freq, freq +/- hwhm
         #
         filename_new=filename_freq_dyn+'_perturb_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq_shifted_sorted[iq,:],
@@ -1067,7 +1450,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # Lorenztian spectral func 
         #
         filename_new=filename_sp+'_lorenz_perturb_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                 Lor_spectralf=np.zeros((ne,n_mod),dtype=np.float64)       
@@ -1080,13 +1463,23 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                  f.write(fmt.format(leng,ene,np.sum(out),*out))        
         #
         
- # ===== PERTURBATIVE CORRECTION TO SSCHA FREQUENCY (SHIFT and LINEWIDTH) =====================             
+ 
+ 
+ 
+
+
+ 
+ 
+ 
+ 
+ 
+# ===== PERTURBATIVE CORRECTION TO SSCHA FREQUENCY (SHIFT and LINEWIDTH) =====================             
  
 def get_perturb_dynamic_selfnrg(tensor2, tensor3, 
                             k_grid, q, 
                             smear,
                             T,
-                            asr, verbose):
+                            verbose= False):
         
     structure = tensor2.unitcell_structure
     
@@ -1095,7 +1488,7 @@ def get_perturb_dynamic_selfnrg(tensor2, tensor3,
     
         
     # Get the phi2 in q
-    phi2_q = tensor2.Interpolate(q, asr = asr)
+    phi2_q = tensor2.Interpolate(q, asr = False)
 
     # dynamical matrix in q
     m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()    
@@ -1122,13 +1515,13 @@ def get_perturb_dynamic_selfnrg(tensor2, tensor3,
     def compute_k(k):
         # phi3 in q, k, -q - k
         t1 = time.time()        
-        phi3=tensor3.Interpolate(k,-q-k, asr = asr)
+        phi3=tensor3.Interpolate(k,-q-k, asr = False)
         t2 = time.time()
         # phi2 in k
-        phi2_k = tensor2.Interpolate(k, asr = asr) 
+        phi2_k = tensor2.Interpolate(k, asr = False) 
 
         # phi2 in -q-k
-        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = asr)
+        phi2_mq_mk = tensor2.Interpolate(-q -k, asr = False)
 
         t3 = time.time()
         
@@ -1215,14 +1608,88 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
                                            nsm=1,
                                            q_path=[0.0,0.0,0.0],
                                            q_path_file=None,
-                                           T=0,
-                                           asr = False, 
-                                           filename_shift_lw  = 'v2_freq_shift_hwhm',                                           
-                                           filename_freq_dyn = 'freq_dynamic',
                                            print_path = True,
+                                           T=0, 
+                                           filename_shift_lw  = 'v2_freq_shift_hwhm',                                           
+                                           filename_freq_dyn = 'freq_dynamic',                                           
                                            d3_scale_factor=None,
                                            tensor2= None):                                           
 
+
+
+    """
+    The frequency shift (with respect to the SSCHA frequency) and linewidth are computed with the perturbative
+    formula with respect to the SSCHA frequency.
+    
+    Parameters
+    ----------
+    
+        dyn : Phonons()
+            The harmonic / SSCHA dynamical matrix
+        tensor3 : Tensor3()
+            The third order force constant matrix
+        k_grid : list(len = 3)
+            The integration grid on the Brillouin zone        
+        sm0, sm1 : float      
+              Minimum and maximum value of the smearing (cm-1) to compute the self-energy   
+
+        Optional
+        --------
+
+        nsm : integer
+              Number of smearings to consider         
+              (default = 1)
+        T : float
+            The temperature 
+            (default: 0 K)
+        q_path : list of triplets
+                 Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
+                 where the caculation is performed 
+                 (defualt: [0.0,0.0,0.0])            
+        q_path_file : string
+                      Name of the file where the q_path can be read. 
+                      Format: column of triples, q points in 2pi/Angstrom
+                      If the name of the file is present, it has the
+                      priority over the q_path value 
+                      (default: None)
+        print_path : logical
+                     If True (and the path is composed of more then one q-point), 
+                     a file 'path_len.dat' is printed.
+                     Format: column of 4 values, coordinates of 
+                     the q-point and path length (in 2pi/Angstrom) .
+                     (default: True)  
+        filename_shift_lw : string      
+                            filename_shift_lw_[id_smear]_[smear].dat
+                            is the file where
+                            len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1)
+                            are printed.
+                            (default: "v2_freq_shit_hwhm")
+        filename_freq_dyn :  string                   
+                             filename_freq_dyn_[id_smear]_[smear].dat
+                             is the file where
+                             len (2pi/Angstrom), freq (cm-1) (sorted in ascending order), HWHM (cm-1)
+                             are printed. 
+                             (default: "freq_dynamic")                                       
+        d3_scale_factor : float 
+                          If present, the 3rd order FC is multiplied by this factor
+                          (e.g. it can be used to make tests about the perturbative limit)
+                          (default: None)
+        tensor2 : ndarray( size = (3*nat, 3*nat), dtype = np.float)
+                  If present, this 2nd order FC overwrites the one 
+                  obtained from dyn.
+                  (default: None)  
+        
+    """
+
+
+
+    print(" ") 
+    print(" ===========================================" ) 
+    print("   Bubble perturbative dynamic correction   " ) 
+    print(" ===========================================" )
+    print(" ") 
+    print(" T= {:>5.1f} K".format(T))
+    print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
 
     if ( tensor2 == None ):
         
@@ -1231,26 +1698,19 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
         tensor2.SetupFromPhonons(dyn)
         tensor2.Center()     
 
-    # Scale the FC3
+    # Scale the FC3 ===========================================================================
     if  d3_scale_factor != None :
             print(" ")
             print("d3 scaling : d3 -> d3 x {:>7.3f}".format(d3_scale_factor))
             print(" ")
             tensor3.tensor=tensor3.tensor*d3_scale_factor
-    
-    #  ======================= Smearing ==========================================    
-    # smearing in input is in cm-1
-    # converto to Ry
-    # list of smearing
-    #
-    if nsm == 1 : 
-        sm1=sm0
-    smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
-    
-    #  ================================== q-PATH ===============================================
+    #  ================================== q-PATH ===============================================   
     if  q_path_file == None:
         q_path=np.array(q_path)
     else:
+        print(" ")
+        print(" q_path read from "+q_path_file)
+        print(" ")        
         q_path=np.loadtxt(q_path_file)
     if len(q_path.shape) == 1 : q_path=np.expand_dims(q_path,axis=0)    
     # Get the length of the q path
@@ -1261,11 +1721,21 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     x_length_exp=np.expand_dims(x_length,axis=0) 
     # print the path q-points and length
     if print_path and (q_path.shape[0] > 1) :
-        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%7.3f\t']
-        result=np.hstack((q_path,x_length_exp.T))
-        np.savetxt('path_len.dat',result,fmt=fmt_txt)     
-    # ==========================================================================================
-    
+        fmt_txt=['%11.7f\t','%11.7f\t','%11.7f\t\t','%10.6f\t']
+        result=np.hstack((q_path,x_length_exp.T))        
+        np.savetxt('path_len.dat',result,fmt=fmt_txt)
+        print(" ")
+        print(" Path printed in path_len.dat ")
+        print(" ")        
+    #  ======================= Smearing ==========================================    
+    # smearing in input is in cm-1
+    # converto to Ry
+    # list of smearing
+    #
+    if nsm == 1 : 
+        sm1=sm0
+    smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
+    #  ======================== Calculation ==========================================        
     n_mod=3*dyn.structure.N_atoms
     shift     = np.zeros( (len(q_path), n_mod, nsm), dtype = np.float64 ) # q-point,mode,smear
     hwhm      = np.zeros( (len(q_path), n_mod, nsm), dtype = np.float64 ) # q-point,mode,smear
@@ -1275,7 +1745,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
         wq[iq,:],shift[iq,:,:], hwhm[iq,:,:]  = get_perturb_dynamic_selfnrg(tensor2, tensor3,
                                                    k_grid, np.array(q),
                                                    smear, T, 
-                                                   asr=asr,  verbose=False )            
+                                                   verbose=False )            
     
     # print results
     wq*=CC.Units.RY_TO_CM
@@ -1289,33 +1759,45 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     
     wq_shifted_sorted=np.take_along_axis(wq_shifted, sortidx, 1)
     hwhm_sorted=np.take_along_axis(hwhm, sortidx, 1)
-    #=============================================================    
+    #=============== Print Results ===============================    
     smear*=CC.Units.RY_TO_CM
     #
     for  ism in range(nsm):
         #
-        name="{:5.2f}".format(smear[ism]).strip()
+        name="{:6.1f}".format(smear[ism]).strip()
         #
         # v2 freq, corresponding  shift & hwhm
         #
         filename_new=filename_shift_lw+'_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq[iq,:],shift[iq,:,ism], 
                                      hwhm[iq,:,ism]))
                  f.write(fmt.format(leng,*out))                                 
         #
-        name="{:5.2f}".format(smear[ism]).strip()
+        name="{:6.1f}".format(smear[ism]).strip()
         #
         # shifted freq sorted, corresponding hwhm 
         #
         filename_new=filename_freq_dyn+'_'+name+'.dat'
-        fmt="{:>7.3f}\t"+"\t{:>11.7f}"*(2*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(2*n_mod)+"\n"
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq_shifted_sorted[iq,:,ism],
                                      hwhm_sorted[iq,:,ism]))                 
                  f.write(fmt.format(leng,*out))     
+
+    print(" ")
+    print(" Results printed in "+filename_shift_lw+'_'+'[smear].dat')
+    print(" --------------------------------------------------------------------- ")
+    print(" len (2pi/Angstrom), sscha freq (cm-1), freq shift (cm-1), hwhm (cm-1) ")
+    print(" ")      
+ 
+    print(" ")
+    print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
+    print(" ------------------------------------------------------------------ ")
+    print(" len (2pi/Angstrom), sscha+shift (sorted), freq (cm-1), hwhm (cm-1) ")
+    print(" ")      
 
  # ================================================================================== 

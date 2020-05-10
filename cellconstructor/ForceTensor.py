@@ -17,6 +17,7 @@ import symph
 import time
 import itertools
 import thirdorder
+import secondorder
 
 """
 In this module we create a tensor class.
@@ -60,7 +61,7 @@ class Tensor2(GenericTensor):
         GenericTensor.__init__(self, unitcell_structure, supercell_structure, supercell_size)
         
         self.n_R = np.prod(np.prod(supercell_size))
-        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
+        self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
         self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
         self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
 
@@ -116,7 +117,7 @@ class Tensor2(GenericTensor):
 
         nat = self.unitcell_structure.N_atoms
         nat_sc = nat * self.n_R
-        
+            
         for i_x in range(self.supercell_size[0]):
             for i_y in range(self.supercell_size [1]):
                 for i_z in range(self.supercell_size[2]):
@@ -135,70 +136,289 @@ class Tensor2(GenericTensor):
                             self.tensor[i_block, 3*na1:3*na1+3, 3*na2: 3*na2+3] = tensor[3*na1 : 3*na1+3, 3*nat2_sc : 3*nat2_sc + 3]
 
 
-
-    def Center(self, Far = 1, tol = 1.0e-5):
+    def SetupFromFile(self, fname,file_format='Phonopy'):
         """
-        CENTERING
+        Setup the second order force constant form 2nd order tensor written in a file
+        
+        
+        Parameters
+        ----------
+            fname : string
+                The file name
+            file_format : string
+                The format of the file
+        """        
+        if file_format == 'Phonopy':      
+            
+            print("  ")
+            print(" FC2 Phonopy reading format: TODO" )
+            print("  ")      
+            exit()
+
+        elif file_format == 'D3Q': 
+           
+            print("  ")
+            print(" Reading FC2 from "+fname)
+            print(" (D3Q format) " )
+            print("  ")
+            
+            first_nR_read = True
+            with open(fname, "r") as f:            
+            # ============== Skip header, if present ===
+                if len(f.readline().split()) ==4:
+                    f.seek(0)
+                else:    
+                    f.seek(0)
+                    while True:
+                        if len(f.readline().split()) ==1:
+                            break
+                    f.readline()
+            # ===========================================                   
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                            for alpha in range(3):
+                                for beta in range(3):
+                                        [alpha_read,beta_read,
+                                        nat1_read, nat2_read]=[int(l)-1 for l in f.readline().split()]
+                                        
+                                        assert ([nat1,nat2,alpha,beta]==[nat1_read,nat2_read,
+                                                                                    alpha_read,beta_read])
+                                    
+
+                                        nR_read=int(f.readline().split()[0])
+                                        
+                                        if (first_nR_read) :
+                                            self.n_R=nR_read
+                                            self.tensor=np.zeros((self.n_R,3*self.nat,3*self.nat),dtype=np.float64)
+                                            self.x_r_vector2=np.zeros((3,self.n_R),dtype=np.int16)
+                                            first_nR_read = False
+                                        else :
+                                            assert ( nR_read == self.n_R ), " Format unknown - different blocks size "
+                                
+                                        for iR in range(self.n_R):
+                                                
+                                                res=[l for l in f.readline().split()] 
+                                                
+                                                [self.x_r_vector2[0, iR],
+                                                self.x_r_vector2[1, iR],
+                                                self.x_r_vector2[2, iR]]=[int(l) for l in res[:-1]] 
+                                                 
+                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta]=np.double(res[-1])
+                                                
+                self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+        
+    def Center(self, nneigh=None, Far=1,tol=1.0e-5):
+        """
+        CENTERING 
         =========
 
-        This subroutine will center the second order force constant
-        matrix. 
-        For each atomic indices, it will be identified by the lowest perimeter
-        between the replica of the atoms.
+        This subroutine will center the second order force constant.
+        This means that for each atomic indices in the tensor, it will be identified by the lowest 
+        distance between the replica of the atoms. Moreover, in case of existance of other elements 
+        not included in the original supercell with the same distance, the tensor will be equally subdivided between equivalent of atoms. 
 
         This function should be called before performing the Fourier interpolation.
-        """
 
-        nq0 = self.supercell_size[0]
-        nq1 = self.supercell_size[1]
-        nq2 = self.supercell_size[2]
-        n_sup = nq0*nq1*nq2 
 
-        assert self.n_R == n_sup, "Error, maybe the tensor has already been centered?"
-        assert self.tensor.shape[0] == n_sup, "Error, maybe the tensor has already been centered?"
-
-        # The centering may require a lot of memory, it is safer to use only one processor
+        Optional Parameters
+        --------------------
+            - nneigh [default= None]: integer
+                if different from None, it sets a maximum distance allowed to consider
+                equivalent atoms in the centering.
+                
+                nneigh > 0
+                
+                    for each atom the maximum distance is: 
+                    the average between the nneigh-th and the nneigh+1-th neighbor distance 
+                    (if, for the considered atom, the supercell is big enough to find up to 
+                    the nneigh+1-th neighbor distance, otherwise it is the maxmimum distance +10%)
+                
+                nneigh = 0
+                
+                    the maximum distance is the same for all the atoms, equal to 
+                    maximum of the minimum distance between equivalent atoms (+ 10%) 
+                
+                nneigh < 0
+                
+                    the maximum distance is the same for all the atoms, equal to 
+                    maximum of the |nneigh|-th neighbor distances found for all the atoms                 
+                    (if, for the considered atom, the supercell is big enough to find up to 
+                    the |nneigh|+1-th neighbor distance, otherwise it is the maxmimum distance +10%)  
+                    
+            - Far [default= 1]: integer
+            
+                    In the centering, supercell equivalent atoms are considered within 
+                    -Far,+Far multiples of the super-lattice vectors
+        """    
         if Settings.am_i_the_master():
-
+            
+            
             t1 = time.time()
-
+        
             if self.verbose:
                 print(" ")
                 print(" ======================= Centering ==========================")
-                print(" ")       
+                print(" ")         
+
+            # The supercell total size
+            #
+            nq0=self.supercell_size[0]
+            nq1=self.supercell_size[1]
+            nq2=self.supercell_size[2]
             
+            # by default no maximum distances
+            dist_range=np.ones((self.nat))*np.infty
+            #
+            if nneigh!=None:
+            # =======================================================================
+                uc_struc = self.unitcell_structure        
+                sc_struc = self.supercell_structure 
 
+                # lattice vectors in Angstrom in columns
+                uc_lat = uc_struc.unit_cell.T
+                sc_lat = sc_struc.unit_cell.T
 
-            # Analyze the centering to prepare the weights and the vectors that contains the centered elements
-            weight,xR2 =thirdorder.second_order_centering.analysis(Far,
-                                        nq0,nq1,nq2,tol, 
-                                        self.unitcell_structure.unit_cell, self.tau, self.tensor,self.nat)
+                # atomic positions in Angstrom in columns
+                uc_tau = uc_struc.coords.T 
+                sc_tau = sc_struc.coords.T
+                
+                uc_nat = uc_tau.shape[1]
+                sc_nat = sc_tau.shape[1]
+                
+                # == calc dmin ==================================================
+                # calculate the distances between the atoms in the supercell replicas
+                
+                # array square distances between i-th and the j-th
+                # equivalent atoms of the supercell 
+                d2s=np.empty((   (2*Far+1)**3 , sc_nat, sc_nat   ))
+                
+                rvec_i=sc_tau
+                for j, (Ls,Lt,Lu) in enumerate(
+                    itertools.product(range(-Far,Far+1),range(-Far,Far+1),range(-Far,Far+1))):
+                    
+                    rvec_j = sc_tau+np.dot(sc_lat,np.array([[Ls,Lt,Lu]]).T) 
+                    
+                    d2s[j,:,:]=scipy.spatial.distance.cdist(rvec_i.T,rvec_j.T,"sqeuclidean")
+                
+                # minimum of the square distances
+                d2min=d2s.min(axis=0)
+                # minimum distance between two atoms in the supercell,
+                # considering also equivalent supercell images
+                dmin=np.sqrt(d2min) 
+                #
+                if nneigh == 0:
+                    dist_range=np.ones((self.nat))*np.amax(dmin)*1.1                                          
+                    if self.verbose:
+                        print(" ")
+                        print(" Maximum distance allowed set equal to ")
+                        print(" the max of the minimum distances between ")
+                        print(" supercell equivalent atoms (+10%): {:8.5f} A".format(dist_range[0]))
+                        print(" ")                    
+                    
+                    # to include all the equivalent atoms having the smallest distance
+                    # between them. It does not correspond to taking dist_range=+infity
+                    # because, with the centering, smallest triangles with equivalent points can be obtained
+                    # by considering atoms not at the minimum distance between them:
+                    # with dist_range=+infity these triangles are included, with dist_range=np.amax(dmin)
+                    # they are not included (here I add the 10%)
 
-            # Prepare the blocks that contains the centered elements
-            xR2_reshaped = np.reshape(xR2, (3, (2*Far+1)**3 * self.nat**2 * n_sup))
+                else:                
+                    #== max dist of the n-th neighbors ============================                
+                    # For all the uc_nat atoms of unit cell (due to the lattice translation symmetry, 
+                    # I can limit the analysis to the atoms of a unit cell - not the supercell)
+                    # I look for the nneigh-th neighbor distance and build the array dist_range
+                    #
+                    nn=np.abs(nneigh)
+                    warned = False
+                    for i in range(uc_nat):     # for each unit cell atom
+                        ds=dmin[i,:].tolist()   # list of distances from other atoms
+                        ds.sort()               # list of distances from the i-th atom in increasing order
+                        u=[]                    # same list, without repetitions 
+                        for j in ds:
+                            for k in u:
+                                if np.allclose(k,j):
+                                    break
+                            else:
+                                u.append(j)
+                        # the list u of increasing distances for i-th atom has been completed  
+                        # try do consider the average of the nneigh-th and nneigh+1-th distance to nth_len
+                        # if it fails, because there are not enough atoms to reach the n-th neighbors, 
+                        # then consider the maximum distance found (augmented of 10%)
+                        try:
+                            dist_range[i]=(.5*(u[nn]+u[nn+1]))
+                        except IndexError:
+                            if not warned:
+                                print(" Warning: supercell too small to find {}-th neighbors for all the atoms ".format(nn+1))
+                                warned = True
+                            dist_range[i]=1.1*max(u)
+                    #
+                    if nneigh < 0 :
+                        # 
+                        dist_range=np.ones((self.nat))*np.amax(dist_range)
+                        if self.verbose:
+                            print(" ")
+                            print(" Maximum distance allowed set equal to {:8.5f} A".format(dist_range[0])) 
+                            print(" ")                                                                    
+                        #
+                    else :    
+                        if self.verbose:
+                            print(" ")
+                            print(" Maximum distance allowed set equal to:".format(dist_range[0])) 
+                            print(" ")
+                            for i in range(self.nat):
+                                print("{:8.5f} A for atom {}".format(dist_range[i],i+1))                                
+                            print(" ")                                                                    
+                        #
+            #==============================================================        
+            # look for the minimum supercell 
+            #
+            xRmin=np.min(self.x_r_vector2,1) 
+            xRmax=np.max(self.x_r_vector2,1) 
+            xRlen=xRmax-xRmin+np.ones((3,),dtype=int)
+                               
+            tensor= np.transpose(self.tensor,axes=[1,2,0])
+            self.n_sup = np.prod(xRlen)
+
+            alat=self.unitcell_structure.unit_cell
             
-            # Pick only the unique vectors
-            self.x_r_vector2 = np.unique(xR2_reshaped, axis = 1)
-            self.n_R = self.x_r_vector2.shape[1]
-            # Force the F ordering for a faster Fourier interpolation
-            self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
-            self.r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+            weight,xR2 = secondorder.second_order_centering.analysis(Far,tol,dist_range,xRlen,
+                                                                      self.x_r_vector2,
+                                                                      alat,
+                                                                      self.tau, tensor,self.nat,self.n_R)  
+            
+            
+            mask= weight >0 
+ 
+            mask=np.repeat(mask[np.newaxis,...], (2*Far+1)*(2*Far+1), axis=0)
 
-            # Now copy the centered tensor into the new tensor
-            self.tensor = thirdorder.second_order_centering.center(self.tensor, weight, self.x_r_vector2, xR2, Far, self.nat, n_sup, self.n_R)
+            xR2_reshaped=xR2[:,mask]
 
-                        
+            xR2_unique = np.unique(xR2_reshaped,axis=1)
+            nblocks_old=self.n_R
+            #
+            self.n_R=xR2_unique.shape[1]
+            self.x_r_vector2 = xR2_unique
+            self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
+    
+            centered=secondorder.second_order_centering.center(tensor,weight,
+                                                             self.x_r_vector2,xR2,
+                                                             Far,self.nat,
+                                                             self.n_R,nblocks_old)
             t2 = time.time() 
-            if self.verbose:
-                print("Time elapsed for computing the centering (2nd order): {} s".format(t2 - t1))
-                print("Memory required by the centered matrix (2nd order): {} Gb".format(self.tensor.nbytes / 1024.**3))
-                print()
             
-        # Broadcast the centered tensor to all the processors
+            self.tensor = np.transpose(centered, axes=[2,0,1])
+          
+            if self.verbose:               
+                print(" Time elapsed for computing the centering: {} s".format( t2 - t1)) 
+                print(" Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
+                print(" ")
+                print(" ============================================================")
+
         self.tensor = Settings.broadcast(self.tensor)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.r_vector2 = Settings.broadcast(self.r_vector2)
         self.n_R = Settings.broadcast(self.n_R)
+        self.n_sup = Settings.broadcast(self.n_sup)
 
 
     def WriteOnFile(self, fname,file_format='Phonopy'):
@@ -278,61 +498,6 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-
-    def ReadFromFile(self, fname,file_format='Phonopy'):
-        
-        if file_format == 'Phonopy':      
-            
-            print("  ")
-            print(" FC2 Phonopy reading format: TODO" )
-            print("  ")            
-
-        elif file_format == 'D3Q': 
-           
-            print("  ")
-            print(" Reading FC2 from "+fname)
-            print(" (D3Q format) " )
-            print("  ")
-            
-            first_nR_read = True
-            with open(fname, "r") as f:
-                for nat1 in range(self.nat):
-                    for nat2 in range(self.nat):
-                            for alpha in range(3):
-                                for beta in range(3):
-                                        [alpha_read,beta_read,
-                                        nat1_read, nat2_read]=[int(l)-1 for l in f.readline().split()]
-                                        
-                                        assert ([nat1,nat2,alpha,beta]==[nat1_read,nat2_read,
-                                                                                    alpha_read,beta_read])
-                                    
-
-                                        nR_read=int(f.readline().split()[0])
-                                        
-                                        if (first_nR_read) :
-                                            self.n_R=nR_read
-                                            self.tensor=np.zeros((self.n_R,3*self.nat,3*self.nat),dtype=np.float64)
-                                            self.x_r_vector2=np.zeros((3,self.n_R),dtype=np.int16)
-                                            first_nR_read = False
-                                        else :
-                                            assert ( nR_read == self.n_R ), " Format unknown - different blocks size "
-                                
-                                        for iR in range(self.n_R):
-                                                
-                                                res=[l for l in f.readline().split()] 
-                                                
-                                                [self.x_r_vector2[0, iR],
-                                                self.x_r_vector2[1, iR],
-                                                self.x_r_vector2[2, iR]]=[int(l) for l in res[:-1]] 
-                                                 
-                                                self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta]=np.double(res[-1])
-                                                
-                self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
-        
-
-
-
-
     def Interpolate(self, q2, asr = True, verbose = False, asr_range = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
@@ -712,12 +877,9 @@ class Tensor3():
 
         self.verbose = True
         
-        #self.lat_max=np.array([supercell_size[0]-1,supercell_size[1]-1,supercell_size[2]-1])
-        #self.lat_min=np.array([0,0,0])
-        
-    def Setup(self, tensor):
+    def SetupFromTensor(self, tensor=None):
         """
-        Setup the third order force constant
+        Setup the third order force constant form 3rd order tensor defined in the supercell
         
         
         Parameters
@@ -739,124 +901,58 @@ class Tensor3():
         
         
         nat_sc= n_sup * nat
-        
-        #self.n_R = n_sup**2
         n_R = self.n_R
-        #self.nat = nat
-        #self.tensor = np.zeros( (n_R, 3*nat, 3*nat, 3*nat), dtype = np.double)
-        
-        #self.supercell_size = supercell_size
-        
-        
-        ## Cartesian lattice vectors
-        #self.r_vector2 = np.zeros((3, n_R), dtype = np.double, order = "F")
-        #self.r_vector3 = np.zeros((3, n_R), dtype = np.double, order = "F")
-        
-        ## Crystalline lattice vectors
-        #self.x_r_vector2 = np.zeros((3, n_R), dtype = np.intc, order = "F")
-        #self.x_r_vector3 = np.zeros((3, n_R), dtype = np.intc, order = "F")
-        
-        #self.itau = supercell_structure.get_itau(unitcell_structure) - 1
-        
-        #self.tau=unitcell_structure.coords
-        
-        
-        #self.unitcell_structure = unitcell_structure
+
         supercell_structure = self.supercell_structure
         unitcell_structure = self.unitcell_structure
 
+                                           
+            
         for index_cell2 in range(n_sup):                
-            n_cell_x2,n_cell_y2,n_cell_z2=Methods.one_to_three_len(index_cell2,v_min=[0,0,0],v_len=supercell_size)
+            n_cell_x2,n_cell_y2,n_cell_z2=Methods.one_to_three_len(index_cell2,v_min=[0,0,0],
+                                                                   v_len=supercell_size)
             for index_cell3 in range(n_sup):
-                n_cell_x3,n_cell_y3,n_cell_z3=Methods.one_to_three_len(index_cell3,v_min=[0,0,0],v_len=supercell_size)      
+                n_cell_x3,n_cell_y3,n_cell_z3=Methods.one_to_three_len(index_cell3,v_min=[0,0,0],
+                                                                       v_len=supercell_size)      
                 #
                 total_index_cell = index_cell3 + n_sup * index_cell2
                 #
                 self.x_r_vector2[:, total_index_cell] = (n_cell_x2, n_cell_y2, n_cell_z2)
-                self.r_vector2[:, total_index_cell] = unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:, total_index_cell])
+                self.r_vector2[:, total_index_cell] = unitcell_structure.unit_cell.T.dot(self.x_r_vector2[:,total_index_cell])
                 self.x_r_vector3[:, total_index_cell] =  n_cell_x3, n_cell_y3, n_cell_z3
                 self.r_vector3[:, total_index_cell] = unitcell_structure.unit_cell.T.dot(self.x_r_vector3[:, total_index_cell])
-                        
-                        
+                                        
                 for na1 in range(nat):
+                    #
                     for na2 in range(nat):
                         # Get the atom in the supercell corresponding to the one in the unit cell
                         na2_vect = unitcell_structure.coords[na2, :] + self.r_vector2[:, total_index_cell]
                         nat2_sc = np.argmin( [np.sum( (supercell_structure.coords[k, :] - na2_vect)**2) for k in range(nat_sc)])
-                        
+                        #
                         for na3 in range(nat):
                             # Get the atom in the supercell corresponding to the one in the unit cell
                             na3_vect = unitcell_structure.coords[na3, :] + self.r_vector3[:, total_index_cell]
                             nat3_sc = np.argmin( [np.sum( (supercell_structure.coords[k, :] - na3_vect)**2) for k in range(nat_sc)])
-                            
+                            #
                             self.tensor[total_index_cell, 
                                         3*na1 : 3*na1+3, 
                                         3*na2 : 3*na2+3, 
                                         3*na3 : 3*na3+3] = tensor[3*na1 : 3*na1 +3, 
-                                                                  3*nat2_sc : 3*nat2_sc + 3,
-                                                                  3*nat3_sc : 3*nat3_sc + 3]
-    
-    
-                                
-    def WriteOnFile(self,fname,file_format='Phonopy'):
-        """
-        """
-        
-        if file_format == 'Phonopy':
-            
-            print("  ")
-            print(" Writing FC3 on "+ fname)
-            print(" (Phonopy format) " )
-            print("  ")
-            
-            with open(fname, "w") as f:
-            
-                f.write("{:>5}\n".format(self.n_R * self.nat**3))
-                
-            
-                i_block = 1
-                for r_block  in range(self.n_R):
-                    for nat1 in range(self.nat):
-                        for nat2 in range(self.nat):
-                            for nat3 in range(self.nat):
-                                f.write("{:d}\n".format(i_block))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
-                                f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
-                                i_block += 1
-                                #
-                                for xyz in range(27):
-                                    z = xyz % 3
-                                    y = (xyz %9)//3
-                                    x = xyz // 9
-                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
-        
-        
-        elif file_format == 'D3Q':
-            
-            print("  ")
-            print(" Writing FC3 on "+ fname)
-            print(" (D3Q format) " )
-            print("  ")      
-            
-            with open(fname, "w") as f:
-                #TODD Print header...
+                                                                3*nat2_sc : 3*nat2_sc + 3,
+                                                                3*nat3_sc : 3*nat3_sc + 3]
 
-                for nat1 in range(self.nat):
-                    for nat2 in range(self.nat):
-                        for nat3 in range(self.nat):
-                            for alpha in range(3):
-                                for beta in range(3):
-                                    for gamma in range(3):
-                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d}\n".format(alpha+1,beta+1,gamma+1,nat1+1, nat2+1, nat3+1))
-                                        f.write("{:>5}\n".format(self.n_R))
-                                        for r_block  in range(self.n_R):
-                                            f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
-                                            
-     
-     
-    def ReadFromFile(self, fname,file_format='Phonopy'):
-
+    def SetupFromFile(self, fname,file_format='Phonopy'):
+        """
+        Setup the third order force constant form 3rd order tensor written in a file
+        
+        
+        Parameters
+        ----------
+            fname : string
+                The file name
+            file_format : string
+                The format of the file
+        """
 
         if file_format == 'Phonopy':    
             
@@ -870,6 +966,8 @@ class Tensor3():
             f.close()
             
             n_blocks = int(lines[0])
+            self.n_R = n_blocks/self.nat**3
+            
             
             id_block = 0
             total_lat_vec = 0
@@ -925,6 +1023,16 @@ class Tensor3():
             
             first_nR_read = True
             with open(fname, "r") as f:
+            # ============ Skip the header, if present ====================
+                if len(f.readline().split()) ==6:
+                    f.seek(0)
+                else:    
+                    f.seek(0)
+                    while True:
+                        if len(f.readline().split()) ==1:
+                            break
+                    f.readline()
+            # =============================================================                    
                 for nat1 in range(self.nat):
                     for nat2 in range(self.nat):
                         for nat3 in range(self.nat):
@@ -963,11 +1071,69 @@ class Tensor3():
                                                 self.tensor[iR, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]=np.double(res[6])
                                                 
                 self.r_vector2=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector2)
-                self.r_vector3=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3)
+                self.r_vector3=self.unitcell_structure.unit_cell.T.dot(self.x_r_vector3)    
+                                
+    def WriteOnFile(self,fname,file_format='Phonopy'):
+        """
+        WRITE ON FILE
+        =============
 
+        Save the tensor on a file.
 
+        The file format is the same as phono3py or D3Q        
+        """
+        
+        if file_format == 'Phonopy':
+            
+            print("  ")
+            print(" Writing FC3 on "+ fname)
+            print(" (Phonopy format) " )
+            print("  ")
+            
+            with open(fname, "w") as f:
+            
+                f.write("{:>5}\n".format(self.n_R * self.nat**3))
+                
+            
+                i_block = 1
+                for r_block  in range(self.n_R):
+                    for nat1 in range(self.nat):
+                        for nat2 in range(self.nat):
+                            for nat3 in range(self.nat):
+                                f.write("{:d}\n".format(i_block))
+                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
+                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
+                                f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
+                                i_block += 1
+                                #
+                                for xyz in range(27):
+                                    z = xyz % 3
+                                    y = (xyz %9)//3
+                                    x = xyz // 9
+                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
+        
+        
+        elif file_format == 'D3Q':
+            
+            print("  ")
+            print(" Writing FC3 on "+ fname)
+            print(" (D3Q format) " )
+            print("  ")      
+            
+            with open(fname, "w") as f:
+                #TODD Print header...
 
- 
+                for nat1 in range(self.nat):
+                    for nat2 in range(self.nat):
+                        for nat3 in range(self.nat):
+                            for alpha in range(3):
+                                for beta in range(3):
+                                    for gamma in range(3):
+                                        f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d}\n".format(alpha+1,beta+1,gamma+1,nat1+1, nat2+1, nat3+1))
+                                        f.write("{:>5}\n".format(self.n_R))
+                                        for r_block  in range(self.n_R):
+                                            f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
+                                            
 
     def Center(self, nneigh=None, Far=1,tol=1.0e-5):
         """
@@ -1192,189 +1358,6 @@ class Tensor3():
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
-
- 
- #=============================================================================================================================================
-    def Check_perm_sym(self):
-
-        #tensor= np.transpose(self.tensor,axes=[1,2,3,0]) 
-        #tensor_reshaped = tensor.reshape((3*self.nat, 3*self.nat, 3*self.nat,self.n_sup,self.n_sup))
-        #symmcheck=thirdorder.third_order_sym_perm.checksym(tensor_reshaped) 
-        
-      ## Permutations
-        
-      # 1.                       0     R2     R3  a b c 1 2 3
-
-      # 2.                       0     R3     R2  a c b 1 3 2       
-      # 3.  R3 0  R2  c a b  ->  0    -R3  R2-R3  c a b 3 1 2             
-      # 4.  R3 R2 0   c b a  ->  0  R2-R3    -R3  c b a 3 2 1            
-      # 5.  R2 R3 0   b c a  ->  0  R3-R2    -R2  b c a 2 3 1
-      # 6.  R2 0  R3  b a c  ->  0    -R2  R3-R2  b a c 2 1 3
-
-      #i_block[j_block,0,1,2,3,4]]
-            
-      #R23[j_block      
-
-      # a R23 aggiungere eventualmente i vettori che mancano -R2,R2-R3,...
-      # ricreare R2,R3
-      # estendere eventualmente tensor con questi indici nuovi con valori nulli
-      # creare corrispondenza indici ind2ind[i_block,0,1,2,3,4]
-      # definire itensori con tenosr[abc,i,x]=tenosr[perm(x),ind2ind[i,x]]
-      # tensor_new=sum tensot[abc,i,.] axis=2/6
-      # delta=np.sum(np.abs(tenslr-tensor_new))
-      # tensor=tensor_new
-      # genero la R23 ampliata e le 5 permutationzi
-      # R23 -> R23, Pindex_2, Pindex_3, Pindex_4, Pindex_5, Pindex_6
-      # tensor -> tensorr1(a,b,c,i) (solo aggiungo elementi zero)
-      
-      
-        def Op2(x):
-            return [ x[3], x[4], x[5], x[0]     , x[1]     , x[2]      ]
-        def Op3(x):
-            return [-x[3],-x[4],-x[5], x[0]-x[3], x[1]-x[4], x[2]-x[5] ]
-        def Op4(x):
-            return [ x[0]-x[3],x[1]-x[4],x[2]-x[5],-x[3], -x[4],- x[5] ]    
-        def Op5(x):
-            return [x[3]-x[0], x[4]-x[1],x[5]-x[2],        -x[0],-x[1],-x[2] ]
-        def Op6(x):
-            return [       -x[0],-x[1],-x[2],  x[3]-x[0], x[4]-x[1],x[5]-x[2] ]
-
-    
-    
-        # xR23=  x2[0] y2[0] x2[0]  x3[0] y3[0] x3[0]
-        #        x2[1] y2[1] x2[1]  x3[1] y3[1] x3[1] 
-        #        x2[2] y2[2] x2[2]  x3[2] y3[2] x3[2]
-        #                        .
-        #                        .
-        #                        .
-                 
-                 
-        xR23 = np.vstack((self.x_r_vector2,self.x_r_vector3)).T 
-        xR23=xR23.tolist()
-        
-        len_old=len(xR23)
-        last=len(xR23)
-        
-        Pindex2=[]
-        Pindex3=[]
-        Pindex4=[]        
-        Pindex5=[]
-        Pindex6=[]
-
-        for i,x in enumerate(xR23):
-                         
-            xOp2=Op2(x)
-            xOp3=Op3(x)
-            xOp4=Op4(x)
-            xOp5=Op5(x)
-            xOp6=Op6(x)
-
-            found2=False 
-            found3=False 
-            found4=False 
-            found5=False 
-            found6=False
-            
-            for j,y in enumerate(xR23):
-                
-                if np.array_equal(y,xOp2):
-                    Pindex2.append(j)
-                    found2=True
-                if np.array_equal(y,xOp3):
-                    Pindex3.append(j)
-                    found3=True
-                if np.array_equal(y,xOp4):
-                    Pindex4.append(j)
-                    found4=True
-                if np.array_equal(y,xOp5):
-                    Pindex5.append(j)
-                    found5=True
-                if np.array_equal(y,xOp6):
-                    Pindex6.append(j)
-                    found6=True
-
-                
-                if found2 and found3 and found4 and found5 and found6 :  break
-
-            if not found2:
-                xR23.append(xOp2)
-                Pindex2.append(last)
-                last+=1
-            if not found3:
-                xR23.append(xOp3)
-                Pindex3.append(last)
-                last+=1
-            if not found4:
-                xR23.append(xOp4)
-                Pindex4.append(last)
-                last+=1
-            if not found5:
-                xR23.append(xOp5)
-                Pindex5.append(last)
-                last+=1
-            if not found6:
-                xR23.append(xOp6)
-                Pindex6.append(last)
-                last+=1
-        
-        
-        # =============================================================================
-        diff=last-len_old
-        if  diff > 0 :
-            print(" ")
-            print(" Warning: new triplets found during the permutation symmetry initialization ")
-            print(" {:5d} new blocks found ".format(diff))            
-            print(" ")
-            xR23=np.array(xR23).T 
-            self.x_r_vector2,self.x_r_vector3 = np.vsplit(xR23,2)
-            xx=np.zeros((diff,3*self.nat,3*self.nat,3*self.nat))
-            self.tensor=np.append(self.tensor,xx,axis=0)         
-        # =============================================================================
-        
-        inverse2= np.arange(len(Pindex2))[np.argsort(Pindex2)] 
-        inverse3= np.arange(len(Pindex3))[np.argsort(Pindex3)] 
-        inverse4= np.arange(len(Pindex4))[np.argsort(Pindex4)] 
-        inverse5= np.arange(len(Pindex5))[np.argsort(Pindex5)] 
-        inverse6= np.arange(len(Pindex6))[np.argsort(Pindex6)]         
-  
-  
-  
-        # Actual symmetrization ==============================
-  
-        tensor_sym=np.copy(self.tensor)
-
-        #tensor_tmp=np.transpose(self.tensor,(0,1,3,2))
-        #tensor_tmp=tensor_tmp[inverse2,:,:,:]
-        #tensor_sym+=tensor_tmp
-
-        tensor_tmp=np.transpose(self.tensor,(0,3,1,2))
-        tensor_tmp=tensor_tmp[inverse3,:,:,:]
-        #tensor_tmp=tensor_tmp[Pindex3,:,:,:]
-        self.tensor=tensor_tmp
-
-        #tensor_sym+=tensor_tmp
-
-        #tensor_tmp=np.transpose(self.tensor,(0,3,2,1))
-        #tensor_tmp=tensor_tmp[inverse4,:,:,:]
-        #tensor_sym+=tensor_tmp
-
-        #tensor_tmp=np.transpose(self.tensor,(0,2,3,1))
-        #tensor_tmp=tensor_tmp[inverse5,:,:,:]
-        #tensor_sym+=tensor_tmp
-
-        #tensor_tmp=np.transpose(self.tensor,(0,2,1,3))
-        #tensor_tmp=tensor_tmp[inverse6,:,:,:]
-        #tensor_sym+=tensor_tmp
-        
-        #tensor_sym/=6        
-        
-        #delta=np.sum(np.abs(self.tensor-tensor_sym))
-        #print(" Variation due to symmetrization: {:11.7f} ".format(delta))
-
-        #self.tensor=tensor_sym
-        
-        
-#=============================================================================================================================================
 
     def Apply_ASR(self,PBC=False,power=2,maxiter=1000,threshold=1.0e-12):
         """

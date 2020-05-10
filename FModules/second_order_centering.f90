@@ -1,168 +1,227 @@
-! Memory optimized centering
 module second_order_centering
 
-    use third_order_centering, only: one_to_three
-    contains
 
-    subroutine analysis(Far, nat, nq1, nq2, nq3, tol, alat, tau, tensor, weight, xR2)
-        implicit none
-        integer, intent(in) :: nat, nq1, nq2, nq3
-        double precision, intent(in), dimension(3,3) :: alat 
-        double precision, intent(in), dimension(nat,3) :: tau 
-        integer, intent(in) :: Far 
-        double precision, intent(in) :: tol 
-        double precision, intent(in), dimension(nq1*nq2*nq3, 3*nat, 3*nat) :: tensor 
-
-        integer, intent(out) :: weight(nat, nat, nq1*nq2*nq3) 
-        integer, intent(out) :: xR2(3, (2*Far + 1)*(2*Far + 1)*(2*Far + 1), nat,nat,nq1*nq2*nq3)
-
-        ! Here the variable we need for the computations
-        integer :: s, t, t_lat, xt_cell_orig(3), xt(3), alpha, beta, RRt(3, (2*Far+1)*(2*Far+1)*(2*Far+1) )
-        integer :: LLt, MMt, NNt, ww, h 
-        double precision, dimension(3) :: s_vec, t_vec, r_vect 
-        double precision :: summa, dist_min, dist
-        
-
-        ! Ok, lets start by cycling over the atomic indices
-        xR2(:, :, :, :, :) = 0.0d0
-        do s = 1, nat
-            ! Get the vector to the first atom
-            ! in the unit cell
-            s_vec = tau(s, :)
-
-            do t = 1, nat 
-                ! Get the second vector on the unit cell
-                t_vec = tau(t, :)
+contains 
 
 
-                ! Cycle on the lattice for the second atom
-                do t_lat = 1, nq1*nq2*nq3
-
-                    ! Get the crystal coordinate of the lattice vector
-                    ! that represent the t atom
-                    xt_cell_orig = one_to_three(t_lat, (/0,0,0/), (/nq1-1, nq2-1, nq3-1/))
-
-                    summa = 0.0d0
-                    do alpha = 1, 3
-                        do beta = 1, 3
-                            summa = summa + dabs(tensor(t_lat, alpha + (s-1)*3, beta +(t-1)*3))
-                        enddo
-                    enddo
-                    
-                    ! Discard if the block of the tensor is empty
-                    if (summa < 1.0d-8) cycle 
-
-                    ! Lets start creating the replica in the supercell
-                    dist_min = 1d10 
-                    ww = 0 ! The temporany weight
-
-                    ! Cycle over the replicas
-                    do LLt = -Far, Far 
-                        do MMt = -Far, Far
-                            do NNt = -Far, Far 
-                                ! Generate the position in the supercell
-                                ! Of the t atom with respect to s
-                                xt = xt_cell_orig(:)
-                                xt(1) = xt(1) + LLt*nq1
-                                xt(2) = xt(2) + MMt*nq2
-                                xt(3) = xt(3) + NNt*nq3
-
-                                r_vect = xt(1) * alat(1,:)
-                                r_vect = r_vect + xt(2) * alat(2, :)
-                                r_vect = r_vect + xt(3) * alat(3, :)
-                                
-                                ! Now add and subtract the atomic coordinates
-                                r_vect = r_vect + t_vec - s_vec
-                                
-                                ! Get the distance
-                                dist = sum(r_vect(:)*r_vect(:))
-                                dist = dsqrt(dist)
-
-                                ! Check if it must be updated
-                                if (dist < (dist_min - tol)) then
-                                    dist_min = dist 
-                                    ww = 1
-                                    
-                                    ! Update the correct value
-                                    RRt(:, ww) = xt
-                                else if (abs(dist_min - dist) <= tol) then 
-                                    ! Add a new weight and vector
-                                    ww = ww+1
-                                    RRt(:, ww) = xt
-                                end if
-                            enddo
-                        enddo
-                    enddo
-
-                    ! Now we found for this couple of vectors
-                    ! The list of the correct vectors
-                    weight(s, t, t_lat) = ww 
-                    do h = 1, ww 
-                        xR2(:, h, s, t, t_lat) = RRt(:, h)
-                    enddo
-                enddo
-            enddo
-        enddo
-    end subroutine analysis
 
 
-    ! Perform the centering
-    ! Parameter list
-    ! --------------
-    !   original : the original tensor before centering
-    !   weight : the weights as they results from the analysis subroutine
-    !   xR2_lsit : The list of the R2 vectors (crystal coordinates) that contains recentered elements
-    !   xR2 : The total list of crystal coordinates for each lattice vectors (recentered)
-    !   nat : the number of atoms in the unit cell
-    !   n_sup : The overall dimension of the supercell
-    !   Far : The parameter used for the recentering in analysis
-    !   n_blocks : The number of non zero blocks
-    subroutine center(original, weight, xR2_list, xR2, nat, n_sup, centered, Far, n_blocks)
-        integer, intent(in) :: nat, n_sup, n_blocks, Far 
-        integer, intent(in), dimension(3, n_blocks) :: xR2_list
-        integer, intent(in), dimension(3, (2*Far + 1)*(2*Far + 1)*(2*Far + 1), nat, nat, n_sup) :: xR2
-        integer, intent(in) :: weight(nat, nat, n_sup)
-        double precision, intent(in), dimension(n_sup, 3*nat, 3*nat) :: original
-        double precision, intent(out), dimension(n_blocks, 3*nat, 3*nat) :: centered 
+! Memory optimized centering
+!=================================================================================
+!
+subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,nat,n_blocks)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    integer, intent(in) :: Far, nat
+    real(kind=DP), intent(in) :: dmax(nat)
+    real(kind=DP), intent(in), dimension(3,3) :: alat 
+    real(kind=DP), intent(in), dimension(nat,3) :: tau
+    integer, intent(in), dimension(3,n_blocks) :: xR2_list 
+    real(kind=DP), intent(in) :: tol
+    real(kind=DP), intent(in), &
+     dimension(3*nat,3*nat,n_blocks) :: tensor
+    integer, intent(in) :: n_blocks 
+    integer, intent(in) :: sc_size(3)
+    !
+    integer, intent(out) :: weight(nat,nat,n_blocks)
+    integer, intent(out) :: xR2(3,(2*Far+1)*(2*Far+1),nat,nat,n_blocks)      
+    !
+    integer :: s,t,u,t_lat, u_lat, xt_cell_orig(3),xt(3)
+    integer :: RRt(3,(2*Far+1)**2),ww,i_block
+    real(kind=DP) :: s_vec(3), t_vec(3), SC_t_vec(3)
+    integer :: LLt,MMt,NNt, alpha, beta, jn1 ,jn2,h
+    real(kind=DP) :: perimeter, perim_min,summa
 
-        ! Define variable used during the computation
-        integer :: s, t, t_lat, h, i_block, jn1, jn2
+    weight=0
+    !
+    do s = 1, 1
+        s_vec=tau(s,:)
+    do t = 4, 4        
+        t_vec=tau(t,:)
+    do i_block=1,n_blocks
+        xt_cell_orig=xR2_list(:,i_block)
+        write(*,*) xt_cell_orig
+           ! 
+           ! Check total value  ==================================================================
+           summa=0.0_dp
+           !
+           do alpha=1,3
+           do beta=1,3
+               summa=summa+abs(tensor( alpha+(s-1)*3,beta+(t-1)*3,i_block))
+           end do
+           end do
+           !
+           if (summa < 1.0d-8) cycle
+           ! =====================================================================================
+           !                
+           !========================= Supercell replicas =========================================
+           perim_min=1.0e10_dp 
+           ww=0            
+           !
+           write(*,*) perim_min
+           write(*,*) "==================="
+           do LLt = -Far, Far
+           do MMt = -Far, Far
+           do NNt = -Far, Far
+               xt=xt_cell_orig+(/LLt*sc_size(1),MMt*sc_size(2),NNt*sc_size(3)/)
+               SC_t_vec=cryst_to_cart(xt,alat)+t_vec
+                                   !
+                                   ! Go on only if distances are within the maximum allowed
+                                   ! 
+                                   if ( within_dmax(s_vec,SC_t_vec ,dmax(s),dmax(t),tol) ) then
+                                        !
+                                        perimeter=compute_perimeter(s_vec,SC_t_vec)
+                                        write(*,*) xt, perimeter
+                                        !                                    
+                                        if (perimeter < (perim_min - tol)) then
+                                            ! update minimum perimeter/triangle
+                                            perim_min = perimeter
+                                            ww = 1
+                                            !
+                                            RRt(:,ww)=xt        
+                                            !
+                                            write(*,*) "min"
+                                        else if (abs(perimeter - perim_min) <= tol) then
+                                            ! add weight/triangle for this perimeter
+                                            ww = ww+1
+                                            !
+                                            RRt(:,ww)=xt        
+                                            !
+                                            write(*,*) "confirm"
+                                        end if 
+                                        !
+                                        !
+                                        !
+                                   end if
+                                   !
+                                   !
+                                   !
+           end do
+           end do
+           end do
+           write(*,*) "Result"
+           do h = 1, ww
+               write(*,*)RRt(:,h)
+           end do    
+           write(*,*) "============================="
+           write(*,*) "============================="
+           !========================= End supercell replicas ========================================
+           ! Assign
+           weight(s,t,i_block)=ww
+           if ( ww > 0 ) then
+           !
+           do h = 1, ww
+               xR2(:,h,s,t,i_block)=RRt(:,h)
+           end do
+           !
+           end if
+           !
+    end do
+    !
+    end do
+    !
+    end do
+    !
+    !
+    STOP
+end subroutine analysis
+!=================================================================================
 
-        ! Initialized the final tensor
-        centered(:,:,:) = 0.0d0 
 
-        ! Cycle over the atomic indices
-        do s = 1, nat 
-            do t = 1, nat 
-                do t_lat = 1, n_sup 
+!=================================================================================
+subroutine center(original,weight,xR2_list,xR2,nat,centered,Far,n_blocks,n_blocks_old)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    integer, intent(in) :: nat,n_blocks,Far
+    integer, intent(in), dimension(3,n_blocks) :: xR2_list
+    integer, intent(in), &
+                         dimension(3,(2*Far+1)*(2*Far+1), &
+                         nat,nat,n_blocks_old) :: xR2   
+    integer, intent(in) :: weight(nat,nat,n_blocks_old)                     
+    integer, intent(in) :: n_blocks_old
+    real(kind=DP), intent(in), &
+     dimension(3*nat,3*nat,n_blocks_old) :: original
+    !
+    real(kind=DP), intent(out), &
+     dimension(3*nat,3*nat,n_blocks) :: centered
+    !
+    integer :: s,t,t_lat,h,i_block,j_block,alpha,beta,jn1,jn2
 
-                    ! Cycle over the replicas with the same distance
-                    do h = 1, weight(s, t, t_lat) 
+    centered=0.0_dp
+    !
+    do s = 1, nat
+    do t = 1, nat
+    do j_block=1, n_blocks_old
+        !
+        if ( weight(s,t,j_block) > 0 ) then
+        !
+        do h=1,weight(s,t,j_block)
+           ! 
+           do i_block=1, n_blocks
+           !
+           if ( sum( abs(xR2_list(:,i_block)-xR2(:,h,s,t,j_block)) ) < 1.0d-8 ) then
+                    !
+                    do jn1 = 1 + (s-1)*3,3 + (s-1)*3
+                    do jn2 = 1 + (t-1)*3,3 + (t-1)*3
+                    !
+                    centered(jn1,jn2,i_block)=original(jn1,jn2,j_block)/weight(s,t,j_block)
+                    !
+                    end do
+                    end do
+                    !
+                    cycle     
+           end if
+           !
+           end do
+           !
+         end do  
+         !  
+         end if
+         !
+    end do
+    end do
+    end do
+    !       
+end subroutine center
+!
+!=================================================================================
 
-                        ! Check which block correspond to the current element
-                        do i_block = 1, n_blocks 
-                            if ( sum(abs(xR2_list(:, i_block) - xR2(:, h, s, t, t_lat))) < 1.0d-8) then
 
-                                ! Copy the tensor into the centered one with the correct weighting
-                                do jn1 = 1 + (s-1)*3, 3+(s-1)*3
-                                    do jn2 = 1 + (t-1)*3, 3+(t-1)*3
-                                        centered(i_block, jn1, jn2) = original(t_lat, jn1, jn2) / weight(s, t, t_lat)
-                                    enddo
-                                enddo
-                            endif
-                        enddo
-                    enddo
-                enddo
-            enddo
-        enddo
-            
-    end subroutine center 
+!=================================================================================
+function within_dmax(v1,v2,d1,d2,tol)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    logical  :: within_dmax    
+    real(kind=DP), intent(in), dimension(3) :: v1,v2
+    real(kind=DP), intent(in) :: d1,d2,tol
+    !
+    within_dmax =  ( norm2(v1-v2) <= min(d1,d2)+tol ) 
+    !               
+end function within_dmax
+!=================================================================================
+function compute_perimeter(v1,v2)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    real(kind=DP) :: compute_perimeter
+    real(kind=DP), intent(in), dimension(3) :: v1,v2
+    !
+    compute_perimeter=norm2(v1-v2)
+    !
+end function compute_perimeter
+!=================================================================================                     
+function cryst_to_cart(v,alat)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    real(kind=DP), dimension(3)    :: cryst_to_cart
+    integer, dimension(3), intent(in)          :: v
+    real(kind=DP), dimension(3,3), intent(in) :: alat
+    !
+    integer :: i
+    !  
+    do i=1,3
+        cryst_to_cart(i)=alat(1,i)*v(1)+alat(2,i)*v(2)+alat(3,i)*v(3)
+    end do
+    !   
+end function cryst_to_cart
 
-
-    
 end module second_order_centering
-
-                                
-
-
-

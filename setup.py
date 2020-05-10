@@ -22,12 +22,18 @@ symph_ext = Extension(name = "symph",
                       )
 
 
+secondorder_ext = Extension(name = "secondorder",
+                      sources = ["FModules/second_order_centering.f90"],
+                      libraries= ["lapack", "blas"],
+                      extra_f90_compile_args = ["-cpp"]
+                      )
+
+
 thirdorder_ext = Extension(name = "thirdorder",
                       sources = ["FModules/third_order_centering.f90",
                                  "FModules/third_order_ASR.f90",
                                  "FModules/third_order_interpol.f90",
-                                 "FModules/third_order_dynbubble.f90",
-                                 "FModules/second_order_centering.f90"],
+                                 "FModules/third_order_dynbubble.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )
@@ -59,7 +65,7 @@ setup( name = "CellConstructor",
        license = "MIT",
        include_package_data = True,
        scripts = ["scripts/symmetrize_dynmat.py", "scripts/cellconstructor_test.py"],
-       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext]
+       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext, secondorder_ext]
        )
 
 def readme():
