@@ -1820,8 +1820,38 @@ def GetISOTROPYFindSymInput(structure, title = "Prepared with Cellconstructor",
     return lines
     
 
-    
 def GetQGrid(unit_cell, supercell_size):
+    """
+    GET THE Q GRID
+    ==============
+    
+    This method gives back a list of q points given the
+    reciprocal lattice vectors and the supercell size.
+    
+    Parameters
+    ----------
+        unit_cell : ndarray(size=(3,3), dtype = np.float64)
+            The unit cell, rows are the vectors
+        supercell_size : ndarray(size=3, dtype = int)
+            The dimension of the supercell along each unit cell vector.
+    
+    Returns
+    -------
+        q_list : list
+            The list of q points, of type ndarray(size = 3, dtype = np.float64)
+            
+    """
+    bg = Methods.get_reciprocal_vectors(unit_cell)
+
+    n_vects = int(np.prod(supercell_size))
+    q_final = np.zeros((3, n_vects), dtype = np.double, order = "F")
+    q_final[:,:] = symph.get_q_grid(bg.T, supercell_size, n_vects)
+
+    # Get the list of the closest vectors
+    q_list = [Methods.get_closest_vector(bg, q_final[:, i]) for i in range(n_vects)]
+    return q_list
+    
+def GetQGrid_old(unit_cell, supercell_size):
     """
     GET THE Q GRID
     ==============
