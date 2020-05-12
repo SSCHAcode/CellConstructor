@@ -1158,7 +1158,7 @@ class Structure:
         for i in range(self.N_atoms):
             # Rank the atom number
             
-            ityp[i] = list(self.masses.keys()).index(self.atoms[i])
+            ityp[i] = list(self.masses).index(self.atoms[i])
         
         return ityp
     
