@@ -660,6 +660,14 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[1, :] = np.array([0, 2*ty, tz]) * a
         unit_cell[2, :] = np.array([-tx, -ty, tz]) * a
 
+    elif ibrav == 6:
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        c = celldm[2] * a
+
+        unit_cell[0, :] = a * np.array([1, 0, 0])
+        unit_cell[1, :] = a * np.array([0, 1, 0])
+        unit_cell[2, :] = c * np.array([0, 0, 1])
+
     elif ibrav == 7:
         # Tetragonal I
         a = celldm[0] * BOHR_TO_ANGSTROM
@@ -668,6 +676,17 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0, :] = np.array([a*0.5, -a*0.5, c*0.5])
         unit_cell[1, :] = np.array([a*0.5, a*0.5, c*0.5])
         unit_cell[2, :] = np.array([-a*0.5, -a*0.5, c*0.5])
+
+    elif ibrav == 8:
+        # Orthorombic
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+
+        unit_cell[0, :] = a * np.array([1,0,0])
+        unit_cell[1, :] = b * np.array([0,1,0])
+        unit_cell[2, :] = c * np.array([0,0,1])
+
     elif ibrav == 9:
         # Orthorombinc base centered
         a = celldm[0] * BOHR_TO_ANGSTROM

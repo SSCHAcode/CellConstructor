@@ -1616,6 +1616,7 @@ class Phonons:
             a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANGSTROM
         
         # Prepare the random numbers
+        size = int(size)
         rand = np.random.normal(size = (size, n_modes))
         
         # Get the masses for the final multiplication
