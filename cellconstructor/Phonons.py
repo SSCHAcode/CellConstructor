@@ -2074,7 +2074,7 @@ class Phonons:
 
         # Convert the displacement vector in bohr
         #A_TO_BOHR=np.float64(1.889725989)
-        if super_structure is None and displacement is None:
+        if super_structure is None: 
             super_structure = self.structure.generate_supercell(supercell)
         
         # Get the displacement vector (bohr)
