@@ -2018,8 +2018,8 @@ class Phonons:
 
         return ChiMuNu
     
-    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
-                          displacement = None):
+    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = None,
+                          displacement = None, use_unit_cell = True):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -2052,11 +2052,14 @@ class Phonons:
                 target one. You can pass it to avoid regenerating it each time this subroutine is called.
                 If you do not pass it, you must provide the supercell size (if different than the unit cell)
             super_cell : list of 3 items
-                This is the supercell on which compute the energy and force. 
+                This is the supercell on which compute the energy and force. If none it is inferred by the dynamical matrix.
             displacement:
                 The displacements from the self average position to be used. It is not
                 necessary since they can be recomputed, however if provided, the calculation is faster.
                 It must be in Angstrom.
+            use_unit_cell : bool
+                If ture, do not compute the real space force constant matrix on the super cell. This is the fastest option.
+                Put it to false only for debugging purpouses.
         
         Returns
         -------
@@ -2066,6 +2069,9 @@ class Phonons:
                 The harmonic forces that acts on each atoms (in Ry / A)
         """
         
+        if supercell is None:
+            supercell = self.GetSupercell()
+
         # Convert the displacement vector in bohr
         #A_TO_BOHR=np.float64(1.889725989)
         if super_structure is None and displacement is None:
@@ -2076,26 +2082,32 @@ class Phonons:
             rv = structure.get_displacement(super_structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
         else:
             rv = displacement * A_TO_BOHR
-        
-        if real_space_fc is None:
-            real_space_fc = self.GetRealSpaceFC(supercell)
-        
-        # Get the energy
-        energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
-        
-        
-        # Get the forces (Ry/ bohr)
-        forces = - real_space_fc.dot(rv) 
+
+        # Fast computation
+        if use_unit_cell:
+            w, pols = self.DiagonalizeSupercell()
+
+            m = np.tile(super_structure.get_masses_array(), (3,1)).T.ravel()
+            m_sqrt = np.sqrt(m)
+
+            epols = np.einsum("ab, a -> ab", pols, m_sqrt)
+            x_mu = rv.dot(epols)
+
+            # TODO: add the possibility to pass several structures toghether
+            #       to avoid computing many times the same passages
+            energy = 0.5 * np.sum(x_mu**2 * w**2)
+            forces = - epols.dot( w**2 * x_mu)
+        else:   
+            if real_space_fc is None:
+                real_space_fc = self.GetRealSpaceFC(supercell)
+            
+            # Get the energy
+            energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
+            
+            # Get the forces (Ry/ bohr)
+            forces = - real_space_fc.dot(rv) 
 
         nat_sc = self.structure.N_atoms * np.prod(supercell)
-#        
-#        print ""
-#        print " ===== DYNMAT ====="
-#        print self.dynmats[0]
-#        print " === END DYNMAT ==="
-#        
-#        print "EXTRACTING SCHA FORCE:"
-#        print "     u = ", rv, "force = ", forces
         
         # Translate the force in Ry / A
         forces *= A_TO_BOHR

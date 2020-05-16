@@ -330,6 +330,26 @@ class TestStructureMethods(unittest.TestCase):
         assert np.max(np.abs(ir_responce[3:] - ir_responce[3])) < 1e-10
 
 
+    def test_harmonic_energy_forces_fast(self):
+        """
+        Test the computation of harmonic forces with the new fast method (that is done in the polarization space)
+        against the one done in the full real space.
+        """
+
+        # Get the Dynamical matrix
+        dyn = self.dynSnSe.Copy()
+
+        random_structures = dyn.ExtractRandomStructures(100, 100)
+        __EPSIL__ = 1e-8
+
+        for s in random_structures:
+
+            energy_new, force_new = dyn.get_energy_forces(s)
+            energy_old, force_old = dyn.get_energy_forces(s, use_unit_cell = False)
+
+            assert np.abs(energy_new - energy_old) < __EPSIL__, "Error, the energy are not correctly computed: {:.16e} Ry vs {:.16r} Ry".format(energy_new, energy_old)
+            diff = np.max(np.abs(force_new - force_old))
+            assert diff < __EPSIL__, "Error, the forces are not correctly computed: max difference is {} Ry / A".format(diff)
 
 
     def test_change_phonon_cell(self):
