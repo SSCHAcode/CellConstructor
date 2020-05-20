@@ -2766,7 +2766,7 @@ class Phonons:
         if apply_sum_rule:
             self.ApplySumRule()
 
-    def DiagonalizeSupercell(self):
+    def DiagonalizeSupercell(self, verbose = False):
         r"""
         DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
@@ -2840,7 +2840,9 @@ class Phonons:
             wq, eq = self.DyagDinQ(iq)
 
             # Iterate over the frequencies of the given q point
+            nm_q = i_mu
             for i_qnu, w_qnu in enumerate(wq):
+
                 tilde_e_qnu =  eq[:, i_qnu]
 
                 phase = R_vec.dot(q) * 2 * np.pi
@@ -2853,27 +2855,76 @@ class Phonons:
                 # Check if they are not zero
                 norm1 = evec_1.dot(evec_1)
                 norm2 = evec_2.dot(evec_2)
+                scalar_dot = np.abs(evec_1.dot(evec_2))
+
+                if verbose:
+                    print("IQ: {}, MODE: {} has norm1 = {} |  norm2 = {} | scalar_dot = {}".format(iq, i_qnu, norm1, norm2, scalar_dot))
+
+                # Check that i_mu is of the correct length
+                if i_mu == nmodes:
+                    error_msg = """
+*****************************
+ERROR IN DiagonalizeSupercell
+*****************************
+
+Error, something wrong: i_mu = {}, nmodes = {}
+For some reason I was not able to convert modes from q points into real space. 
+Maybe there is an error in the q points.
+
+The list of q points saved in _error_q_list.txt
+The dynamical matrix that generated the error saved in _error_dyn
+""".format(i_mu, nmodes)
+                    self.save_qe("_error_dyn")
+                    np.savetxt("_error_q_list.txt", self.q_tot)
+                    print(error_msg)
+                    
+                    raise ValueError(error_msg)
+                
 
                 # Add the second vector
-                if norm1 > 1e-8:
+                EPSILON = 1e-6
+                if norm1 > EPSILON:
                     #q_cryst = Methods.covariant_coordinates(bg, q)
                     #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}, N1 = {:.3e}, N2 = {:.3e}, DOT = {:.3e}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst, norm1, norm2, evec_1.dot(evec_2)))
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
                     
-                    if norm2 > 1e-8 and np.abs(evec_1.dot(evec_2)) < 1e-8:
-                        w_array[i_mu] = w_qnu
-                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
-                        i_mu += 1
+#                     if norm2 > EPSILON and scalar_dot < EPSILON:            
+#                         # Check that i_mu is of the correct length
+#                         if i_mu == nmodes:
+#                             error_msg = """
+# *****************************
+# ERROR IN DiagonalizeSupercell
+# *****************************
+
+# Error, something wrong: i_mu = {}, nmodes = {}
+# For some reason I was not able to convert modes from q points into real space. 
+# Maybe there is an error in the q points.
+
+# The list of q points saved in _error_q_list.txt
+# The dynamical matrix that generated the error saved in _error_dyn
+# """.format(i_mu, nmodes)
+#                             self.save_qe("_error_dyn")
+#                             np.savetxt("_error_q_list.txt", self.q_tot)
+#                             print(error_msg)
+                            
+#                             raise ValueError(error_msg)
+                
+
+#                         w_array[i_mu] = w_qnu
+#                         e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+#                         i_mu += 1
                 else:
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
                     i_mu += 1
+            
+            # Print how many vectors have been extracted
+            if verbose:
+                print("The {} / {} q point produced {} nodes".format(iq, len(self.q_tot), i_mu - nm_q))
                 
 
-        # Check that i_mu is of the correct length
-        assert i_mu == nmodes, "Error, something wrong: i_mu = {}, nmodes = {}".format(i_mu, nmodes)
 
 
         # Sort the frequencies
