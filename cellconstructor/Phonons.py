@@ -2057,15 +2057,18 @@ class Phonons:
                 The displacements from the self average position to be used. It is not
                 necessary since they can be recomputed, however if provided, the calculation is faster.
                 It must be in Angstrom.
+                To speedup the calculations, many displacements can be provided, in the form:
+                displacement.shape = (N_config, 3*nat_sc)
+                where N_config are the number of configurations, nat_sc the atoms in the supercell
             use_unit_cell : bool
                 If ture, do not compute the real space force constant matrix on the super cell. This is the fastest option.
                 Put it to false only for debugging purpouses.
         
         Returns
         -------
-            energy : float
+            energy : float (or ndarray.shape(N_config))
                 The harmonic energy (in Ry) of the structure
-            force : ndarray N_atoms x 3
+            force : ndarray N_atoms x 3 or N_config, nat_sc, 3)
                 The harmonic forces that acts on each atoms (in Ry / A)
         """
         
@@ -2083,6 +2086,12 @@ class Phonons:
         else:
             rv = displacement * A_TO_BOHR
 
+        # Check how many configurations
+        many_configs = False
+        if len(rv.shape) > 1:
+            many_configs = True
+            n_configs = rv.shape[0]
+
         # Fast computation
         if use_unit_cell:
             w, pols = self.DiagonalizeSupercell()
@@ -2093,13 +2102,24 @@ class Phonons:
             epols = np.einsum("ab, a -> ab", pols, m_sqrt)
             x_mu = rv.dot(epols)
 
+            # Check if more configurations needs to be used
+
             # TODO: add the possibility to pass several structures toghether
             #       to avoid computing many times the same passages
-            energy = 0.5 * np.sum(x_mu**2 * w**2)
-            forces = - epols.dot( w**2 * x_mu)
+            #       This works only if the displacements are passed
+            if not many_configs:
+                energy = 0.5 * np.sum(x_mu**2 * w**2)
+                forces = - epols.dot( w**2 * x_mu)
+            else:
+                w_tile = np.tile(w, (n_configs, 1))
+                energy = 0.5 * np.sum(x_mu**2 * w_tile**2, axis = 1)
+                forces = - (w_tile**2 * x_mu).dot(epols.T)
         else:   
             if real_space_fc is None:
                 real_space_fc = self.GetRealSpaceFC(supercell)
+
+            if many_configs:
+                raise NotImplementedError("Error, use the use_unit_cell = True if you want to compute many configurations.")
             
             # Get the energy
             energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
@@ -2112,7 +2132,10 @@ class Phonons:
         # Translate the force in Ry / A
         forces *= A_TO_BOHR
         if not vector1d:
-            forces = forces.reshape( (nat_sc, 3))
+            if not many_configs:
+                forces = forces.reshape( (nat_sc, 3))
+            else:
+                forces = forces.reshape( (n_configs, nat_sc, 3))
         
         return energy, forces
         
