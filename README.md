@@ -116,3 +116,9 @@ pytest
 ```
 
 For a full API documentation, you can compile the documentation inside the UserGuide directory.  
+To compile it simply use the make utility followed by the frontend.
+For example, if you want the html version run:
+```bash
+make html
+```
+inside the UserGuide directory. It will generate a build directory that contains the html version of the full documentation.
