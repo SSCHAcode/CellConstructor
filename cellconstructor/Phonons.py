@@ -2835,6 +2835,12 @@ class Phonons:
             if skip_this_q:
                 continue
 
+            
+            # Check if this q = -q + G
+            is_minus_q = False 
+            if Methods.get_min_dist_into_cell(bg, q, -q) < 1e-6:
+                is_minus_q = True
+
 
             # Diagonalize the matrix in the given q point
             wq, eq = self.DyagDinQ(iq)
@@ -2860,29 +2866,9 @@ class Phonons:
                 if verbose:
                     print("IQ: {}, MODE: {} has norm1 = {} |  norm2 = {} | scalar_dot = {}".format(iq, i_qnu, norm1, norm2, scalar_dot))
 
-                # Check that i_mu is of the correct length
-                if i_mu == nmodes:
-                    error_msg = """
-*****************************
-ERROR IN DiagonalizeSupercell
-*****************************
-
-Error, something wrong: i_mu = {}, nmodes = {}
-For some reason I was not able to convert modes from q points into real space. 
-Maybe there is an error in the q points.
-
-The list of q points saved in _error_q_list.txt
-The dynamical matrix that generated the error saved in _error_dyn
-""".format(i_mu, nmodes)
-                    self.save_qe("_error_dyn")
-                    np.savetxt("_error_q_list.txt", self.q_tot)
-                    print(error_msg)
-                    
-                    raise ValueError(error_msg)
-                
 
                 # Add the second vector
-                EPSILON = 1e-6
+                EPSILON = 1e-4
                 if norm1 > EPSILON:
                     #q_cryst = Methods.covariant_coordinates(bg, q)
                     #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}, N1 = {:.3e}, N2 = {:.3e}, DOT = {:.3e}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst, norm1, norm2, evec_1.dot(evec_2)))
@@ -2890,31 +2876,15 @@ The dynamical matrix that generated the error saved in _error_dyn
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
                     
-#                     if norm2 > EPSILON and scalar_dot < EPSILON:            
-#                         # Check that i_mu is of the correct length
-#                         if i_mu == nmodes:
-#                             error_msg = """
-# *****************************
-# ERROR IN DiagonalizeSupercell
-# *****************************
+                    # If there is another q point
+                    if not is_minus_q: #scalar_dot < EPSILON:         
+                        if norm2 < EPSILON:
+                            raise ValueError("Error, the q_point = {} {} {} should contribute also for -q, something went wrong".format(*list(q)))    
+                        
 
-# Error, something wrong: i_mu = {}, nmodes = {}
-# For some reason I was not able to convert modes from q points into real space. 
-# Maybe there is an error in the q points.
-
-# The list of q points saved in _error_q_list.txt
-# The dynamical matrix that generated the error saved in _error_dyn
-# """.format(i_mu, nmodes)
-#                             self.save_qe("_error_dyn")
-#                             np.savetxt("_error_q_list.txt", self.q_tot)
-#                             print(error_msg)
-                            
-#                             raise ValueError(error_msg)
-                
-
-#                         w_array[i_mu] = w_qnu
-#                         e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
-#                         i_mu += 1
+                        w_array[i_mu] = w_qnu
+                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                        i_mu += 1
                 else:
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
@@ -3139,7 +3109,7 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
     
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, imag_thr = 1e-6):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================
@@ -3231,7 +3201,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     Error, the imaginary part of the real space force constant 
     is not zero. IMAG={}
     """
-    assert imag < 1e-6, ASSERT_ERROR.format(imag)
+    assert imag < imag_thr, ASSERT_ERROR.format(imag)
     
     return fc
 
