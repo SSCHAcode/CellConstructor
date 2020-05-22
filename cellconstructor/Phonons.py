@@ -3407,3 +3407,101 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     return output_dyn
     
     
+
+def get_dyn_from_ase_phonons(ase_ph):
+    """
+    GET THE DYNAMICAL MATRIX FROM ASE
+    =================================
+
+    This function converts an ASE phonons object into the cellconstructor Phonons.
+
+    Parameters
+    ----------
+        ase_ph : ase.phonons.Phonons()
+            The ASE Phonons. It must be already computed
+    
+    Results
+    -------
+        dyn : CC.Phonons.Phonons()
+            The dynamical matrix
+    """
+
+
+    FC = ase_ph.get_force_constant()
+    
+    supercell_size = ase_ph.N_c
+
+    # Get the structure
+    structure = Structure.Structure()
+    structure.generate_from_ase_atoms(ase_ph.atoms)
+
+    # Get the supercell structure and itau
+    nat_sc = structure.N_atoms * np.prod(supercell_size)
+    supercell_structure = structure.generate_supercell(supercell_size)
+    # Get the equivalent atom in the unit cell vs atoms in the supercell
+    itau = supercell_structure.get_itau(structure) - 1 # Fort -> Py (indexing)
+
+    # Get the lattice vectors
+    R_cN = ase_ph.lattice_vectors()
+    R_cN = np.array(R_cN).T
+
+    # Get the lattice in cartesian units
+    R_cN = R_cN.dot(structure.unit_cell)
+
+    N_sup = np.prod(supercell_size)
+
+    q_grid = symmetries.GetQGrid(structure.unit_cell, supercell_size)
+
+    # Put gamma as the first vector
+    gamma_index = np.argmin(np.sum(np.array(q_grid)**2, axis = 1))
+    q_grid[gamma_index] = q_grid[0].copy()
+    q_grid[0] = np.zeros(3, dtype = np.double)
+
+
+    # Prepare the dynamical matrix
+    dyn = Phonons(structure, len(q_grid))
+    dyn.q_tot = q_grid 
+
+    # Each q point in a different star
+    dyn.q_stars = [ [q] for q in q_grid]    
+
+    # Generate the dynamical matrix in the supercell
+    fc_sup = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.double)
+
+    # TODO: This can be slow
+    #       It could be speeded up by getting directly the eigenmodes at the wanted q points.
+    for ia in range(nat_sc):
+        for ib in range(ia, nat_sc):
+            # lattice vector
+            R_1 = supercell_structure.coords[ia, :] - structure.coords[itau [ia], :]
+            R_2 = supercell_structure.coords[ib, :] - structure.coords[itau [ib], :]
+            delta_R = R_2 - R_1
+
+            i_block = Methods.identify_vector(supercell_structure.unit_cell, R_cN, delta_R)
+
+            if i_block == None:
+                ERR_MSG="""
+ERROR, the ASE Phonons seems not to contain a supercell vector needed for the 
+       force constant matrix:
+Lattice vector needed : {:16.8f} {:16.8f} {:16.8f}
+List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
+                raise ValueError(ERR_MSG)
+            
+            for xa in range(3):
+                for xb in range(3):
+                    # We found the block
+                    fc_sup[3*ia + xa, 3*ib + xb] = FC[i_block, 3*itau[ia] + xa, 3*itau[ib] + xb]
+                    fc_sup[3*ib + xb, 3*ia + xa] = fc_sup[3*ia + xa, 3*ib + xb]
+
+    # Now get the dynamical matrix in the correct q point
+    dynq = GetDynQFromFCSupercell(fc_sup, np.array(dyn.q_tot), structure, supercell_structure)
+
+    for iq in range(len(dyn.q_tot)):
+        # Convert from eV/A^2 into Ry/Bohr^2
+        dyn.dynmats[iq] = dynq[iq, :, :] * BOHR_TO_ANGSTROM**2 / RY_TO_EV
+
+    # Now adjust the q stars to match the symmetries
+    dyn.AdjustQStar()
+
+
+    return dyn

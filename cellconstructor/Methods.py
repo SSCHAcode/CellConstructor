@@ -12,6 +12,8 @@ from numpy import *
 import numpy as np
 import sys, os
 
+import warnings
+
 #from . import Structure
  
 BOHR_TO_ANGSTROM = 0.529177249
@@ -218,6 +220,63 @@ def get_min_dist_into_cell(unit_cell, v1, v2):
 
     # Compute the distance using the metric tensor
     return np.sqrt(covect_distance.dot(metric_tensor.dot(covect_distance)))
+
+def identify_vector(unit_cell, vector_list, target, epsil = 1e-8):
+    """
+    Identify whichone in vector_list is equivalent to the target (given the supercell)    
+    If no vector is identified, then raise a warning and return None.
+
+    This function is much more efficient than calling get_min_dist_into_cell in a loop.
+    
+    Parameters
+    ----------
+        unit_cell : ndarray 3x3
+            The unit cell
+        vector_list : ndarray (N_vectors, 3)
+            The array of vector you want to compare
+        target : ndarray 3
+            The target vector
+            
+    Results
+    -------
+        int
+            the index of the vector_list that is equivalent to target (withint the cell)
+    """
+    
+    # Get the covariant components
+    metric_tensor = np.zeros((3,3))
+    for i in range(0, 3):
+        for j in range(i, 3):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    imt = np.linalg.inv(metric_tensor)
+
+    N_vectors = vector_list.shape[0]
+    
+    # Get contravariant components
+    crystal_list = vector_list.dot(unit_cell.T)
+    crystal_list = crystal_list.dot(imt)
+
+    crystal_target = target.dot(unit_cell.T)
+    crystal_target = imt.dot(crystal_target)
+
+    crystal_distance = crystal_list - np.tile(crystal_target, (N_vectors, 1))
+
+    # Bring the distance as close as possible to zero
+    crystal_distance -= (crystal_distance + np.sign(crystal_distance)*.5).astype(int)
+
+    # Compute the distances using the metric tensor
+    distances = np.einsum("ai, ai -> a", crystal_distance.dot(metric_tensor), crystal_distance)
+
+    min_index = np.argmin(distances)
+    dist = distances[min_index]
+
+    if dist > epsil:
+        warnings.warn("Warning in identify_vector, no equivalent atoms found within a threshold of {}".format(epsil))
+        return None
+
+    return min_index
+
 
 
 def get_reciprocal_vectors(unit_cell):
