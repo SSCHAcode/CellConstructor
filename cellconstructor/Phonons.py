@@ -1273,6 +1273,55 @@ class Phonons:
             
             matrix = np.einsum("i, ji, ki", w**2, pols, np.conj(pols)) * np.sqrt(_m1_ * _m2_)
             self.dynmats[iq] = matrix
+
+
+    def ForcePositiveDefinite_2(self):
+        """
+        FORCE TO BE POSITIVE DEFINITE
+        =============================
+        
+        This method force the matrix to be positive defined. 
+        Usefull if you want to start with a matrix for a SCHA calculation.
+        
+        It will take the Dynamical matrix and rebuild it as
+        
+        .. math::
+            
+            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} |\omega_\mu^2| e_\\mu^a e_\\mu^b 
+            
+        
+        In this way the dynamical matrix will be always positive definite.
+        """
+        
+        # Prepare the masses matrix
+        mass1 = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+        
+        _m1_ = np.tile(mass1, (3 * self.structure.N_atoms, 1))
+        _m2_ = np.tile(mass1, (3 * self.structure.N_atoms, 1)).transpose()
+        
+        
+        numq=len(self.dynmats)
+        w=np.zeros((numq,3*self.structure.N_atoms), dtype = np.float64)
+        pols=np.zeros((numq,3*self.structure.N_atoms,3*self.structure.N_atoms), dtype = np.complex128 )
+        
+        for iq in range(numq):
+            # Diagonalize the matrix
+            w[iq,:], pols[iq,:,:] = self.DyagDinQ(iq)
+        
+        
+        fact=np.amin(w)
+        
+        if fact < 0.0 :
+            w+=np.abs(fact)*0.1
+        
+        for iq in range(numq):        
+            v=pols[iq,:,:]
+            fr=w[iq,:]
+            matrix = np.einsum("i, ji, ki", fr**2, v, np.conj(v)) * np.sqrt(_m1_ * _m2_)
+            self.dynmats[iq] = matrix
+
                         
                         
     def GetRamanResponce(self, pol_in, pol_out, T = 0):
