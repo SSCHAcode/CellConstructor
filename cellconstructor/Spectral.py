@@ -1785,7 +1785,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
         with open(filename_new,'w') as f:
             for iq,leng in enumerate(x_length):
                  out=np.concatenate((wq_shifted_sorted[iq,:,ism],
-                                     hwhm_sorted[iq,:,ism]))                 
+                                     hwhm_sorted[iq,:,ism]))
                  f.write(fmt.format(leng,*out))     
 
     print(" ")
@@ -1796,8 +1796,8 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
  
     print(" ")
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
-    print(" ------------------------------------------------------------------ ")
-    print(" len (2pi/Angstrom), sscha+shift (sorted), freq (cm-1), hwhm (cm-1) ")
+    print(" ----------------------------------------------------------------- ")
+    print(" len (2pi/Angstrom), sscha+shift freq (sorted) (cm-1), hwhm (cm-1) ")
     print(" ")      
 
  # ================================================================================== 

@@ -140,6 +140,12 @@ class Tensor2(GenericTensor):
         """
         Setup the second order force constant form 2nd order tensor written in a file
         
+        Warning about the D3Q format:
+        Coerently with the indexing of the 3rd order FCs, in the D3Q format with FC(s,t,R)
+        we refer to the FC between atoms (s,0) and (t,R). This is different from the format
+        used in the original drq code by Lorenzo Paulatto, where the FC(s,t,R) refers to
+        (s,R) and (t,0), or ,equivalently, (s,0) and (t,-R)
+        
         
         Parameters
         ----------
