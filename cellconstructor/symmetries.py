@@ -2106,6 +2106,108 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
         return pol_symmetries
         
 
+def get_degeneracies(w):
+    """
+    GET THE SUBSPACES OF DEGENERACIES
+    =================================
+
+    From the given frequencies, for each mode returns a list of the indices of the modes of degeneracies.
+
+    Parameters
+    ----------
+        w : ndarray(n_modes)   
+            Frequencies
+    
+    Results
+    -------
+        deg_list : list of lists
+            A list that contains, for each mode, the list of the modes (indices) that are degenerate with the latter one
+    """
+
+
+    n_modes = len(w)
+
+    ret_list = []
+    for i in range(n_modes):
+        deg_list = np.arange(n_modes)[np.abs(w - w[i]) < 1e-8]
+        ret_list.append(deg_list)
+    return ret_list
+
+def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
+    """
+    GET THE POLARIZATION VECTORS THAT DIAGONALIZES THE SYMMETRIES
+    =============================================================
+
+    This function is very usefull to have a complex basis in which the application of symmetries
+    is trivial.
+
+    In this basis, each symmetry is diagonal.
+    Indeed this forces the polarization vectors to be complex in the most general case.
+
+    NOTE: Not implemented
+
+    Parameters
+    ----------
+        pol_sc : ndarray(n_modes, 3*nat)
+            The polarizaiton vectors in the supercell (obtained by DiagonalizeSupercell of the Phonon class)
+        w : ndarray(n_modes)
+            The frequency for each polarization vectors
+        pol_symmetries : ndarray(N_sym, n_modes, n_modes)
+            The Symmetry operator that acts on the polarization vector
+    """
+
+    raise NotImplementedError("This subroutine is still not implemented.")
+
+    # First we must get the degeneracies
+    deg_list = get_degeneracies(w) 
+
+    # Now perform the diagonalization on each degeneracies
+    final_vectors = np.zeros( pol_sc.shape, dtype = np.complex128)
+    final_vectors[:,:] = pol_sc.copy()
+
+    n_modes = len(w)
+    n_syms = pol_symmetries.shape[0]
+    skip_list = []
+    for i in range(n_modes):
+        if i in skip_list:
+            continue
+
+        # If we have no degeneracies, we can ignore it
+        if len(deg_list[i]) == 1:
+            continue 
+
+        partial_modes = np.zeros(len(deg_list[i]), len(deg_list[i]), dtype = np.complex128)
+        partial_modes[:,:] = np.eye(len(deg_list[i])) # identity matrix
+
+        syms_values = [ [] for i in range(len(deg_list[i]))]
+
+        # If we have degeneracies, lets diagonalize all the symmetries
+        for i_sym in range(n_syms):
+            skip_j = []
+            for j_mode in deg_list[i]:
+                if j_mode in skip_j:
+                    continue 
+
+                # Get the modes that can be still degenerate by symmetries
+                mode_dna = syms_values[j_mode]
+                mode_space = [x for x in deg_list[i] if (syms_values[x] == mode_dna).all()]
+                if len(mode_space) == 1:
+                    continue
+
+                # Get the symmetry matrix in the mode space
+                # TODO: To be continued
+
+
+                
+
+        # Do not further process the modes we used in this iteration
+        for mode in deg_list[i]:
+            skip_list.append(mode)
+
+
+
+
+
 def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
     supercell_size, crystal = True):
     """
