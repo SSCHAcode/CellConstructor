@@ -2144,19 +2144,28 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
     In this basis, each symmetry is diagonal.
     Indeed this forces the polarization vectors to be complex in the most general case.
 
-    NOTE: Not implemented
+    NOTE: To be tested, do not use for production run
+
+    If the symmetries are not unitary, an exception will be raised.
 
     Parameters
     ----------
-        pol_sc : ndarray(n_modes, 3*nat)
+        pol_sc : ndarray(3*nat, n_modes)
             The polarizaiton vectors in the supercell (obtained by DiagonalizeSupercell of the Phonon class)
         w : ndarray(n_modes)
             The frequency for each polarization vectors
         pol_symmetries : ndarray(N_sym, n_modes, n_modes)
             The Symmetry operator that acts on the polarization vector
+
+
+    Results
+    -------
+        pol_vects : ndarray(3*nat, n_modes)
+            The new (complex) polarization vectors that diagonalizes all the symmetries.
+        syms_values : ndarray(n_modes, n_sym)
+            The (complex) unitary eigenvalues of each symmetry operation along the given mode.
     """
 
-    raise NotImplementedError("This subroutine is still not implemented.")
 
     # First we must get the degeneracies
     deg_list = get_degeneracies(w) 
@@ -2168,6 +2177,9 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
     n_modes = len(w)
     n_syms = pol_symmetries.shape[0]
     skip_list = []
+
+    syms_values = np.zeros((n_modes, n_syms), dtype = np.complex128)
+
     for i in range(n_modes):
         if i in skip_list:
             continue
@@ -2179,8 +2191,6 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
         partial_modes = np.zeros(len(deg_list[i]), len(deg_list[i]), dtype = np.complex128)
         partial_modes[:,:] = np.eye(len(deg_list[i])) # identity matrix
 
-        syms_values = [ [] for i in range(len(deg_list[i]))]
-
         # If we have degeneracies, lets diagonalize all the symmetries
         for i_sym in range(n_syms):
             skip_j = []
@@ -2189,20 +2199,50 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
                     continue 
 
                 # Get the modes that can be still degenerate by symmetries
-                mode_dna = syms_values[j_mode]
-                mode_space = [x for x in deg_list[i] if (syms_values[x] == mode_dna).all()]
+                mode_dna = syms_values[j_mode, : i_sym]
+                mode_space = [x for x in deg_list[i] if np.max(np.abs(syms_values[x, :i_sym] - mode_dna)) < 1e-3]
+                
+                # The mask for the whole symmetry and the partial_modes
+                mask_all = np.array([x in mode_space for x in np.arange(n_modes)])
+                mask_partial_mode = np.array([x in mode_space for x in deg_list[i]])
+
                 if len(mode_space) == 1:
                     continue
 
+                p_modes_new = partial_modes[:, mask_partial_mode]
+
                 # Get the symmetry matrix in the mode space
-                # TODO: To be continued
-
-
+                sym_mat_origin = pol_symmetries[i_sym, mask, mask]
+                sym_mat = np.conj(p_modes_new).dot(sym_mat_origin.dot(p_modes_new.T))
                 
+                # Diagonalize the symmetry matrix
+                s_eigvals, s_eigvects = np.linalg.eig(sym_mat)
+
+                # Check if the s_eigvals confirm the unitary of sym_mat
+                assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym), sym_mat
+
+                # Update the polarization vectors to account this diagonalization
+                partial_modes[:, mask_partial_mode] = p_modes_new.dot(s_eigvects)
+
+                # Add the symmetry character on the new eigen modes
+                for k_i, k in enumerate(mode_space):
+                    syms_values[k, i_sym] = s_eigvals[k_i]
+
+                # Now add the modes analyzed up to know to the skip
+                for x in mode_space:
+                    skip_j.append(x)
+
+
+        # Now we solved our polarization vectors, add them to the final ones
+        mask_final = np.array([x in deg_list[i] for x in range(n_modes)])
+        final_vectors[:, mask_final] = pol_sc[: mask_final].dot(partial_modes)       
 
         # Do not further process the modes we used in this iteration
         for mode in deg_list[i]:
             skip_list.append(mode)
+
+
+    return final_vectors, syms_values
 
 
 
