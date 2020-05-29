@@ -2219,7 +2219,7 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
                 s_eigvals, s_eigvects = np.linalg.eig(sym_mat)
 
                 # Check if the s_eigvals confirm the unitary of sym_mat
-                assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym), sym_mat
+                assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym).format(sym_mat)
 
                 # Update the polarization vectors to account this diagonalization
                 partial_modes[:, mask_partial_mode] = p_modes_new.dot(s_eigvects)
