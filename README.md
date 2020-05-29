@@ -82,8 +82,8 @@ NOTE:
 If you want to install the package into a system python distribution, the
 installation commands should be executed as a superuser. 
 Otherwise, append the --user flag to either the setup.py or the pip installation. 
-In this way no administrator privilages is required, but the installation will be effective only for the current user.
-Note that some python distribution, like anaconda, does not need the superuser, as they have an installation path inside the HOME directory.
+In this way no administrator privileges is required, but the installation will be effective only for the current user.
+Note that some python distribution, like anaconda, does not need the superuser, as it has an installation path inside the HOME directory.
 
 You can install also using the intel compiler.
 In this case, you must edit the setup.py script so that:
@@ -110,3 +110,15 @@ You can test the installation using the script:
 cellconstructor_test.py
 ```
 
+To run the complete testsuite, you can use the pytest, running the following command:
+```bash
+pytest
+```
+
+For a full API documentation, you can compile the documentation inside the UserGuide directory.  
+To compile it simply use the make utility followed by the frontend.
+For example, if you want the html version run:
+```bash
+make html
+```
+inside the UserGuide directory. It will generate a build directory that contains the html version of the full documentation.
