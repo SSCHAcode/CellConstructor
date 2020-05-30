@@ -9,6 +9,8 @@ import cellconstructor.symmetries
 import spglib
 import sys, os
 
+import numpy as np
+
 import ase
 from ase.visualize import view
 
