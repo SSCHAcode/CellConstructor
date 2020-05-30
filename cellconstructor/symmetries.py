@@ -2188,7 +2188,7 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
         if len(deg_list[i]) == 1:
             continue 
 
-        partial_modes = np.zeros(len(deg_list[i]), len(deg_list[i]), dtype = np.complex128)
+        partial_modes = np.zeros((len(deg_list[i]), len(deg_list[i])), dtype = np.complex128)
         partial_modes[:,:] = np.eye(len(deg_list[i])) # identity matrix
 
         # If we have degeneracies, lets diagonalize all the symmetries
@@ -2200,11 +2200,17 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
 
                 # Get the modes that can be still degenerate by symmetries
                 mode_dna = syms_values[j_mode, : i_sym]
-                mode_space = [x for x in deg_list[i] if np.max(np.abs(syms_values[x, :i_sym] - mode_dna)) < 1e-3]
-                
+
+                # Avoid a bad error if i_sym = 0
+                if len(mode_dna) > 0:
+                    mode_space = [x for x in deg_list[i] if np.max(np.abs(syms_values[x, :i_sym] - mode_dna)) < 1e-3]
+                else:
+                    mode_space = [x for x in deg_list[i]]
+
                 # The mask for the whole symmetry and the partial_modes
                 mask_all = np.array([x in mode_space for x in np.arange(n_modes)])
                 mask_partial_mode = np.array([x in mode_space for x in deg_list[i]])
+                n_deg_new = np.sum(mask_all.astype(int))
 
                 if len(mode_space) == 1:
                     continue
@@ -2212,13 +2218,19 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
                 p_modes_new = partial_modes[:, mask_partial_mode]
 
                 # Get the symmetry matrix in the mode space
-                sym_mat_origin = pol_symmetries[i_sym, mask, mask]
+                ps = pol_symmetries[i_sym, :, :]
+                sym_mat_origin = ps[np.outer(mask_all, mask_all)].reshape((n_deg_new, n_deg_new))
                 sym_mat = np.conj(p_modes_new).dot(sym_mat_origin.dot(p_modes_new.T))
                 
                 # Diagonalize the symmetry matrix
                 s_eigvals, s_eigvects = np.linalg.eig(sym_mat)
 
                 # Check if the s_eigvals confirm the unitary of sym_mat
+                # TODO: Check if some mass must be accounted or not...
+                print("SYM_MAT:")
+                print(sym_mat)
+                print("Eigvals:")
+                print(s_eigvals)
                 assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym).format(sym_mat)
 
                 # Update the polarization vectors to account this diagonalization
