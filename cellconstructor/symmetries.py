@@ -13,6 +13,9 @@ import time
 import os
 import numpy as np
 
+import scipy
+import scipy.linalg 
+
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
@@ -2145,6 +2148,7 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
     Indeed this forces the polarization vectors to be complex in the most general case.
 
     NOTE: To be tested, do not use for production run
+    It seems to be impossible to correctly decompose simmetries when we have multiple rotations.
 
     If the symmetries are not unitary, an exception will be raised.
 
@@ -2165,7 +2169,7 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
         syms_values : ndarray(n_modes, n_sym)
             The (complex) unitary eigenvalues of each symmetry operation along the given mode.
     """
-
+    raise NotImplementedError("Error, this subroutine has not been implemented.")
 
     # First we must get the degeneracies
     deg_list = get_degeneracies(w) 
@@ -2180,6 +2184,11 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
 
     syms_values = np.zeros((n_modes, n_syms), dtype = np.complex128)
 
+    print("All modes:")
+    for i in range(n_modes):
+        print("Mode {} = {} cm-1  => ".format(i, w[i] * RY_TO_CM), deg_list[i])
+
+    print()
     for i in range(n_modes):
         if i in skip_list:
             continue
@@ -2191,9 +2200,19 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
         partial_modes = np.zeros((len(deg_list[i]), len(deg_list[i])), dtype = np.complex128)
         partial_modes[:,:] = np.eye(len(deg_list[i])) # identity matrix
 
+        mask_final = np.array([x in deg_list[i] for x in range(n_modes)])
+
         # If we have degeneracies, lets diagonalize all the symmetries
         for i_sym in range(n_syms):
             skip_j = []
+            diagonalized = False
+            np.savetxt("sym_{}.dat".format(i_sym), pol_symmetries[i_sym, :,:])
+
+            
+            # Get the symmetry matrix in the mode space (this could generate a problem with masses)
+            ps = pol_symmetries[i_sym, :, :]
+            sym_mat_origin = ps[np.outer(mask_final, mask_final)].reshape((len(deg_list[i]), len(deg_list[i])))    
+
             for j_mode in deg_list[i]:
                 if j_mode in skip_j:
                     continue 
@@ -2217,20 +2236,28 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
 
                 p_modes_new = partial_modes[:, mask_partial_mode]
 
-                # Get the symmetry matrix in the mode space
-                ps = pol_symmetries[i_sym, :, :]
-                sym_mat_origin = ps[np.outer(mask_all, mask_all)].reshape((n_deg_new, n_deg_new))
-                sym_mat = np.conj(p_modes_new).dot(sym_mat_origin.dot(p_modes_new.T))
                 
-                # Diagonalize the symmetry matrix
-                s_eigvals, s_eigvects = np.linalg.eig(sym_mat)
+                print()
+                print("SYMMETRY_INDEX:", i_sym)
+                print("SHAPE sym_mat_origin:", sym_mat_origin.shape)
+                print("MODES: {} | DEG: {}".format(mode_space, deg_list[i]))
+                print("SHAPE P_MODES_NEW:", p_modes_new.shape)
+                sym_mat = np.conj(p_modes_new.T).dot(sym_mat_origin.dot(p_modes_new))
+                
+                # Decompose in upper triangular (assures that eigenvectors are orthogonal)
+                s_eigvals_mat, s_eigvects = scipy.linalg.schur(sym_mat, output = "complex")
+                s_eigvals = np.diag(s_eigvals_mat)
 
                 # Check if the s_eigvals confirm the unitary of sym_mat
                 # TODO: Check if some mass must be accounted or not...
-                print("SYM_MAT:")
+                print("SYM_MAT")
                 print(sym_mat)
                 print("Eigvals:")
                 print(s_eigvals)
+                print("Eigval_mat:")
+                print(s_eigvals_mat)
+                print("Eigvects:")
+                print(s_eigvects)
                 assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym).format(sym_mat)
 
                 # Update the polarization vectors to account this diagonalization
@@ -2243,11 +2270,33 @@ def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
                 # Now add the modes analyzed up to know to the skip
                 for x in mode_space:
                     skip_j.append(x)
+                
+                diagonalized = True
 
+
+            # Now we diagonalized the space
+            # Apply the symmetries if we did not perform the diagonalization
+            if not diagonalized:
+                # Get the symmetrized matrix in the partial mode list:
+                sym_mat = np.conj(partial_modes.T).dot(sym_mat_origin.dot(partial_modes))
+
+                # Check that it is diagonal
+                s_eigvals = np.diag(sym_mat) 
+                disp = sym_mat - np.diag( s_eigvals)
+                if np.max(np.abs(disp)) > 1e-4:
+                    print("Matrix {}:".format(i_sym))
+                    print(sym_mat)
+                    raise ValueError("Error, I expect the symmetry {} to be diagonal".format(i_sym))
+
+                syms_values[k, i_sym] = s_eigvals[k_i]
+
+                # Add the symmetry character on the new eigen modes
+                for k_i, k in enumerate(deg_list[i]):
+                    syms_values[k, i_sym] = s_eigvals[k_i]
+                
 
         # Now we solved our polarization vectors, add them to the final ones
-        mask_final = np.array([x in deg_list[i] for x in range(n_modes)])
-        final_vectors[:, mask_final] = pol_sc[: mask_final].dot(partial_modes)       
+        final_vectors[:, mask_final] = pol_sc[:, mask_final].dot(partial_modes)       
 
         # Do not further process the modes we used in this iteration
         for mode in deg_list[i]:
