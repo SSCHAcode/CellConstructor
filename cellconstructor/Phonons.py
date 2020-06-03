@@ -2096,6 +2096,9 @@ class Phonons:
         if use_unit_cell:
             w, pols = self.DiagonalizeSupercell()
 
+            # Correctly account for not positive definite dynamical matrices
+            w2 = w**2 * np.sign(w)
+
             m = np.tile(super_structure.get_masses_array(), (3,1)).T.ravel()
             m_sqrt = np.sqrt(m)
 
@@ -2108,12 +2111,12 @@ class Phonons:
             #       to avoid computing many times the same passages
             #       This works only if the displacements are passed
             if not many_configs:
-                energy = 0.5 * np.sum(x_mu**2 * w**2)
-                forces = - epols.dot( w**2 * x_mu)
+                energy = 0.5 * np.sum(x_mu**2 * w2)
+                forces = - epols.dot( w2 * x_mu)
             else:
-                w_tile = np.tile(w, (n_configs, 1))
-                energy = 0.5 * np.sum(x_mu**2 * w_tile**2, axis = 1)
-                forces = - (w_tile**2 * x_mu).dot(epols.T)
+                w2_tile = np.tile(w2, (n_configs, 1))
+                energy = 0.5 * np.sum(x_mu**2 * w2_tile, axis = 1)
+                forces = - (w2_tile * x_mu).dot(epols.T)
         else:   
             if real_space_fc is None:
                 real_space_fc = self.GetRealSpaceFC(supercell)
