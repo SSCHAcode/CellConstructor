@@ -38,6 +38,7 @@ print ("Space group with low threshold:", GROUP)
 
 # Get the symmetries from the new spacegroup
 symmetries = spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.04)
+print("Number of symmetries: {}".format(len(symmetries["rotations"])))
 
 # Transform the spglib symmetries into the CellConstructor data type
 sym_mats = CC.symmetries.GetSymmetriesFromSPGLIB(symmetries, True)
