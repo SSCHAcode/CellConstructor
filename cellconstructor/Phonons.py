@@ -1584,6 +1584,8 @@ class Phonons:
         # Remove translations
         trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
 
+        print("Translation:", trans_mask)
+
         # Exclude also other w = 0 modes
         locked_original = np.abs(ws) < __EPSILON__
         if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
@@ -1622,7 +1624,16 @@ class Phonons:
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
             
-        total_coords = np.einsum("ij, i, j, kj->ik", np.real(pol_vects), 1/np.sqrt(mass1), a_mu, rand)
+        total_coords = np.einsum("ij, i, j, kj->ik", pol_vects, 1/np.sqrt(mass1), a_mu, rand)
+
+        print("AMU:")
+        print(a_mu)
+        print("Mass:", 1/np.sqrt(mass1))
+        print(total_coords)
+        print("The random numbers:", rand) 
+        bad_indices = np.arange(3*nat)[np.abs(total_coords[:, 0]) > 1]
+        for index in bad_indices:
+            print("pol along cart {} : ".format(index), pol_vects[index,:])
 
 
         # Project the displacements along the selected modes
@@ -2886,11 +2897,11 @@ class Phonons:
                         
 
                         w_array[i_mu] = w_qnu
-                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                         i_mu += 1
                 else:
                     w_array[i_mu] = w_qnu
-                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                     i_mu += 1
             
             # Print how many vectors have been extracted
@@ -2904,6 +2915,11 @@ class Phonons:
         sort_mask = np.argsort(w_array)
         w_array = w_array[sort_mask]
         e_pols_sc = e_pols_sc[:, sort_mask]
+
+
+        # Get the check for the polarization vector normalization
+        p_norm = np.einsum("ab, ab->b", e_pols_sc, e_pols_sc)
+        assert np.max(np.abs(p_norm - 1)) < __EPSILON__
 
         return w_array, e_pols_sc
 
