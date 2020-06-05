@@ -31,13 +31,13 @@ os.chdir(total_path)
 dyn = CC.Phonons.Phonons("old_dyn", full_name=True)
 
 # Print the symmetry group at high threshold
-GROUP = spglib.get_spacegroup(dyn.structure.get_ase_atoms(), 0.04)
+GROUP = spglib.get_spacegroup(dyn.structure.get_ase_atoms(), 0.05)
 s_group_expected = spglib.get_spacegroup(dyn.structure.get_ase_atoms())
 print ("Space group with high threshold:", s_group_expected)
 print ("Space group with low threshold:", GROUP)
 
 # Get the symmetries from the new spacegroup
-symmetries = spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.04)
+symmetries = spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.05)
 print("Number of symmetries: {}".format(len(symmetries["rotations"])))
 
 # Transform the spglib symmetries into the CellConstructor data type
