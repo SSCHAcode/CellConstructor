@@ -2,4 +2,4 @@ setuptools
 numpy
 scipy
 ase
-spglib
+spglib==1.14.1
