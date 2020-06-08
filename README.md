@@ -17,7 +17,7 @@ CellConstructor is a general purpouse library. Some of the things you can do wit
 4. Compute the phonon dispersion along high-symmetry paths
 5. Extract harmonic randomly displaced configurations according to the dynamical matrix.
 
-And also many others cools features!
+And also many others cool features!
 
 ## Requirements
 
