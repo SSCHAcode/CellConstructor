@@ -2,6 +2,23 @@
 
 Welcome to the CellConstructor python package!
 
+## What is CellConstructor?
+CellConstructor is a python library that allows to easily manipulate crystal structures and phonon dynamical matrices.
+It is based on quantum espresso, and wraps in python many of the utilities available in the PHonon package as post-processing tools.
+It is also interfaced with ASE for I/O of common file formats (.cif, input of common calculators, etc.) and to SPGLIB for a more stable tool for symmetry identification (also the Quantum Espresso symmetry library is available).
+
+
+## What can I do with CellConstructor?
+CellConstructor is a general purpouse library. Some of the things you can do with one single command:
+
+1. Compute Quasi-Harmonic free energies from a dynamical matrix at any temperature.
+2. Impose symmetries on a structure, or on a dynamical matrix.
+3. Impose the acoustic sum rule on a dynamical matrix
+4. Compute the phonon dispersion along high-symmetry paths
+5. Extract harmonic randomly displaced configurations according to the dynamical matrix.
+
+And also many others cools features!
+
 ## Requirements
 
 To correnctly install and use the package, you need to have
