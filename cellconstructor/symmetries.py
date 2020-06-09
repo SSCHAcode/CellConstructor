@@ -1064,7 +1064,7 @@ class QE_Symmetry:
             raise ImportError("Error, this function works only if spglib is available")
 
         # Get the symmetries
-        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), self.threshold)
+        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), symprec = self.threshold)
         symmetries = GetSymmetriesFromSPGLIB(spg_syms, regolarize= False)
 
         trans_irt = 0
