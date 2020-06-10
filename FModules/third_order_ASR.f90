@@ -8,8 +8,10 @@ subroutine impose_ASR(phi,n_blocks,totnum_R,xR_list,xR2,xR3,phi_ASR,nat)
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
     real(kind=DP), intent(in), dimension(3*nat,3*nat,3*nat,n_blocks) :: phi 
     integer, intent(in) :: nat ! # atoms
-    integer, intent(in) :: xR2(3,n_blocks),xR3(3,n_blocks), n_blocks ! R2 and R3 vectors in the blocks
-    integer, intent(in) :: xR_list(3,totnum_R),totnum_R ! list different R vectors
+    integer, intent(in) :: n_blocks 
+    integer, intent(in) :: xR2(3,n_blocks),xR3(3,n_blocks) ! R2 and R3 vectors in the blocks
+    integer, intent(in) :: totnum_R
+    integer, intent(in) :: xR_list(3,totnum_R) ! list different R vectors
     !
     real(kind=DP), intent(out), dimension(3*nat,3*nat,3*nat,n_blocks) :: phi_ASR     
     !
