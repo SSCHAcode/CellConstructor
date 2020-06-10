@@ -40,6 +40,17 @@ class Structure:
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
         
+    def get_volume(self):
+        """
+        Returns the volume of the unit cell
+        """
+        ERR_MSG = """
+Error, to compute the volume the structure must have a unit cell initialized:
+(i.e. the has_unit_cell attribute must be True)."""
+
+        assert self.has_unit_cell, ERR_MSG
+
+        return np.abs(np.linalg.det(self.unit_cell))
         
     def generate_from_ase_atoms(self, atoms, get_masses = True):
         """
