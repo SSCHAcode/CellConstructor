@@ -1157,6 +1157,16 @@ class Phonons:
             
             # Diagonalize the dynamical matrix
             freqs, pol_vects = self.DyagDinQ(dyag_q_index)
+
+            # Compute the displacemets from the polarization vectors
+            _m_ = self.structure.get_masses_array()
+            _m_ = np.tile(_m_, (3,1)).T.ravel()
+            
+            # Compute the atomic displacements
+            atomic_disp = np.einsum("ab, a -> ab", pol_vects, 1 / np.sqrt(_m_) )
+            # Normalize the displacements
+            atomic_disp[:,:] /= np.tile( np.sqrt(np.sum(np.abs(atomic_disp)**2, axis = 0)), (self.structure.N_atoms * 3, 1))
+
             nmodes = len(freqs)
             for mu in range(nmodes):
                 # Print the frequency
@@ -1166,9 +1176,9 @@ class Phonons:
                 # Print the polarization vectors
                 for i in range(n_atoms):
                     fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
-                             (np.real(pol_vects[3*i, mu]), np.imag(pol_vects[3*i,mu]),
-                              np.real(pol_vects[3*i+1, mu]), np.imag(pol_vects[3*i+1,mu]),
-                              np.real(pol_vects[3*i+2, mu]), np.imag(pol_vects[3*i+1,mu])))
+                             (np.real(atomic_disp[3*i, mu]), np.imag(atomic_disp[3*i,mu]),
+                              np.real(atomic_disp[3*i+1, mu]), np.imag(atomic_disp[3*i+1,mu]),
+                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+1,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
             
