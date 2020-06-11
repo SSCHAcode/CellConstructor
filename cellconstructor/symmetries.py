@@ -25,6 +25,8 @@ import symph
 # Load the LinAlgebra module in C
 from cc_linalg import GramSchmidt
 
+import warnings
+
 
 __SPGLIB__ = True
 try:
@@ -174,8 +176,55 @@ class QE_Symmetry:
                 print("  {:3.0f}{:3.0f}{:3.0f} | {:6.3f}".format(*syms[i][j,:]))
             print()
 
+    def GetUniqueRotations(self):
+        """
+        This subroutine returns an alternative symmetries 
+        that contains only unique rotations (without fractional translations).
+        This is usefull if the peculiar cell is a supercell 
+        and the symmetrization was performed with SPGLIB
+
+        Returns
+        -------
+            QE_s : ndarray(size = (3,3,48), dtype = np.intc)
+                The symmetries
+            QE_invs : ndarray(size = 48, dtype = np.intc)
+                The index of the inverse symmetry
+            QE_nsym : int
+                The number of symmetries
+        """
+
+        QE_s = np.zeros( self.QE_s.shape, dtype = np.intc, order = "F")
+        QE_invs = np.zeros(self.QE_invs.shape, dtype = np.intc, order = "F")
+        QE_nsym = 0
+
+
+        for i in range(self.QE_nsym):
+            # Check if the same rotation was already added
+            skip = False
+            for j in range(QE_nsym):
+                # Check if the rotation occurred
+                if (QE_s[:,:,j] == self.QE_s[:,:,i]).all():
+                    skip = True 
+                    break 
             
-    def SetupQStar(self, q_tot):
+            if not skip:
+                # We did not find another equal rotation
+                # Lets add this one
+                QE_s[:,:, QE_nsym] = self.QE_s[:,:,i]
+                QE_nsym += 1
+        
+        # Get the inverse
+        QE_invs[:] = get_invs(QE_s, QE_nsym)
+
+        return QE_s, QE_invs, QE_nsym
+
+
+
+
+
+
+            
+    def SetupQStar(self, q_tot, supergroup = False):
         """
         DIVIDE THE Q POINTS IN STARS
         ============================
@@ -187,7 +236,8 @@ class QE_Symmetry:
         ----------
             q_tot : list
                 List of q vectors to be divided into stars
-        
+            supergroup : bool
+                If true then assume we have initialized a supercell bigger
         Results
         -------
             q_stars : list of lists
@@ -213,16 +263,23 @@ class QE_Symmetry:
             _q_ = np.array(q, dtype = np.float64) # Fortran explicit conversion
         
             nq_new, sxq, isq, imq = symph.star_q(_q_, self.QE_at, self.QE_bg, 
-                                                 self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+                                                 self.QE_nsym, self.QE_s, self.QE_invs, 0)
         
-            print ("START WITH Q:", q)
-            print ("FOUND STAR:")
-            for jq in range(nq_new):
-                print (sxq[:, jq])
-            print ()
+            # print ("START WITH Q:", q)
+            # print ("FOUND STAR:")
+            # for jq in range(nq_new):
+            #     print (sxq[:, jq])
+            # print ()
             
-            print ("TELL ME THE BG:")
-            print (self.QE_bg.transpose())
+            # print ("TELL ME THE BG:")
+            # print (self.QE_bg.transpose())
+
+            # print("Manual star:")
+            # for k in range(self.QE_nsym):
+            #     trial_q = q.dot(self.QE_s[:,:, k])
+            #     distance_q = Methods.get_min_dist_into_cell(self.QE_bg.T, trial_q, q)
+            #     distance_mq =  Methods.get_min_dist_into_cell(self.QE_bg.T, trial_q, -q)
+            #     print("trial_q : {} | DQ: {:.4f} | DMQ: {:.4f}".format(trial_q, distance_q, distance_mq ))
             
             # Prepare the star
             q_star = [sxq[:, k] for k in range(nq_new)]
@@ -242,7 +299,7 @@ class QE_Symmetry:
             # Pop out the q_star from the q_list
             for jq, q_instar in enumerate(q_star):
                 # Look for the q point in the star and pop them
-                print("q_instar:", q_instar)
+                #print("q_instar:", q_instar)
                 q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
                                                          np.array(q_instar), q_point) for q_point in q_list]
                 
@@ -254,7 +311,7 @@ class QE_Symmetry:
                                                          np.array(q_instar), q_point) for q_point in q_tot]
                 
                 q_index = np.argmin(q_dist)
-                print (q_indices, count_q, q_index)
+                #print (q_indices, count_q, q_index)
                 q_indices[count_q] = q_index
                 
                 count_q += 1
@@ -1122,6 +1179,10 @@ class QE_Symmetry:
             irt = GetIRT(self.structure, sym)
             self.QE_translations_irt[:, i] = irt + 1
             self.QE_translations[:, i] = sym[:,3]
+
+        # For each symmetry operation, assign the inverse
+        self.QE_invs[:] = get_invs(self.QE_s, self.QE_nsym)
+        
                 
             
     def ApplyTranslationsToVector(self, vector):
@@ -2491,3 +2552,39 @@ def ApplyTranslationsToSupercell(fc_matrix, super_cell_structure, supercell):
     for i in range(natsc):
         for j in range(natsc):
             fc_matrix[3*i : 3*(i+1), 3*j : 3*(j+1)] = new_v2[:, :, i, j]
+
+
+
+def get_invs(QE_s, QE_nsym):
+    """
+    GET INVERSION SYMMETRY
+    ======================
+
+    For each symmetry operation, get an index that its inverse
+    Note, the array must be in Fortran indexing (starts from 1)
+
+    Parameters
+    ----------
+        QE_s : ndarray(size = (3,3,48), dtype = np.intc)
+            The symmetries
+        QE_nsym : int
+            The number of symmetries    
+    
+    Results
+    -------
+        QE_invs : ndarray(size = 48, dtype = np.intc)
+            The index of the inverse symmetry.
+            In fortran indexing (1 => index 0)
+    """
+    QE_invs = np.zeros(48, dtype = np.intc)
+    for i in range(QE_nsym):
+        found = False
+        for j in range(QE_nsym):
+            if (QE_s[:,:,i].dot(QE_s[:,:,j]) == QE_s[:,:,0]).all():
+                QE_invs[i] = j + 1 # Fortran index
+                found = True
+        
+        if not found:
+            warnings.warn("This is not a group, some features like Q star division may fail.")
+            
+    return QE_invs

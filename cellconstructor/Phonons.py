@@ -1161,7 +1161,7 @@ class Phonons:
             # Compute the displacemets from the polarization vectors
             _m_ = self.structure.get_masses_array()
             _m_ = np.tile(_m_, (3,1)).T.ravel()
-            
+
             # Compute the atomic displacements
             atomic_disp = np.einsum("ab, a -> ab", pol_vects, 1 / np.sqrt(_m_) )
             # Normalize the displacements
@@ -2409,7 +2409,7 @@ class Phonons:
         qe_sym = symmetries.QE_Symmetry(self.structure)
 
         if use_spglib:
-            
+
             qe_sym.SetupFromSPGLIB()
         else:
             qe_sym.SetupQPoint()
