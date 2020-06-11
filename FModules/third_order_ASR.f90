@@ -117,7 +117,9 @@ subroutine initialize_perm(R23, n_blocks,SClat,PBC)
         if ( .not. ALL (found) ) then
         
             write(*,*) " ERROR: new triplets found during the permutation symmetry initialization "
-            write(*,*) "        the execution stops "
+            write(*,*) "        the execution stops here. "
+            write(*,*) "        If the 3rdFC is centered, try to repeat the centering with higher Far "            
+            write(*,*) "        If the 3rdFC is not centered, try to repeat the ASR imposition with PBC=True "            
             stop
             
         end if

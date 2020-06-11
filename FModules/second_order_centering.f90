@@ -34,13 +34,12 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
 
     weight=0
     !
-    do s = 1, 1
+    do s = 1, nat
         s_vec=tau(s,:)
-    do t = 4, 4        
+    do t = 1, nat        
         t_vec=tau(t,:)
     do i_block=1,n_blocks
         xt_cell_orig=xR2_list(:,i_block)
-        write(*,*) xt_cell_orig
            ! 
            ! Check total value  ==================================================================
            summa=0.0_dp
@@ -58,8 +57,6 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
            perim_min=1.0e10_dp 
            ww=0            
            !
-           write(*,*) perim_min
-           write(*,*) "==================="
            do LLt = -Far, Far
            do MMt = -Far, Far
            do NNt = -Far, Far
@@ -71,7 +68,6 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
                                    if ( within_dmax(s_vec,SC_t_vec ,dmax(s),dmax(t),tol) ) then
                                         !
                                         perimeter=compute_perimeter(s_vec,SC_t_vec)
-                                        write(*,*) xt, perimeter
                                         !                                    
                                         if (perimeter < (perim_min - tol)) then
                                             ! update minimum perimeter/triangle
@@ -80,14 +76,12 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
                                             !
                                             RRt(:,ww)=xt        
                                             !
-                                            write(*,*) "min"
                                         else if (abs(perimeter - perim_min) <= tol) then
                                             ! add weight/triangle for this perimeter
                                             ww = ww+1
                                             !
                                             RRt(:,ww)=xt        
                                             !
-                                            write(*,*) "confirm"
                                         end if 
                                         !
                                         !
@@ -99,12 +93,6 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
            end do
            end do
            end do
-           write(*,*) "Result"
-           do h = 1, ww
-               write(*,*)RRt(:,h)
-           end do    
-           write(*,*) "============================="
-           write(*,*) "============================="
            !========================= End supercell replicas ========================================
            ! Assign
            weight(s,t,i_block)=ww
@@ -123,7 +111,6 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
     end do
     !
     !
-    STOP
 end subroutine analysis
 !=================================================================================
 

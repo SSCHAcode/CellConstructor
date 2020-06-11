@@ -64,7 +64,7 @@ class Tensor2(GenericTensor):
         self.x_r_vector2 = np.zeros((3, self.n_R), dtype = np.intc, order = "F")
         self.r_vector2 = np.zeros((3, self.n_R), dtype = np.double, order = "F")
         self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
-
+        self.n_sup = np.prod(supercell_size)
 
     def SetupFromPhonons(self, phonons):
         """
@@ -263,7 +263,7 @@ class Tensor2(GenericTensor):
         
             if self.verbose:
                 print(" ")
-                print(" ======================= Centering ==========================")
+                print(" ======================= Centering 2nd FCs ==========================")
                 print(" ")         
 
             # The supercell total size
@@ -418,7 +418,7 @@ class Tensor2(GenericTensor):
                 print(" Time elapsed for computing the centering: {} s".format( t2 - t1)) 
                 print(" Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
                 print(" ")
-                print(" ============================================================")
+                print(" ====================================================================")
 
         self.tensor = Settings.broadcast(self.tensor)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
@@ -1195,7 +1195,7 @@ class Tensor3():
         
             if self.verbose:
                 print(" ")
-                print(" ======================= Centering ==========================")
+                print(" ======================= Centering 3rd FCs ==========================")
                 print(" ")         
 
             # The supercell total size
@@ -1354,7 +1354,7 @@ class Tensor3():
                 print(" Time elapsed for computing the centering: {} s".format( t2 - t1)) 
                 print(" Memory required for the centered tensor: {} Gb".format(centered.nbytes / 1024.**3))
                 print(" ")
-                print(" ============================================================")
+                print(" ====================================================================")
 
         self.tensor = Settings.broadcast(self.tensor)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
@@ -1443,17 +1443,6 @@ class Tensor3():
 
 
         self.tensor = Settings.broadcast(self.tensor)
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1569,6 +1558,10 @@ class Tensor3():
 
         
         return final_fc
+
+
+
+
 
 
 
