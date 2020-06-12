@@ -2,8 +2,14 @@ import cellconstructor as CC
 import cellconstructor.Phonons
 import numpy as np
 
-def test_random_generate():
+import sys,os
 
+def test_random_generate():
+    
+    total_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(total_path)
+
+    
     dyn = CC.Phonons.Phonons("ffield_dynq", 3)
     dyn.ForcePositiveDefinite()
     dyn.Symmetrize()
