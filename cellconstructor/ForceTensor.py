@@ -143,7 +143,7 @@ class Tensor2(GenericTensor):
         Warning about the D3Q format:
         Coerently with the indexing of the 3rd order FCs, in the D3Q format with FC(s,t,R)
         we refer to the FC between atoms (s,0) and (t,R). This is different from the format
-        used in the original drq code by Lorenzo Paulatto, where the FC(s,t,R) refers to
+        used in the original d3q code by Lorenzo Paulatto, where the FC(s,t,R) refers to
         (s,R) and (t,0), or ,equivalently, (s,0) and (t,-R)
         
         
@@ -449,6 +449,12 @@ class Tensor2(GenericTensor):
         coord_1 coord_2 tensor_value
         coord_1 coord_2 tensor_value
         ...
+
+        Warning about the D3Q format:
+        Coerently with the indexing of the 3rd order FCs, in the D3Q format with FC(s,t,R)
+        we refer to the FC between atoms (s,0) and (t,R). This is different from the format
+        used in the original d3q code by Lorenzo Paulatto, where the FC(s,t,R) refers to
+        (s,R) and (t,0), or ,equivalently, (s,0) and (t,-R)
 
 
         Parameters
