@@ -32,7 +32,7 @@ subroutine contract_two_ph_propagator(w_array, w_mu, T, smearing, M, f_output, n
     double precision :: w
     double complex, dimension(n_modes, n_modes) :: chi
 
-    !$OMP DO PRIVATE(i1, mu, nu, w, chi) SHARED(m, f_output, smearing, T, n_modes)
+    !!$OMP DO PRIVATE(i1, mu, nu, w, chi) SHARED(m, f_output, smearing, T, n_modes)
     do i1 = 1, n_w
         w = w_array(i1)
 
@@ -48,7 +48,7 @@ subroutine contract_two_ph_propagator(w_array, w_mu, T, smearing, M, f_output, n
         end do
         !!$OMP END DO
     enddo   
-    !$OMP END DO
+    !!$OMP END DO
 
 end subroutine contract_two_ph_propagator   
 

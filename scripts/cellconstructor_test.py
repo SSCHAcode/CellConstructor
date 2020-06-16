@@ -298,6 +298,7 @@ class TestStructureMethods(unittest.TestCase):
         """
         raise NotImplementedError("Error, this test must be implemented")
 
+    @unittest.skip("not yet working function")
     def test_IR_Raman_on_NaCl(self):
         """
         We generate a simple NaCl structure and predict using symmetries if the mode is IR or Raman active
@@ -329,6 +330,47 @@ class TestStructureMethods(unittest.TestCase):
         # Check that if the intensities along the degenerate modes are all equal
         assert np.max(np.abs(ir_responce[3:] - ir_responce[3])) < 1e-10
 
+
+    def test_harmonic_energy_forces_fast(self):
+        """
+        Test the computation of harmonic forces with the new fast method (that is done in the polarization space)
+        against the one done in the full real space.
+        """
+
+        # Get the Dynamical matrix
+        dyn = self.dynSnSe.Copy()
+
+        N_RANDOM = 100
+        nat = dyn.structure.N_atoms
+        nat_sc = int(nat * np.prod(dyn.GetSupercell()))
+
+        random_structures = dyn.ExtractRandomStructures(N_RANDOM, 100)
+        __EPSIL__ = 1e-8
+
+        # Get all the structures at once
+        u_disps = np.zeros( (N_RANDOM, 3 * nat_sc), dtype = np.double)
+        forces = np.zeros((N_RANDOM, nat_sc, 3), dtype = np.double)
+        energies = np.zeros(N_RANDOM, dtype = np.double)
+        
+
+        for i, s in enumerate(random_structures):
+            u_disps[i, :] = (s.coords - dyn.structure.generate_supercell(dyn.GetSupercell()).coords).ravel()
+            energy_new, force_new = dyn.get_energy_forces(s)
+            energy_old, force_old = dyn.get_energy_forces(s, use_unit_cell = False)
+
+            assert np.abs(energy_new - energy_old) < __EPSIL__, "Error, the energy are not correctly computed: {:.16e} Ry vs {:.16r} Ry".format(energy_new, energy_old)
+            diff = np.max(np.abs(force_new - force_old))
+            forces[i, :, :] = force_new
+            energies[i] = energy_new
+            assert diff < __EPSIL__, "Error, the forces are not correctly computed: max difference is {} Ry / A".format(diff)
+
+        new_energy, all_forces = dyn.get_energy_forces(None, displacement = u_disps, use_unit_cell = True)
+        diff = np.max(np.abs(all_forces - forces))
+
+        assert diff < __EPSIL__, "Error, the forces computed all toghether differs of {} Ry / A".format(diff)
+
+        diff = np.max(np.abs(energies - new_energy))
+        assert diff < __EPSIL__, "Error, the energies computed all togheter differs of {} Ry / A".format(diff)
 
 
 
