@@ -3,7 +3,286 @@ module third_order_centering
 
 contains 
 
-subroutine center(Far,nat,nq1,nq2,nq3,tol, alat, tau, original,centered,lat_min,lat_max)
+
+
+
+! Memory optimized centering
+!=================================================================================
+!
+subroutine analysis(Far,tol, dmax,sc_size,xR2_list,xR3_list,alat, tau, tensor,weight,xR2,xR3,nat,n_blocks)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    integer, intent(in) :: Far, nat
+    real(kind=DP), intent(in) :: dmax(nat)
+    real(kind=DP), intent(in), dimension(3,3) :: alat 
+    real(kind=DP), intent(in), dimension(nat,3) :: tau
+    integer, intent(in), dimension(3,n_blocks) :: xR2_list,xR3_list    
+    real(kind=DP), intent(in) :: tol
+    real(kind=DP), intent(in), &
+     dimension(3*nat,3*nat,3*nat,n_blocks) :: tensor
+    integer, intent(in) :: n_blocks 
+    integer, intent(in) :: sc_size(3)
+    !
+    integer, intent(out) :: weight(nat,nat,nat,n_blocks)
+    integer, intent(out) :: xR2(3,(2*Far+1)*(2*Far+1)*(2*Far+1),nat,nat,nat,n_blocks)    
+    integer, intent(out) :: xR3(3,(2*Far+1)*(2*Far+1)*(2*Far+1),nat,nat,nat,n_blocks)    
+    !
+    integer :: s,t,u,t_lat, u_lat, xt_cell_orig(3),xt(3),xu_cell_orig(3),xu(3)
+    integer :: RRt(3,(2*Far+1)**3),RRu(3,(2*Far+1)**3),ww,i_block
+    real(kind=DP) :: s_vec(3), t_vec(3), u_vec(3), SC_t_vec(3), SC_u_vec(3)
+    integer :: LLt,MMt,NNt,LLu,MMu,NNu, alpha, beta, gamma, jn1 ,jn2, jn3,h
+    real(kind=DP) :: perimeter, perim_min,summa
+
+    weight=0
+    !
+    do s = 1, nat
+        s_vec=tau(s,:)
+    do t = 1, nat        
+        t_vec=tau(t,:)
+    do u = 1,nat
+        u_vec=tau(u,:)
+    
+    do i_block=1,n_blocks
+        xt_cell_orig=xR2_list(:,i_block)
+        xu_cell_orig=xR3_list(:,i_block)
+           ! 
+           ! Check total value  ==================================================================
+           summa=0.0_dp
+           !
+           do alpha=1,3
+           do beta=1,3
+           do gamma=1,3
+               summa=summa+abs(tensor( alpha+(s-1)*3,beta+(t-1)*3,gamma+(u-1)*3,i_block))
+           end do
+           end do
+           end do
+           !
+           if (summa < 1.0d-8) cycle
+           ! =====================================================================================
+           !                
+           !========================= Supercell replicas =========================================
+           perim_min=1.0e10_dp 
+           ww=0            
+           !
+           do LLt = -Far, Far
+           do MMt = -Far, Far
+           do NNt = -Far, Far
+               xt=xt_cell_orig+(/LLt*sc_size(1),MMt*sc_size(2),NNt*sc_size(3)/)
+               SC_t_vec=cryst_to_cart(xt,alat)+t_vec
+           do LLu = -Far, Far
+           do MMu = -Far, Far
+           do NNu = -Far, Far
+               xu=xu_cell_orig+(/LLu*sc_size(1),MMu*sc_size(2),NNu*sc_size(3)/)
+               SC_u_vec=cryst_to_cart(xu,alat)+u_vec
+                                   !
+                                   ! Go on only if distances are within the maximum allowed
+                                   ! 
+                                   if ( within_dmax(s_vec,SC_t_vec ,SC_u_vec,dmax(s),dmax(t),dmax(u),tol) ) then
+                                        !
+                                        perimeter=compute_perimeter(s_vec,SC_t_vec ,SC_u_vec)
+                                        !                                    
+                                        if (perimeter < (perim_min - tol)) then
+                                            ! update minimum perimeter/triangle
+                                            perim_min = perimeter
+                                            ww = 1
+                                            !
+                                            RRt(:,ww)=xt        
+                                            RRu(:,ww)=xu
+                                            !
+                                        else if (abs(perimeter - perim_min) <= tol) then
+                                            ! add weight/triangle for this perimeter
+                                            ww = ww+1
+                                            !
+                                            RRt(:,ww)=xt        
+                                            RRu(:,ww)=xu      
+                                            !
+                                        end if 
+                                        !
+                                        !
+                                        !
+                                   end if
+                                   !
+                                   !
+                                   !
+           end do
+           end do
+           end do
+           !
+           !
+           end do
+           end do
+           end do    
+           !========================= End supercell replicas ========================================
+           ! Assign
+           weight(s,t,u,i_block)=ww
+           if ( ww > 0 ) then
+           !
+           do h = 1, ww
+               xR2(:,h,s,t,u,i_block)=RRt(:,h)
+               xR3(:,h,s,t,u,i_block)=RRu(:,h)
+           end do
+           !
+           end if
+           !
+    end do
+    !
+    end do
+    !
+    end do
+    !
+    end do
+    !
+    !
+end subroutine analysis
+!=================================================================================
+
+
+!=================================================================================
+subroutine center(original,weight,xR2_list,xR2,xR3_list,xR3,nat,centered,Far,n_blocks,n_blocks_old)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    integer, intent(in) :: nat,n_blocks,Far
+    integer, intent(in), dimension(3,n_blocks) :: xR2_list,xR3_list
+    integer, intent(in), &
+                         dimension(3,(2*Far+1)*(2*Far+1)*(2*Far+1), &
+                         nat,nat,nat,n_blocks_old) :: xR2,xR3   
+    integer, intent(in) :: weight(nat,nat,nat,n_blocks_old)                     
+    integer, intent(in) :: n_blocks_old
+    real(kind=DP), intent(in), &
+     dimension(3*nat,3*nat,3*nat,n_blocks_old) :: original
+    !
+    real(kind=DP), intent(out), &
+     dimension(3*nat,3*nat,3*nat,n_blocks) :: centered
+    !
+    integer :: s,t,u,t_lat,u_lat,h,i_block,j_block,alpha,beta,gamma,jn1,jn2,jn3
+
+    centered=0.0_dp
+    !
+    do s = 1, nat
+    do t = 1, nat
+    do u = 1, nat    
+    do j_block=1, n_blocks_old
+        !
+        if ( weight(s,t,u,j_block) > 0 ) then
+        
+        do h=1,weight(s,t,u,j_block)
+           ! 
+           do i_block=1, n_blocks
+           !
+           if ( sum( abs(xR2_list(:,i_block)-xR2(:,h,s,t,u,j_block)) +  &
+                     abs(xR3_list(:,i_block)-xR3(:,h,s,t,u,j_block))   ) < 1.0d-8 ) then
+                    !
+                    do jn1 = 1 + (s-1)*3,3 + (s-1)*3
+                    do jn2 = 1 + (t-1)*3,3 + (t-1)*3
+                    do jn3 = 1 + (u-1)*3,3 + (u-1)*3                    
+                    !
+                    centered(jn1,jn2,jn3,i_block)=original(jn1,jn2,jn3,j_block)/weight(s,t,u,j_block)
+                    !
+                    end do
+                    end do
+                    end do
+                    !
+                    cycle     
+           end if
+           !
+           end do
+           !
+         end do  
+         !  
+         end if
+         !
+    end do
+    end do
+    end do
+    end do
+    !       
+end subroutine center
+!
+!=================================================================================
+
+
+!=================================================================================
+subroutine center_sparse(original,weight,xR2_list,xR2,xR3_list,xR3,centered,n_sparse_blocks, &
+                        xR2_sparse_list,xR3_sparse_list,atom_sparse_list, &
+                        r_blocks_sparse_list,Far, nat,n_sup,n_blocks)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    integer, intent(in) :: nat,n_sup,n_blocks,Far
+    integer, intent(in), dimension(3,n_blocks) :: xR2_list,xR3_list
+    integer, intent(in), &
+                         dimension(3,(2*Far+1)*(2*Far+1)*(2*Far+1)*n_sup, &
+                         nat,nat,n_sup,nat,n_sup) :: xR2,xR3   
+    integer, intent(in) :: weight(nat,nat,n_sup,nat,n_sup)                     
+    real(kind=DP), intent(in), &
+     dimension(3*nat,3*nat,3*nat,n_sup,n_sup) :: original
+    !
+    real(kind=DP), intent(out), &
+     dimension(3*nat,3*nat,3*nat,n_blocks) :: centered
+    integer, intent(out) :: n_sparse_blocks,xR2_sparse_list(3,n_blocks*nat*nat*nat), &
+                            xR3_sparse_list(3,n_blocks*nat*nat*nat),atom_sparse_list(3,n_blocks*nat*nat*nat), &
+                            r_blocks_sparse_list(n_blocks*nat*nat*nat)
+    !
+    integer :: s,t,u,t_lat,u_lat,h,i_block,alpha,beta,gamma,jn1,jn2,jn3
+    logical :: takeit
+    
+    n_sparse_blocks=0
+    centered=0.0_dp
+    !
+    do s = 1, nat
+    do t = 1, nat        
+    do t_lat = 1, n_sup
+    do u = 1,nat
+    do u_lat = 1, n_sup
+        !   
+        do h=1,weight(s,t,t_lat,u,u_lat)
+           ! 
+           do i_block=1, n_blocks
+           !
+           if ( sum( abs(xR2_list(:,i_block)-xR2(:,h,s,t,t_lat,u,u_lat)) +  &
+                     abs(xR3_list(:,i_block)-xR3(:,h,s,t,t_lat,u,u_lat))   ) < 1.0d-8 ) then
+                    !        
+                    takeit=.false.
+                    do jn1 = 1 + (s-1)*3,3 + (s-1)*3
+                    do jn2 = 1 + (t-1)*3,3 + (t-1)*3
+                    do jn3 = 1 + (u-1)*3,3 + (u-1)*3                    
+                    !
+                    centered(jn1,jn2,jn3,i_block)=original(jn1,jn2,jn3,t_lat,u_lat)/weight(s,t,t_lat,u,u_lat)
+                    if ( centered(jn1,jn2,jn3,i_block) > 1.0d-7 ) takeit=.true.
+                    !
+                    end do
+                    end do
+                    end do
+                    
+                    if (takeit) then
+                       n_sparse_blocks=n_sparse_blocks+1
+                       atom_sparse_list(:,n_sparse_blocks)=(/s-1,t-1,u-1/) 
+                       xR2_sparse_list(:,n_sparse_blocks)=xR2_list(:,i_block)
+                       xR3_sparse_list(:,n_sparse_blocks)=xR3_list(:,i_block)
+                       r_blocks_sparse_list(n_sparse_blocks)=i_block-1
+                    end if
+                    
+                    !
+                    cycle     
+           end if
+           !
+           end do
+           !
+         end do  
+         !  
+    end do
+    end do
+    end do
+    end do
+    end do
+    !
+    !       
+end subroutine center_sparse
+
+! !=================================================================================
+! 
+! Fast centering (memory expensive)
+!
+subroutine pre_center(Far,nat,nq1,nq2,nq3,tol, alat, tau, original,centered,lat_min,lat_max)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
     integer, intent(in) :: nat,nq1,nq2,nq3
@@ -120,7 +399,7 @@ subroutine center(Far,nat,nq1,nq2,nq3,tol, alat, tau, original,centered,lat_min,
     end do
     !
     !
-end subroutine center
+end subroutine pre_center
 !=================================================================================
 subroutine assign(alat,lat_min_prev,lat_max_prev,centered_prev,lat_min,lat_max,n_sup_WS,nat,n_sup_WS_prev,centered,x2,x3,R2,R3)
     implicit none
@@ -163,6 +442,21 @@ subroutine assign(alat,lat_min_prev,lat_max_prev,centered_prev,lat_min,lat_max,n
     !
     !
 end subroutine assign
+!=================================================================================
+
+!=================================================================================
+function within_dmax(v1,v2,v3,d1,d2,d3,tol)
+    implicit none
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    logical  :: within_dmax    
+    real(kind=DP), intent(in), dimension(3) :: v1,v2,v3
+    real(kind=DP), intent(in) :: d1,d2,d3,tol
+    
+    within_dmax =  ( norm2(v1-v2) <= min(d1,d2)+tol ) .AND. &
+                   ( norm2(v1-v3) <= min(d1,d3)+tol ) .AND. &
+                   ( norm2(v2-v3) <= min(d2,d3)+tol )   
+                   
+end function within_dmax
 !=================================================================================
 function compute_perimeter(v1,v2,v3)
     implicit none
