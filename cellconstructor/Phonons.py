@@ -271,6 +271,11 @@ class Phonons:
             while reading_dyn:
                 # Advance in the reading
                 index += 1
+
+                if index >= len(dynlines):
+                    reading_dyn = False
+                    self.dynmats.append(current_dyn.copy())
+                    continue
                 
                 # Setup what I'm reading
                 if "Diagonalizing" in dynlines[index]:
@@ -555,7 +560,14 @@ class Phonons:
         type_cal = np.float64#np.complex128
         
         super_struct = self.structure.generate_supercell(self.GetSupercell())
-        no_trans = ~Methods.get_translations(pols, super_struct.get_masses_array())
+        trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
+
+        # Exclude also other w = 0 modes
+        locked_original = np.abs(w) < __EPSILON__
+        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+            trans_mask = locked_original
+
+        no_trans = ~trans_mask
 
         # Discard translations
         w = w[no_trans]
@@ -1146,6 +1158,16 @@ class Phonons:
             
             # Diagonalize the dynamical matrix
             freqs, pol_vects = self.DyagDinQ(dyag_q_index)
+
+            # Compute the displacemets from the polarization vectors
+            _m_ = self.structure.get_masses_array()
+            _m_ = np.tile(_m_, (3,1)).T.ravel()
+
+            # Compute the atomic displacements
+            atomic_disp = np.einsum("ab, a -> ab", pol_vects, 1 / np.sqrt(_m_) )
+            # Normalize the displacements
+            atomic_disp[:,:] /= np.tile( np.sqrt(np.sum(np.abs(atomic_disp)**2, axis = 0)), (self.structure.N_atoms * 3, 1))
+
             nmodes = len(freqs)
             for mu in range(nmodes):
                 # Print the frequency
@@ -1155,9 +1177,9 @@ class Phonons:
                 # Print the polarization vectors
                 for i in range(n_atoms):
                     fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
-                             (np.real(pol_vects[3*i, mu]), np.imag(pol_vects[3*i,mu]),
-                              np.real(pol_vects[3*i+1, mu]), np.imag(pol_vects[3*i+1,mu]),
-                              np.real(pol_vects[3*i+2, mu]), np.imag(pol_vects[3*i+1,mu])))
+                             (np.real(atomic_disp[3*i, mu]), np.imag(atomic_disp[3*i,mu]),
+                              np.real(atomic_disp[3*i+1, mu]), np.imag(atomic_disp[3*i+1,mu]),
+                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+1,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
             
@@ -1590,9 +1612,7 @@ class Phonons:
         =========================
         
         This method is used to extract a pool of random structures according to the current dinamical matrix.
-        
-        NOTE: for now available only at gamma. To execute it in a supercell generate a supercell dynamical matrix
-        
+                
         Parameters
         ----------
             size : int
@@ -1611,10 +1631,6 @@ class Phonons:
         """
         K_to_Ry=6.336857346553283e-06
 
-        
-        if self.nqirr != 1:
-            raise ValueError("Error, not yet implemented with supercells")
-            
             
         # Check if isolate atoms is good
         if len(isolate_atoms):
@@ -1622,14 +1638,21 @@ class Phonons:
                 raise ValueError("Error, index in isolate_atoms out of boundary")
             
         # Now extract the values
-        ws, pol_vects = self.DyagDinQ(0)
+        ws, pol_vects = self.DiagonalizeSupercell()
+        super_structure = self.structure.generate_supercell(self.GetSupercell())
         
         # Remove translations
-        trans_mask = Methods.get_translations(pol_vects, self.structure.get_masses_array())
+        trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
+
+        # Exclude also other w = 0 modes
+        locked_original = np.abs(ws) < __EPSILON__
+        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+            trans_mask = locked_original
+
         ws = ws[~trans_mask]
         pol_vects = pol_vects[:, ~trans_mask]
         
-        nat = self.structure.N_atoms
+        nat = self.structure.N_atoms * np.prod(self.GetSupercell())
 
         # Check that the matrix is positive definite
         if any([w < 0 for w in ws]):
@@ -1653,12 +1676,14 @@ class Phonons:
             a_mu = 1 / np.sqrt( np.tanh(beta*ws / 2) *2* ws) * BOHR_TO_ANGSTROM
         
         # Prepare the random numbers
+        size = int(size)
         rand = np.random.normal(size = (size, n_modes))
         
         # Get the masses for the final multiplication
-        mass1 = np.tile(self.structure.get_masses_array(), (3, 1)).T.ravel()
+        mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
             
-        total_coords = np.einsum("ij, i, j, kj->ik", np.real(pol_vects), 1/np.sqrt(mass1), a_mu, rand)
+        total_coords = np.einsum("ij, i, j, kj->ik", pol_vects, 1/np.sqrt(mass1), a_mu, rand)
+
 
 
         # Project the displacements along the selected modes
@@ -1678,7 +1703,7 @@ class Phonons:
         # Prepare the structures
         final_structures = []
         for i in range(size):
-            tmp_str = self.structure.copy()
+            tmp_str = super_structure.copy()
             # Prepare the new atomic positions 
             for k in range(tmp_str.N_atoms):
                 tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] 
@@ -1735,6 +1760,12 @@ class Phonons:
             # Remove translations
             if iq == 0:
                 tmask = Methods.get_translations(pols, self.structure.get_masses_array())
+                        
+                # Exclude also other w = 0 modes
+                locked_original = np.abs(w) < __EPSILON__
+                if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
+                    tmask = locked_original
+
                 w = w[ ~tmask ]
                 
             # if imaginary frequencies are allowed, put w->0
@@ -2048,8 +2079,8 @@ class Phonons:
 
         return ChiMuNu
     
-    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = (1,1,1),
-                          displacement = None):
+    def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = None,
+                          displacement = None, use_unit_cell = True):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -2082,23 +2113,32 @@ class Phonons:
                 target one. You can pass it to avoid regenerating it each time this subroutine is called.
                 If you do not pass it, you must provide the supercell size (if different than the unit cell)
             super_cell : list of 3 items
-                This is the supercell on which compute the energy and force. 
+                This is the supercell on which compute the energy and force. If none it is inferred by the dynamical matrix.
             displacement:
                 The displacements from the self average position to be used. It is not
                 necessary since they can be recomputed, however if provided, the calculation is faster.
                 It must be in Angstrom.
+                To speedup the calculations, many displacements can be provided, in the form:
+                displacement.shape = (N_config, 3*nat_sc)
+                where N_config are the number of configurations, nat_sc the atoms in the supercell
+            use_unit_cell : bool
+                If ture, do not compute the real space force constant matrix on the super cell. This is the fastest option.
+                Put it to false only for debugging purpouses.
         
         Returns
         -------
-            energy : float
+            energy : float (or ndarray.shape(N_config))
                 The harmonic energy (in Ry) of the structure
-            force : ndarray N_atoms x 3
+            force : ndarray N_atoms x 3 or N_config, nat_sc, 3)
                 The harmonic forces that acts on each atoms (in Ry / A)
         """
         
+        if supercell is None:
+            supercell = self.GetSupercell()
+
         # Convert the displacement vector in bohr
         #A_TO_BOHR=np.float64(1.889725989)
-        if super_structure is None and displacement is None:
+        if super_structure is None: 
             super_structure = self.structure.generate_supercell(supercell)
         
         # Get the displacement vector (bohr)
@@ -2106,31 +2146,60 @@ class Phonons:
             rv = structure.get_displacement(super_structure).reshape(structure.N_atoms * 3) * A_TO_BOHR
         else:
             rv = displacement * A_TO_BOHR
-        
-        if real_space_fc is None:
-            real_space_fc = self.GetRealSpaceFC(supercell)
-        
-        # Get the energy
-        energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
-        
-        
-        # Get the forces (Ry/ bohr)
-        forces = - real_space_fc.dot(rv) 
+
+        # Check how many configurations
+        many_configs = False
+        if len(rv.shape) > 1:
+            many_configs = True
+            n_configs = rv.shape[0]
+
+        # Fast computation
+        if use_unit_cell:
+            w, pols = self.DiagonalizeSupercell()
+
+            # Correctly account for not positive definite dynamical matrices
+            w2 = w**2 * np.sign(w)
+
+            m = np.tile(super_structure.get_masses_array(), (3,1)).T.ravel()
+            m_sqrt = np.sqrt(m)
+
+            epols = np.einsum("ab, a -> ab", pols, m_sqrt)
+            x_mu = rv.dot(epols)
+
+            # Check if more configurations needs to be used
+
+            # TODO: add the possibility to pass several structures toghether
+            #       to avoid computing many times the same passages
+            #       This works only if the displacements are passed
+            if not many_configs:
+                energy = 0.5 * np.sum(x_mu**2 * w2)
+                forces = - epols.dot( w2 * x_mu)
+            else:
+                w2_tile = np.tile(w2, (n_configs, 1))
+                energy = 0.5 * np.sum(x_mu**2 * w2_tile, axis = 1)
+                forces = - (w2_tile * x_mu).dot(epols.T)
+        else:   
+            if real_space_fc is None:
+                real_space_fc = self.GetRealSpaceFC(supercell)
+
+            if many_configs:
+                raise NotImplementedError("Error, use the use_unit_cell = True if you want to compute many configurations.")
+            
+            # Get the energy
+            energy = 0.5 * rv.dot ( np.real(real_space_fc)).dot(rv)
+            
+            # Get the forces (Ry/ bohr)
+            forces = - real_space_fc.dot(rv) 
 
         nat_sc = self.structure.N_atoms * np.prod(supercell)
-#        
-#        print ""
-#        print " ===== DYNMAT ====="
-#        print self.dynmats[0]
-#        print " === END DYNMAT ==="
-#        
-#        print "EXTRACTING SCHA FORCE:"
-#        print "     u = ", rv, "force = ", forces
         
         # Translate the force in Ry / A
         forces *= A_TO_BOHR
         if not vector1d:
-            forces = forces.reshape( (nat_sc, 3))
+            if not many_configs:
+                forces = forces.reshape( (nat_sc, 3))
+            else:
+                forces = forces.reshape( (n_configs, nat_sc, 3))
         
         return energy, forces
         
@@ -2390,7 +2459,7 @@ class Phonons:
         qe_sym = symmetries.QE_Symmetry(self.structure)
 
         if use_spglib:
-            
+
             qe_sym.SetupFromSPGLIB()
         else:
             qe_sym.SetupQPoint()
@@ -2761,7 +2830,7 @@ class Phonons:
         if apply_sum_rule:
             self.ApplySumRule()
 
-    def DiagonalizeSupercell(self):
+    def DiagonalizeSupercell(self, verbose = False):
         r"""
         DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
@@ -2830,12 +2899,20 @@ class Phonons:
             if skip_this_q:
                 continue
 
+            
+            # Check if this q = -q + G
+            is_minus_q = False 
+            if Methods.get_min_dist_into_cell(bg, q, -q) < 1e-6:
+                is_minus_q = True
+
 
             # Diagonalize the matrix in the given q point
             wq, eq = self.DyagDinQ(iq)
 
             # Iterate over the frequencies of the given q point
+            nm_q = i_mu
             for i_qnu, w_qnu in enumerate(wq):
+
                 tilde_e_qnu =  eq[:, i_qnu]
 
                 phase = R_vec.dot(q) * 2 * np.pi
@@ -2848,33 +2925,50 @@ class Phonons:
                 # Check if they are not zero
                 norm1 = evec_1.dot(evec_1)
                 norm2 = evec_2.dot(evec_2)
+                scalar_dot = np.abs(evec_1.dot(evec_2))
+
+                if verbose:
+                    print("IQ: {}, MODE: {} has norm1 = {} |  norm2 = {} | scalar_dot = {}".format(iq, i_qnu, norm1, norm2, scalar_dot))
+
 
                 # Add the second vector
-                if norm1 > 1e-8:
+                EPSILON = 1e-4
+                if norm1 > EPSILON:
                     #q_cryst = Methods.covariant_coordinates(bg, q)
                     #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}, N1 = {:.3e}, N2 = {:.3e}, DOT = {:.3e}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst, norm1, norm2, evec_1.dot(evec_2)))
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
                     
-                    if norm2 > 1e-8 and np.abs(evec_1.dot(evec_2)) < 1e-8:
+                    # If there is another q point
+                    if not is_minus_q: #scalar_dot < EPSILON:         
+                        if norm2 < EPSILON:
+                            raise ValueError("Error, the q_point = {} {} {} should contribute also for -q, something went wrong".format(*list(q)))    
+                        
+
                         w_array[i_mu] = w_qnu
-                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                         i_mu += 1
                 else:
                     w_array[i_mu] = w_qnu
-                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm1)
+                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                     i_mu += 1
+            
+            # Print how many vectors have been extracted
+            if verbose:
+                print("The {} / {} q point produced {} nodes".format(iq, len(self.q_tot), i_mu - nm_q))
                 
 
-        # Check that i_mu is of the correct length
-        assert i_mu == nmodes, "Error, something wrong: i_mu = {}, nmodes = {}".format(i_mu, nmodes)
 
 
         # Sort the frequencies
         sort_mask = np.argsort(w_array)
         w_array = w_array[sort_mask]
         e_pols_sc = e_pols_sc[:, sort_mask]
+
+
+        # Get the check for the polarization vector normalization
+        assert np.max(np.abs(np.einsum("ab, ab->b", e_pols_sc, e_pols_sc) - 1)) < __EPSILON__
 
         return w_array, e_pols_sc
 
@@ -3083,7 +3177,7 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
     
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, imag_thr = 1e-6):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================
@@ -3137,10 +3231,10 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
-    
-    #print "NQ:", nq
+
 
     fc = symph.fast_ft_real_space_from_dynq(unit_cell_structure.coords, supercell_structure.coords, itau+1, np.array(q_tot), dynmat, unit_cell_structure.N_atoms, supercell_structure.N_atoms, q_tot.shape[0])
+
     
     
     """ 
@@ -3183,7 +3277,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     Error, the imaginary part of the real space force constant 
     is not zero. IMAG={}
     """
-    assert imag < 1e-6, ASSERT_ERROR.format(imag)
+    assert imag < imag_thr, ASSERT_ERROR.format(imag)
     
     return fc
 
@@ -3359,3 +3453,101 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     return output_dyn
     
     
+
+def get_dyn_from_ase_phonons(ase_ph):
+    """
+    GET THE DYNAMICAL MATRIX FROM ASE
+    =================================
+
+    This function converts an ASE phonons object into the cellconstructor Phonons.
+
+    Parameters
+    ----------
+        ase_ph : ase.phonons.Phonons()
+            The ASE Phonons. It must be already computed
+    
+    Results
+    -------
+        dyn : CC.Phonons.Phonons()
+            The dynamical matrix
+    """
+
+
+    FC = ase_ph.get_force_constant()
+    
+    supercell_size = ase_ph.N_c
+
+    # Get the structure
+    structure = Structure.Structure()
+    structure.generate_from_ase_atoms(ase_ph.atoms)
+
+    # Get the supercell structure and itau
+    nat_sc = structure.N_atoms * np.prod(supercell_size)
+    supercell_structure = structure.generate_supercell(supercell_size)
+    # Get the equivalent atom in the unit cell vs atoms in the supercell
+    itau = supercell_structure.get_itau(structure) - 1 # Fort -> Py (indexing)
+
+    # Get the lattice vectors
+    R_cN = ase_ph.lattice_vectors()
+    R_cN = np.array(R_cN).T
+
+    # Get the lattice in cartesian units
+    R_cN = R_cN.dot(structure.unit_cell)
+
+    N_sup = np.prod(supercell_size)
+
+    q_grid = symmetries.GetQGrid(structure.unit_cell, supercell_size)
+
+    # Put gamma as the first vector
+    gamma_index = np.argmin(np.sum(np.array(q_grid)**2, axis = 1))
+    q_grid[gamma_index] = q_grid[0].copy()
+    q_grid[0] = np.zeros(3, dtype = np.double)
+
+
+    # Prepare the dynamical matrix
+    dyn = Phonons(structure, len(q_grid))
+    dyn.q_tot = q_grid 
+
+    # Each q point in a different star
+    dyn.q_stars = [ [q] for q in q_grid]    
+
+    # Generate the dynamical matrix in the supercell
+    fc_sup = np.zeros( (3*nat_sc, 3*nat_sc), dtype = np.double)
+
+    # TODO: This can be slow
+    #       It could be speeded up by getting directly the eigenmodes at the wanted q points.
+    for ia in range(nat_sc):
+        for ib in range(ia, nat_sc):
+            # lattice vector
+            R_1 = supercell_structure.coords[ia, :] - structure.coords[itau [ia], :]
+            R_2 = supercell_structure.coords[ib, :] - structure.coords[itau [ib], :]
+            delta_R = R_2 - R_1
+
+            i_block = Methods.identify_vector(supercell_structure.unit_cell, R_cN, delta_R)
+
+            if i_block == None:
+                ERR_MSG="""
+ERROR, the ASE Phonons seems not to contain a supercell vector needed for the 
+       force constant matrix:
+Lattice vector needed : {:16.8f} {:16.8f} {:16.8f}
+List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
+                raise ValueError(ERR_MSG)
+            
+            for xa in range(3):
+                for xb in range(3):
+                    # We found the block
+                    fc_sup[3*ia + xa, 3*ib + xb] = FC[i_block, 3*itau[ia] + xa, 3*itau[ib] + xb]
+                    fc_sup[3*ib + xb, 3*ia + xa] = fc_sup[3*ia + xa, 3*ib + xb]
+
+    # Now get the dynamical matrix in the correct q point
+    dynq = GetDynQFromFCSupercell(fc_sup, np.array(dyn.q_tot), structure, supercell_structure)
+
+    for iq in range(len(dyn.q_tot)):
+        # Convert from eV/A^2 into Ry/Bohr^2
+        dyn.dynmats[iq] = dynq[iq, :, :] * BOHR_TO_ANGSTROM**2 / RY_TO_EV
+
+    # Now adjust the q stars to match the symmetries
+    dyn.AdjustQStar()
+
+
+    return dyn

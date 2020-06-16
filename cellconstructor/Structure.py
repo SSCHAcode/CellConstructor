@@ -40,8 +40,19 @@ class Structure:
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
         
+    def get_volume(self):
+        """
+        Returns the volume of the unit cell
+        """
+        ERR_MSG = """
+Error, to compute the volume the structure must have a unit cell initialized:
+(i.e. the has_unit_cell attribute must be True)."""
+
+        assert self.has_unit_cell, ERR_MSG
+
+        return np.abs(np.linalg.det(self.unit_cell))
         
-    def generate_from_ase_atoms(self, atoms):
+    def generate_from_ase_atoms(self, atoms, get_masses = True):
         """
         This subroutines generate the current structure
         from the ASE Atoms object
@@ -49,6 +60,9 @@ class Structure:
         Parameters
         ----------
             atoms : the ASE Atoms object
+            get_masses : bool
+                If true, also build the masses. 
+                Note that massess are saved in Ry units (electron mass)
         
         """
         
@@ -57,6 +71,29 @@ class Structure:
         self.atoms = atoms.get_chemical_symbols()
         self.N_atoms = len(self.atoms)
         self.coords = atoms.positions.copy()
+
+        if get_masses:
+            self.masses = {}
+            mass = atoms.get_masses()
+            for i, ma in enumerate(mass):
+                if not self.atoms[i] in self.masses:
+                    self.masses[self.atoms[i]] = ma * ELECTRON_MASS_UMA
+
+    
+    def build_masses(self):
+        """
+        Use the ASE database to build the masses.
+        The masses will be in [Ry] units (the electron mass)
+        """
+
+        ase_struct = self.get_ase_atoms()
+
+
+        self.masses = {}
+        mass = ase_struct.get_masses()
+        for i, ma in enumerate(mass):
+            if not self.atoms[i] in self.masses:
+                self.masses[self.atoms[i]] = ma * ELECTRON_MASS_UMA
         
 
     def copy(self):
@@ -1158,7 +1195,7 @@ class Structure:
         for i in range(self.N_atoms):
             # Rank the atom number
             
-            ityp[i] = self.masses.keys().index(self.atoms[i])
+            ityp[i] = list(self.masses).index(self.atoms[i])
         
         return ityp
     

@@ -11,8 +11,6 @@ integer, allocatable :: num_blocks_R2(:)
 
 contains 
 
-! ============================== INITIALIZATIONS ============================================
-
 subroutine initialize_R2index(xR2,xR2list,totnum_R2, n_blocks,SCLat,PBC)
 implicit none
 integer, intent(in)  :: xR2(3,n_blocks),n_blocks,totnum_R2,xR2list(3,totnum_R2)

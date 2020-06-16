@@ -100,7 +100,7 @@ subroutine star_q (xq, at, bg, nsym, s, invs, nq, sxq, isq, imq, verbosity )
   imq = 0
   do iq = 1, nq
      if (eqvect (raq, saq (1, iq), zero) ) imq = iq
-     if (nsq(iq)*nq /= nsym) call errore ('star_q', 'wrong degeneracy', iq)
+     if (nsq(iq)*nq /= nsym) call errore ('star_q', 'too many symmetries! (is this a supercell?)', iq)
   enddo
   !
   ! writes star of q

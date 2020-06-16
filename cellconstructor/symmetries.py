@@ -13,6 +13,9 @@ import time
 import os
 import numpy as np
 
+import scipy
+import scipy.linalg 
+
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
@@ -21,6 +24,8 @@ import symph
 
 # Load the LinAlgebra module in C
 from cc_linalg import GramSchmidt
+
+import warnings
 
 
 __SPGLIB__ = True
@@ -171,8 +176,55 @@ class QE_Symmetry:
                 print("  {:3.0f}{:3.0f}{:3.0f} | {:6.3f}".format(*syms[i][j,:]))
             print()
 
+    def GetUniqueRotations(self):
+        """
+        This subroutine returns an alternative symmetries 
+        that contains only unique rotations (without fractional translations).
+        This is usefull if the peculiar cell is a supercell 
+        and the symmetrization was performed with SPGLIB
+
+        Returns
+        -------
+            QE_s : ndarray(size = (3,3,48), dtype = np.intc)
+                The symmetries
+            QE_invs : ndarray(size = 48, dtype = np.intc)
+                The index of the inverse symmetry
+            QE_nsym : int
+                The number of symmetries
+        """
+
+        QE_s = np.zeros( self.QE_s.shape, dtype = np.intc, order = "F")
+        QE_invs = np.zeros(self.QE_invs.shape, dtype = np.intc, order = "F")
+        QE_nsym = 0
+
+
+        for i in range(self.QE_nsym):
+            # Check if the same rotation was already added
+            skip = False
+            for j in range(QE_nsym):
+                # Check if the rotation occurred
+                if (QE_s[:,:,j] == self.QE_s[:,:,i]).all():
+                    skip = True 
+                    break 
             
-    def SetupQStar(self, q_tot):
+            if not skip:
+                # We did not find another equal rotation
+                # Lets add this one
+                QE_s[:,:, QE_nsym] = self.QE_s[:,:,i]
+                QE_nsym += 1
+        
+        # Get the inverse
+        QE_invs[:] = get_invs(QE_s, QE_nsym)
+
+        return QE_s, QE_invs, QE_nsym
+
+
+
+
+
+
+            
+    def SetupQStar(self, q_tot, supergroup = False):
         """
         DIVIDE THE Q POINTS IN STARS
         ============================
@@ -184,7 +236,8 @@ class QE_Symmetry:
         ----------
             q_tot : list
                 List of q vectors to be divided into stars
-        
+            supergroup : bool
+                If true then assume we have initialized a supercell bigger
         Results
         -------
             q_stars : list of lists
@@ -210,16 +263,23 @@ class QE_Symmetry:
             _q_ = np.array(q, dtype = np.float64) # Fortran explicit conversion
         
             nq_new, sxq, isq, imq = symph.star_q(_q_, self.QE_at, self.QE_bg, 
-                                                 self.QE_nsymq, self.QE_s, self.QE_invs, 0)
+                                                 self.QE_nsym, self.QE_s, self.QE_invs, 0)
         
-            print ("START WITH Q:", q)
-            print ("FOUND STAR:")
-            for jq in range(nq_new):
-                print (sxq[:, jq])
-            print ()
+            # print ("START WITH Q:", q)
+            # print ("FOUND STAR:")
+            # for jq in range(nq_new):
+            #     print (sxq[:, jq])
+            # print ()
             
-            print ("TELL ME THE BG:")
-            print (self.QE_bg.transpose())
+            # print ("TELL ME THE BG:")
+            # print (self.QE_bg.transpose())
+
+            # print("Manual star:")
+            # for k in range(self.QE_nsym):
+            #     trial_q = q.dot(self.QE_s[:,:, k])
+            #     distance_q = Methods.get_min_dist_into_cell(self.QE_bg.T, trial_q, q)
+            #     distance_mq =  Methods.get_min_dist_into_cell(self.QE_bg.T, trial_q, -q)
+            #     print("trial_q : {} | DQ: {:.4f} | DMQ: {:.4f}".format(trial_q, distance_q, distance_mq ))
             
             # Prepare the star
             q_star = [sxq[:, k] for k in range(nq_new)]
@@ -239,7 +299,7 @@ class QE_Symmetry:
             # Pop out the q_star from the q_list
             for jq, q_instar in enumerate(q_star):
                 # Look for the q point in the star and pop them
-                print("q_instar:", q_instar)
+                #print("q_instar:", q_instar)
                 q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
                                                          np.array(q_instar), q_point) for q_point in q_list]
                 
@@ -251,7 +311,7 @@ class QE_Symmetry:
                                                          np.array(q_instar), q_point) for q_point in q_tot]
                 
                 q_index = np.argmin(q_dist)
-                print (q_indices, count_q, q_index)
+                #print (q_indices, count_q, q_index)
                 q_indices[count_q] = q_index
                 
                 count_q += 1
@@ -1061,7 +1121,7 @@ class QE_Symmetry:
             raise ImportError("Error, this function works only if spglib is available")
 
         # Get the symmetries
-        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), self.threshold)
+        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), symprec = self.threshold)
         symmetries = GetSymmetriesFromSPGLIB(spg_syms, regolarize= False)
 
         trans_irt = 0
@@ -1119,6 +1179,10 @@ class QE_Symmetry:
             irt = GetIRT(self.structure, sym)
             self.QE_translations_irt[:, i] = irt + 1
             self.QE_translations[:, i] = sym[:,3]
+
+        # For each symmetry operation, assign the inverse
+        self.QE_invs[:] = get_invs(self.QE_s, self.QE_nsym)
+        
                 
             
     def ApplyTranslationsToVector(self, vector):
@@ -2136,6 +2200,206 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
         return pol_symmetries
         
 
+def get_degeneracies(w):
+    """
+    GET THE SUBSPACES OF DEGENERACIES
+    =================================
+
+    From the given frequencies, for each mode returns a list of the indices of the modes of degeneracies.
+
+    Parameters
+    ----------
+        w : ndarray(n_modes)   
+            Frequencies
+    
+    Results
+    -------
+        deg_list : list of lists
+            A list that contains, for each mode, the list of the modes (indices) that are degenerate with the latter one
+    """
+
+
+    n_modes = len(w)
+
+    ret_list = []
+    for i in range(n_modes):
+        deg_list = np.arange(n_modes)[np.abs(w - w[i]) < 1e-8]
+        ret_list.append(deg_list)
+    return ret_list
+
+def get_diagonal_symmetry_polarization_vectors(pol_sc, w, pol_symmetries):
+    """
+    GET THE POLARIZATION VECTORS THAT DIAGONALIZES THE SYMMETRIES
+    =============================================================
+
+    This function is very usefull to have a complex basis in which the application of symmetries
+    is trivial.
+
+    In this basis, each symmetry is diagonal.
+    Indeed this forces the polarization vectors to be complex in the most general case.
+
+    NOTE: To be tested, do not use for production run
+    It seems to be impossible to correctly decompose simmetries when we have multiple rotations.
+
+    If the symmetries are not unitary, an exception will be raised.
+
+    Parameters
+    ----------
+        pol_sc : ndarray(3*nat, n_modes)
+            The polarizaiton vectors in the supercell (obtained by DiagonalizeSupercell of the Phonon class)
+        w : ndarray(n_modes)
+            The frequency for each polarization vectors
+        pol_symmetries : ndarray(N_sym, n_modes, n_modes)
+            The Symmetry operator that acts on the polarization vector
+
+
+    Results
+    -------
+        pol_vects : ndarray(3*nat, n_modes)
+            The new (complex) polarization vectors that diagonalizes all the symmetries.
+        syms_values : ndarray(n_modes, n_sym)
+            The (complex) unitary eigenvalues of each symmetry operation along the given mode.
+    """
+    raise NotImplementedError("Error, this subroutine has not been implemented.")
+
+    # First we must get the degeneracies
+    deg_list = get_degeneracies(w) 
+
+    # Now perform the diagonalization on each degeneracies
+    final_vectors = np.zeros( pol_sc.shape, dtype = np.complex128)
+    final_vectors[:,:] = pol_sc.copy()
+
+    n_modes = len(w)
+    n_syms = pol_symmetries.shape[0]
+    skip_list = []
+
+    syms_values = np.zeros((n_modes, n_syms), dtype = np.complex128)
+
+    print("All modes:")
+    for i in range(n_modes):
+        print("Mode {} = {} cm-1  => ".format(i, w[i] * RY_TO_CM), deg_list[i])
+
+    print()
+    for i in range(n_modes):
+        if i in skip_list:
+            continue
+
+        # If we have no degeneracies, we can ignore it
+        if len(deg_list[i]) == 1:
+            continue 
+
+        partial_modes = np.zeros((len(deg_list[i]), len(deg_list[i])), dtype = np.complex128)
+        partial_modes[:,:] = np.eye(len(deg_list[i])) # identity matrix
+
+        mask_final = np.array([x in deg_list[i] for x in range(n_modes)])
+
+        # If we have degeneracies, lets diagonalize all the symmetries
+        for i_sym in range(n_syms):
+            skip_j = []
+            diagonalized = False
+            np.savetxt("sym_{}.dat".format(i_sym), pol_symmetries[i_sym, :,:])
+
+            
+            # Get the symmetry matrix in the mode space (this could generate a problem with masses)
+            ps = pol_symmetries[i_sym, :, :]
+            sym_mat_origin = ps[np.outer(mask_final, mask_final)].reshape((len(deg_list[i]), len(deg_list[i])))    
+
+            for j_mode in deg_list[i]:
+                if j_mode in skip_j:
+                    continue 
+
+                # Get the modes that can be still degenerate by symmetries
+                mode_dna = syms_values[j_mode, : i_sym]
+
+                # Avoid a bad error if i_sym = 0
+                if len(mode_dna) > 0:
+                    mode_space = [x for x in deg_list[i] if np.max(np.abs(syms_values[x, :i_sym] - mode_dna)) < 1e-3]
+                else:
+                    mode_space = [x for x in deg_list[i]]
+
+                # The mask for the whole symmetry and the partial_modes
+                mask_all = np.array([x in mode_space for x in np.arange(n_modes)])
+                mask_partial_mode = np.array([x in mode_space for x in deg_list[i]])
+                n_deg_new = np.sum(mask_all.astype(int))
+
+                if len(mode_space) == 1:
+                    continue
+
+                p_modes_new = partial_modes[:, mask_partial_mode]
+
+                
+                print()
+                print("SYMMETRY_INDEX:", i_sym)
+                print("SHAPE sym_mat_origin:", sym_mat_origin.shape)
+                print("MODES: {} | DEG: {}".format(mode_space, deg_list[i]))
+                print("SHAPE P_MODES_NEW:", p_modes_new.shape)
+                sym_mat = np.conj(p_modes_new.T).dot(sym_mat_origin.dot(p_modes_new))
+                
+                # Decompose in upper triangular (assures that eigenvectors are orthogonal)
+                s_eigvals_mat, s_eigvects = scipy.linalg.schur(sym_mat, output = "complex")
+                s_eigvals = np.diag(s_eigvals_mat)
+
+                # Check if the s_eigvals confirm the unitary of sym_mat
+                # TODO: Check if some mass must be accounted or not...
+                print("SYM_MAT")
+                print(sym_mat)
+                print("Eigvals:")
+                print(s_eigvals)
+                print("Eigval_mat:")
+                print(s_eigvals_mat)
+                print("Eigvects:")
+                print(s_eigvects)
+                assert np.max(np.abs(np.abs(s_eigvals) - 1)) < 1e-5, "Error, it seems that the {}-th matrix is not a rotation.".format(i_sym).format(sym_mat)
+
+                # Update the polarization vectors to account this diagonalization
+                partial_modes[:, mask_partial_mode] = p_modes_new.dot(s_eigvects)
+
+                # Add the symmetry character on the new eigen modes
+                for k_i, k in enumerate(mode_space):
+                    syms_values[k, i_sym] = s_eigvals[k_i]
+
+                # Now add the modes analyzed up to know to the skip
+                for x in mode_space:
+                    skip_j.append(x)
+                
+                diagonalized = True
+
+
+            # Now we diagonalized the space
+            # Apply the symmetries if we did not perform the diagonalization
+            if not diagonalized:
+                # Get the symmetrized matrix in the partial mode list:
+                sym_mat = np.conj(partial_modes.T).dot(sym_mat_origin.dot(partial_modes))
+
+                # Check that it is diagonal
+                s_eigvals = np.diag(sym_mat) 
+                disp = sym_mat - np.diag( s_eigvals)
+                if np.max(np.abs(disp)) > 1e-4:
+                    print("Matrix {}:".format(i_sym))
+                    print(sym_mat)
+                    raise ValueError("Error, I expect the symmetry {} to be diagonal".format(i_sym))
+
+                syms_values[k, i_sym] = s_eigvals[k_i]
+
+                # Add the symmetry character on the new eigen modes
+                for k_i, k in enumerate(deg_list[i]):
+                    syms_values[k, i_sym] = s_eigvals[k_i]
+                
+
+        # Now we solved our polarization vectors, add them to the final ones
+        final_vectors[:, mask_final] = pol_sc[:, mask_final].dot(partial_modes)       
+
+        # Do not further process the modes we used in this iteration
+        for mode in deg_list[i]:
+            skip_list.append(mode)
+
+
+    return final_vectors, syms_values
+
+
+
+
+
 def GetQForEachMode(pols_sc, unit_cell_structure, supercell_structure, \
     supercell_size, crystal = True):
     """
@@ -2318,3 +2582,39 @@ def ApplyTranslationsToSupercell(fc_matrix, super_cell_structure, supercell):
     for i in range(natsc):
         for j in range(natsc):
             fc_matrix[3*i : 3*(i+1), 3*j : 3*(j+1)] = new_v2[:, :, i, j]
+
+
+
+def get_invs(QE_s, QE_nsym):
+    """
+    GET INVERSION SYMMETRY
+    ======================
+
+    For each symmetry operation, get an index that its inverse
+    Note, the array must be in Fortran indexing (starts from 1)
+
+    Parameters
+    ----------
+        QE_s : ndarray(size = (3,3,48), dtype = np.intc)
+            The symmetries
+        QE_nsym : int
+            The number of symmetries    
+    
+    Results
+    -------
+        QE_invs : ndarray(size = 48, dtype = np.intc)
+            The index of the inverse symmetry.
+            In fortran indexing (1 => index 0)
+    """
+    QE_invs = np.zeros(48, dtype = np.intc)
+    for i in range(QE_nsym):
+        found = False
+        for j in range(QE_nsym):
+            if (QE_s[:,:,i].dot(QE_s[:,:,j]) == QE_s[:,:,0]).all():
+                QE_invs[i] = j + 1 # Fortran index
+                found = True
+        
+        if not found:
+            warnings.warn("This is not a group, some features like Q star division may fail.")
+            
+    return QE_invs
