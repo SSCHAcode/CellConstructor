@@ -1288,7 +1288,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                     freqoldold=freqold
                     for i in range(numiter):
                         x=findne(freqold,e0,de) 
-                        if i==0: xbanale=x    
+                        if i==0: xtriv=x    
                         freqshifted=np.real(z[iq,x-1,ism,ifreq]) # Re(z) is the shifted freq
                         if abs(freqshifted-freqold)<eps:
                             break
@@ -1303,22 +1303,23 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                     res[iq,ifreq,0]=freqshifted
                     res[iq,ifreq,1]=-np.imag(z[iq,x-1,ism,ifreq])
                     #
-                    res_os[iq,ifreq,0]=np.real(z[iq,xbanale-1,ism,ifreq])                 
-                    res_os[iq,ifreq,1]=-np.imag(z[iq,xbanale-1,ism,ifreq]) 
+                    res_os[iq,ifreq,0]=np.real(z[iq,xtriv-1,ism,ifreq])                 
+                    res_os[iq,ifreq,1]=-np.imag(z[iq,xtriv-1,ism,ifreq]) 
                     #
-                    res_pert[iq,ifreq,0]=np.real(z_pert[iq,xbanale-1,ism,ifreq])                 
-                    res_pert[iq,ifreq,1]=-np.imag(z_pert[iq,xbanale-1,ism,ifreq])                     
+                    res_pert[iq,ifreq,0]=np.real(z_pert[iq,xtriv-1,ism,ifreq])                 
+                    res_pert[iq,ifreq,1]=-np.imag(z_pert[iq,xtriv-1,ism,ifreq])                     
         else:
             res_os=np.zeros((len(q_path),n_mod,2),dtype=np.float64)   #   frequenze shifted e linewidht one shot             
             res_pert=np.zeros((len(q_path),n_mod,2),dtype=np.float64) #   frequenze shifted e linewidht perturbativ        
             for iq,leng in enumerate(x_length):
                 for ifreq in range(n_mod):        
+                    xtriv=findne(wq[iq,ifreq],e0,de)
                     #
-                    res_os[iq,ifreq,0]=np.real(z[iq,xbanale-1,ism,ifreq])                 
-                    res_os[iq,ifreq,1]=-np.imag(z[iq,xbanale-1,ism,ifreq]) 
+                    res_os[iq,ifreq,0]=np.real(z[iq,xtriv-1,ism,ifreq])                 
+                    res_os[iq,ifreq,1]=-np.imag(z[iq,xtriv-1,ism,ifreq]) 
                     #
-                    res_pert[iq,ifreq,0]=np.real(z_pert[iq,xbanale-1,ism,ifreq])                 
-                    res_pert[iq,ifreq,1]=-np.imag(z_pert[iq,xbanale-1,ism,ifreq])         
+                    res_pert[iq,ifreq,0]=np.real(z_pert[iq,xtriv-1,ism,ifreq])                 
+                    res_pert[iq,ifreq,1]=-np.imag(z_pert[iq,xtriv-1,ism,ifreq])         
         
         # =======================
         # v2_freq, shift, hwhm
