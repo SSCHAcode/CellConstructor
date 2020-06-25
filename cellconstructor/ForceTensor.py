@@ -522,7 +522,7 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = True, verbose = False, asr_range = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -623,105 +623,105 @@ class Tensor2(GenericTensor):
     
 
 
-    def GenerateSupercellTensor(self, supercell):
-        """
-        GENERATE SUPERCELL TENSOR
-        =========================
+    # def GenerateSupercellTensor(self, supercell):
+    #     """
+    #     GENERATE SUPERCELL TENSOR
+    #     =========================
 
-        This function returns a tensor defined in the supercell
-        filling to zero all the elemets that have a minimum distance
-        greater than the one defined in the current tensor.
-        This is the key to interpolate.
+    #     This function returns a tensor defined in the supercell
+    #     filling to zero all the elemets that have a minimum distance
+    #     greater than the one defined in the current tensor.
+    #     This is the key to interpolate.
 
-        The supercell atoms are defined using the generate_supercell
-        method from the self.structure, so that is the link 
-        between indices of the returned tensor and atoms in the supercell.
+    #     The supercell atoms are defined using the generate_supercell
+    #     method from the self.structure, so that is the link 
+    #     between indices of the returned tensor and atoms in the supercell.
 
-        Parameters
-        ----------
-            - supercell : (nx, ny, nz)
-                The dimension of the supercell in which
-                you want to compute the supercell tensor
+    #     Parameters
+    #     ----------
+    #         - supercell : (nx, ny, nz)
+    #             The dimension of the supercell in which
+    #             you want to compute the supercell tensor
 
-        Results
-        -------
-            - tensor : ndarray(size = ( 3*natsc, 3*natsc))
-                A tensor defined in the given supercell.
-        """
+    #     Results
+    #     -------
+    #         - tensor : ndarray(size = ( 3*natsc, 3*natsc))
+    #             A tensor defined in the given supercell.
+    #     """
 
-        # TODO: ADD THE MULTIPLICITY COUNT ON THE SUPERCELL
+    #     # TODO: ADD THE MULTIPLICITY COUNT ON THE SUPERCELL
 
-        super_structure, itau = self.structure.generate_supercell(supercell, get_itau = True)
+    #     super_structure, itau = self.structure.generate_supercell(supercell, get_itau = True)
 
-        nat_sc = super_structure.N_atoms
-        new_tensor = np.zeros((3 * nat_sc, 3*nat_sc), dtype = np.double)
+    #     nat_sc = super_structure.N_atoms
+    #     new_tensor = np.zeros((3 * nat_sc, 3*nat_sc), dtype = np.double)
 
-        print("Unit cell coordinates:")
-        print("\n".join(["{:3d}) {}".format(i, self.structure.coords[i, :]) for i in range(self.structure.N_atoms)]))
-        print("Supercell coordinates:")
-        print("\n".join(["{:3d}) {}".format(i, super_structure.coords[i, :]) for i in range(super_structure.N_atoms)]))
+    #     print("Unit cell coordinates:")
+    #     print("\n".join(["{:3d}) {}".format(i, self.structure.coords[i, :]) for i in range(self.structure.N_atoms)]))
+    #     print("Supercell coordinates:")
+    #     print("\n".join(["{:3d}) {}".format(i, super_structure.coords[i, :]) for i in range(super_structure.N_atoms)]))
 
 
 
-        nat, nat_sc_old, _ = np.shape(self.r_vectors) 
+    #     nat, nat_sc_old, _ = np.shape(self.r_vectors) 
         
-        for i in range(nat_sc):
-            i_cell = itau[i] 
-            for j in range(nat_sc):
+    #     for i in range(nat_sc):
+    #         i_cell = itau[i] 
+    #         for j in range(nat_sc):
 
-                r_vector = super_structure.coords[i,:] - super_structure.coords[j,:]
-                r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
+    #             r_vector = super_structure.coords[i,:] - super_structure.coords[j,:]
+    #             r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
 
-                # Now average all the values that 
-                # share the same r vector 
-                #dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
-                #mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                #mask = np.array(mask)
+    #             # Now average all the values that 
+    #             # share the same r vector 
+    #             #dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
+    #             #mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+    #             #mask = np.array(mask)
 
-                mask = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], r_vector)
+    #             mask = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], r_vector)
 
-                if i == 4 and j == 11:
-                    print("i = {}, j = {}".format(i, j))
-                    print("r vector = {}".format(r_vector))
-                    print("mask = {}".format(mask))
+    #             if i == 4 and j == 11:
+    #                 print("i = {}, j = {}".format(i, j))
+    #                 print("r vector = {}".format(r_vector))
+    #                 print("mask = {}".format(mask))
 
-                # Apply the tensor
-                n_elements1 = np.sum(mask.astype(int))
-                n_elements2 = 0
+    #             # Apply the tensor
+    #             n_elements1 = np.sum(mask.astype(int))
+    #             n_elements2 = 0
 
-                # if n_elements1 == 0:
-                #     print("ZERO:")
-                #     print("itau[{}] = {}".format(i, i_cell))
-                #     print("r to find:", new_r_vector)
-                #     print("r vectors:")
-                #     for k in range(nat_sc_old):
-                #         print("{}) {:12.6f} {:12.6f} {:12.6f}".format(k+1, *list(self.r_vectors[i_cell, k, :])))
-                #     print()
-                if n_elements1 > 0:
-                    #print("Apply element {} {} | n = {}".format(i, j, n_elements1))
-                    tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements1
-                    #print(tens)
-                    new_tensor[3*i: 3*i+3, 3*j:3*j+3] = tens 
+    #             # if n_elements1 == 0:
+    #             #     print("ZERO:")
+    #             #     print("itau[{}] = {}".format(i, i_cell))
+    #             #     print("r to find:", new_r_vector)
+    #             #     print("r vectors:")
+    #             #     for k in range(nat_sc_old):
+    #             #         print("{}) {:12.6f} {:12.6f} {:12.6f}".format(k+1, *list(self.r_vectors[i_cell, k, :])))
+    #             #     print()
+    #             if n_elements1 > 0:
+    #                 #print("Apply element {} {} | n = {}".format(i, j, n_elements1))
+    #                 tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements1
+    #                 #print(tens)
+    #                 new_tensor[3*i: 3*i+3, 3*j:3*j+3] = tens 
 
-                # NOTE: Here maybe a problem arising from the
-                # double transpose inside the same unit cell
-                # If the share a -1 with the vector then we found the transposed element
-                if n_elements1 == 0:
-                    #dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
-                    mask2 = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], -r_vector)
-                    #mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                    #mask2 = np.array(mask2)
-                    n_elements2 = np.sum(mask2.astype(int))
-                    if n_elements2 > 0:
-                        tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements2
-                        new_tensor[3*j:3*j+3, 3*i:3*i+3] = tens
+    #             # NOTE: Here maybe a problem arising from the
+    #             # double transpose inside the same unit cell
+    #             # If the share a -1 with the vector then we found the transposed element
+    #             if n_elements1 == 0:
+    #                 #dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
+    #                 mask2 = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], -r_vector)
+    #                 #mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+    #                 #mask2 = np.array(mask2)
+    #                 n_elements2 = np.sum(mask2.astype(int))
+    #                 if n_elements2 > 0:
+    #                     tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements2
+    #                     new_tensor[3*j:3*j+3, 3*i:3*i+3] = tens
 
                 
-                #print("Elements {}, {} | r_vector = {} | n1 = {} | n2 = {}".format(i+1, j+1, r_vector, n_elements1, n_elements2))
+    #             #print("Elements {}, {} | r_vector = {} | n1 = {} | n2 = {}".format(i+1, j+1, r_vector, n_elements1, n_elements2))
 
-        return new_tensor
+    #     return new_tensor
 
-    def GeneratePhonons(self, supercell, asr = True):
+    def GeneratePhonons(self, supercell, asr = False):
         """
         GENERATE PHONONS
         ================
@@ -758,7 +758,7 @@ class Tensor2(GenericTensor):
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = self.Interpolate(q_vector, asr = asr)
+            dynq = np.conj(self.Interpolate(q_vector, asr = asr))
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
@@ -820,44 +820,44 @@ class Tensor2(GenericTensor):
         return r_total[sort_mask], max_intensity[sort_mask]
 
 
-    def ApplyKaiserWindow(self, rmax, beta=14, N_sampling = 1000):
-        """
-        Apply a Kaiser-Bessel window to the signal. 
-        This is the best tool to perform the interpolation.
+    # def ApplyKaiserWindow(self, rmax, beta=14, N_sampling = 1000):
+    #     """
+    #     Apply a Kaiser-Bessel window to the signal. 
+    #     This is the best tool to perform the interpolation.
 
-        Each element of the tensor is multiplied by the kaiser
-        function with the given parameters.
-        The kaiser function is computed on the corresponding value of distance
+    #     Each element of the tensor is multiplied by the kaiser
+    #     function with the given parameters.
+    #     The kaiser function is computed on the corresponding value of distance
 
-        Parameters
-        ----------
-            - rmax : float
-                The maximum distance on which the window is defined.
-                All that is outside rmax is setted to 0
-            - beta : float
-                The shape of the Kaiser window.
-                For beta = 0 the window is a rectangular function, 
-                for beta = 14 it resample a gaussian. The higher beta, the
-                narrower the window.
-            - N_sampling : int
-                The sampling of the kaiser window.
-        """
+    #     Parameters
+    #     ----------
+    #         - rmax : float
+    #             The maximum distance on which the window is defined.
+    #             All that is outside rmax is setted to 0
+    #         - beta : float
+    #             The shape of the Kaiser window.
+    #             For beta = 0 the window is a rectangular function, 
+    #             for beta = 14 it resample a gaussian. The higher beta, the
+    #             narrower the window.
+    #         - N_sampling : int
+    #             The sampling of the kaiser window.
+    #     """
 
-        kaiser_data = scipy.signal.kaiser(N_sampling, beta)
+    #     kaiser_data = scipy.signal.kaiser(N_sampling, beta)
 
-        # Build the kaiser function
-        r_value = np.linspace(-rmax, rmax, N_sampling)
-        kaiser_function = scipy.interpolate.interp1d(r_value, kaiser_data, bounds_error=False, fill_value= 0)
+    #     # Build the kaiser function
+    #     r_value = np.linspace(-rmax, rmax, N_sampling)
+    #     kaiser_function = scipy.interpolate.interp1d(r_value, kaiser_data, bounds_error=False, fill_value= 0)
 
-        # Build the kaiser window
-        kaiser_window = kaiser_function(self.distances)
+    #     # Build the kaiser window
+    #     kaiser_window = kaiser_function(self.distances)
 
-        nat, nat_sc = np.shape(self.distances)
+    #     nat, nat_sc = np.shape(self.distances)
 
-        # Apply the kaiser window on the tensor
-        for i in range(nat):
-            for j in range(nat_sc):
-                self.tensor[i, j, :, :] *= kaiser_window[i,j]
+    #     # Apply the kaiser window on the tensor
+    #     for i in range(nat):
+    #         for j in range(nat_sc):
+    #             self.tensor[i, j, :, :] *= kaiser_window[i,j]
 
 
 # Third order force constant tensor
