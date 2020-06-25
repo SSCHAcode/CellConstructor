@@ -27,7 +27,7 @@ def test_centering():
 
     # We initialize the tensor with the 3n,3n,3n numpy matrix
     print("Initializing the tensor3...")
-    tensor.Setup(d3)
+    tensor.SetupFromTensor(d3)
 
     tensor.WriteOnFile("tensor_original.dat")
 
