@@ -511,7 +511,7 @@ class Tensor2(GenericTensor):
             print("  ")      
             
             with open(fname, "w") as f:
-                #TODD Print header...
+                #TODO Print header...
 
                 for nat1 in range(self.nat):
                     for nat2 in range(self.nat):
@@ -730,6 +730,10 @@ class Tensor2(GenericTensor):
         transform back into the dynamical matrix with the correct q.
 
         It might be that the new dynamical matrix should be symmetrized.
+
+        NOTE: The Interpolate method uses a different convension of the Fourier Transform.
+        For this reason, this method returns the Complex Cojugate of the matrices interpolated at the q points.
+        This has been fixed, by manually computing the complex conjugate before the return
         
 
         Parameters
