@@ -5,6 +5,7 @@ from __future__ import division
 import cellconstructor.Phonons as Phonons
 import cellconstructor.Methods as Methods 
 import cellconstructor.symmetries as symmetries
+import cellconstructor.Units as Units
 
 import cellconstructor.Settings as Settings
 from cellconstructor.Settings import ParallelPrint as print 
@@ -66,6 +67,16 @@ class Tensor2(GenericTensor):
         self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
         self.n_sup = np.prod(supercell_size)
 
+        # Prepare the initialization of the effective charges
+        self.effective_charges = None
+        self.dielectric_tensor = None
+
+        # Prepare the values ready to be used inside quantum espresso Fortran subroutines
+        self.QE_tau = None
+        self.QE_omega = None
+        self.QE_zeu = None 
+        self.QE_bg = None
+
     def SetupFromPhonons(self, phonons):
         """
         SETUP FROM PHONONS
@@ -78,8 +89,48 @@ class Tensor2(GenericTensor):
             - phonons : Phonons.Phonons()
                 The dynamical matrix from which you want to setup the tensor
         """
+
+        current_dyn = phonons.Copy()
+
+        # Check if the dynamical matrix has the effective charges
+        if phonons.effective_charges is not None:
+            self.effective_charges = current_dyn.effective_charges.copy()
+            assert current_dyn.dielectric_tensor is not None, "Error, effective charges provided, but not the dielectric tensor."
+            
+            self.dielectric_tensor = current_dyn.dielectric_tensor.copy()
+
+            # Prepare the coordinates in Bohr for usage in QE subroutines
+            self.QE_tau = np.zeros((3, self.nat), dtype = np.double, order = "F")
+            self.QE_tau[:,:] = self.tau.T * Units.A_TO_BOHR
+            self.QE_zeu = np.zeros((3,3,self.nat), dtype = np.double, order = "F")
+            self.QE_zeu[:,:,:] = np.einsum("sij->ijs", self.effective_charges) # Swap axis (we hope they are good)
+            self.QE_bg = np.zeros((3,3), dtype = np.double, order = "F")
+            bg = self.unitcell_structure.get_reciprocal_vectors()
+            self.QE_bg[:,:] = bg.T / (2*np.pi * Units.A_TO_BOHR)
+            self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
+
+            # Subtract the long range interaction for any value of gamma.
+            dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
+            for iq, q in enumerate(current_dyn.q_tot):
+                # Fill the temporany dynamical matrix in the correct fortran subroutine
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        dynq[:,:, i, j] = current_dyn.dynmats[iq][3*i: 3*i+3, 3*j : 3*j+3]
+
+                # Lets go in QE units
+                QE_q = q / Units.A_TO_BOHR
+
+                # Remove the long range interaction from the dynamical matrix
+                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, -1.0, self.nat)
+
+                # Copy it back into the current_dynamical matrix
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        current_dyn.dynmats[iq][3*i: 3*i+3, 3*j: 3*j+3] = dynq[:,:, i, j]
+
+
         # Get the dynamical matrix in the supercell
-        super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
+        super_dyn = current_dyn.GenerateSupercellDyn(phonons.GetSupercell())
 
         # Setup from the supercell dynamical matrix
         self.SetupFromTensor(super_dyn.dynmats[0])
@@ -549,10 +600,27 @@ class Tensor2(GenericTensor):
 
         final_fc = np.zeros((3*self.nat, 3*self.nat), dtype = np.complex128)
 
+        # Perform the fourier transform of the short range real space tensor.
         for i in range(self.n_R):
             arg = 2 * np.pi * (q2.dot(self.r_vector2[:, i]))
             phase = np.exp(np.complex128(-1j) * arg)
             final_fc += phase * self.tensor[i, :, :]
+
+        # If effective charges are present, then add the nonanalitic part
+        if self.effective_charges is not None:
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
+            
+            # Add the nonanalitic part back
+            QE_q = q2 / Units.A_TO_BOHR
+            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, +1.0, self.nat)
+
+            # Copy in the final fc the result
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    final_fc[3*i : 3*i+3, 3*j:3*j+3] = dynq[:,:, i, j]
 
         # Apply the acoustic sum rule
         if asr:

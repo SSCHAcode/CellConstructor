@@ -11,7 +11,7 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,sign)
   use kinds, only: dp
   use constants, only: pi, fpi, e2
   implicit none
-  integer ::  nr1, nr2, nr3    !  FFT grid
+  integer ::  nr1, nr2, nr3    !  1D, 2D or 3D? (to see how)
   integer ::  nat              ! number of atoms
   complex(DP) :: dyn(3,3,nat,nat) ! dynamical matrix
   real(DP) &
