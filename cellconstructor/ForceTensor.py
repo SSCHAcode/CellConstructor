@@ -94,6 +94,7 @@ class Tensor2(GenericTensor):
 
         # Check if the dynamical matrix has the effective charges
         if phonons.effective_charges is not None:
+            time1 = time.time()
             self.effective_charges = current_dyn.effective_charges.copy()
             assert current_dyn.dielectric_tensor is not None, "Error, effective charges provided, but not the dielectric tensor."
             
@@ -103,34 +104,55 @@ class Tensor2(GenericTensor):
             self.QE_tau = np.zeros((3, self.nat), dtype = np.double, order = "F")
             self.QE_tau[:,:] = self.tau.T * Units.A_TO_BOHR
             self.QE_zeu = np.zeros((3,3,self.nat), dtype = np.double, order = "F")
-            self.QE_zeu[:,:,:] = np.einsum("sij->ijs", self.effective_charges) # Swap axis (we hope they are good)
+            self.QE_zeu[:,:,:] = np.einsum("sij->jis", self.effective_charges) # Swap axis (we hope they are good)
             self.QE_bg = np.zeros((3,3), dtype = np.double, order = "F")
             bg = self.unitcell_structure.get_reciprocal_vectors()
             self.QE_bg[:,:] = bg.T / (2*np.pi * Units.A_TO_BOHR)
             self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
+            alat = 1.0
 
             # Subtract the long range interaction for any value of gamma.
             dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
             for iq, q in enumerate(current_dyn.q_tot):
+
+                t1 = time.time()
                 # Fill the temporany dynamical matrix in the correct fortran subroutine
                 for i in range(self.nat):
                     for j in range(self.nat):
                         dynq[:,:, i, j] = current_dyn.dynmats[iq][3*i: 3*i+3, 3*j : 3*j+3]
+                t3 = time.time()
 
                 # Lets go in QE units
                 QE_q = q / Units.A_TO_BOHR
 
                 # Remove the long range interaction from the dynamical matrix
-                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, -1.0, self.nat)
+                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, alat, 0, -1.0, self.nat)
 
                 # Copy it back into the current_dynamical matrix
                 for i in range(self.nat):
                     for j in range(self.nat):
                         current_dyn.dynmats[iq][3*i: 3*i+3, 3*j: 3*j+3] = dynq[:,:, i, j]
 
+                t2 = time.time()
+                if self.verbose:
+                    print("Time for the step {} / {}: {} s".format(iq+1, len(current_dyn.q_tot), t2 - t1))
+                    print("(The preparation of the dynq: {} s)".format(t3 - t1))
+                    print("NAT:", self.nat)
+
+
+
+            time2 = time.time()
+
+            if self.verbose:
+                print("Time to prepare the effective charges: {} s".format(time2 - time1))
 
         # Get the dynamical matrix in the supercell
+        time3 = time.time()
         super_dyn = current_dyn.GenerateSupercellDyn(phonons.GetSupercell())
+        time4 = time.time()
+
+        if self.verbose:
+            print("Time to generate the real space force constant matrix: {} s".format(time4 - time3))
 
         # Setup from the supercell dynamical matrix
         self.SetupFromTensor(super_dyn.dynmats[0])
@@ -608,6 +630,7 @@ class Tensor2(GenericTensor):
 
         # If effective charges are present, then add the nonanalitic part
         if self.effective_charges is not None:
+            alat = 1.0
             dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
             for i in range(self.nat):
                 for j in range(self.nat):
@@ -615,7 +638,7 @@ class Tensor2(GenericTensor):
             
             # Add the nonanalitic part back
             QE_q = q2 / Units.A_TO_BOHR
-            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, +1.0, self.nat)
+            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, alat, 0, +1.0, self.nat)
 
             # Copy in the final fc the result
             for i in range(self.nat):
