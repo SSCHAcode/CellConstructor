@@ -77,6 +77,11 @@ class Tensor2(GenericTensor):
         self.QE_zeu = None 
         self.QE_bg = None
 
+        # NOTE: this QE_alat is not the unit of measure like in QE subroutines,
+        # But rather the dimension of the first unit-cell vector in Bohr.
+        # It is used for computing the ideal integration size in rgd_blk from symph
+        self.QE_alat = None 
+
     def SetupFromPhonons(self, phonons):
         """
         SETUP FROM PHONONS
@@ -109,7 +114,10 @@ class Tensor2(GenericTensor):
             bg = self.unitcell_structure.get_reciprocal_vectors()
             self.QE_bg[:,:] = bg.T / (2*np.pi * Units.A_TO_BOHR)
             self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
-            alat = 1.0
+
+            # The typical distance in the cell
+            self.QE_alat = np.sqrt(np.sum(self.unitcell_structure.unit_cell[0, :]**2))
+            self.QE_alat *= Units.A_TO_BOHR
 
             # Subtract the long range interaction for any value of gamma.
             dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
@@ -126,7 +134,7 @@ class Tensor2(GenericTensor):
                 QE_q = q / Units.A_TO_BOHR
 
                 # Remove the long range interaction from the dynamical matrix
-                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, alat, 0, -1.0, self.nat)
+                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, QE_alat, 0, -1.0, self.nat)
 
                 # Copy it back into the current_dynamical matrix
                 for i in range(self.nat):
@@ -638,7 +646,7 @@ class Tensor2(GenericTensor):
             
             # Add the nonanalitic part back
             QE_q = q2 / Units.A_TO_BOHR
-            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, alat, 0, +1.0, self.nat)
+            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, +1.0, self.nat)
 
             # Copy in the final fc the result
             for i in range(self.nat):

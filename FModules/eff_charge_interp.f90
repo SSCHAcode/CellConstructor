@@ -191,7 +191,7 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
         at(3,3),        &! direct     lattice basis vectors
         bg(3,3),        &! reciprocal lattice basis vectors
         omega,          &! unit cell volume
-        alat,           &! cell dimension units 
+        alat,           &! cell dimension units (The dimension of the first unit cell vector in Bohr)
         sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
    logical :: loto_2d ! 2D LOTO correction 
    !
@@ -243,19 +243,19 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
    if (nr1 == 1) then
       nr1x=0
    else
-      nr1x = int ( sqrt (geg) / &
+      nr1x = int ( sqrt (geg) * alat / &
                    sqrt (bg (1, 1) **2 + bg (2, 1) **2 + bg (3, 1) **2) ) + 1
    endif
    if (nr2 == 1) then
       nr2x=0
    else
-      nr2x = int ( sqrt (geg) / &
+      nr2x = int ( sqrt (geg) * alat / &
                    sqrt (bg (1, 2) **2 + bg (2, 2) **2 + bg (3, 2) **2) ) + 1
    endif
    if (nr3 == 1) then
       nr3x=0
    else
-      nr3x = int ( sqrt (geg) / &
+      nr3x = int ( sqrt (geg) * alat / &
                    sqrt (bg (1, 3) **2 + bg (2, 3) **2 + bg (3, 3) **2) ) + 1
    endif
    !
@@ -267,7 +267,7 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
         call errore ('rgd_blk',' wrong value for sign ',1)
    !
    IF (loto_2d) THEN 
-      fac = sign*e2*fpi/omega*0.5d0*alat/bg(3,3)
+      fac = sign*e2*fpi/omega*0.5d0/bg(3,3)
       reff=0.0d0
       DO i=1,2
          DO j=1,2
