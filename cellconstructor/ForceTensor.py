@@ -638,7 +638,6 @@ class Tensor2(GenericTensor):
 
         # If effective charges are present, then add the nonanalitic part
         if self.effective_charges is not None:
-            alat = 1.0
             dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
             for i in range(self.nat):
                 for j in range(self.nat):
