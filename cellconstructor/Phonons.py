@@ -1121,7 +1121,7 @@ class Phonons:
             # Here save the Dielectric tensor, the effective charges and the Raman response
             if not self.dielectric_tensor is None:
                 fp.write("\n")
-                fp.write("    Dielectric Tensor:\n")
+                fp.write("     Dielectric Tensor:\n")
                 fp.write("\n")
                 for i in range(3):
                     fp.write("{:24.12f} {:24.12f} {:24.12f}\n".format(*list(self.dielectric_tensor[i,:])))
@@ -1569,7 +1569,7 @@ class Phonons:
 
 
 
-    def GenerateSupercellDyn(self, supercell_size):
+    def GenerateSupercellDyn(self, supercell_size, img_thr = 1e-6):
         """
         GENERATE SUPERCEL DYN
         =====================
@@ -1602,9 +1602,37 @@ class Phonons:
         
         dyn_supercell = Phonons(super_struct, nqirr = 1)
         
-        dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size)
+        dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size, img_thr = img_thr)
         
         return dyn_supercell
+
+
+    def GetMatrixCFFT(self):
+        """
+        Generate the dynamical matrix ready for the Fast Fourier Transform.
+        This is an alternative way to go in real space.
+        NOTE: Use only for debug purpouses
+        """
+
+        s1, s2, s3 = self.GetSupercell() 
+        nat = self.structure.N_atoms
+        output_dyn = np.zeros((s1, s2, s3, 3 * nat, 3 * nat), dtype = np.complex128, order = "F")
+
+        super_struct = self.structure.generate_supercell((s1,s2,s3))
+        bg = super_struct.get_reciprocal_vectors() / (2 * np.pi)
+
+        for iq, q in enumerate(self.q_tot):
+            x_vect = Methods.covariant_coordinates(bg, q)
+            x1 = int((x_vect[0] + s1) % s1 + .5)
+            x2 = int((x_vect[1] + s2) % s2 + .5)
+            x3 = int((x_vect[2] + s3) % s3 + .5)
+
+            print("Q = ", q, "| xv:", x_vect, "x = ", x1, x2,x3)
+
+            output_dyn[x1, x2, x3, :, :] = self.dynmats[iq]
+
+        return output_dyn            
+
             
     def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None):
         """
@@ -2204,7 +2232,7 @@ class Phonons:
         return energy, forces
         
     
-    def GetRealSpaceFC(self, supercell_array = (1,1,1), super_structure = None):
+    def GetRealSpaceFC(self, supercell_array = (1,1,1), super_structure = None, img_thr = 1e-6):
         """
         GET THE REAL SPACE FORCE CONSTANT 
         =================================
@@ -2255,7 +2283,7 @@ class Phonons:
         for i, q in enumerate(self.q_tot):
             dynmat[i, :,:] = self.dynmats[i]
             
-        fc = GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), self.structure, super_structure)
+        fc = GetSupercellFCFromDyn(dynmat, np.array(self.q_tot), self.structure, super_structure, img_thr = img_thr)
         return fc
         
 #        
@@ -3177,7 +3205,7 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
     
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, imag_thr = 1e-6):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, img_thr = 1e-6):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================
@@ -3277,7 +3305,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     Error, the imaginary part of the real space force constant 
     is not zero. IMAG={}
     """
-    assert imag < imag_thr, ASSERT_ERROR.format(imag)
+    assert imag < img_thr, ASSERT_ERROR.format(imag)
     
     return fc
 
