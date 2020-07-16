@@ -92,19 +92,19 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
       nr1x=0
    else
       nr1x = int ( sqrt (geg) / &
-                   (alat_new * sqrt (bg (1, 1) **2 + bg (2, 1) **2 + bg (3, 1) **2) )) + 1
+                   (sqrt (bg (1, 1) **2 + bg (2, 1) **2 + bg (3, 1) **2) )) + 1
    endif
    if (nr2 == 1) then
       nr2x=0
    else
       nr2x = int ( sqrt (geg) / &
-                   (alat_new * sqrt (bg (1, 2) **2 + bg (2, 2) **2 + bg (3, 2) **2) )) + 1
+                   ( sqrt (bg (1, 2) **2 + bg (2, 2) **2 + bg (3, 2) **2) )) + 1
    endif
    if (nr3 == 1) then
       nr3x=0
    else
       nr3x = int ( sqrt (geg) / &
-                   (alat_new * sqrt (bg (1, 3) **2 + bg (2, 3) **2 + bg (3, 3) **2) )) + 1
+                   (sqrt (bg (1, 3) **2 + bg (2, 3) **2 + bg (3, 3) **2) )) + 1
    endif
    !
  
