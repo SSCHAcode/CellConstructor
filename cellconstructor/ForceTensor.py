@@ -105,19 +105,21 @@ class Tensor2(GenericTensor):
             
             self.dielectric_tensor = current_dyn.dielectric_tensor.copy()
 
+            self.QE_alat = phonons.alat * Units.A_TO_BOHR
+
             # Prepare the coordinates in Bohr for usage in QE subroutines
             self.QE_tau = np.zeros((3, self.nat), dtype = np.double, order = "F")
-            self.QE_tau[:,:] = self.tau.T #* Units.A_TO_BOHR
+            self.QE_tau[:,:] = self.tau.T * Units.A_TO_BOHR / self.QE_alat
             self.QE_zeu = np.zeros((3,3,self.nat), dtype = np.double, order = "F")
             self.QE_zeu[:,:,:] = np.einsum("sij->ijs", self.effective_charges) # Swap axis (we hope they are good)
             self.QE_bg = np.zeros((3,3), dtype = np.double, order = "F")
             bg = self.unitcell_structure.get_reciprocal_vectors()
-            self.QE_bg[:,:] = bg.T / (2*np.pi)# * Units.A_TO_BOHR)
+            self.QE_bg[:,:] = bg.T * self.QE_alat / (2*np.pi * Units.A_TO_BOHR)
             self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
 
             # The typical distance in the cell
             #self.QE_alat = np.sqrt(np.sum(self.unitcell_structure.unit_cell[0, :]**2))
-            self.QE_alat = Units.A_TO_BOHR
+            #self.QE_alat = Units.A_TO_BOHR
 
             # Subtract the long range interaction for any value of gamma.
             dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
@@ -131,7 +133,7 @@ class Tensor2(GenericTensor):
                 t3 = time.time()
 
                 # Lets go in QE units
-                QE_q = q #/ Units.A_TO_BOHR
+                QE_q = q * self.QE_alat / Units.A_TO_BOHR
 
                 # Remove the long range interaction from the dynamical matrix
                 symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, -1.0, self.nat)
@@ -160,7 +162,6 @@ class Tensor2(GenericTensor):
         # Get the dynamical matrix in the supercell
         time3 = time.time()
         if self.verbose:
-            print("Symmetrization...")
             # Save the dynamical matrix before the symmetrization
             current_dyn.save_qe("dyn_nolong_range")
         
@@ -171,13 +172,19 @@ class Tensor2(GenericTensor):
 
 
         if self.verbose:
-            current_dyn.save_qe("dyn_nolong_range_sym")
             print("Generating Real space force constant matrix...")
+
+        # TODO: we could use the fft to speedup this
+        # fc_q = dyn.GetMatrixFFT()
+        # fc_real_space = np.conj(np.fft.fftn(np.conj(fc_q), axes = (0,1,2))) / np.prod(current_dyn.GetSupercell())
+        # fc_real_space is already in tensor form (first three indices the R_2 components, or maybe -R_2) in crystalline coordinates)
+        # It must be just rearranged in the correct tensor 
         super_dyn = current_dyn.GenerateSupercellDyn(phonons.GetSupercell(), img_thr  =1e-6)
         time4 = time.time()
 
         if self.verbose:
             print("Time to generate the real space force constant matrix: {} s".format(time4 - time3))
+            print("TODO: the last time could be speedup with the FFT algorithm.")
 
         # Setup from the supercell dynamical matrix
         self.SetupFromTensor(super_dyn.dynmats[0])
@@ -661,7 +668,7 @@ class Tensor2(GenericTensor):
                     dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
             
             # Add the nonanalitic part back
-            QE_q = q2 #/ Units.A_TO_BOHR
+            QE_q = -q2 * self.QE_alat / Units.A_TO_BOHR
             symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, +1.0, self.nat)
 
             # Copy in the final fc the result
