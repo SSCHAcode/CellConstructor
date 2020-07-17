@@ -161,9 +161,6 @@ class Tensor2(GenericTensor):
 
         # Get the dynamical matrix in the supercell
         time3 = time.time()
-        if self.verbose:
-            # Save the dynamical matrix before the symmetrization
-            current_dyn.save_qe("dyn_nolong_range")
         
         # Apply the acoustic sum rule (could be spoiled by the effective charges)
         #iq_gamma = np.argmin(np.sum(np.array(current_dyn.q_tot)**2, axis = 1))

@@ -6,7 +6,7 @@ import cellconstructor.ForceTensor
 import sys, os
 import time
 import numpy as np 
-
+import pytest
 
 def test_eff_charge_signle_q():
     total_path = os.path.dirname(os.path.abspath(__file__))
@@ -21,30 +21,23 @@ def test_eff_charge_signle_q():
     t2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
     t2.SetupFromPhonons(dyn)
 
+    time1 = time.time()
     t2.Center()
+    time2 = time.time()
+
+    print("Time to the full centerng:", time2 - time1, "s")
 
 
-    # Interpolate without effective charges
-    efc = t2.effective_charges.copy()
-    t2.effective_charges = None
 
-    dynq_short_range = t2.Interpolate(-q_vector, asr = False)
-
-    np.savetxt("DYNQ_shortrange.dat", dynq_short_range, header = "Q = {}".format(q_vector * dyn.alat))
-
-    t2.effective_charges = efc
     dynq_full = t2.Interpolate(-q_vector, asr = False)
 
-    np.savetxt("DYNQ_full.dat", dynq_full, header = "Q = {}".format(q_vector * dyn.alat))
+    test_dynmat = CC.Phonons.Phonons("matdyn_dyn", full_name= True)
 
-    new_dyn = dyn.Copy()
-    new_dyn.q_tot = [q_vector]
-    new_dyn.q_stars = [[q_vector]]
-    new_dyn.dynmats = [dynq_full]
-    new_dyn.nqirr = 1
-    new_dyn.save_qe("matdyn_python")
+    dist = np.max(np.abs(test_dynmat.dynmats[0] - dynq_full)) / np.max(np.abs(test_dynmat.dynmats[0]))
+
+    assert dist < 1e-4
     
-    
+@pytest.mark.skip(reason="Too long to be performed each commit")
 def test_eff_charge_interpolation():
     total_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(total_path)

@@ -45,39 +45,39 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
    alph= 1.0d0
    geg = gmax*alph*4.0d0
  
-   print *, ""
-   print *, "[RGD_BLK] Q = ", q
-   print *, "[RGD_BLK] NAT:", nat
-   print *, "[RGD_BLK] OMEGA:", omega
-   print *, "[RGD_BLK] ZEU:"
-   do i = 1, nat
-      do j = 1, 3
-         print *, zeu(:, j, i)
-      enddo
-   end do
-   print *, "[RGD_BLK] ALAT:", alat
-   print *, "[RGD_BLK] BG:"
-   do i = 1, 3
-      print *, bg(:, i)
-   end do
-   print *, "[RGD_BLK] TAU:"
-   do i = 1, nat
-      print *, tau(:, i)
-   end do
+   ! print *, ""
+   ! print *, "[RGD_BLK] Q = ", q
+   ! print *, "[RGD_BLK] NAT:", nat
+   ! print *, "[RGD_BLK] OMEGA:", omega
+   ! print *, "[RGD_BLK] ZEU:"
+   ! do i = 1, nat
+   !    do j = 1, 3
+   !       print *, zeu(:, j, i)
+   !    enddo
+   ! end do
+   ! print *, "[RGD_BLK] ALAT:", alat
+   ! print *, "[RGD_BLK] BG:"
+   ! do i = 1, 3
+   !    print *, bg(:, i)
+   ! end do
+   ! print *, "[RGD_BLK] TAU:"
+   ! do i = 1, nat
+   !    print *, tau(:, i)
+   ! end do
  
-   print *, "[RGD_BLK] EPSIL:"
-   do i = 1, 3
-      print *, epsil(:, i)
-   end do
+   ! print *, "[RGD_BLK] EPSIL:"
+   ! do i = 1, 3
+   !    print *, epsil(:, i)
+   ! end do
  
-   print *, "[RGD_BLK] DYN:"
-   do na = 1, nat
-      do nb = 1, nat
-         do i = 1, 3
-            print *,  dyn(:, i, na, nb)
-         end do
-      end do
-   end do
+   ! print *, "[RGD_BLK] DYN:"
+   ! do na = 1, nat
+   !    do nb = 1, nat
+   !       do i = 1, 3
+   !          print *,  dyn(:, i, na, nb)
+   !       end do
+   !    end do
+   ! end do
    
    ! Silicon 
    alat_new = 10.0d0
@@ -108,7 +108,7 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
    endif
    !
  
-   print *, "[RGD_BLK] integration grid:", nr1x, nr2x, nr3x
+   !print *, "[RGD_BLK] integration grid:", nr1x, nr2x, nr3x
    if (abs(sign) /= 1.0_DP) &
         call errore ('rgd_blk',' wrong value for sign ',1)
    !
@@ -223,23 +223,23 @@ subroutine rgd_blk (nr1,nr2,nr3,nat,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,si
    end do
  end do
  
- call cpu_time(time2)
- print *, "Elapsed time in rgd_blk: ", time2 - time1
+!  call cpu_time(time2)
+!  print *, "Elapsed time in rgd_blk: ", time2 - time1
  
  
-  print *, ""
-  print *, "[RGD_BLK] DYN FINAL:"
-  do na = 1, nat
-     do nb = 1, nat
-        do i = 1, 3
-           print *,  dyn(:, i, na, nb)
-        end do
-     end do
-  end do
+!   print *, ""
+!   print *, "[RGD_BLK] DYN FINAL:"
+!   do na = 1, nat
+!      do nb = 1, nat
+!         do i = 1, 3
+!            print *,  dyn(:, i, na, nb)
+!         end do
+!      end do
+!   end do
  
-  print *, ""
-  print *, ""
-  print *, "----------------------------------------------------"
+!   print *, ""
+!   print *, ""
+!  print *, "----------------------------------------------------"
  
   
  
