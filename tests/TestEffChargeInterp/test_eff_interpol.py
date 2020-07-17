@@ -35,7 +35,7 @@ def test_eff_charge_signle_q():
 
     dist = np.max(np.abs(test_dynmat.dynmats[0] - dynq_full)) / np.max(np.abs(test_dynmat.dynmats[0]))
 
-    assert dist < 1e-4
+    assert dist < 1e-5
     
 @pytest.mark.skip(reason="Too long to be performed each commit")
 def test_eff_charge_interpolation():
