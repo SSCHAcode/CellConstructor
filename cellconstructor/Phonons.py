@@ -1627,7 +1627,7 @@ class Phonons:
             x2 = int((x_vect[1] + s2) % s2 + .5)
             x3 = int((x_vect[2] + s3) % s3 + .5)
 
-            print("Q = ", q, "| xv:", x_vect, "x = ", x1, x2,x3)
+            #print("Q = ", q, "| xv:", x_vect, "x = ", x1, x2,x3)
 
             output_dyn[x1, x2, x3, :, :] = self.dynmats[iq]
 
