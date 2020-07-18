@@ -19,6 +19,8 @@ import cellconstructor.symmetries as symmetries
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
+import warnings
+
 # Import the Fortran Code
 import symph
 
@@ -2358,6 +2360,10 @@ class Phonons:
         then only the difference of the current dynamical matrix 
         with the support is interpolated. In this way you can easier achieve convergence.
 
+        NOTE: This method ignores effective charges. 
+        If you want to account for effective charges you should use the ForceTensor.Tensor2 class
+        to interpolate.
+
         
         Parameters
         ----------
@@ -2381,6 +2387,17 @@ class Phonons:
             interpolated_dyn : Phonons()
                 The dynamical matrix interpolated.
         """
+
+        if self.effective_charges is not None:
+            WARN_TXT="""
+WARNING: Effective charges are not accounted by this method
+         You should generate a ForceTensor.Tensor2 object
+         To account for the interpolation of long-range forces.
+            """
+
+            print(WARN_TXT)
+            warnings.warn(WARN_TXT, DeprecationWarning)
+
         
         # Check if the support dynamical matrix is given:
         is_dync = support_dyn_coarse is not None
