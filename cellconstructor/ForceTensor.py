@@ -5,6 +5,7 @@ from __future__ import division
 import cellconstructor.Phonons as Phonons
 import cellconstructor.Methods as Methods 
 import cellconstructor.symmetries as symmetries
+import cellconstructor.Units as Units
 
 import cellconstructor.Settings as Settings
 from cellconstructor.Settings import ParallelPrint as print 
@@ -66,6 +67,21 @@ class Tensor2(GenericTensor):
         self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
         self.n_sup = np.prod(supercell_size)
 
+        # Prepare the initialization of the effective charges
+        self.effective_charges = None
+        self.dielectric_tensor = None
+
+        # Prepare the values ready to be used inside quantum espresso Fortran subroutines
+        self.QE_tau = None
+        self.QE_omega = None
+        self.QE_zeu = None 
+        self.QE_bg = None
+
+        # NOTE: this QE_alat is not the unit of measure like in QE subroutines,
+        # But rather the dimension of the first unit-cell vector in Bohr.
+        # It is used for computing the ideal integration size in rgd_blk from symph
+        self.QE_alat = None 
+
     def SetupFromPhonons(self, phonons):
         """
         SETUP FROM PHONONS
@@ -78,8 +94,94 @@ class Tensor2(GenericTensor):
             - phonons : Phonons.Phonons()
                 The dynamical matrix from which you want to setup the tensor
         """
+
+        current_dyn = phonons.Copy()
+
+        # Check if the dynamical matrix has the effective charges
+        if phonons.effective_charges is not None:
+            time1 = time.time()
+            self.effective_charges = current_dyn.effective_charges.copy()
+            assert current_dyn.dielectric_tensor is not None, "Error, effective charges provided, but not the dielectric tensor."
+            
+            self.dielectric_tensor = current_dyn.dielectric_tensor.copy()
+
+            self.QE_alat = phonons.alat * Units.A_TO_BOHR
+
+            # Prepare the coordinates in Bohr for usage in QE subroutines
+            self.QE_tau = np.zeros((3, self.nat), dtype = np.double, order = "F")
+            self.QE_tau[:,:] = self.tau.T * Units.A_TO_BOHR / self.QE_alat
+            self.QE_zeu = np.zeros((3,3,self.nat), dtype = np.double, order = "F")
+            self.QE_zeu[:,:,:] = np.einsum("sij->ijs", self.effective_charges) # Swap axis (we hope they are good)
+            self.QE_bg = np.zeros((3,3), dtype = np.double, order = "F")
+            bg = self.unitcell_structure.get_reciprocal_vectors()
+            self.QE_bg[:,:] = bg.T * self.QE_alat / (2*np.pi * Units.A_TO_BOHR)
+            self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
+
+            # The typical distance in the cell
+            #self.QE_alat = np.sqrt(np.sum(self.unitcell_structure.unit_cell[0, :]**2))
+            #self.QE_alat = Units.A_TO_BOHR
+
+            # Subtract the long range interaction for any value of gamma.
+            dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
+            for iq, q in enumerate(current_dyn.q_tot):
+
+                t1 = time.time()
+                # Fill the temporany dynamical matrix in the correct fortran subroutine
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        dynq[:,:, i, j] = current_dyn.dynmats[iq][3*i: 3*i+3, 3*j : 3*j+3]
+                t3 = time.time()
+
+                # Lets go in QE units
+                QE_q = q * self.QE_alat / Units.A_TO_BOHR
+
+                # Remove the long range interaction from the dynamical matrix
+                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, -1.0, self.nat)
+
+                # Copy it back into the current_dynamical matrix
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        current_dyn.dynmats[iq][3*i: 3*i+3, 3*j: 3*j+3] = dynq[:,:, i, j]
+
+                # Impose hermitianity
+                current_dyn.dynmats[iq][:,:] = 0.5 * (current_dyn.dynmats[iq] + np.conj(current_dyn.dynmats[iq].T))
+
+                t2 = time.time()
+                if self.verbose:
+                    print("Time for the step {} / {}: {} s".format(iq+1, len(current_dyn.q_tot), t2 - t1))
+                    print("(The preparation of the dynq: {} s)".format(t3 - t1))
+                    print("NAT:", self.nat)
+
+
+
+            time2 = time.time()
+
+            if self.verbose:
+                print("Time to prepare the effective charges: {} s".format(time2 - time1))
+
         # Get the dynamical matrix in the supercell
-        super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
+        time3 = time.time()
+        
+        # Apply the acoustic sum rule (could be spoiled by the effective charges)
+        #iq_gamma = np.argmin(np.sum(np.array(current_dyn.q_tot)**2, axis = 1))
+        #symmetries.CustomASR(current_dyn.dynmats[0])
+        #current_dyn.Symmetrize()
+
+
+        if self.verbose:
+            print("Generating Real space force constant matrix...")
+
+        # TODO: we could use the fft to speedup this
+        # fc_q = dyn.GetMatrixFFT()
+        # fc_real_space = np.conj(np.fft.fftn(np.conj(fc_q), axes = (0,1,2))) / np.prod(current_dyn.GetSupercell())
+        # fc_real_space is already in tensor form (first three indices the R_2 components, or maybe -R_2) in crystalline coordinates)
+        # It must be just rearranged in the correct tensor 
+        super_dyn = current_dyn.GenerateSupercellDyn(phonons.GetSupercell(), img_thr  =1e-6)
+        time4 = time.time()
+
+        if self.verbose:
+            print("Time to generate the real space force constant matrix: {} s".format(time4 - time3))
+            print("TODO: the last time could be speedup with the FFT algorithm.")
 
         # Setup from the supercell dynamical matrix
         self.SetupFromTensor(super_dyn.dynmats[0])
@@ -511,7 +613,7 @@ class Tensor2(GenericTensor):
             print("  ")      
             
             with open(fname, "w") as f:
-                #TODD Print header...
+                #TODO Print header...
 
                 for nat1 in range(self.nat):
                     for nat2 in range(self.nat):
@@ -522,7 +624,7 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = True, verbose = False, asr_range = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -549,10 +651,27 @@ class Tensor2(GenericTensor):
 
         final_fc = np.zeros((3*self.nat, 3*self.nat), dtype = np.complex128)
 
+        # Perform the fourier transform of the short range real space tensor.
         for i in range(self.n_R):
             arg = 2 * np.pi * (q2.dot(self.r_vector2[:, i]))
             phase = np.exp(np.complex128(-1j) * arg)
             final_fc += phase * self.tensor[i, :, :]
+
+        # If effective charges are present, then add the nonanalitic part
+        if self.effective_charges is not None:
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
+            
+            # Add the nonanalitic part back
+            QE_q = -q2 * self.QE_alat / Units.A_TO_BOHR
+            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, +1.0, self.nat)
+
+            # Copy in the final fc the result
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    final_fc[3*i : 3*i+3, 3*j:3*j+3] = dynq[:,:, i, j]
 
         # Apply the acoustic sum rule
         if asr:
@@ -623,105 +742,105 @@ class Tensor2(GenericTensor):
     
 
 
-    def GenerateSupercellTensor(self, supercell):
-        """
-        GENERATE SUPERCELL TENSOR
-        =========================
+    # def GenerateSupercellTensor(self, supercell):
+    #     """
+    #     GENERATE SUPERCELL TENSOR
+    #     =========================
 
-        This function returns a tensor defined in the supercell
-        filling to zero all the elemets that have a minimum distance
-        greater than the one defined in the current tensor.
-        This is the key to interpolate.
+    #     This function returns a tensor defined in the supercell
+    #     filling to zero all the elemets that have a minimum distance
+    #     greater than the one defined in the current tensor.
+    #     This is the key to interpolate.
 
-        The supercell atoms are defined using the generate_supercell
-        method from the self.structure, so that is the link 
-        between indices of the returned tensor and atoms in the supercell.
+    #     The supercell atoms are defined using the generate_supercell
+    #     method from the self.structure, so that is the link 
+    #     between indices of the returned tensor and atoms in the supercell.
 
-        Parameters
-        ----------
-            - supercell : (nx, ny, nz)
-                The dimension of the supercell in which
-                you want to compute the supercell tensor
+    #     Parameters
+    #     ----------
+    #         - supercell : (nx, ny, nz)
+    #             The dimension of the supercell in which
+    #             you want to compute the supercell tensor
 
-        Results
-        -------
-            - tensor : ndarray(size = ( 3*natsc, 3*natsc))
-                A tensor defined in the given supercell.
-        """
+    #     Results
+    #     -------
+    #         - tensor : ndarray(size = ( 3*natsc, 3*natsc))
+    #             A tensor defined in the given supercell.
+    #     """
 
-        # TODO: ADD THE MULTIPLICITY COUNT ON THE SUPERCELL
+    #     # TODO: ADD THE MULTIPLICITY COUNT ON THE SUPERCELL
 
-        super_structure, itau = self.structure.generate_supercell(supercell, get_itau = True)
+    #     super_structure, itau = self.structure.generate_supercell(supercell, get_itau = True)
 
-        nat_sc = super_structure.N_atoms
-        new_tensor = np.zeros((3 * nat_sc, 3*nat_sc), dtype = np.double)
+    #     nat_sc = super_structure.N_atoms
+    #     new_tensor = np.zeros((3 * nat_sc, 3*nat_sc), dtype = np.double)
 
-        print("Unit cell coordinates:")
-        print("\n".join(["{:3d}) {}".format(i, self.structure.coords[i, :]) for i in range(self.structure.N_atoms)]))
-        print("Supercell coordinates:")
-        print("\n".join(["{:3d}) {}".format(i, super_structure.coords[i, :]) for i in range(super_structure.N_atoms)]))
+    #     print("Unit cell coordinates:")
+    #     print("\n".join(["{:3d}) {}".format(i, self.structure.coords[i, :]) for i in range(self.structure.N_atoms)]))
+    #     print("Supercell coordinates:")
+    #     print("\n".join(["{:3d}) {}".format(i, super_structure.coords[i, :]) for i in range(super_structure.N_atoms)]))
 
 
 
-        nat, nat_sc_old, _ = np.shape(self.r_vectors) 
+    #     nat, nat_sc_old, _ = np.shape(self.r_vectors) 
         
-        for i in range(nat_sc):
-            i_cell = itau[i] 
-            for j in range(nat_sc):
+    #     for i in range(nat_sc):
+    #         i_cell = itau[i] 
+    #         for j in range(nat_sc):
 
-                r_vector = super_structure.coords[i,:] - super_structure.coords[j,:]
-                r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
+    #             r_vector = super_structure.coords[i,:] - super_structure.coords[j,:]
+    #             r_vector = Methods.get_closest_vector(super_structure.unit_cell, r_vector)
 
-                # Now average all the values that 
-                # share the same r vector 
-                #dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
-                #mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                #mask = np.array(mask)
+    #             # Now average all the values that 
+    #             # share the same r vector 
+    #             #dist_v = self.r_vectors[i_cell, :,:] - np.tile(new_r_vector, (nat_sc_old, 1))
+    #             #mask = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+    #             #mask = np.array(mask)
 
-                mask = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], r_vector)
+    #             mask = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], r_vector)
 
-                if i == 4 and j == 11:
-                    print("i = {}, j = {}".format(i, j))
-                    print("r vector = {}".format(r_vector))
-                    print("mask = {}".format(mask))
+    #             if i == 4 and j == 11:
+    #                 print("i = {}, j = {}".format(i, j))
+    #                 print("r vector = {}".format(r_vector))
+    #                 print("mask = {}".format(mask))
 
-                # Apply the tensor
-                n_elements1 = np.sum(mask.astype(int))
-                n_elements2 = 0
+    #             # Apply the tensor
+    #             n_elements1 = np.sum(mask.astype(int))
+    #             n_elements2 = 0
 
-                # if n_elements1 == 0:
-                #     print("ZERO:")
-                #     print("itau[{}] = {}".format(i, i_cell))
-                #     print("r to find:", new_r_vector)
-                #     print("r vectors:")
-                #     for k in range(nat_sc_old):
-                #         print("{}) {:12.6f} {:12.6f} {:12.6f}".format(k+1, *list(self.r_vectors[i_cell, k, :])))
-                #     print()
-                if n_elements1 > 0:
-                    #print("Apply element {} {} | n = {}".format(i, j, n_elements1))
-                    tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements1
-                    #print(tens)
-                    new_tensor[3*i: 3*i+3, 3*j:3*j+3] = tens 
+    #             # if n_elements1 == 0:
+    #             #     print("ZERO:")
+    #             #     print("itau[{}] = {}".format(i, i_cell))
+    #             #     print("r to find:", new_r_vector)
+    #             #     print("r vectors:")
+    #             #     for k in range(nat_sc_old):
+    #             #         print("{}) {:12.6f} {:12.6f} {:12.6f}".format(k+1, *list(self.r_vectors[i_cell, k, :])))
+    #             #     print()
+    #             if n_elements1 > 0:
+    #                 #print("Apply element {} {} | n = {}".format(i, j, n_elements1))
+    #                 tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements1
+    #                 #print(tens)
+    #                 new_tensor[3*i: 3*i+3, 3*j:3*j+3] = tens 
 
-                # NOTE: Here maybe a problem arising from the
-                # double transpose inside the same unit cell
-                # If the share a -1 with the vector then we found the transposed element
-                if n_elements1 == 0:
-                    #dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
-                    mask2 = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], -r_vector)
-                    #mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
-                    #mask2 = np.array(mask2)
-                    n_elements2 = np.sum(mask2.astype(int))
-                    if n_elements2 > 0:
-                        tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements2
-                        new_tensor[3*j:3*j+3, 3*i:3*i+3] = tens
+    #             # NOTE: Here maybe a problem arising from the
+    #             # double transpose inside the same unit cell
+    #             # If the share a -1 with the vector then we found the transposed element
+    #             if n_elements1 == 0:
+    #                 #dist_v2 = self.r_vectors[i_cell, :,:] + np.tile(new_r_vector, (nat_sc_old, 1))
+    #                 mask2 = Methods.get_equivalent_vectors(super_structure.unit_cell, self.r_vectors[i_cell, :, :], -r_vector)
+    #                 #mask2 = [Methods.get_min_dist_into_cell(super_structure.unit_cell, dist_v2[k, :], np.zeros(3)) < 1e-5 for k in range(nat_sc_old)]
+    #                 #mask2 = np.array(mask2)
+    #                 n_elements2 = np.sum(mask2.astype(int))
+    #                 if n_elements2 > 0:
+    #                     tens = np.sum(self.tensor[i_cell, mask, :, :], axis = 0) / n_elements2
+    #                     new_tensor[3*j:3*j+3, 3*i:3*i+3] = tens
 
                 
-                #print("Elements {}, {} | r_vector = {} | n1 = {} | n2 = {}".format(i+1, j+1, r_vector, n_elements1, n_elements2))
+    #             #print("Elements {}, {} | r_vector = {} | n1 = {} | n2 = {}".format(i+1, j+1, r_vector, n_elements1, n_elements2))
 
-        return new_tensor
+    #     return new_tensor
 
-    def GeneratePhonons(self, supercell, asr = True):
+    def GeneratePhonons(self, supercell, asr = False):
         """
         GENERATE PHONONS
         ================
@@ -730,6 +849,10 @@ class Tensor2(GenericTensor):
         transform back into the dynamical matrix with the correct q.
 
         It might be that the new dynamical matrix should be symmetrized.
+
+        NOTE: The Interpolate method uses a different convension of the Fourier Transform.
+        For this reason, this method returns the Complex Cojugate of the matrices interpolated at the q points.
+        This has been fixed, by manually computing the complex conjugate before the return
         
 
         Parameters
@@ -758,7 +881,7 @@ class Tensor2(GenericTensor):
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = self.Interpolate(q_vector, asr = asr)
+            dynq = np.conj(self.Interpolate(q_vector, asr = asr))
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
@@ -820,44 +943,44 @@ class Tensor2(GenericTensor):
         return r_total[sort_mask], max_intensity[sort_mask]
 
 
-    def ApplyKaiserWindow(self, rmax, beta=14, N_sampling = 1000):
-        """
-        Apply a Kaiser-Bessel window to the signal. 
-        This is the best tool to perform the interpolation.
+    # def ApplyKaiserWindow(self, rmax, beta=14, N_sampling = 1000):
+    #     """
+    #     Apply a Kaiser-Bessel window to the signal. 
+    #     This is the best tool to perform the interpolation.
 
-        Each element of the tensor is multiplied by the kaiser
-        function with the given parameters.
-        The kaiser function is computed on the corresponding value of distance
+    #     Each element of the tensor is multiplied by the kaiser
+    #     function with the given parameters.
+    #     The kaiser function is computed on the corresponding value of distance
 
-        Parameters
-        ----------
-            - rmax : float
-                The maximum distance on which the window is defined.
-                All that is outside rmax is setted to 0
-            - beta : float
-                The shape of the Kaiser window.
-                For beta = 0 the window is a rectangular function, 
-                for beta = 14 it resample a gaussian. The higher beta, the
-                narrower the window.
-            - N_sampling : int
-                The sampling of the kaiser window.
-        """
+    #     Parameters
+    #     ----------
+    #         - rmax : float
+    #             The maximum distance on which the window is defined.
+    #             All that is outside rmax is setted to 0
+    #         - beta : float
+    #             The shape of the Kaiser window.
+    #             For beta = 0 the window is a rectangular function, 
+    #             for beta = 14 it resample a gaussian. The higher beta, the
+    #             narrower the window.
+    #         - N_sampling : int
+    #             The sampling of the kaiser window.
+    #     """
 
-        kaiser_data = scipy.signal.kaiser(N_sampling, beta)
+    #     kaiser_data = scipy.signal.kaiser(N_sampling, beta)
 
-        # Build the kaiser function
-        r_value = np.linspace(-rmax, rmax, N_sampling)
-        kaiser_function = scipy.interpolate.interp1d(r_value, kaiser_data, bounds_error=False, fill_value= 0)
+    #     # Build the kaiser function
+    #     r_value = np.linspace(-rmax, rmax, N_sampling)
+    #     kaiser_function = scipy.interpolate.interp1d(r_value, kaiser_data, bounds_error=False, fill_value= 0)
 
-        # Build the kaiser window
-        kaiser_window = kaiser_function(self.distances)
+    #     # Build the kaiser window
+    #     kaiser_window = kaiser_function(self.distances)
 
-        nat, nat_sc = np.shape(self.distances)
+    #     nat, nat_sc = np.shape(self.distances)
 
-        # Apply the kaiser window on the tensor
-        for i in range(nat):
-            for j in range(nat_sc):
-                self.tensor[i, j, :, :] *= kaiser_window[i,j]
+    #     # Apply the kaiser window on the tensor
+    #     for i in range(nat):
+    #         for j in range(nat_sc):
+    #             self.tensor[i, j, :, :] *= kaiser_window[i,j]
 
 
 # Third order force constant tensor
@@ -1115,10 +1238,19 @@ class Tensor3():
 
         Save the tensor on a file.
 
-        The file format is the same as phono3py or D3Q        
+        The file format is the same as phono3py or D3Q       
+
+        Parameters
+        ----------
+            fname : string
+                Path to the file in which you want to save the real space force constant tensor.
+            file_format: string
+                It could be either 'phonopy' or 'd3q' (not case sensitive)
+                'd3q' is the file format used in the thermal.x espresso package, while phonopy is the one
+                used in phono3py. 
         """
         
-        if file_format == 'Phonopy':
+        if file_format.lower() == 'phonopy':
             
             print("  ")
             print(" Writing FC3 on "+ fname)
@@ -1148,7 +1280,7 @@ class Tensor3():
                                     f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
         
         
-        elif file_format == 'D3Q':
+        elif file_format.upper() == 'D3Q':
             
             print("  ")
             print(" Writing FC3 on "+ fname)
@@ -2046,214 +2178,214 @@ class Tensor3():
        return interpolated_fc       
     
 
-    def Center_py(self,Far=1,tol=1.0e-5):
-        """
-        CENTERING 
-        =========
+    # def Center_py(self,Far=1,tol=1.0e-5):
+    #     """
+    #     CENTERING 
+    #     =========
 
-        This is the python routine to center the third order force constant inside the Wigner-Seitz supercell.
-        This means that for each atomic indices in the tensor, it will be identified by the lowest 
-        perimiter between the replica of the atoms.
-        Moreover, in case of existance of other elements not included in the original supercell with
-        the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
+    #     This is the python routine to center the third order force constant inside the Wigner-Seitz supercell.
+    #     This means that for each atomic indices in the tensor, it will be identified by the lowest 
+    #     perimiter between the replica of the atoms.
+    #     Moreover, in case of existance of other elements not included in the original supercell with
+    #     the same perimeter, the tensor will be equally subdivided between equivalent triplets of atoms. 
 
-        This function should be called before performing the Fourier interpolation.
-        """    
+    #     This function should be called before performing the Fourier interpolation.
+    #     """    
         
-        if self.verbose:
-            print(" ")
-            print(" === Centering === ")
-            print(" ")        
+    #     if self.verbose:
+    #         print(" ")
+    #         print(" === Centering === ")
+    #         print(" ")        
         
-        # The supercell total size
-        nq0=self.supercell_size[0]
-        nq1=self.supercell_size[1]
-        nq2=self.supercell_size[2]
+    #     # The supercell total size
+    #     nq0=self.supercell_size[0]
+    #     nq1=self.supercell_size[1]
+    #     nq2=self.supercell_size[2]
 
-        # We prepare the tensor for the Wigner-Seitz cell (twice as big for any direction)
-        WS_nsup = 2**3* np.prod(self.supercell_size)
-        WS_n_R = (WS_nsup)**2
+    #     # We prepare the tensor for the Wigner-Seitz cell (twice as big for any direction)
+    #     WS_nsup = 2**3* np.prod(self.supercell_size)
+    #     WS_n_R = (WS_nsup)**2
 
-        # Allocate the vector in the WS cell
-        # TODO: this could be memory expensive
-        #       we could replace this tensor with an equivalent object
-        #       that stores only the blocks that are actually written
-        WS_r_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
-        WS_r_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
-        WS_xr_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
-        WS_xr_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+    #     # Allocate the vector in the WS cell
+    #     # TODO: this could be memory expensive
+    #     #       we could replace this tensor with an equivalent object
+    #     #       that stores only the blocks that are actually written
+    #     WS_r_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+    #     WS_r_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+    #     WS_xr_vector2 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
+    #     WS_xr_vector3 = np.zeros((3, WS_n_R), dtype = np.double, order = "F")
 
-        # Allocate the tensor in the WS cell
-        WS_tensor = np.zeros((WS_n_R, 3*self.nat, 3*self.nat, 3*self.nat), dtype = np.double)
+    #     # Allocate the tensor in the WS cell
+    #     WS_tensor = np.zeros((WS_n_R, 3*self.nat, 3*self.nat, 3*self.nat), dtype = np.double)
 
-        # Here we prepare the vectors
-        # Iterating for all the possible values of R2 and R3 in the cell that encloses the Wigner-Seitz one
-        t1 = time.time()
-        for i, (a2,b2,c2) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
-            for j, (a3,b3,c3) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
+    #     # Here we prepare the vectors
+    #     # Iterating for all the possible values of R2 and R3 in the cell that encloses the Wigner-Seitz one
+    #     t1 = time.time()
+    #     for i, (a2,b2,c2) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
+    #         for j, (a3,b3,c3) in enumerate(itertools.product(range(-nq0, nq0), range(-nq1, nq1), range(-nq2, nq2))):
                 
-                # Enclose in one index i and j
-                total_index = i * WS_nsup + j
+    #             # Enclose in one index i and j
+    #             total_index = i * WS_nsup + j
 
-                # Get the crystal lattice
-                WS_xr_vector2[:, total_index] = (a2,b2,c2)
-                WS_xr_vector3[:, total_index] = (a3,b3,c3)
+    #             # Get the crystal lattice
+    #             WS_xr_vector2[:, total_index] = (a2,b2,c2)
+    #             WS_xr_vector3[:, total_index] = (a3,b3,c3)
 
 
-        # Convert all the vectors in cartesian coordinates
-        WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
-        WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
+    #     # Convert all the vectors in cartesian coordinates
+    #     WS_r_vector2[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector2) 
+    #     WS_r_vector3[:,:] = self.unitcell_structure.unit_cell.T.dot(WS_xr_vector3)
         
-        # print("WS vectors:")
-        # print(WS_r_vector2.T)
+    #     # print("WS vectors:")
+    #     # print(WS_r_vector2.T)
         
 
 
-        t2 = time.time()
-        if (self.verbose):
-            print("Time elapsed to prepare vectors in the WS cell: {} s".format(t2-t1))
+    #     t2 = time.time()
+    #     if (self.verbose):
+    #         print("Time elapsed to prepare vectors in the WS cell: {} s".format(t2-t1))
 
-        # Here we create the lattice images
-        # And we save the important data
+    #     # Here we create the lattice images
+    #     # And we save the important data
 
-        # Allocate the distance between the superlattice vectors for each replica
-        tot_replicas = (2*Far + 1)**3
-        total_size = tot_replicas**2
-        dR_12 = np.zeros( (total_size, 3))
-        dR_23 = np.zeros( (total_size, 3))
-        dR_13 = np.zeros( (total_size, 3))
-        # Allocate the perimeter of the superlattice for each replica
-        PP = np.zeros(total_size)
-        # Alloca the the vector of the superlattice in crystalline units
-        V2_cryst = np.zeros((total_size,3))
-        V3_cryst = np.zeros((total_size,3))
+    #     # Allocate the distance between the superlattice vectors for each replica
+    #     tot_replicas = (2*Far + 1)**3
+    #     total_size = tot_replicas**2
+    #     dR_12 = np.zeros( (total_size, 3))
+    #     dR_23 = np.zeros( (total_size, 3))
+    #     dR_13 = np.zeros( (total_size, 3))
+    #     # Allocate the perimeter of the superlattice for each replica
+    #     PP = np.zeros(total_size)
+    #     # Alloca the the vector of the superlattice in crystalline units
+    #     V2_cryst = np.zeros((total_size,3))
+    #     V3_cryst = np.zeros((total_size,3))
 
-        # Lets cycle over the replica  (the first index is always in the unit cell)
-        # To store the variables that will be used to compute the perimeters of
-        # all the replica
-        t1 = time.time()
-        for i, (a2,b2,c2) in enumerate(itertools.product(range(-Far, Far+1), range(-1,Far+1),range(-Far, Far+1))):
-            xR_2 = np.array((a2, b2, c2))
-            R_2 = xR_2.dot(self.supercell_structure.unit_cell)
-            for j, (a3, b3, c3) in enumerate(itertools.product(range(-1, Far+1), range(-1,Far+1),range(-Far, Far+1))):
-                xR_3 = np.array((a3, b3, c3))
-                R_3 = xR_3.dot(self.supercell_structure.unit_cell)
+    #     # Lets cycle over the replica  (the first index is always in the unit cell)
+    #     # To store the variables that will be used to compute the perimeters of
+    #     # all the replica
+    #     t1 = time.time()
+    #     for i, (a2,b2,c2) in enumerate(itertools.product(range(-Far, Far+1), range(-1,Far+1),range(-Far, Far+1))):
+    #         xR_2 = np.array((a2, b2, c2))
+    #         R_2 = xR_2.dot(self.supercell_structure.unit_cell)
+    #         for j, (a3, b3, c3) in enumerate(itertools.product(range(-1, Far+1), range(-1,Far+1),range(-Far, Far+1))):
+    #             xR_3 = np.array((a3, b3, c3))
+    #             R_3 = xR_3.dot(self.supercell_structure.unit_cell)
 
-                # Prepare an index that runs over both i and j
-                total_index = tot_replicas*i + j
-                #print(total_index, i, j)
+    #             # Prepare an index that runs over both i and j
+    #             total_index = tot_replicas*i + j
+    #             #print(total_index, i, j)
 
-                # Store the replica vector in crystal coordinates
-                V2_cryst[total_index, :] = np.array((a2,b2,c2)) * np.array(self.supercell_size)
-                V3_cryst[total_index, :] = np.array((a3,b3,c3)) * np.array(self.supercell_size)
+    #             # Store the replica vector in crystal coordinates
+    #             V2_cryst[total_index, :] = np.array((a2,b2,c2)) * np.array(self.supercell_size)
+    #             V3_cryst[total_index, :] = np.array((a3,b3,c3)) * np.array(self.supercell_size)
                 
-                # Compute the distances between the replica of the indices
-                dR_12[total_index, :] = xR_2
-                dR_13[total_index, :] = xR_3
-                dR_23[total_index, :] = xR_3 - xR_2
+    #             # Compute the distances between the replica of the indices
+    #             dR_12[total_index, :] = xR_2
+    #             dR_13[total_index, :] = xR_3
+    #             dR_23[total_index, :] = xR_3 - xR_2
 
-                # Store the perimeter of this replica triplet
-                PP[total_index] = R_2.dot(R_2)
-                PP[total_index]+= R_3.dot(R_3)
-                PP[total_index]+= np.sum((R_3 - R_2)**2)
+    #             # Store the perimeter of this replica triplet
+    #             PP[total_index] = R_2.dot(R_2)
+    #             PP[total_index]+= R_3.dot(R_3)
+    #             PP[total_index]+= np.sum((R_3 - R_2)**2)
                 
-                #print("R2:", R_2, "R3:", R_3, "PP:", PP[total_index])
-        t2 = time.time()
+    #             #print("R2:", R_2, "R3:", R_3, "PP:", PP[total_index])
+    #     t2 = time.time()
 
-        if self.verbose:
-            print("Time elapsed to prepare the perimeter in the replicas: {} s".format(t2 - t1))
+    #     if self.verbose:
+    #         print("Time elapsed to prepare the perimeter in the replicas: {} s".format(t2 - t1))
 
 
-        # Now we cycle over all the blocks and the atoms
-        # For each triplet of atom in a block, we compute the perimeter of the all possible replica
-        # Get the metric tensor of the supercell
-        G = np.einsum("ab, cb->ac", self.supercell_structure.unit_cell, self.supercell_structure.unit_cell)
+    #     # Now we cycle over all the blocks and the atoms
+    #     # For each triplet of atom in a block, we compute the perimeter of the all possible replica
+    #     # Get the metric tensor of the supercell
+    #     G = np.einsum("ab, cb->ac", self.supercell_structure.unit_cell, self.supercell_structure.unit_cell)
 
-        # We cycle over atoms and blocks
-        for iR in range(self.n_R):
-            for at1, at2, at3 in itertools.product(range(self.nat), range(self.nat), range(self.nat)):
-                # Get the positions of the atoms
-                r1 = self.tau[at1,:]
-                r2 = self.r_vector2[:, iR] + self.tau[at2,:]
-                r3 = self.r_vector3[:, iR] + self.tau[at3,:]
+    #     # We cycle over atoms and blocks
+    #     for iR in range(self.n_R):
+    #         for at1, at2, at3 in itertools.product(range(self.nat), range(self.nat), range(self.nat)):
+    #             # Get the positions of the atoms
+    #             r1 = self.tau[at1,:]
+    #             r2 = self.r_vector2[:, iR] + self.tau[at2,:]
+    #             r3 = self.r_vector3[:, iR] + self.tau[at3,:]
                 
-                # Lets compute the perimeter without the replicas
-                pp = np.sum((r1-r2)**2)
-                pp+= np.sum((r2-r3)**2)
-                pp+= np.sum((r1-r3)**2)
+    #             # Lets compute the perimeter without the replicas
+    #             pp = np.sum((r1-r2)**2)
+    #             pp+= np.sum((r2-r3)**2)
+    #             pp+= np.sum((r1-r3)**2)
                 
-                # Get the crystalline vectors (in the supercell)
-                x1 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r1)
-                x2 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r2)
-                x3 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r3)
+    #             # Get the crystalline vectors (in the supercell)
+    #             x1 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r1)
+    #             x2 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r2)
+    #             x3 = Methods.cart_to_cryst(self.supercell_structure.unit_cell, r3)
                 
-                # Now we compute the quantities that do not depend on the lattice replica
-                # As the current perimeter and the gg vector
-                G_12 = 2*G.dot(x2-x1)
-                G_23 = 2*G.dot(x3-x2)
-                G_13 = 2*G.dot(x3-x1)
+    #             # Now we compute the quantities that do not depend on the lattice replica
+    #             # As the current perimeter and the gg vector
+    #             G_12 = 2*G.dot(x2-x1)
+    #             G_23 = 2*G.dot(x3-x2)
+    #             G_13 = 2*G.dot(x3-x1)
                 
-                # Now we can compute the perimeters of all the replica
-                # all toghether
-                P = PP[:] + pp
-                P[:] += dR_12.dot(G_12)
-                P[:] += dR_23.dot(G_23)
-                P[:] += dR_13.dot(G_13)
+    #             # Now we can compute the perimeters of all the replica
+    #             # all toghether
+    #             P = PP[:] + pp
+    #             P[:] += dR_12.dot(G_12)
+    #             P[:] += dR_23.dot(G_23)
+    #             P[:] += dR_13.dot(G_13)
                 
-                # if self.tensor[iR, 3*at1, 3*at2, 3*at3] > 0:
-                #     #print("all the perimeters:")
-                #     #print(P)
-                #     print("The minimum:", np.min(P))
-                #     index = np.argmin(P)
-                #     print("R2 = ", self.r_vector2[:, iR], "R3 = ", self.r_vector3[:,iR])
-                #     print("The replica perimeter:", PP[index])
-                #     print("The standard perimeter:", pp)
-                #     print("The the cross values:")
-                #     print(dR_12.dot(G_12)[index], dR_13.dot(G_13)[index], dR_23.dot(G_23)[index]) 
-                #     print("The replica vectors are:", "R2:", V2_cryst[index,:], "R3:", V3_cryst[index,:])
+    #             # if self.tensor[iR, 3*at1, 3*at2, 3*at3] > 0:
+    #             #     #print("all the perimeters:")
+    #             #     #print(P)
+    #             #     print("The minimum:", np.min(P))
+    #             #     index = np.argmin(P)
+    #             #     print("R2 = ", self.r_vector2[:, iR], "R3 = ", self.r_vector3[:,iR])
+    #             #     print("The replica perimeter:", PP[index])
+    #             #     print("The standard perimeter:", pp)
+    #             #     print("The the cross values:")
+    #             #     print(dR_12.dot(G_12)[index], dR_13.dot(G_13)[index], dR_23.dot(G_23)[index]) 
+    #             #     print("The replica vectors are:", "R2:", V2_cryst[index,:], "R3:", V3_cryst[index,:])
                 
-                # Now P is filled with the perimeters of all the replica
-                # We can easily find the minimum
-                P_min = np.min(P)
+    #             # Now P is filled with the perimeters of all the replica
+    #             # We can easily find the minimum
+    #             P_min = np.min(P)
                 
-                # We can find how many they are and a mask on their positions
-                min_P_mask = (np.abs(P_min - P) < 1e-6).astype(bool)
+    #             # We can find how many they are and a mask on their positions
+    #             min_P_mask = (np.abs(P_min - P) < 1e-6).astype(bool)
                 
-                # The number of minimium perimeters
-                n_P = np.sum(min_P_mask.astype(int))
+    #             # The number of minimium perimeters
+    #             n_P = np.sum(min_P_mask.astype(int))
 
-                # Get the replica vector for the minimum perimeters
-                v2_shift = V2_cryst[min_P_mask, :]
-                v3_shift = V3_cryst[min_P_mask, :]
+    #             # Get the replica vector for the minimum perimeters
+    #             v2_shift = V2_cryst[min_P_mask, :]
+    #             v3_shift = V3_cryst[min_P_mask, :]
 
-                # Now we can compute the crystalline coordinates of the lattice in the WS cell
-                r2_cryst = np.tile(self.x_r_vector2[:, iR], (n_P, 1)) + v2_shift
-                r3_cryst = np.tile(self.x_r_vector3[:, iR], (n_P, 1)) + v3_shift
-                verb = False
+    #             # Now we can compute the crystalline coordinates of the lattice in the WS cell
+    #             r2_cryst = np.tile(self.x_r_vector2[:, iR], (n_P, 1)) + v2_shift
+    #             r3_cryst = np.tile(self.x_r_vector3[:, iR], (n_P, 1)) + v3_shift
+    #             verb = False
                 
 
-                # Get the block indices in the WS cell
-                WS_i_R = get_ws_block_index(self.supercell_size, r2_cryst, r3_cryst, verbose = verb)
+    #             # Get the block indices in the WS cell
+    #             WS_i_R = get_ws_block_index(self.supercell_size, r2_cryst, r3_cryst, verbose = verb)
                 
-                # Now we fill all the element of the WS tensor 
-                # with the current tensor, dividing by the number of elemets
-                new_elemet = np.tile(self.tensor[iR, 3*at1:3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3], (n_P, 1,1,1))
-                new_elemet /= n_P
-                WS_tensor[WS_i_R, 3*at1: 3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3] = new_elemet
+    #             # Now we fill all the element of the WS tensor 
+    #             # with the current tensor, dividing by the number of elemets
+    #             new_elemet = np.tile(self.tensor[iR, 3*at1:3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3], (n_P, 1,1,1))
+    #             new_elemet /= n_P
+    #             WS_tensor[WS_i_R, 3*at1: 3*at1+3, 3*at2:3*at2+3, 3*at3:3*at3+3] = new_elemet
 
 
-        t2 = time.time()
+    #     t2 = time.time()
 
-        if self.verbose:
-            print("Time elapsed for computing the cenetering: {} s".format( t2 - t1))
+    #     if self.verbose:
+    #         print("Time elapsed for computing the cenetering: {} s".format( t2 - t1))
 
-        # We can update the current tensor
-        self.tensor = WS_tensor
-        self.r_vector2 = WS_r_vector2
-        self.r_vector3 = WS_r_vector3
-        self.x_r_vector2 = WS_xr_vector2
-        self.x_r_vector3 = WS_xr_vector3
-        self.n_R = WS_n_R
+    #     # We can update the current tensor
+    #     self.tensor = WS_tensor
+    #     self.r_vector2 = WS_r_vector2
+    #     self.r_vector3 = WS_r_vector3
+    #     self.x_r_vector2 = WS_xr_vector2
+    #     self.x_r_vector3 = WS_xr_vector3
+    #     self.n_R = WS_n_R
 
     
     def ApplySumRule_py(self):
