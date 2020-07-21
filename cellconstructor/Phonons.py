@@ -48,7 +48,7 @@ class Phonons:
     It can be used to show and display dinamical matrices, as well as for operating 
     with them
     """
-    def __init__(self, structure = None, nqirr = 1, full_name = False, use_format = False):
+    def __init__(self, structure = None, nqirr = 1, full_name = False, use_format = False, use_Phonopy=False):
         """
         INITIALIZE PHONONS
         ==================
@@ -100,7 +100,10 @@ class Phonons:
         # Check whether the structure argument is a path or a Structure
         if (type(structure) == type("hello there!")):
             # Quantum espresso
-            self.LoadFromQE(structure, nqirr, full_name = full_name, use_format = use_format)
+	    if use_Phonopy:
+		self.LoadFromPhonopy(structure,nqirr,full_name= full_name, allq=True)
+	    else:
+                self.LoadFromQE(structure, nqirr, full_name = full_name, use_format = use_format)
         elif (type(structure) == type(Structure.Structure())):   
             # Get the structure
             self.structure = structure
@@ -374,6 +377,155 @@ class Phonons:
         # Ok, the matrix has been initialized
         self.initialized = True
         
+ 
+    def LoadFromPhonopy(self, fildyn_prefix, nqirr=1, full_name = False, allq=True):
+
+
+       	if nqirr <= 0:
+            raise ValueError("Error, the specified nqirr is not valid: it must be positive!")
+
+        if full_name and nqirr > 1:
+            raise ValueError("Error, with full_name only gamma matrices are loaded.")
+
+        # Initialize the atomic structure
+        self.structure = Structure.Structure()
+
+	#Phonopy force constants are in ev/A^2 while SSCHA needs Ry/bohr^2
+        conversion_factor=0.02058169285611072654
+    
+
+	#Read the unit cell information only once
+
+	#Load unit cell data first
+	uc_file=file("unitcell.in","r")
+	uc_lines=[line.strip() for line in uc_file.readlines()]
+        uc_file.close()
+
+        unit_cell=np.zeros((3,3))
+        celldm = np.zeros(6)
+        #initialize the main propertieesa
+
+        ind=0
+        for i in uc_lines:
+            if "ibrav" in i:
+	        ibrav = int(i.split()[2])
+	    if "celldm" in i:
+	        celldm[0]=float(i.split()[2])
+	        self.alat = celldm[0] * BOHR_TO_ANGSTROM
+	    if "nat" in i:
+	        nat= int(i.split()[2])
+	    if "ntyp" in i:
+	        ntyp=int(i.split()[2])
+	    ind += 1
+            if "CELL" in i:
+		for j in range(3):
+	            unit_cell[j,:]=np.array([np.float(item) for item in uc_lines[ind+j].split()])
+
+	self.structure.unit_cell=unit_cell
+	self.structure.has_unit_cell = True
+	self.structure.N_atoms = nat
+	self.structure.coords=np.zeros((nat,3))
+		
+	#Read the atomic type
+	atoms_dict={}
+	masses_dict= {}
+	for i in range(1,ntyp+1):
+     	   ind=0
+    	   for k in uc_lines:
+               ind+=1
+               if "SPECIES" in k:
+                   atoms_dict[i]=uc_lines[ind+i-1].split()[0].strip()
+                   masses_dict[atoms_dict[i]] = np.float(uc_lines[ind+i-1].split()[1].strip())*911.444243096
+
+        self.structure.set_masses(masses_dict)
+        
+	#Read atoms
+	ind=0
+	for i in uc_lines:
+	    ind +=1 
+            if "ATOMIC_POSITIONS" in i:
+	        for j in range(nat):
+	 	    self.structure.atoms.append(uc_lines[ind+j].split()[0])
+		    self.structure.coords[j,:] = np.array([float(uc_lines[ind+j].split()[1]),float(uc_lines[ind+j].split()[2]),float(uc_lines[ind+j].split()[3])])
+	   
+        m=np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
+        mm=np.sqrt(np.outer(m,m))/911.444243096
+        #From now read the dynamical matrix
+
+	
+	for iq in range(nqirr):
+
+	    q_star=[]
+	    current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms),dtype=np.complex128)
+
+
+	    #if not os.path.isfile(fildyn_prefix):
+   	        #raise ValueError("Error, file %s does not exist." % fildyn_prefix)
+
+	    import yaml
+	    data=yaml.load(open("qpoints.yaml"))
+	    dyn_data=data['phonon'][iq]['dynamical_matrix']
+	    dyn_from_yaml=[]
+	    for row in dyn_data:
+		vals=np.reshape(row, (-1,2))
+		dyn_from_yaml.append(vals[:,0]+1j*vals[:,1])
+	    current_dyn=conversion_factor*np.array(dyn_from_yaml)*mm
+	    qp_data=data['phonon'][iq]['q-position']
+	    qpoint=np.array(qp_data)
+	    #Convert to cartesian coordinates
+	    q_cart=np.transpose(self.structure.get_reciprocal_vectors()).dot(qpoint)/(2*np.pi)
+	    self.q_tot.append(q_cart)
+	    q_star.append(q_cart)
+	    if not allq:
+		self.q_stars.append(q_star)
+	    self.dynmats.append(current_dyn.copy())
+
+	if allq:
+	    self.AdjustQStar()
+	else:
+	    #create allq from the star
+	    raise ValueError("Not yet implemented the possibility to initialize only the irreducible q-points")    
+
+
+
+	    #atom indices
+            #atm_i = 0
+	    #atm_j = 0
+	    #coordline = 0
+
+	    #dielectric_read = 0
+	    #pol_read = 0
+
+   	    # Info about what I'm reading
+            #reading_dielectric = False
+            #reading_eff_charges = False
+            #reading_raman = False
+
+	    #fc= file("FORCE_CONSTANTS","r")
+	    #fc_lines=[lines.strip() for lines in fc.readlines()]
+	    #fc.close()
+
+	
+	    #for lines in fc_lines:
+		#if (len(lines.split()) == 2):
+		 #   atm_i = lines.split()[0]
+		  #  atm_j = lines.split()[1]
+		#elif( len(lines.split()) == 6):
+ 		    #read dynmat
+		#    for k in range(3):
+		 #       current_dyn[3*atm_i +coordline, 3*atm_j +k] = np.float64(lines.split()[2*k]) +1j*np.float64(lines.split()[2*k+1])
+		 #   coordline += 1
+		#if "q=" in lines:
+		#    qpoint= np.array([float(lines.split()[1]),float(lines.split()[2]),float(lines.split()[3])])
+		#    q_star.append(qpoint/self.alat)
+		#    self.q_tot.append(qpoint/self.alat)
+
+	  #  self.q_stars.append(q_star)
+
+
+	self.initialized = True
+	
+
     def DyagDinQ(self, iq, force_real_at_gamma = True):
         """
         Dyagonalize the dynamical matrix in the given q point index.
@@ -1556,7 +1708,7 @@ class Phonons:
         
         return dyn_supercell
             
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None,fast=False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -1667,8 +1819,10 @@ class Phonons:
                     tmp_str.coords[j,:] = new_coords[x,:]
             final_structures.append(tmp_str)
         
-        
-        return final_structures
+        if fast:
+	    return final_structures,total_coords
+	else:
+            return final_structures
 
     def GetHarmonicFreeEnergy(self, T, allow_imaginary_freq = False):
         """
@@ -2334,7 +2488,6 @@ class Phonons:
             
             # Overwrite the q list
             q_list = support_dyn_fine.q_tot[:]
-        
         
         # Prepare the super variables
         if not is_dynf:
@@ -3127,7 +3280,7 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
     
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, imag_thr = 1e-6):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, imag_thr = 1e-4):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================

@@ -1,4 +1,4 @@
-#include <python2.7/Python.h>
+#include </home/marco/anaconda2/include/python2.7/Python.h>
 #include <numpy/arrayobject.h>
 #include <stdio.h>
 #include "LinAlg.h"
