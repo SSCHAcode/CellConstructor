@@ -421,8 +421,8 @@ class Phonons:
 	#Read the unit cell information only once
 
 	#Load unit cell data first
-	uc_file=open(file_cell,"r")
-	uc_lines=[line.strip() for line in uc_file.readlines()]
+        uc_file=open(file_cell,"r")
+        uc_lines=[line.strip() for line in uc_file.readlines()]
         uc_file.close()
 
         unit_cell=np.zeros((3,3))
@@ -432,18 +432,18 @@ class Phonons:
         ind=0
         for i in uc_lines:
             if "ibrav" in i:
-	        ibrav = int(i.split()[2])
-	    if "celldm" in i:
-	        celldm[0]=float(i.split()[2])
-	        self.alat = celldm[0] * BOHR_TO_ANGSTROM
-	    if "nat" in i:
-	        nat= int(i.split()[2])
-	    if "ntyp" in i:
-	        ntyp=int(i.split()[2])
-	    ind += 1
+                ibrav = int(i.split()[2])
+            if "celldm" in i:
+                celldm[0]=float(i.split()[2])
+                self.alat = celldm[0] * BOHR_TO_ANGSTROM
+            if "nat" in i:
+                nat= int(i.split()[2])
+            if "ntyp" in i:
+                ntyp=int(i.split()[2])
+            ind += 1
             if "CELL" in i:
-		for j in range(3):
-	            unit_cell[j,:]=np.array([np.float(item) for item in uc_lines[ind+j].split()]) * self.alat
+                for j in range(3):
+                    unit_cell[j,:]=np.array([np.float(item) for item in uc_lines[ind+j].split()]) * self.alat
 
 	self.structure.unit_cell=unit_cell
 	self.structure.has_unit_cell = True
@@ -454,12 +454,12 @@ class Phonons:
 	atoms_dict={}
 	masses_dict= {}
 	for i in range(1,ntyp+1):
-     	   ind=0
-    	   for k in uc_lines:
-               ind+=1
-               if "SPECIES" in k:
-                   atoms_dict[i]=uc_lines[ind+i-1].split()[0].strip()
-                   masses_dict[atoms_dict[i]] = np.float(uc_lines[ind+i-1].split()[1].strip())*911.444243096
+	    ind=0
+	    for k in uc_lines:
+                ind+=1
+                if "SPECIES" in k:
+                    atoms_dict[i]=uc_lines[ind+i-1].split()[0].strip()
+                    masses_dict[atoms_dict[i]] = np.float(uc_lines[ind+i-1].split()[1].strip())*911.444243096
 
         self.structure.set_masses(masses_dict)
         
@@ -467,10 +467,10 @@ class Phonons:
 	ind=0
 	for i in uc_lines:
 	    ind +=1 
-            if "ATOMIC_POSITIONS" in i:
+	    if "ATOMIC_POSITIONS" in i:
 	        for j in range(nat):
-	 	    self.structure.atoms.append(uc_lines[ind+j].split()[0])
-		    self.structure.coords[j,:] = np.array([float(uc_lines[ind+j].split()[1]),float(uc_lines[ind+j].split()[2]),float(uc_lines[ind+j].split()[3])]) *self.alat
+	            self.structure.atoms.append(uc_lines[ind+j].split()[0])
+	            self.structure.coords[j,:] = np.array([float(uc_lines[ind+j].split()[1]),float(uc_lines[ind+j].split()[2]),float(uc_lines[ind+j].split()[3])]) *self.alat
 	   
         m=np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
         mm=np.sqrt(np.outer(m,m))/911.444243096
