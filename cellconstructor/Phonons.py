@@ -1841,8 +1841,8 @@ class Phonons:
             final_structures.append(tmp_str)
         
         if fast:
-	    return final_structures,total_coords
-	else:
+            return final_structures,total_coords
+        else:
             return final_structures
 
     def GetHarmonicFreeEnergy(self, T, allow_imaginary_freq = False):
