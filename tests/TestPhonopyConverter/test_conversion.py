@@ -15,11 +15,11 @@ import numpy as np
 dynmat = CC.Phonons.Phonons("unitcell.in",use_Phonopy=True, nqirr=4)
 
 # Perform compute the frequency in the second q point
-print ("The q point is:")
+print ("The q points are:")
 print (dynmat.q_tot)
 print ()
 freq, pol_vect = dynmat.DyagDinQ(0)
-print ("Frequencies:")
+print ("Frequencies in Gamma:")
 print (np.sort(freq))
 
 

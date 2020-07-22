@@ -490,7 +490,7 @@ class Phonons:
             for row in dyn_data:
                 vals=np.reshape(row, (-1,2))
                 dyn_from_yaml.append(vals[:,0]+1j*vals[:,1])
-                current_dyn=conversion_factor*np.array(dyn_from_yaml)*mm
+            current_dyn=conversion_factor*np.array(dyn_from_yaml)*mm
             qp_data=data['phonon'][iq]['q-position']
             qpoint=np.array(qp_data) 
             #Convert to cartesian coordinates
