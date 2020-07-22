@@ -99,10 +99,11 @@ class Phonons:
         
         # Check whether the structure argument is a path or a Structure
         if (type(structure) == type("hello there!")):
-            # Quantum espresso
-	    if use_Phonopy:	
-	        self.LoadFromPhonopy(structure,nqirr,full_name= full_name, allq=True)
-	    else:
+            if use_Phonopy:	
+                # Phonopy
+                self.LoadFromPhonopy(structure,nqirr,full_name= full_name, allq=True)
+            else:
+                # Quantum espresso
                 self.LoadFromQE(structure, nqirr, full_name = full_name, use_format = use_format)
         elif (type(structure) == type(Structure.Structure())):   
             # Get the structure
