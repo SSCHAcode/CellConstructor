@@ -16,8 +16,7 @@ symph_ext = Extension(name = "symph",
                                  "FModules/symmetry_high_rank.f90", 
                                  "FModules/unwrap_tensors.f90",
                                  "FModules/get_latvec.f90",
-                                 "FModules/contract_two_phonon_propagator.f90",
-                                 "FModules/get_q_grid_fast.f90"],
+                                 "FModules/contract_two_phonon_propagator.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )
