@@ -445,17 +445,17 @@ class Phonons:
                 for j in range(3):
                     unit_cell[j,:]=np.array([np.float(item) for item in uc_lines[ind+j].split()]) * self.alat
 
-	self.structure.unit_cell=unit_cell
-	self.structure.has_unit_cell = True
-	self.structure.N_atoms = nat
-	self.structure.coords=np.zeros((nat,3))
+        self.structure.unit_cell=unit_cell
+        self.structure.has_unit_cell = True
+        self.structure.N_atoms = nat
+        self.structure.coords=np.zeros((nat,3))
 		
-	#Read the atomic type
-	atoms_dict={}
-	masses_dict= {}
-	for i in range(1,ntyp+1):
-	    ind=0
-	    for k in uc_lines:
+        #Read the atomic type
+        atoms_dict={}
+        masses_dict= {}
+        for i in range(1,ntyp+1):
+            ind=0
+            for k in uc_lines:
                 ind+=1
                 if "SPECIES" in k:
                     atoms_dict[i]=uc_lines[ind+i-1].split()[0].strip()
@@ -463,14 +463,14 @@ class Phonons:
 
         self.structure.set_masses(masses_dict)
         
-	#Read atoms
-	ind=0
-	for i in uc_lines:
-	    ind +=1 
-	    if "ATOMIC_POSITIONS" in i:
-	        for j in range(nat):
-	            self.structure.atoms.append(uc_lines[ind+j].split()[0])
-	            self.structure.coords[j,:] = np.array([float(uc_lines[ind+j].split()[1]),float(uc_lines[ind+j].split()[2]),float(uc_lines[ind+j].split()[3])]) *self.alat
+        #Read atoms
+        ind=0
+        for i in uc_lines:
+            ind +=1 
+            if "ATOMIC_POSITIONS" in i:
+                for j in range(nat):
+                    self.structure.atoms.append(uc_lines[ind+j].split()[0])
+                    self.structure.coords[j,:] = np.array([float(uc_lines[ind+j].split()[1]),float(uc_lines[ind+j].split()[2]),float(uc_lines[ind+j].split()[3])]) *self.alat
 	   
         m=np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
         mm=np.sqrt(np.outer(m,m))/911.444243096
@@ -478,37 +478,35 @@ class Phonons:
 
 	
 	for iq in range(nq):
-
 	    q_star=[]
 	    current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms),dtype=np.complex128)
 
+             #if not os.path.isfile(fildyn_prefix):
+                 #raise ValueError("Error, file %s does not exist." % fildyn_prefix)
 
-	    #if not os.path.isfile(fildyn_prefix):
-   	        #raise ValueError("Error, file %s does not exist." % fildyn_prefix)
+            import yaml
+            data=yaml.load(open("qpoints.yaml"))
+            dyn_data=data['phonon'][iq]['dynamical_matrix']
+            dyn_from_yaml=[]
+            for row in dyn_data:
+                vals=np.reshape(row, (-1,2))
+                dyn_from_yaml.append(vals[:,0]+1j*vals[:,1])
+                current_dyn=conversion_factor*np.array(dyn_from_yaml)*mm
+            qp_data=data['phonon'][iq]['q-position']
+            qpoint=np.array(qp_data) 
+            #Convert to cartesian coordinates
+            q_cart=np.transpose(self.structure.get_reciprocal_vectors()).dot(qpoint)/(2*np.pi) 
+            self.q_tot.append(q_cart)
+            q_star.append(q_cart)
+            if not allq:
+                self.q_stars.append(q_star)
+            self.dynmats.append(current_dyn.copy())
 
-	    import yaml
-	    data=yaml.load(open("qpoints.yaml"))
-	    dyn_data=data['phonon'][iq]['dynamical_matrix']
-	    dyn_from_yaml=[]
-	    for row in dyn_data:
-		vals=np.reshape(row, (-1,2))
-		dyn_from_yaml.append(vals[:,0]+1j*vals[:,1])
-	    current_dyn=conversion_factor*np.array(dyn_from_yaml)*mm
-	    qp_data=data['phonon'][iq]['q-position']
-	    qpoint=np.array(qp_data) 
-	    #Convert to cartesian coordinates
-	    q_cart=np.transpose(self.structure.get_reciprocal_vectors()).dot(qpoint)/(2*np.pi) 
-	    self.q_tot.append(q_cart)
-	    q_star.append(q_cart)
-	    if not allq:
-		self.q_stars.append(q_star)
-	    self.dynmats.append(current_dyn.copy())
-
-	if allq:
-	    self.AdjustQStar()
-	else:
-	    #create allq from the star
-	    raise ValueError("Not yet implemented the possibility to initialize only the irreducible q-points")    
+        if allq:
+            self.AdjustQStar()
+        else:
+            #create allq from the star
+            raise ValueError("Not yet implemented the possibility to initialize only the irreducible q-points")    
 
 
 
@@ -547,7 +545,7 @@ class Phonons:
 	  #  self.q_stars.append(q_star)
 
 
-	self.initialized = True
+        self.initialized = True
 	
 
     def DyagDinQ(self, iq, force_real_at_gamma = True):
