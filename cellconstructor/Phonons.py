@@ -475,16 +475,14 @@ class Phonons:
         m=np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
         mm=np.sqrt(np.outer(m,m))/911.444243096
         #From now on read the dynamical matrix
-
-	
-	for iq in range(nq):
-	
-	    q_star=[]
-	    current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms),dtype=np.complex128)
-
-             #if not os.path.isfile(fildyn_prefix):
-                 #raise ValueError("Error, file %s does not exist." % fildyn_prefix)
-
+        
+        for iq in range(nq):
+        
+            q_star=[]
+            current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms),dtype=np.complex128)
+            #if not os.path.isfile(fildyn_prefix):
+                #raise ValueError("Error, file %s does not exist." % fildyn_prefix)
+                
             import yaml
             data=yaml.load(open("qpoints.yaml"))
             dyn_data=data['phonon'][iq]['dynamical_matrix']
