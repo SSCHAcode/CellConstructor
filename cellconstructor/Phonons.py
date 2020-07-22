@@ -478,6 +478,7 @@ class Phonons:
 
 	
 	for iq in range(nq):
+	
 	    q_star=[]
 	    current_dyn = np.zeros((3*self.structure.N_atoms, 3*self.structure.N_atoms),dtype=np.complex128)
 
