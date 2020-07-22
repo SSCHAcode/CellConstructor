@@ -1,20 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 """
-This code is an example on how to load a supercell phonon calculation at
-several q points.
+This code is an example on how to load the dynamical matrix calculated by
+Phonopy and convert it to the QE format.
 This is the ice XI structure of crystalline H2O
 """
 
 import cellconstructor as CC
 import cellconstructor.Phonons
 import numpy as np
+import os
 
 
-# Read the phonons (8 irreducible q points)
+total_path = os.path.dirname(os.path.abspath(__file__))
+os.chdir(total_path)
+                             
+# Read the phonons (4 irreducible q points)
 dynmat = CC.Phonons.Phonons("unitcell.in",use_Phonopy=True, nqirr=4)
 
-# Perform compute the frequency in the second q point
+# Write all the q points and compute the frequency in Gamma
 print ("The q points are:")
 print (dynmat.q_tot)
 print ()
