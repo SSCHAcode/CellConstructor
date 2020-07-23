@@ -16,7 +16,15 @@ symph_ext = Extension(name = "symph",
                                  "FModules/symmetry_high_rank.f90", 
                                  "FModules/unwrap_tensors.f90",
                                  "FModules/get_latvec.f90",
-                                 "FModules/contract_two_phonon_propagator.f90"],
+                                 "FModules/contract_two_phonon_propagator.f90",
+                                 "FModules/get_q_grid_fast.f90"],
+                      libraries= ["lapack", "blas"],
+                      extra_f90_compile_args = ["-cpp"]
+                      )
+
+
+secondorder_ext = Extension(name = "secondorder",
+                      sources = ["FModules/second_order_centering.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )
@@ -58,7 +66,7 @@ setup( name = "CellConstructor",
        license = "MIT",
        include_package_data = True,
        scripts = ["scripts/symmetrize_dynmat.py", "scripts/cellconstructor_test.py"],
-       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext]
+       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext, secondorder_ext]
        )
 
 def readme():

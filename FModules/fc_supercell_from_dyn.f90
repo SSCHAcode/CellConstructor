@@ -61,6 +61,58 @@ subroutine fc_supercell_from_dyn (phitot, q, tau, tau_sc, itau, phitot_sc, nat, 
 
 end subroutine fc_supercell_from_dyn
 
+! This is a fast version of the Fourier transform
+! Equal to the one implemented in python
+! But much faster
+subroutine fast_ft_real_space_from_dynq(unit_cell_coords, super_cell_coords, itau, nat, nat_sc, nq, q_tot, dynq, fc_supercell)
+  
+  integer, intent(in) :: nat, nat_sc, nq 
+  integer, intent(in), dimension(nat_sc) :: itau
+  double precision, intent(in) :: unit_cell_coords(nat, 3), super_cell_coords(nat_sc, 3)
+  double precision, intent(in), dimension(nq, 3) :: q_tot 
+  double complex, intent(in), dimension(nq, 3*nat, 3*nat) :: dynq
+
+  double complex, intent(out), dimension(3*nat_sc, 3*nat_sc) :: fc_supercell
+
+
+  integer :: i, j, iq, i_uc, j_uc, h, k
+  double precision :: R(3), arg, twopi
+
+  double complex :: im, phase
+
+  im     = (0.0d0,1.0d0)
+  twopi  = 6.283185307179586d0 
+
+  fc_supercell(:,:) = 0.0d0
+
+  do i = 1, nat_sc
+    i_uc = itau(i)
+    do j = 1, nat_sc 
+      j_uc = itau(j)
+
+      ! Get the distance vector between the two atoms
+      R(:) = super_cell_coords(i, :) - unit_cell_coords(i_uc,:)
+      R(:) = R(:) - super_cell_coords(j, :) + unit_cell_coords(j_uc, :)
+
+      ! Perform the Fourier transform
+      do iq = 1, nq
+        arg = twopi * sum(q_tot(iq, :) * R)
+        phase = exp(im * arg) / nq
+
+        do h = 1, 3
+          do k = 1, 3
+            fc_supercell(3*(i-1) + h, 3*(j-1) + k) = fc_supercell(3*(i-1) + h, 3*(j-1) + k) + &
+              dynq(iq, 3*(i_uc-1) + h, 3*(j_uc-1) + k) * phase
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+
+  ! Check if the fc supercell has an imaginary value
+
+end subroutine fast_ft_real_space_from_dynq
+
 !
 !logical function eqvect1 (x, y)
 !  !-----------------------------------------------------------------------

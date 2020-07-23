@@ -22,6 +22,7 @@ from cellconstructor.Units import *
 # Import the Fortran Code
 import symph
 
+import time
 
 
 try:
@@ -1467,6 +1468,55 @@ class Phonons:
             
             matrix = np.einsum("i, ji, ki", w**2, pols, np.conj(pols)) * np.sqrt(_m1_ * _m2_)
             self.dynmats[iq] = matrix
+
+
+    def ForcePositiveDefinite_2(self):
+        """
+        FORCE TO BE POSITIVE DEFINITE
+        =============================
+        
+        This method force the matrix to be positive defined. 
+        Usefull if you want to start with a matrix for a SCHA calculation.
+        
+        It will take the Dynamical matrix and rebuild it as
+        
+        .. math::
+            
+            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} |\omega_\mu^2| e_\\mu^a e_\\mu^b 
+            
+        
+        In this way the dynamical matrix will be always positive definite.
+        """
+        
+        # Prepare the masses matrix
+        mass1 = np.zeros( 3*self.structure.N_atoms)
+        for i in range(self.structure.N_atoms):
+            mass1[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
+        
+        _m1_ = np.tile(mass1, (3 * self.structure.N_atoms, 1))
+        _m2_ = np.tile(mass1, (3 * self.structure.N_atoms, 1)).transpose()
+        
+        
+        numq=len(self.dynmats)
+        w=np.zeros((numq,3*self.structure.N_atoms), dtype = np.float64)
+        pols=np.zeros((numq,3*self.structure.N_atoms,3*self.structure.N_atoms), dtype = np.complex128 )
+        
+        for iq in range(numq):
+            # Diagonalize the matrix
+            w[iq,:], pols[iq,:,:] = self.DyagDinQ(iq)
+        
+        
+        fact=np.amin(w)
+        
+        if fact < 0.0 :
+            w+=np.abs(fact)*0.1
+        
+        for iq in range(numq):        
+            v=pols[iq,:,:]
+            fr=w[iq,:]
+            matrix = np.einsum("i, ji, ki", fr**2, v, np.conj(v)) * np.sqrt(_m1_ * _m2_)
+            self.dynmats[iq] = matrix
+
                         
                         
     def GetRamanResponce(self, pol_in, pol_out, T = 0):
@@ -3355,13 +3405,16 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     fc = np.zeros((3*nat_sc, 3*nat_sc), dtype = np.complex128)
+
+
+    fc = symph.fast_ft_real_space_from_dynq(unit_cell_structure.coords, supercell_structure.coords, itau+1, np.array(q_tot), dynmat, unit_cell_structure.N_atoms, supercell_structure.N_atoms, q_tot.shape[0])
+
     
-    #print "NQ:", nq 
     
-    
-    
+    """ 
     for i in range(nat_sc):
         i_uc = itau[i]
+        t1 = time.time()
         for j in range(nat_sc):
             j_uc = itau[j]
             R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
@@ -3370,8 +3423,13 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
             # q_dot_R is 1d array that for each q contains the scalar product with R
             q_dot_R = q_tot.dot(R)
             
+            t2 = time.time()
             fc[3*i : 3*i + 3, 3*j : 3*j + 3] += np.einsum("abc, a", dynmat[:, 3*i_uc : 3*i_uc + 3, 3*j_uc: 3*j_uc + 3], np.exp(1j * 2*np.pi * q_dot_R)) / nq
-            
+            t3 = time.time()
+
+            print("Time to do a single cycle: ", t3 - t2)
+            print("Total number of cycles = {} / {}".format(nat_sc * i + j + 1, nat_sc**2)) 
+        print("Time for a whole cycle: ", t3 - t1) """
 #    
 #    # For now, to test, just the unit cell
 #    for i in range(nq):

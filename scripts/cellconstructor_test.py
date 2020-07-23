@@ -486,18 +486,21 @@ class TestStructureMethods(unittest.TestCase):
         qe_inter_dyn = dyn.Interpolate(dyn.GetSupercell(), new_cell)
 
         # Interpolate using the Tensor library
-        t2 = CC.ForceTensor.Tensor2(dyn.structure)
+        t2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
         t2.SetupFromPhonons(dyn)
+        t2.Center()
         tensor_inter_dyn = t2.GeneratePhonons(new_cell)
 
         # Apply the symmetries to both
         tensor_inter_dyn.Symmetrize()
         qe_inter_dyn.Symmetrize()
 
-        dist = qe_inter_dyn.dynmats[0] - tensor_inter_dyn.dynmats[0]
-        dist = np.sqrt(np.sum(dist**2))
+        for iq, q in enumerate(tensor_inter_dyn.q_tot):
+            dist = qe_inter_dyn.dynmats[iq] - tensor_inter_dyn.dynmats[iq]
+            dist = np.max(np.abs(dist))
 
-        self.assertTrue(dist > 1e-6)
+            #print("Testing at q = ", q, " | ", qe_inter_dyn.q_tot[iq])
+            self.assertTrue(dist < 1e-6)
         
 
 

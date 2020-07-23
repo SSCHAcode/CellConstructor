@@ -68,7 +68,7 @@ def test_save_simple_tensor():
     #tensor2 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
     #tensor3 = CC.ForceTensor.Tensor3(simple_structure, supercell_structure, supercell_size)
     
-    tensor1.Setup(t3_matrix)
+    tensor1.SetupFromTensor(t3_matrix)
     #tensor2.Setup(t3_matrix)    
     #tensor3.Setup(t3_matrix)        
     
@@ -79,7 +79,7 @@ def test_save_simple_tensor():
     #tensor.ReadFromFile("prova_3RD_now")
     #tensor.WriteOnFile("prova_3RD_reload")
 
-    tensor1.Center(1)
+    tensor1.Center(Far=1)
     #tensor2.CenteringF(1)
     #tensor3.__old_centering2__(1)
     

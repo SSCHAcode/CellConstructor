@@ -1412,8 +1412,116 @@ def is_gamma(unit_cell, q):
     
     bg = get_reciprocal_vectors(unit_cell)
     new_q = get_closest_vector(bg, q)
-    
-    
+        
     return (np.abs(new_q) < 1e-6).all()
+
     
-    
+def save_qe(dyn,q,dynq,freqs, pol_vects,fname):
+        """
+        SAVE THE DYNMAT
+        ===============
+        
+        This subroutine saves the dynamical matrix in the quantum espresso file format.
+        The dynmat is the force constant matrix in Ry units.
+        
+        .. math::
+            
+            \\Phi_{ab} = \\sum_\\mu \\omega_\\mu^2 e_\\mu^a e_\\mu^b \\sqrt{M_a M_b}
+            
+        Where :math:`\\Phi_{ab}` is the force constant matrix between the a-b atoms (also cartesian
+        indices), :math:`\\omega_\\mu` is the phonon frequency and :math:`e_\\mu` is the
+        polarization vector.
+        """
+        
+        A_TO_BOHR = 1.889725989
+        RyToCm=109737.37595
+        RyToTHz=3289.84377
+        
+
+        # Open the file
+        fp = open(fname, "w")
+        fp.write("Dynamical matrix file\n")
+        
+        # Get the different number of types
+        types = []
+        n_atoms = dyn.structure.N_atoms
+        for i in range(n_atoms):
+            if not dyn.structure.atoms[i] in types:
+                types.append(dyn.structure.atoms[i])
+        n_types = len(types)
+
+        # Assign an integer for each atomic species
+        itau = {}
+        for i in range(n_types):
+            itau[types[i]] = i +1
+        
+        # Write the comment line
+        fp.write("File generated with CellConstructor\n")
+        fp.write("%d %d %d %22.16f %22.16f %22.16f %22.16f %22.16f %22.16f\n" %
+                 (n_types, n_atoms, 0, dyn.alat * A_TO_BOHR, 0, 0, 0, 0, 0) )
+        
+        # Write the basis vector
+        fp.write("Basis vectors\n")
+        # Get the unit cell
+        for i in range(3):
+            fp.write(" ".join("%22.16f" % x for x in dyn.structure.unit_cell[i,:] / dyn.alat) + "\n")
+        
+        # Set the atom types and masses
+        for i in range(n_types):
+            fp.write("\t{:d}  '{:<3s}'  {:>24.16f}\n".format(i +1, types[i], dyn.structure.masses[types[i]]))
+        
+        # Setup the atomic structure
+        for i in range(n_atoms):
+            # Convert the coordinates in alat
+            coords = dyn.structure.coords[i,:] / dyn.alat
+            fp.write("%5d %5d %22.16f %22.16f %22.16f\n" %
+                     (i +1, itau[dyn.structure.atoms[i]], 
+                      coords[0], coords[1], coords[2]))
+        
+        # Here the dynamical matrix starts
+        fp.write("\n")
+        fp.write("     Dynamical Matrix in cartesian axes\n")
+        fp.write("\n")
+        fp.write("     q = (    {:11.9f}   {:11.9f}   {:11.9f} )\n".format(q[0] * dyn.alat ,
+                                                                           q[1] * dyn.alat, q[2] * dyn.alat ))
+        fp.write("\n")
+        
+        # Now print the dynamical matrix
+        for i in range(n_atoms):
+            for j in range(n_atoms):
+                # Write the atoms
+                fp.write("%5d%5d\n" % (i + 1, j + 1))
+                for x in range(3):
+                    line = "%23.16f%23.16f   %23.16f%23.16f   %23.16f%23.16f" % \
+                           ( np.real(dynq[3*i + x, 3*j]), 
+                             np.imag(dynq[3*i + x, 3*j]),
+                             np.real(dynq[3*i + x, 3*j+1]),
+                             np.imag(dynq[3*i+x, 3*j+1]),
+                             np.real(dynq[3*i + x, 3*j+2]),
+                             np.imag(dynq[3*i+x, 3*j+2]) )
+        
+                    fp.write(line +  "\n")
+        
+        # Print the diagnoalization of the matrix
+        fp.write("\n")
+        fp.write("     Diagonalizing the dynamical matrix\n")
+        fp.write("\n")
+        fp.write("     q = (    {:11.9f}   {:11.9f}   {:11.9f} )\n".format(q[0] *dyn.alat ,
+                                                                           q[1] *dyn.alat, q[2] *dyn.alat))
+        fp.write("\n")
+        fp.write("*" * 75 + "\n")
+        
+        nmodes = len(freqs)
+        for mu in range(nmodes):
+            # Print the frequency
+            fp.write("%7s (%5d) = %14.8f [THz] = %14.8f [cm-1]\n" %
+                     ("freq", mu+1, freqs[mu] * RyToTHz, freqs[mu] * RyToCm))
+            
+            # Print the polarization vectors
+            for i in range(n_atoms):
+                fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
+                         (np.real(pol_vects[3*i, mu]), np.imag(pol_vects[3*i,mu]),
+                          np.real(pol_vects[3*i+1, mu]), np.imag(pol_vects[3*i+1,mu]),
+                          np.real(pol_vects[3*i+2, mu]), np.imag(pol_vects[3*i+1,mu])))
+        fp.write("*" * 75 + "\n")
+        fp.close()    
