@@ -624,7 +624,7 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -642,6 +642,10 @@ class Tensor2(GenericTensor):
                 grid.
             verbose : bool
                 Print some debugging info
+            q_direct : ndarray(dtype = 3)
+                If q2 is gamma and effective charges are present, this vector is used
+                to pick the direction of the nonanalitical correction to apply.
+                If it is not initialized, a random versor will be chosen.
 
         Results
         -------
@@ -667,6 +671,20 @@ class Tensor2(GenericTensor):
             # Add the nonanalitic part back
             QE_q = -q2 * self.QE_alat / Units.A_TO_BOHR
             symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, +1.0, self.nat)
+
+            # Check if the vector is gamma
+            if np.max(np.abs(q2)) < 1e-12:
+                q_vect = np.zeros(3, dtype = np.double)
+                if q_direct is not None:
+                    # the - to take into account the difference between QE convension and our
+                    q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
+                else:
+                    q_vect[:] = np.random.normal(size = 3)
+                    q_vect /= np.sqrt(q_vect.dot(q_vect))
+
+                # Apply the nonanal contribution at gamma
+                QE_itau = np.arange(self.nat) + 1
+                symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
 
             # Copy in the final fc the result
             for i in range(self.nat):
