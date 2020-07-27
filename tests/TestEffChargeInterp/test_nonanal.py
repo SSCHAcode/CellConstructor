@@ -33,9 +33,12 @@ def test_nonanal(verbose = False):
 
     dist = np.max(np.abs(dyn_interp_standard - dyn_interp_nonanal))
 
+    
+
     if verbose:
         m = dyn.structure.get_masses_array()
         m = np.tile(m, (3,1)).T.ravel()
+
         d_1 = dyn_interp_standard / np.sqrt(np.outer(m,m))
         d_2 = dyn_interp_nonanal / np.sqrt(np.outer(m,m))
 
@@ -45,11 +48,20 @@ def test_nonanal(verbose = False):
         w_1 = np.sqrt(np.abs(w2_1)) * np.sign(w2_1) * CC.Units.RY_TO_CM
         w_2 = np.sqrt(np.abs(w2_2)) * np.sign(w2_2) * CC.Units.RY_TO_CM
 
+        dyn.q_tot = [np.zeros(3)]
+        dyn.q_stars = [[np.zeros(3)]]
+        dyn.nqirr = 1
+        dyn.dynmats[0] = dyn_interp_standard
+        dyn.save_qe("d_interp_standard")
+        dyn.dynmats[0] = dyn_interp_nonanal
+        dyn.save_qe("d_interp_nonanal")
+        
+
         print("\n".join(["w_{:3d} = {:16.8f} | {:16.8f} cm-1".format(i, w_1[i], w_2[i])
                          for i in range(len(w_1))])) 
 
         print("Distance:", dist)
-    assert dist < 1e-6, "Error, the nonanal function of interpolating effective charges is not working correctly.\n Distance from expected: {}".format(dist)
+    assert dist < 1e-5, "Error, the nonanal function of interpolating effective charges is not working correctly.\n Distance from expected: {}".format(dist)
 
 if __name__ == "__main__":
     test_nonanal(True)
