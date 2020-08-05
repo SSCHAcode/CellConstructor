@@ -1,0 +1,5 @@
+ &input
+   fildyn  =  'dyn'
+   zasr    =  'no'
+   flfrc   =  'mat2R'
+ /

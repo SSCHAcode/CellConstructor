@@ -5,6 +5,7 @@ from __future__ import division
 import cellconstructor.Phonons as Phonons
 import cellconstructor.Methods as Methods 
 import cellconstructor.symmetries as symmetries
+import cellconstructor.Units as Units
 
 import cellconstructor.Settings as Settings
 from cellconstructor.Settings import ParallelPrint as print 
@@ -66,6 +67,21 @@ class Tensor2(GenericTensor):
         self.tensor = np.zeros((self.n_R, 3*self.nat, 3*self.nat), dtype = np.double)
         self.n_sup = np.prod(supercell_size)
 
+        # Prepare the initialization of the effective charges
+        self.effective_charges = None
+        self.dielectric_tensor = None
+
+        # Prepare the values ready to be used inside quantum espresso Fortran subroutines
+        self.QE_tau = None
+        self.QE_omega = None
+        self.QE_zeu = None 
+        self.QE_bg = None
+
+        # NOTE: this QE_alat is not the unit of measure like in QE subroutines,
+        # But rather the dimension of the first unit-cell vector in Bohr.
+        # It is used for computing the ideal integration size in rgd_blk from symph
+        self.QE_alat = None 
+
     def SetupFromPhonons(self, phonons):
         """
         SETUP FROM PHONONS
@@ -78,8 +94,94 @@ class Tensor2(GenericTensor):
             - phonons : Phonons.Phonons()
                 The dynamical matrix from which you want to setup the tensor
         """
+
+        current_dyn = phonons.Copy()
+
+        # Check if the dynamical matrix has the effective charges
+        if phonons.effective_charges is not None:
+            time1 = time.time()
+            self.effective_charges = current_dyn.effective_charges.copy()
+            assert current_dyn.dielectric_tensor is not None, "Error, effective charges provided, but not the dielectric tensor."
+            
+            self.dielectric_tensor = current_dyn.dielectric_tensor.copy()
+
+            self.QE_alat = phonons.alat * Units.A_TO_BOHR
+
+            # Prepare the coordinates in Bohr for usage in QE subroutines
+            self.QE_tau = np.zeros((3, self.nat), dtype = np.double, order = "F")
+            self.QE_tau[:,:] = self.tau.T * Units.A_TO_BOHR / self.QE_alat
+            self.QE_zeu = np.zeros((3,3,self.nat), dtype = np.double, order = "F")
+            self.QE_zeu[:,:,:] = np.einsum("sij->ijs", self.effective_charges) # Swap axis (we hope they are good)
+            self.QE_bg = np.zeros((3,3), dtype = np.double, order = "F")
+            bg = self.unitcell_structure.get_reciprocal_vectors()
+            self.QE_bg[:,:] = bg.T * self.QE_alat / (2*np.pi * Units.A_TO_BOHR)
+            self.QE_omega = self.unitcell_structure.get_volume() * Units.A_TO_BOHR**3
+
+            # The typical distance in the cell
+            #self.QE_alat = np.sqrt(np.sum(self.unitcell_structure.unit_cell[0, :]**2))
+            #self.QE_alat = Units.A_TO_BOHR
+
+            # Subtract the long range interaction for any value of gamma.
+            dynq = np.zeros((3, 3, self.nat, self.nat), dtype = np.complex128, order = "F")
+            for iq, q in enumerate(current_dyn.q_tot):
+
+                t1 = time.time()
+                # Fill the temporany dynamical matrix in the correct fortran subroutine
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        dynq[:,:, i, j] = current_dyn.dynmats[iq][3*i: 3*i+3, 3*j : 3*j+3]
+                t3 = time.time()
+
+                # Lets go in QE units
+                QE_q = q * self.QE_alat / Units.A_TO_BOHR
+
+                # Remove the long range interaction from the dynamical matrix
+                symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, -1.0, self.nat)
+
+                # Copy it back into the current_dynamical matrix
+                for i in range(self.nat):
+                    for j in range(self.nat):
+                        current_dyn.dynmats[iq][3*i: 3*i+3, 3*j: 3*j+3] = dynq[:,:, i, j]
+
+                # Impose hermitianity
+                current_dyn.dynmats[iq][:,:] = 0.5 * (current_dyn.dynmats[iq] + np.conj(current_dyn.dynmats[iq].T))
+
+                t2 = time.time()
+                if self.verbose:
+                    print("Time for the step {} / {}: {} s".format(iq+1, len(current_dyn.q_tot), t2 - t1))
+                    print("(The preparation of the dynq: {} s)".format(t3 - t1))
+                    print("NAT:", self.nat)
+
+
+
+            time2 = time.time()
+
+            if self.verbose:
+                print("Time to prepare the effective charges: {} s".format(time2 - time1))
+
         # Get the dynamical matrix in the supercell
-        super_dyn = phonons.GenerateSupercellDyn(phonons.GetSupercell())
+        time3 = time.time()
+        
+        # Apply the acoustic sum rule (could be spoiled by the effective charges)
+        #iq_gamma = np.argmin(np.sum(np.array(current_dyn.q_tot)**2, axis = 1))
+        #symmetries.CustomASR(current_dyn.dynmats[0])
+        #current_dyn.Symmetrize()
+
+
+        if self.verbose:
+            print("Generating Real space force constant matrix...")
+
+        # TODO: we could use the fft to speedup this
+        # fc_q = dyn.GetMatrixFFT()
+        # fc_real_space = np.conj(np.fft.fftn(np.conj(fc_q), axes = (0,1,2))) / np.prod(current_dyn.GetSupercell())
+        # fc_real_space is already in tensor form (first three indices the R_2 components, or maybe -R_2) in crystalline coordinates)
+        # It must be just rearranged in the correct tensor 
+        super_dyn = current_dyn.GenerateSupercellDyn(phonons.GetSupercell(), img_thr  =1e-6)
+        time4 = time.time()
+
+        if self.verbose:
+            print("Time to generate the real space force constant matrix: {} s".format(time4 - time3))
+            print("TODO: the last time could be speedup with the FFT algorithm.")
 
         # Setup from the supercell dynamical matrix
         self.SetupFromTensor(super_dyn.dynmats[0])
@@ -511,7 +613,7 @@ class Tensor2(GenericTensor):
             print("  ")      
             
             with open(fname, "w") as f:
-                #TODD Print header...
+                #TODO Print header...
 
                 for nat1 in range(self.nat):
                     for nat2 in range(self.nat):
@@ -522,7 +624,7 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -540,6 +642,10 @@ class Tensor2(GenericTensor):
                 grid.
             verbose : bool
                 Print some debugging info
+            q_direct : ndarray(dtype = 3)
+                If q2 is gamma and effective charges are present, this vector is used
+                to pick the direction of the nonanalitical correction to apply.
+                If it is not initialized, a random versor will be chosen.
 
         Results
         -------
@@ -549,10 +655,41 @@ class Tensor2(GenericTensor):
 
         final_fc = np.zeros((3*self.nat, 3*self.nat), dtype = np.complex128)
 
+        # Perform the fourier transform of the short range real space tensor.
         for i in range(self.n_R):
             arg = 2 * np.pi * (q2.dot(self.r_vector2[:, i]))
             phase = np.exp(np.complex128(-1j) * arg)
             final_fc += phase * self.tensor[i, :, :]
+
+        # If effective charges are present, then add the nonanalitic part
+        if self.effective_charges is not None:
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
+            
+            # Add the nonanalitic part back
+            QE_q = -q2 * self.QE_alat / Units.A_TO_BOHR
+            symph.rgd_blk(0, 0, 0, dynq, QE_q, self.QE_tau, self.dielectric_tensor, self.QE_zeu, self.QE_bg, self.QE_omega, self.QE_alat, 0, +1.0, self.nat)
+
+            # Check if the vector is gamma
+            if np.max(np.abs(q2)) < 1e-12:
+                q_vect = np.zeros(3, dtype = np.double)
+                if q_direct is not None:
+                    # the - to take into account the difference between QE convension and our
+                    q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
+                else:
+                    q_vect[:] = np.random.normal(size = 3)
+                    q_vect /= np.sqrt(q_vect.dot(q_vect))
+
+                # Apply the nonanal contribution at gamma
+                QE_itau = np.arange(self.nat) + 1
+                symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
+
+            # Copy in the final fc the result
+            for i in range(self.nat):
+                for j in range(self.nat):
+                    final_fc[3*i : 3*i+3, 3*j:3*j+3] = dynq[:,:, i, j]
 
         # Apply the acoustic sum rule
         if asr:
@@ -730,6 +867,10 @@ class Tensor2(GenericTensor):
         transform back into the dynamical matrix with the correct q.
 
         It might be that the new dynamical matrix should be symmetrized.
+
+        NOTE: The Interpolate method uses a different convension of the Fourier Transform.
+        For this reason, this method returns the Complex Cojugate of the matrices interpolated at the q points.
+        This has been fixed, by manually computing the complex conjugate before the return
         
 
         Parameters
@@ -1115,10 +1256,19 @@ class Tensor3():
 
         Save the tensor on a file.
 
-        The file format is the same as phono3py or D3Q        
+        The file format is the same as phono3py or D3Q       
+
+        Parameters
+        ----------
+            fname : string
+                Path to the file in which you want to save the real space force constant tensor.
+            file_format: string
+                It could be either 'phonopy' or 'd3q' (not case sensitive)
+                'd3q' is the file format used in the thermal.x espresso package, while phonopy is the one
+                used in phono3py. 
         """
         
-        if file_format == 'Phonopy':
+        if file_format.lower() == 'phonopy':
             
             print("  ")
             print(" Writing FC3 on "+ fname)
@@ -1148,7 +1298,7 @@ class Tensor3():
                                     f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
         
         
-        elif file_format == 'D3Q':
+        elif file_format.upper() == 'D3Q':
             
             print("  ")
             print(" Writing FC3 on "+ fname)
