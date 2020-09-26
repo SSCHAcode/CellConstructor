@@ -31,7 +31,9 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
     real(kind=DP) :: s_vec(3), t_vec(3), SC_t_vec(3)
     integer :: LLt,MMt,NNt, alpha, beta, jn1 ,jn2,h
     real(kind=DP) :: perimeter, perim_min,summa
-
+    logical :: Found
+    
+    Found=.False.
     weight=0
     !
     do s = 1, nat
@@ -98,6 +100,8 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
            weight(s,t,i_block)=ww
            if ( ww > 0 ) then
            !
+           Found=.True. ! at least one couple found
+           !
            do h = 1, ww
                xR2(:,h,s,t,i_block)=RRt(:,h)
            end do
@@ -110,6 +114,15 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,alat, tau, tensor,weight,xR2,
     !
     end do
     !
+    if ( .not. Found ) then
+            write(*,*) " "
+            write(*,*) " ERROR: no nonzero couple found during centering,        "
+            write(*,*) "        the execution stops here.                        "
+            write(*,*) "        Relax the constraint imposed                     "
+            write(*,*) "        on the maximum distance allowed (nneigh)         " 
+            write(*,*) " "
+            stop    
+    end if    
     !
 end subroutine analysis
 !=================================================================================

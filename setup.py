@@ -27,7 +27,8 @@ symph_ext = Extension(name = "symph",
 
 
 secondorder_ext = Extension(name = "secondorder",
-                      sources = ["FModules/second_order_centering.f90"],
+                      sources = ["FModules/second_order_centering.f90",
+                                 "FModules/second_order_ASR.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )
