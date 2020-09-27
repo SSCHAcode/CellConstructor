@@ -11,6 +11,8 @@ integer, allocatable :: num_blocks_R2(:)
 
 contains 
 
+! ============================== INITIALIZATIONS ============================================
+
 subroutine initialize_R2index(xR2,xR2list,totnum_R2, n_blocks,SCLat,PBC)
 implicit none
 integer, intent(in)  :: xR2(3,n_blocks),n_blocks,totnum_R2,xR2list(3,totnum_R2)
@@ -230,7 +232,7 @@ end subroutine impose_perm_sym
 !================================ ASR ON 3rd INDEX ============================================
 
 subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
-                          sum3rd,FCvar,FC_asr,totnum_R2,nat,n_blocks)
+                          FCvar,sum3rd,FC_asr,totnum_R2,nat,n_blocks)
     implicit none
     integer, parameter :: DP = selected_real_kind(14,200)
     real(kind=DP), intent(in) :: FC(3*nat,3*nat,3*nat,n_blocks)
@@ -282,7 +284,7 @@ subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
                     end do
                     end do
                     !  
-                else
+                else ! no need to modify the FC
                     !
                     do i_block=1,num_blocks_R2(i_R2)
                     do n3=1,nat
@@ -337,15 +339,15 @@ subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
         write(*, "(' ASR imposition on 3rd index with pow= 'f5.3)") pow
         write(*, "(' Previous values: sum(|sum_3rd phi|)/sum(|phi|)=       'e20.6)" ) sum3rd
         write(*, "('                  sum(|phi|**pow)**(1/pow)/sum(|phi|)= 'e20.6)" ) d1**invpow/SUM(ABS(FC))
-        write(*, "(' FC variation= 'e20.6)" ) FCvar    
+        write(*, "(' FC relative variation= 'e20.6)" ) FCvar    
         write(*, * ) "" 
     
     else
 
         write(*, * ) ""   
         write(*, "(' ASR imposition on 3rd index with pow= 0' )") 
-        write(*, "(' Previous value: sum(|sum_3rd phi|)= 'e20.6' eV/A**3')" ) sum3rd
-        write(*, "(' FC variation= 'e20.6)" ) FCvar    
+        write(*, "(' Previous value: sum(|sum_3rd phi|)/sum(|phi|)= 'e20.6 )" ) sum3rd
+        write(*, "(' FC relative variation= 'e20.6)" ) FCvar    
         write(*, * ) ""     
     
     
@@ -372,7 +374,7 @@ logical, intent(in) :: PBC,verbose
 real(kind=DP), intent(out) :: FC_out(3*nat,3*nat,3*nat,n_blocks)
 !
 real(kind=DP)   :: FC_tmp(3*nat,3*nat,3*nat,n_blocks)
-integer         :: ite, ios
+integer         :: ite, contr, iter, ios
 real(kind=DP)   :: FCvar, sum3rd
 logical :: converged
 
@@ -389,7 +391,15 @@ call initialize_R2index(xR2,xR2list,totnum_R2, n_blocks,SCLat,PBC)
  converged = .false.
  FC_tmp=FC
 
-do ite=1,maxite
+ite=1
+if ( maxite == 0 ) then
+ contr=-1
+else
+ contr=1
+end if
+iter=ite*contr
+
+do while (iter < maxite)
 
     if (verbose) write(*,"(' Iter #' I5 '  ====')") ite
     if (verbose) write(*,*) ""
@@ -402,8 +412,9 @@ do ite=1,maxite
    !  check converg
    if ( sum3rd < threshold  .and. FCvar < threshold ) then
         write(*,*) " "
-        write(*,"( ' * Convergence reached within threshold:' e20.6 ' eV/A**3')") threshold
+        write(*,"( ' * Convergence reached within threshold:' e20.6 )") threshold
         write(*,*) " "
+        write(*,"( ' * Total FC relative variation:' e20.6 )") SUM(ABS(FC-FC_out))/ SUM(ABS(FC)) 
         converged = .True.
         EXIT
    end if
@@ -416,6 +427,8 @@ do ite=1,maxite
         EXIT 
    ENDIF
    
+   ite=ite+1
+   iter=ite*contr
 end do
 
 

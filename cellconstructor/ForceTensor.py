@@ -541,6 +541,87 @@ class Tensor2(GenericTensor):
         self.n_sup = Settings.broadcast(self.n_sup)
 
 
+
+    def Apply_ASR(self,PBC=False,power=0,maxiter=1000,threshold=1.0e-12):
+        """
+        Apply_ASR 
+        =========
+
+        This subroutine apply the ASR to the second order force constants iteratively.
+        For each iteration, the ASR is imposed on the second index 
+        (any of the two indeces would be equivalent, apart from the subtleties that 
+        would require the implementation for the first index, due to the representation chosen),
+        and, subsequently, the symmetry by permutation of the two indeces is imposed.
+        
+
+        Optional Parameters
+        --------------------
+            - PBC [default=False]: logical
+            
+                If True, periodic boundary conditions are considered. This is necessary, for example,
+                to apply this routine to non-centered tensors.
+            
+            - power [default=0]: float >= 0
+            
+                The way the ASR is imposed on the second index:                
+                phi(i,j,a,b)=phi(i,j,a,b)-[\sum_b phi(i,j,a,b)]* |phi(i,j,a,b)|^pow / [sum_b |phi(i,j,a,b)|^pow]
+            
+            - maxiter [default= 1000]: integer >= 0
+
+                n>0   Maximum number of iteration to reach the convergence. 
+                n=0   Endless iteration
+                
+                If a file STOP is found, the iteration stops.
+                
+            - threshold [default= 1.0e-12]: float > 0                
+ 
+               Threshold for the convergence. The convergence is on two values: the value of sum on the third index and the 
+               variation of the phi after the imposition of the permutation symmetry (both divided by sum |phi|)
+        """    
+
+        
+        if Settings.am_i_the_master():
+        
+        
+            t1 = time.time()
+           
+            if self.verbose:
+                print(" ")
+                print(" =======================    ASR    ========================== ")
+                print(" ")         
+
+
+        
+            xRmin=np.min(self.x_r_vector2,1) 
+            xRmax=np.max(self.x_r_vector2,1) 
+            SClat=xRmax-xRmin+np.ones((3,),dtype=int)
+
+
+            tensor=np.transpose(self.tensor,axes=[1,2,0])
+
+            tensor_out=secondorder.second_order_asr.impose_asr(tensor,
+                                                             self.x_r_vector2,
+                                                             power,SClat,
+                                                             PBC,threshold,
+                                                             maxiter,self.verbose,
+                                                             self.nat,self.n_R)
+        
+            self.tensor=np.transpose(tensor_out,axes=[2,0,1]) 
+
+            t2 = time.time() 
+
+            if self.verbose: 
+                print(" ")
+                print(" Time elapsed for imposing ASR: {} s".format( t2 - t1)) 
+                print(" ")
+                print(" ============================================================ ")
+
+
+
+        self.tensor = Settings.broadcast(self.tensor)        
+        
+
+
     def WriteOnFile(self, fname,file_format='Phonopy'):
         """
         WRITE ON FILE
@@ -1544,7 +1625,7 @@ class Tensor3():
         self.n_sup = Settings.broadcast(self.n_sup)
 
 
-    def Apply_ASR(self,PBC=False,power=2,maxiter=1000,threshold=1.0e-12):
+    def Apply_ASR(self,PBC=False,power=0,maxiter=1000,threshold=1.0e-12):
         """
         Apply_ASR 
         =========
@@ -1563,14 +1644,16 @@ class Tensor3():
                 If True, periodic boundary conditions are considered. This is necessary, for example,
                 to apply this routine to non-centered tensors.
             
-            - power [default=2]: float >= 0
+            - power [default=0]: float >= 0
             
                 The way the ASR is imposed on the third index:                
                 phi(i,j,k,abc)=phi(i,j,k,a,b,c)-[\sum_c phi(i,j,k,a,b,c)]* |phi(i,j,k,a,b,c)|^pow / [sum_c |phi(i,j,k,a,b,c)|^pow]
             
-            - maxiter [default= 1000]: integer > 0
+            - maxiter [default= 1000]: integer >= 0
 
-                Maximum number of iteration to reach the convergence. 
+                n>0   Maximum number of iteration to reach the convergence. 
+                n=0   Endless iteration
+                
                 If a file STOP is found, the iteration stops.
                 
             - threshold [default= 1.0e-12]: float > 0                

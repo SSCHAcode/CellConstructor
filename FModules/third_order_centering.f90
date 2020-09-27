@@ -32,7 +32,9 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,xR3_list,alat, tau, tensor,we
     real(kind=DP) :: s_vec(3), t_vec(3), u_vec(3), SC_t_vec(3), SC_u_vec(3)
     integer :: LLt,MMt,NNt,LLu,MMu,NNu, alpha, beta, gamma, jn1 ,jn2, jn3,h
     real(kind=DP) :: perimeter, perim_min,summa
-
+    logical :: Found
+    
+    Found=.False.
     weight=0
     !
     do s = 1, nat
@@ -117,6 +119,8 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,xR3_list,alat, tau, tensor,we
            weight(s,t,u,i_block)=ww
            if ( ww > 0 ) then
            !
+           Found=.True. ! at least one triplet found
+           !
            do h = 1, ww
                xR2(:,h,s,t,u,i_block)=RRt(:,h)
                xR3(:,h,s,t,u,i_block)=RRu(:,h)
@@ -132,6 +136,15 @@ subroutine analysis(Far,tol, dmax,sc_size,xR2_list,xR3_list,alat, tau, tensor,we
     !
     end do
     !
+    if ( .not. Found ) then
+            write(*,*) " "
+            write(*,*) " ERROR: no nonzero triplets found during centering,      "
+            write(*,*) "        the execution stops here.                        "
+            write(*,*) "        Relax the constraint imposed                     "
+            write(*,*) "        on the maximum distance allowed (nneigh)         " 
+            write(*,*) " "
+            stop    
+    end if
     !
 end subroutine analysis
 !=================================================================================
