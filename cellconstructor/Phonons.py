@@ -1779,36 +1779,32 @@ class Phonons:
         
         K_to_Ry=6.336857346553283e-06
 
-        # Dyagonalize the current dynamical matrix
-        nq = len(self.dynmats)
-        
-        # For each q point
-        free_energy = 0
-        for iq in range(nq):
-            w, pols = self.DyagDinQ(iq)
+        w, pols = self.DiagonalizeSupercell()
             
-            # Remove translations
-            if iq == 0:
-                tmask = Methods.get_translations(pols, self.structure.get_masses_array())
-                        
-                # Exclude also other w = 0 modes
-                locked_original = np.abs(w) < __EPSILON__
-                if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
-                    tmask = locked_original
+        # Remove translations
+        tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
 
-                w = w[ ~tmask ]
-                
-            # if imaginary frequencies are allowed, put w->0
-            if allow_imaginary_freq:
-                w[w<0] = __EPSILON__
-                
-            if len(w[w < 0]) >= 1:
-                raise ValueError("Error, the dynamical matrix has imaginary frequencies")
+        # Exclude also other w = 0 modes (good for rotations)
+        locked_original = np.abs(w) < __EPSILON__
+        if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
+            tmask = locked_original
+
+        w = w[ ~tmask ]
             
-            free_energy += np.sum( w / 2)
-            if T > 0:
-                beta = 1 / (K_to_Ry * T)
-                free_energy += np.sum( 1 / beta * np.log(1 - np.exp(-beta * w)))
+        # if imaginary frequencies are allowed, put w->0
+        if allow_imaginary_freq:
+            w[w<0] = __EPSILON__
+            
+        if len(w[w < 0]) >= 1:
+            raise ValueError("Error while computing the free energy, the dynamical matrix has imaginary frequencies")
+        
+        # Zero point energy
+        free_energy = np.sum( w / 2)
+
+        # Add also the entropy
+        if T > 0:
+            beta = 1 / (K_to_Ry * T)
+            free_energy += np.sum( 1 / beta * np.log(1 - np.exp(-beta * w)))
                 
         return free_energy
         
