@@ -1040,6 +1040,8 @@ def BondPolarizabilityModel(structure, bonded_atoms, distance, threshold, alpha_
     This method uses an empirical model to obtain the raman tensor of a structure.
     It is based on the assumption that all the polarizability of the system is encoded in a molecular bond.
 
+    NOTE: UNTESTED
+
     Parameters
     ----------
         structure : Structure.Structure()
