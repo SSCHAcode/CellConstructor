@@ -2562,7 +2562,7 @@ WARNING: Effective charges are not accounted by this method
 
         # Symmetrize also the effective charges and the Raman Tensor if any
         if not self.effective_charges is None:
-            qe_sym.ApplySymmetryToEffCharge(self.eff_charges)
+            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
         if not self.raman_tensor is None:
             qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
         
@@ -2946,6 +2946,13 @@ WARNING: Effective charges are not accounted by this method
             if Methods.get_min_dist_into_cell(bg, q, -q) < 1e-6:
                 is_minus_q = True
 
+                # The dynamical matrix must be real
+                re_part = np.real(self.dynmats[iq])
+
+                assert np.max(np.abs(np.imag(self.dynmats[iq]))) < __EPSILON__, "Error, at point {} (q = -q + G) the dynamical matrix is complex".format(iq)
+
+                # Enforce reality to avoid complex polarization vectors
+                self.dynmats[iq] = re_part
 
             # Diagonalize the matrix in the given q point
             wq, eq = self.DyagDinQ(iq)
@@ -2956,44 +2963,122 @@ WARNING: Effective charges are not accounted by this method
 
                 tilde_e_qnu =  eq[:, i_qnu]
 
+                # If this is a minus_q, enforce reality of the vector
+                # To correctly fix the gauge
+                if is_minus_q:
+                    # Get the phase factor from the first non zero value
+                    phase_gauge = 0
+                    for e_a in tilde_e_qnu:
+                        if np.abs(e_a) > __EPSILON__:
+                            phase_gauge = np.angle(e_a)
+                            break
+                    
+                    # Work only if it is not already real
+                    if np.abs(phase_gauge) > __EPSILON__ and np.abs(phase_gauge - np.pi) > __EPSILON__: 
+                        # Apply the phase factor to the polarization vector
+                        tilde_e_qnu *= np.exp(-1j * phase_gauge)
+
+                        # Check if the polarization vector is real
+                        re_tilde_e_qnu = np.real(tilde_e_qnu)
+
+                        print("Phase:", phase_gauge)
+                        print("Vector:", tilde_e_qnu)
+                        assert np.max(np.abs(re_tilde_e_qnu - tilde_e_qnu)) < __EPSILON__, "Error while enforcing reality of {}".format(tilde_e_qnu)
+
+                        tilde_e_qnu = re_tilde_e_qnu
+
                 phase = R_vec.dot(q) * 2 * np.pi
-                c_e_sc = tilde_e_qnu[itau_modes] * np.exp(1j*phase)
+                c_e_sc = tilde_e_qnu[itau_modes] * np.exp(1j*phase) / np.sqrt(supercell_size)
+                c_e_sc_mq = np.conj(c_e_sc)
 
                 # Get the real and imaginary part
-                evec_1 = np.real(c_e_sc) / np.sqrt(supercell_size)
-                evec_2 = np.imag(c_e_sc) / np.sqrt(supercell_size)
+                evec_1 = np.real(.5 * (c_e_sc + c_e_sc_mq))
+                evec_2 = np.real((c_e_sc - c_e_sc_mq) / ( 2*1j))
 
                 # Check if they are not zero
                 norm1 = evec_1.dot(evec_1)
                 norm2 = evec_2.dot(evec_2)
-                scalar_dot = np.abs(evec_1.dot(evec_2))
+                scalar_dot = 0
+                EPSILON = 1e-5
+
+                if norm2 > EPSILON and norm1 > EPSILON:
+                    scalar_dot = evec_1.dot(evec_2) / np.sqrt(norm1 * norm2)
 
                 if verbose:
-                    print("IQ: {}, MODE: {} has norm1 = {} |  norm2 = {} | scalar_dot = {}".format(iq, i_qnu, norm1, norm2, scalar_dot))
+                    print("IQ: {}, MODE: {} has norm1 = {} |  norm2 = {} | scalar_dot = {}".format(iq, i_qnu, np.sqrt(norm1), np.sqrt(norm2), scalar_dot))
 
+                # Check if add to the polarization both 1 and 2
+                add_1 = False
+                add_2 = False 
 
-                # Add the second vector
-                EPSILON = 1e-4
                 if norm1 > EPSILON:
-                    #q_cryst = Methods.covariant_coordinates(bg, q)
-                    #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}, N1 = {:.3e}, N2 = {:.3e}, DOT = {:.3e}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst, norm1, norm2, evec_1.dot(evec_2)))
+                    add_1 = True
+                            
+                if norm2 > EPSILON:
+                    add_2 = True
+
+                if is_minus_q: 
+                    if add_1 and add_2:
+                        if np.abs(np.abs(scalar_dot) - 1) > EPSILON:
+                            raise ValueError("Error, with q = -q + G, the two vectors should be linearly dependent")
+
+                        # In this case remove the one with lower norm (higher numerical accuracy)
+                        if norm1 > norm2:
+                            add_2 = False
+                        else:
+                            add_1 = False
+
+            
+
+                # If this is a q != -q point, this q point must contribute also for -q
+                # Thus twice the elements should be present.
+                if not is_minus_q:
+                    if not (add_1 and add_2):
+                        raise ValueError("Error, the q_point = {} {} {} should contribute also for -q, something went wrong".format(*list(q)))    
+                        
+
+                if add_1 and add_2:
+                    # Since both real and imaginary should match in this case 
+                    # Add only one of them
+                    if is_minus_q:
+                        add_2 = False 
+
+                if verbose:
+                    print("    add_1 = {}; add_2 = {}".format(add_1, add_2))
+
+
+                # Add the vectors
+                if add_1:
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
-                    
-                    # If there is another q point
-                    if not is_minus_q: #scalar_dot < EPSILON:         
-                        if norm2 < EPSILON:
-                            raise ValueError("Error, the q_point = {} {} {} should contribute also for -q, something went wrong".format(*list(q)))    
-                        
-
-                        w_array[i_mu] = w_qnu
-                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
-                        i_mu += 1
-                else:
+                if add_2:
                     w_array[i_mu] = w_qnu
                     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                     i_mu += 1
+                    
+
+                # # Add the second vector
+                # if norm1 > EPSILON:
+                #     #q_cryst = Methods.covariant_coordinates(bg, q)
+                #     #print ("IMU: {}, IQ: {}, IQNU: {}, TOTQ: {}, Q = {}, N1 = {:.3e}, N2 = {:.3e}, DOT = {:.3e}".format(i_mu, iq, i_qnu, len(self.q_tot), q_cryst, norm1, norm2, evec_1.dot(evec_2)))
+                #     w_array[i_mu] = w_qnu
+                #     e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
+                #     i_mu += 1
+                    
+                #     # If there is another q point
+                #     if not is_minus_q: #scalar_dot < EPSILON:         
+                #         if norm2 < EPSILON:
+                #             raise ValueError("Error, the q_point = {} {} {} should contribute also for -q, something went wrong".format(*list(q)))    
+                        
+
+                #         w_array[i_mu] = w_qnu
+                #         e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
+                #         i_mu += 1
+                # else:
+                #     w_array[i_mu] = w_qnu
+                #     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
+                #     i_mu += 1
             
             # Print how many vectors have been extracted
             if verbose:
@@ -3012,6 +3097,8 @@ WARNING: Effective charges are not accounted by this method
         assert np.max(np.abs(np.einsum("ab, ab->b", e_pols_sc, e_pols_sc) - 1)) < __EPSILON__
 
         return w_array, e_pols_sc
+
+        
 
 
     def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True):

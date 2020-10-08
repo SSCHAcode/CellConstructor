@@ -1110,10 +1110,17 @@ def get_translations(pols, masses):
 
 
             
-    
 def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
     """
-    This methods convert the 3x3 matrix into crystalline coordinates using the metric tensor defined by the unit_cell
+    This methods convert the 3x3 matrix into crystalline coordinates using the metric tensor defined by the unit_cell.
+
+    This method is a specular implementation of Quantum ESPRESSO. 
+    This subroutine transforms matrices obtained as open product between vectors.
+    If you want to transform a linear operator, then use
+    convert_matrix_cart_cryst2
+
+    For example, use this to transform a dynamical matrix, 
+    use convert_matrix_cart_cryst2 to transform a symmetry operation.
     
     .. math::
         
@@ -1153,13 +1160,59 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
 
     # Choose which conversion perform
     comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
-    if not cryst_to_cart:
-        comp_matrix = np.linalg.inv(comp_matrix)
+    comp_matrix_inv = np.linalg.inv(comp_matrix)
         
+    if cryst_to_cart:
+        return comp_matrix.T.dot( np.dot(matrix, comp_matrix))
+
+    return comp_matrix_inv.T.dot( np.dot(matrix, comp_matrix_inv))
+    
+def convert_matrix_cart_cryst2(matrix, unit_cell, cryst_to_cart = False):
+    """
+    This methods convert the 3x3 matrix into crystalline coordinates using the metric tensor defined by the unit_cell.
+
+    This perform the exact transform. 
+    With this method you get a matrix that performs the transformation directly in the other space. 
+    If I have a matrix that transforms vectors in crystalline coordinates, then with this I get the same operator between
+    vectors in cartesian space.
+    
+    This subroutine transforms operators, while the previous one transforms matrices (obtained as open product between vectors)
+    
+    For example, use convert_matrix_cart_cryst to transform a dynamical matrix, 
+    use convert_matrix_cart_cryst2 to transform a symmetry operation.
+    
         
-    # Perform the transformation
-    # M' = g M g^+
-    return comp_matrix.transpose().dot( np.dot(matrix, comp_matrix))
+    Parameters
+    ----------
+        matrix : ndarray 3x3
+            The matrix to be converted
+        unit_cell : ndarray 3x3
+            The cell containing the vectors defining the metric (the change between crystalline and cartesian coordinates)
+        cryst_to_cart : bool, optional
+            If False (default) the matrix is assumed in cartesian coordinates and converted to crystalline. If True
+            otherwise.
+            
+    Results
+    -------
+        new_matrix : ndarray(3x3)
+            The converted matrix into the desidered format
+    """
+    
+    
+    # Get the metric tensor from the unit_cell
+    metric_tensor = np.zeros((3,3))
+    for i in range(0, 3):
+        for j in range(i, 3):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    # Choose which conversion perform
+    comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
+    comp_matrix_inv = np.linalg.inv(comp_matrix)
+        
+    if cryst_to_cart:
+        return comp_matrix_inv.dot( np.dot(matrix, comp_matrix))
+
+    return comp_matrix.dot( np.dot(matrix, comp_matrix_inv))
         
         
 def convert_3tensor_to_cryst(tensor, unit_cell, cryst_to_cart = False):

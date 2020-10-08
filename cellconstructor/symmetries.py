@@ -1757,8 +1757,9 @@ def GetIRT(structure, symmetry):
     Get the irt array. It is the array of the atom index that the symmetry operation
     swaps.
     
-    irt[y] is the atom index that is mapped from y by the symmetry operation.
-    
+    the y-th element of the array (irt[y]) is the index of the original structure, while
+    y is the index of the equivalent atom after the symmetry is applied.
+
     Parameters
     ----------
         structure: Structure.Structure()
@@ -2179,8 +2180,8 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         # Get the vector of the displacement in the polarization
         m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
-        disp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
-        underdisp_v = np.einsum("im,i->mi", pol_vects, 1 / np.sqrt(m))
+        disp_v = np.einsum("im,i->mi", pol_vects, 1 / np.sqrt(m))
+        underdisp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
 
         n_dim, n_modes = np.shape(pol_vects)
 
@@ -2195,7 +2196,7 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
             for j in range(n_modes):
                 # Apply the i-th symmetry to the j-th mode
                 new_vector = ApplySymmetryToVector(sym_mat, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irt).ravel()
-                pol_symmetries[i, j, :] = underdisp_v.dot(new_vector.ravel())
+                pol_symmetries[i, :, j] = underdisp_v.dot(new_vector.ravel())
 
         return pol_symmetries
         
@@ -2618,3 +2619,44 @@ def get_invs(QE_s, QE_nsym):
             warnings.warn("This is not a group, some features like Q star division may fail.")
             
     return QE_invs
+
+
+def GetSymmetryMatrix(sym, structure):
+    """
+    GET THE SYMMETRY MATRIX
+    =======================
+
+    This subroutine converts the 3x4 symmetry matrix to a 3N x 3N matrix.
+    It also transform the symmetry to be used directly in cartesian space.
+    However, take care, it could be a very big matrix, so it is preverred to work with the small matrix,
+    and maybe use a fortran wrapper if you want speed.
+
+    NOTE: The passe structure must already satisfy the symmetry 
+
+    Parameters
+    ----------
+        sym : ndarray(size = (3, 4))
+            The symmetry and translations
+        structure : CC.Structure.Structure()
+            The structure on which the symmetry is applied (The structure must satisfy the symmetry already)
+
+    Results
+    -------
+        sym_mat : ndarray(size = (3*structure.N_atoms, 3*structure.N_atoms))
+    """
+
+    # Get the IRT array
+    irt = GetIRT(structure, sym)
+
+    nat = structure.N_atoms
+    sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.double)
+
+    # Comvert the symmetry matrix in cartesian
+    sym_cryst = Methods.convert_matrix_cart_cryst2(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
+
+    # Correctly fill the atomic position of sym_mat
+    for i in range(nat):
+        i_irt = irt[i]
+        sym_mat[3 * i : 3*i+3, 3*i_irt : 3*i_irt+ 3] = sym_cryst
+
+    return sym_mat
