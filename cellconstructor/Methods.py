@@ -1153,13 +1153,12 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
 
     # Choose which conversion perform
     comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
-    if not cryst_to_cart:
-        comp_matrix = np.linalg.inv(comp_matrix)
+    comp_matrix_inv = np.linalg.inv(comp_matrix)
         
-        
-    # Perform the transformation
-    # M' = g M g^+
-    return comp_matrix.transpose().dot( np.dot(matrix, comp_matrix))
+    if cart_to_cryst:
+        return comp_matrix_inv.dot( np.dot(matrix, comp_matrix))
+
+    return comp_matrix.dot( np.dot(matrix, comp_matrix_inv))
         
         
 def convert_3tensor_to_cryst(tensor, unit_cell, cryst_to_cart = False):

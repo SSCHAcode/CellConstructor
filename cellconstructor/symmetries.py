@@ -1757,8 +1757,9 @@ def GetIRT(structure, symmetry):
     Get the irt array. It is the array of the atom index that the symmetry operation
     swaps.
     
-    irt[y] is the atom index that is mapped from y by the symmetry operation.
-    
+    the y-th element of the array (irt[y]) is the index of the original structure, while
+    y is the index of the equivalent atom after the symmetry is applied.
+
     Parameters
     ----------
         structure: Structure.Structure()
@@ -2626,6 +2627,7 @@ def GetSymmetryMatrix(sym, structure):
     =======================
 
     This subroutine converts the 3x4 symmetry matrix to a 3N x 3N matrix.
+    It also transform the symmetry to be used directly in cartesian space.
     However, take care, it could be a very big matrix, so it is preverred to work with the small matrix,
     and maybe use a fortran wrapper if you want speed.
 
@@ -2649,9 +2651,12 @@ def GetSymmetryMatrix(sym, structure):
     nat = structure.N_atoms
     sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.intc)
 
+    # Comvert the symmetry matrix in cartesian
+    sym_cryst = Methods.convert_matrix_cart_cryst(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
+
     # Correctly fill the atomic position of sym_mat
     for i in range(nat):
         i_irt = irt[i]
-        sym_mat[3 * i_irt : 3*i_irt+3, 3*i : 3*i+ 3] = sym[:, :3]
+        sym_mat[3 * i : 3*i+3, 3*i_irt : 3*i_irt+ 3] = sym_cryst
 
     return sym_mat

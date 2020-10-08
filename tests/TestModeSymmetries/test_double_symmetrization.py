@@ -28,6 +28,7 @@ def test_double_symmetrization(verbose = False):
 
     # get the structure in the supercell to obtain the symmetrization matrix
     ss = dyn.structure.generate_supercell(dyn.GetSupercell())
+    nat = ss.N_atoms
 
     # Get the simmetries
     spglib_syms = spglib.get_symmetry(ss.get_ase_atoms())
@@ -64,7 +65,7 @@ def test_double_symmetrization(verbose = False):
     random_v = np.zeros(m.shape, dtype = np.double)
     random_v[:] = np.random.normal(size = m.shape)
 
-    epol = np.einsum("ia,i -> ia", pols, 1 / np.sqrt(m))
+    epol = np.einsum("ia,i -> ia", pols,  1/ np.sqrt(m))
     epol_t = np.einsum("ia,i -> ia", pols, np.sqrt(m))
     random_v_pols = epol.T.dot(random_v)
     test_transform = epol_t.dot(random_v_pols)
@@ -91,6 +92,14 @@ def test_double_symmetrization(verbose = False):
 
         sym_mat = CC.symmetries.GetSymmetryMatrix(syms[i], ss)
         v_1 = sym_mat.dot(random_v)
+
+        # First of all, lets check if the symmetry matrix is equivalent to applysymmetryvector:
+        v_1_tmp = CC.symmetries.ApplySymmetryToVector(syms[i], random_v.reshape((nat, 3)),
+                                                      ss.unit_cell,
+                                                      CC.symmetries.GetIRT(ss, syms[i])).ravel()
+
+        thr = np.max(np.abs(v_1_tmp - v_1))
+        assert thr < 1e-5, "Error, the ApplySymmetryVector works differently than GetSymmetryMatrix by {} (id = {})".format(thr, i)
 
 
         v_2_pol = syms_pols[i, :, :].dot(random_v_pols)
