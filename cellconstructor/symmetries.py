@@ -2618,3 +2618,42 @@ def get_invs(QE_s, QE_nsym):
             warnings.warn("This is not a group, some features like Q star division may fail.")
             
     return QE_invs
+
+
+def GetSymmetryMatrix(sym, structure):
+    """
+    GET THE SYMMETRY MATRIX
+    =======================
+
+    This subroutine converts the 3x4 symmetry matrix to a 3N x 3N matrix.
+    However, take care, it could be a very big matrix, so it is preverred to work with the small matrix,
+    and maybe use a fortran wrapper if you want speed.
+
+    NOTE: The passe structure must already satisfy the symmetry 
+
+    Parameters
+    ----------
+        sym : ndarray(size = (3, 4))
+            The symmetry and translations
+        structure : CC.Structure.Structure()
+            The structure on which the symmetry is applied (The structure must satisfy the symmetry already)
+
+    Results
+    -------
+        sym_mat : ndarray(size = (3*structure.N_atoms, 3*structure.N_atoms))
+    """
+
+    # Get the IRT array
+    irt = GetIRT(structure, sym)
+
+    nat = structure.N_atoms
+    sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.intc)
+
+    # Correctly fill the atomic position of sym_mat
+    for i in range(nat):
+        i_irt = irt[i]
+        for j in range(nat):
+            j_irt = irt[j]
+            sym_mat[3 * i_irt : 3*i_irt+3, 3*j_irt : 3*j_irt+ 3] = sym[:, :3]
+
+    return sym_mat
