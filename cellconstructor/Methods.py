@@ -1162,7 +1162,7 @@ def convert_matrix_cart_cryst(matrix, unit_cell, cryst_to_cart = False):
     comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
     comp_matrix_inv = np.linalg.inv(comp_matrix)
         
-    if cart_to_cryst:
+    if cryst_to_cart:
         return comp_matrix.T.dot( np.dot(matrix, comp_matrix))
 
     return comp_matrix_inv.T.dot( np.dot(matrix, comp_matrix_inv))
@@ -1209,7 +1209,7 @@ def convert_matrix_cart_cryst2(matrix, unit_cell, cryst_to_cart = False):
     comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
     comp_matrix_inv = np.linalg.inv(comp_matrix)
         
-    if cart_to_cryst:
+    if cryst_to_cart:
         return comp_matrix_inv.dot( np.dot(matrix, comp_matrix))
 
     return comp_matrix.dot( np.dot(matrix, comp_matrix_inv))

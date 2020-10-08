@@ -19,8 +19,8 @@ def test_matrix_cryst(verbose = False):
     unit_cell = np.eye(3) * 5
     unit_cell[2,2] = 5
 
-    mat_cryst = CC.Methods.convert_matrix_cart_cryst(random_mat,
-                                                     unit_cell)
+    mat_cryst = CC.Methods.convert_matrix_cart_cryst2(random_mat,
+                                                      unit_cell)
 
     v_cryst = CC.Methods.covariant_coordinates(unit_cell, random_v)
 
@@ -37,10 +37,10 @@ def test_matrix_cryst(verbose = False):
     assert thr < 1e-10, "Error while converting between cartesian and crystal of {}".format(thr)
 
     # Lets go back
-    mat_cart = CC.Methods.convert_matrix_cart_cryst(mat_cryst,
-                                                    unit_cell,
-                                                    cryst_to_cart = True)
-
+    mat_cart = CC.Methods.convert_matrix_cart_cryst2(mat_cryst,
+                                                     unit_cell,
+                                                     cryst_to_cart = True)
+    
     thr = np.max(np.abs(mat_cart - random_mat))
     if verbose:
         print("Residual of matrix conversion {}".format(thr))
