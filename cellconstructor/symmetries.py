@@ -2652,8 +2652,6 @@ def GetSymmetryMatrix(sym, structure):
     # Correctly fill the atomic position of sym_mat
     for i in range(nat):
         i_irt = irt[i]
-        for j in range(nat):
-            j_irt = irt[j]
-            sym_mat[3 * i_irt : 3*i_irt+3, 3*j_irt : 3*j_irt+ 3] = sym[:, :3]
+        sym_mat[3 * i_irt : 3*i_irt+3, 3*i : 3*i+ 3] = sym[:, :3]
 
     return sym_mat

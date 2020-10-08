@@ -13,7 +13,7 @@ try:
 except:
     __SPGLIB__ = False
     
-def test_double_symmetrization():
+def test_double_symmetrization(verbose = False):
     total_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(total_path)
 
@@ -94,19 +94,19 @@ def test_double_symmetrization():
 
 
         v_2_pol = syms_pols[i, :, :].dot(random_v_pols)
-        v_2 = epol_t.T.dot(v_2_pol.dot(epol.T))
+        v_2 = epol_t.dot(v_2_pol)
+
+        if verbose:
+            np.savetxt("sym_{}.txt".format(i), sym_mat)
+            np.savetxt("sym_{}_pol.txt".format(i), syms_pols[i,:,:])
 
         thr = np.max(np.abs(v_1 - v_2))
         assert thr < 1e-5, "Sym {} violated the trheshold by {}".format(i, thr)
 
 
         
-
-        
-        
-    
     
 
     
 if __name__ == "__main__":
-    test_double_symmetrization()
+    test_double_symmetrization(verbose = True)
