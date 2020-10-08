@@ -16,8 +16,8 @@ def test_matrix_cryst(verbose = False):
     random_v = np.random.uniform(size = 3)
 
     # Lets pick an uggly unit cell
-    unit_cell = np.eye(3)
-    unit_cell[2,2] = 1
+    unit_cell = np.eye(3) * 5
+    unit_cell[2,2] = 5
 
     mat_cryst = CC.Methods.convert_matrix_cart_cryst(random_mat,
                                                      unit_cell)

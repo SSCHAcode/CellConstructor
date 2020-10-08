@@ -23,7 +23,7 @@ def test_mode_symmetries():
     symmetries = qe_sym.GetSymmetries()
 
     # Get frequencies and polarization vectors
-    w, pols = dyn.DyagDinQ(0)
+    w, pols = dyn.DiagonalizeSupercell()
 
     # Get the symmetry matrix in the polarization space
     sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, dyn.structure, pols)

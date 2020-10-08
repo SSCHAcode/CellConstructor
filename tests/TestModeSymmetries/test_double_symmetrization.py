@@ -57,16 +57,12 @@ def test_double_symmetrization(verbose = False):
     #assert thr < 1e-12, "DC violated by {} | tr2 = {}".format(thr, thr2)
 
     dc_mode = dc_mode_other
-    print(dc_mode)
-    
-
-    print(np.max(np.abs(syms_pols[0, :, :] - np.eye(len(m)))))
 
     random_v = np.zeros(m.shape, dtype = np.double)
     random_v[:] = np.random.normal(size = m.shape)
 
-    epol = np.einsum("ia,i -> ia", pols,  1/ np.sqrt(m))
-    epol_t = np.einsum("ia,i -> ia", pols, np.sqrt(m))
+    epol = np.einsum("ia,i -> ia", pols, 1/ np.sqrt(m))
+    epol_t = np.einsum("ia,i -> ia", pols,  np.sqrt(m))
     random_v_pols = epol.T.dot(random_v)
     test_transform = epol_t.dot(random_v_pols)
 
@@ -74,11 +70,11 @@ def test_double_symmetrization(verbose = False):
     identity = np.einsum("ba, bc -> ac", pols, pols)
     thr = np.max(np.abs(identity - np.eye(identity.shape[0])))
     np.savetxt("identity_orthogonal.txt", identity)
-    print ("Orthogonality of polarization violated by {}".format(thr))
+    if verbose: print ("Orthogonality of polarization violated by {}".format(thr))
     assert thr < 1e-9, "Orthogonality of polarization violated by {}".format(thr)
 
     thr = np.max(np.abs( test_transform - random_v))
-    print("Identity with threshold: {}".format(thr))
+    if verbose: print("Identity with threshold: {}".format(thr))
     assert thr < 1e-9, "Error, identity failed with threshold {}".format(thr)
 
     # Try to make one direction and back
@@ -91,6 +87,15 @@ def test_double_symmetrization(verbose = False):
         assert max_diff < 1e-5, "Error while applying sym {} of {}".format(i, max_diff)
 
         sym_mat = CC.symmetries.GetSymmetryMatrix(syms[i], ss)
+        sym_pol_my = epol.T.dot(sym_mat.dot(epol_t))
+
+        
+        if verbose:
+            np.savetxt("sym_{}.txt".format(i), syms[i])
+            np.savetxt("sym_{}_real.txt".format(i), sym_mat)
+            np.savetxt("sym_{}_pol.txt".format(i), syms_pols[i,:,:])
+            np.savetxt("sym_{}_pol_conv.txt".format(i), sym_pol_my)
+        
         v_1 = sym_mat.dot(random_v)
 
         # First of all, lets check if the symmetry matrix is equivalent to applysymmetryvector:
@@ -99,15 +104,14 @@ def test_double_symmetrization(verbose = False):
                                                       CC.symmetries.GetIRT(ss, syms[i])).ravel()
 
         thr = np.max(np.abs(v_1_tmp - v_1))
+        if verbose:
+            print("Good Symmetry Matrix: {} ) {}".format(i, thr))
         assert thr < 1e-5, "Error, the ApplySymmetryVector works differently than GetSymmetryMatrix by {} (id = {})".format(thr, i)
 
 
         v_2_pol = syms_pols[i, :, :].dot(random_v_pols)
         v_2 = epol_t.dot(v_2_pol)
 
-        if verbose:
-            np.savetxt("sym_{}.txt".format(i), sym_mat)
-            np.savetxt("sym_{}_pol.txt".format(i), syms_pols[i,:,:])
 
         thr = np.max(np.abs(v_1 - v_2))
         assert thr < 1e-5, "Sym {} violated the trheshold by {}".format(i, thr)

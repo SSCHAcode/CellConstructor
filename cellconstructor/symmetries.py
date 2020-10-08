@@ -2180,8 +2180,8 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         # Get the vector of the displacement in the polarization
         m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
-        disp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
-        underdisp_v = np.einsum("im,i->mi", pol_vects, 1 / np.sqrt(m))
+        disp_v = np.einsum("im,i->mi", pol_vects, 1 / np.sqrt(m))
+        underdisp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
 
         n_dim, n_modes = np.shape(pol_vects)
 
@@ -2196,7 +2196,7 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
             for j in range(n_modes):
                 # Apply the i-th symmetry to the j-th mode
                 new_vector = ApplySymmetryToVector(sym_mat, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irt).ravel()
-                pol_symmetries[i, j, :] = underdisp_v.dot(new_vector.ravel())
+                pol_symmetries[i, :, j] = underdisp_v.dot(new_vector.ravel())
 
         return pol_symmetries
         
@@ -2649,7 +2649,7 @@ def GetSymmetryMatrix(sym, structure):
     irt = GetIRT(structure, sym)
 
     nat = structure.N_atoms
-    sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.intc)
+    sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.double)
 
     # Comvert the symmetry matrix in cartesian
     sym_cryst = Methods.convert_matrix_cart_cryst(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
@@ -2658,5 +2658,5 @@ def GetSymmetryMatrix(sym, structure):
     for i in range(nat):
         i_irt = irt[i]
         sym_mat[3 * i : 3*i+3, 3*i_irt : 3*i_irt+ 3] = sym_cryst
-
+        
     return sym_mat
