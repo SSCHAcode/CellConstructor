@@ -2652,11 +2652,11 @@ def GetSymmetryMatrix(sym, structure):
     sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.double)
 
     # Comvert the symmetry matrix in cartesian
-    sym_cryst = Methods.convert_matrix_cart_cryst(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
+    sym_cryst = Methods.convert_matrix_cart_cryst2(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
 
     # Correctly fill the atomic position of sym_mat
     for i in range(nat):
         i_irt = irt[i]
         sym_mat[3 * i : 3*i+3, 3*i_irt : 3*i_irt+ 3] = sym_cryst
-        
+
     return sym_mat
