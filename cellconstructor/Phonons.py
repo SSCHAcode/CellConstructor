@@ -2946,6 +2946,13 @@ WARNING: Effective charges are not accounted by this method
             if Methods.get_min_dist_into_cell(bg, q, -q) < 1e-6:
                 is_minus_q = True
 
+                # The dynamical matrix must be real
+                re_part = np.real(self.dynmats[iq])
+
+                assert np.max(np.abs(np.imag(self.dynmats[iq]))) < __EPSILON__, "Error, at point {} (q = -q + G) the dynamical matrix is complex".format(iq)
+
+                # Enforce reality to avoid complex polarization vectors
+                self.dynmats[iq] = re_part
 
             # Diagonalize the matrix in the given q point
             wq, eq = self.DyagDinQ(iq)
