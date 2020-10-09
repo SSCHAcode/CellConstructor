@@ -2621,7 +2621,7 @@ def get_invs(QE_s, QE_nsym):
     return QE_invs
 
 
-def GetSymmetryMatrix(sym, structure):
+def GetSymmetryMatrix(sym, structure, crystal = False):
     """
     GET THE SYMMETRY MATRIX
     =======================
@@ -2639,6 +2639,8 @@ def GetSymmetryMatrix(sym, structure):
             The symmetry and translations
         structure : CC.Structure.Structure()
             The structure on which the symmetry is applied (The structure must satisfy the symmetry already)
+        crystal : bool
+            If true, the symmetry is returned in crystal coordinate (default false)
 
     Results
     -------
@@ -2652,11 +2654,14 @@ def GetSymmetryMatrix(sym, structure):
     sym_mat = np.zeros((3 * nat, 3*nat), dtype = np.double)
 
     # Comvert the symmetry matrix in cartesian
-    sym_cryst = Methods.convert_matrix_cart_cryst2(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
+    if not crystal:
+        sym_cryst = Methods.convert_matrix_cart_cryst2(sym[:,:3], structure.unit_cell, cryst_to_cart = True)
+    else:
+        sym_cryst = sym[:,:3]
 
     # Correctly fill the atomic position of sym_mat
     for i in range(nat):
         i_irt = irt[i]
-        sym_mat[3 * i : 3*i+3, 3*i_irt : 3*i_irt+ 3] = sym_cryst
+        sym_mat[3 * i_irt : 3*i_irt+3, 3*i : 3*i+ 3] = sym_cryst
 
     return sym_mat
