@@ -1812,11 +1812,11 @@ def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     
     for i in range(nat):
         # Pass to crystalline coordinates
-        v1 = Methods.covariant_coordinates(unit_cell, vector[irt[i], :])
+        v1 = Methods.covariant_coordinates(unit_cell, vector[i, :])
         # Apply the symmetry
         w1 = sym.dot(v1)
         # Return in cartesian coordinates
-        work[i, :] = np.einsum("ab,a", unit_cell, w1)
+        work[irt[i], :] = np.einsum("ab,a", unit_cell, w1)
     
     return work
 

@@ -141,7 +141,7 @@ def test_double_symmetrization(verbose = False):
                 fmat = fc[3*ii: 3*ii + 3, 3*jj: 3*jj + 3]
                 fc_cryst[3*ii : 3*ii + 3, 3*jj: 3*jj + 3] = CC.Methods.convert_matrix_cart_cryst(fmat,
                                                                                                  ss.unit_cell)
-        new_fc_cryst = sym_mat_cryst.dot(fc_cryst.dot(sym_mat_cryst.T))
+        new_fc_cryst = sym_mat_cryst.T.dot(fc_cryst.dot(sym_mat_cryst))
         
         for ii in range(ss.N_atoms):
             for jj in range(ss.N_atoms):
