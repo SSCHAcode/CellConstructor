@@ -1788,7 +1788,7 @@ def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     
     .. math::
         
-        \\vec {v'} = S \\vec v [irt]
+        \\vec {v'}[irt] = S \\vec v
         
     
     Parameters
