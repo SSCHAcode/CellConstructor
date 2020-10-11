@@ -163,7 +163,7 @@ def test_double_symmetrization(verbose = False):
             np.savetxt("epol.txt", epol)
             np.savetxt("epol_t.txt", epol_t)
 
-        assert np.min([thr, thr2, thr3, thr4]) < 1e-8, "Error, the symmetry {} is not imposed [by {} | {} | {} | {}]".format(i, thr, thr1, thr3, thr4)
+        assert np.min([thr, thr2, thr3, thr4]) < 1e-8, "Error, the symmetry {} is not imposed [by {} | {} | {} | {}]".format(i, thr, thr2, thr3, thr4)
         
         v_1 = sym_mat.dot(random_v)
 
