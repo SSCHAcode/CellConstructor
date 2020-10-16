@@ -1168,7 +1168,12 @@ Error, to compute the volume the structure must have a unit cell initialized:
             atm_list.append(ase.Atom(self.atoms[i], self.coords[i,:]))
 
         atm = ase.Atoms(atm_list)
-        atm.set_cell(self.unit_cell)
+        
+        if self.has_unit_cell:
+            atm.set_cell(self.unit_cell)
+            atm.pbc[:] = True
+
+        
         return atm
     
     def get_ityp(self):
