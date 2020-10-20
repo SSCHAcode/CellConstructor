@@ -51,7 +51,7 @@ class Phonons:
     It can be used to show and display dinamical matrices, as well as for operating 
     with them
     """
-    def __init__(self, structure = None, nqirr = 1, full_name = False, use_format = False):
+    def __init__(self, structure = None, nqirr = 1, full_name = False, use_format = False, force_real = False):
         """
         INITIALIZE PHONONS
         ==================
@@ -72,6 +72,9 @@ class Phonons:
             - full_name : bool
                 If full_name is True, then the structure is loaded without appending the
                 q point index. This is compatible only with nqirr = 1.
+            - force_real : bool
+                If True, force the dynamical matrix allocated to be real. This is usefull to spare memory when 
+                generating a dynamical matrix at Gamma in real space, that is real by construction.
                 
         Results
         -------
@@ -99,6 +102,10 @@ class Phonons:
         # This contains all the q points in the stars of the irreducible q point
         self.q_stars = []
         self.structure = None
+
+        dtype = np.complex128 
+        if force_real:
+            dtype = np.float64
         
         # Check whether the structure argument is a path or a Structure
         if (type(structure) == type("hello there!")):
@@ -118,7 +125,7 @@ class Phonons:
             self.dynmats = []
             for i in range(nqirr):
                 # Create a dynamical matrix
-                self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms), dtype = np.complex128))
+                self.dynmats.append(np.zeros((3 * structure.N_atoms, 3*structure.N_atoms), dtype = dtype))
                 
                 # Initialize the q vectors
                 self.q_stars.append([np.zeros(3, dtype = np.float64)])
@@ -1602,7 +1609,7 @@ class Phonons:
 
         super_struct = self.structure.generate_supercell(supercell_size)
         
-        dyn_supercell = Phonons(super_struct, nqirr = 1)
+        dyn_supercell = Phonons(super_struct, nqirr = 1, force_real = True)
         
         dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size, img_thr = img_thr)
         
