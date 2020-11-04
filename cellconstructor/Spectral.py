@@ -861,7 +861,7 @@ def get_diag_dynamic_bubble(tensor2,
     nsm=smear.shape[0]
     nat=structure.N_atoms
     n_mod=3*nat
-    tmp_bubble = np.zeros((ne,nsm,n_mod,n_mod),
+    tmp_bubble = np.zeros((ne,nsm,n_mod),
                           dtype = np.complex128, order = "F")
 
     
@@ -975,7 +975,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                                            filename_z       =  'z_func',
                                            filename_freq_dyn = 'freq_dynamic',
                                            filename_shift_lw  = 'v2_freq_shit_hwhm',
-                                           self_consist = True,
+                                           self_consist = False,
                                            numiter=20,
                                            eps=1.0e-7,                                           
                                            d3_scale_factor=None,
@@ -1067,7 +1067,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         self_consist : Logical
                        If True, the dynamical frequency is found solving the self-consistent 
                        relation [PRB 97 214101 (A21)]
-                       (default: True)
+                       (default: False)
         numiter      : integer
                        Number of maximum steps to find the self-consistency         
                        (default : 20)
@@ -1086,7 +1086,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     """
  
 
-
+    
     print(" ") 
     print(" ===========================================" ) 
     print("     Bubble diagonal dynamic correction     " ) 
