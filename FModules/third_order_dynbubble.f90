@@ -342,8 +342,12 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
       DO mu = 1,nat3
         DO ie = 1, ne
           
-          a = ener(ie)**2-smear_id(ismear)**2-d2_freq(mu)**2-DBLE(selfnrg(ie,mu,ismear))
-          b = 2*smear_id(ismear)*ener(ie)-DIMAG(selfnrg(ie,mu,ismear))
+!           a = ener(ie)**2-smear_id(ismear)**2-d2_freq(mu)**2-DBLE(selfnrg(ie,mu,ismear))
+!           b = 2*smear_id(ismear)*ener(ie)-DIMAG(selfnrg(ie,mu,ismear))
+
+          a = ener(ie)**2-smear_id(ismear)**2-d2_freq(mu)**2-DBLE(selfnrg(ie,ismear,mu))
+          b = 2*smear_id(ismear)*ener(ie)-DIMAG(selfnrg(ie,ismear,mu))          
+          
           !
           ! (w/2pi)(-2Im [1/a+ib])= (w/pi) b/(a**2+b**2) 
           !
