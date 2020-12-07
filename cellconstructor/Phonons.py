@@ -3616,6 +3616,17 @@ def get_dyn_from_ase_phonons(ase_ph):
     structure = Structure.Structure()
     structure.generate_from_ase_atoms(ase_ph.atoms)
 
+    # Check if the structure has the unit cell
+    if np.linalg.det(structure.unit_cell) == 0:
+        ERROR_MSG = """
+    Error, the ASE strucure passed to method 'get_dyn_from_ase_phonons' 
+           does not have a valid unit cell. 
+           If you are computing a isolated molecule, 
+           you have to define an unit_cell that contains the molecule 
+           (it will not affect the calculation)
+    """
+        raise ValueError(ERROR_MSG)
+
     # Get the supercell structure and itau
     nat_sc = structure.N_atoms * np.prod(supercell_size)
     supercell_structure = structure.generate_supercell(supercell_size)

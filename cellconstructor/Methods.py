@@ -362,6 +362,13 @@ def put_into_cell(cell, vector):
               The corresponding vector into the unit cell
     """
 
+    # Check if the system has unit cell
+    if np.linalg.det(cell) == 0:
+        ERROR_MSG = """
+    Error, the structure has no unit cell (or vectors are linearly dependent).
+    """
+        raise ValueError(ERROR_MSG)
+
     # Put the vector inside the unit cell
     # To do this, just obtain the covariant vector coordinates.
 
