@@ -39,7 +39,7 @@ try:
 except:
     __SPGLIB__ = False
 
-__EPSILON__ = 1e-5
+__EPSILON__ = 0.5e-7
 
 class Phonons:
     """
