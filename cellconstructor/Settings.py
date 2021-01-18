@@ -66,6 +66,17 @@ def broadcast(list_of_values):
     else:
         raise NotImplementedError("broadcast not implemented for {} parallelization.".format(__PARALLEL_TYPE__))
 
+
+def barrier():
+    """
+    This function force the MPI processes to sync:
+    All the processes arrived at this function are stopped until all the others call the same method. 
+    """
+
+    if __PARALLEL_TYPE__ == "mpi4py":
+        comm = mpi4py.MPI.COMM_WORLD
+        comm.barrier()
+
 def SetupParallel(n_processors=1):
     """
     SETUP THE MODULE FOR PARALLEL EXECUTION
