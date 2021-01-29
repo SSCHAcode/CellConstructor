@@ -28,6 +28,10 @@ lattice.plot_bz(show = True)
 # Select the path
 PATH = "GYTAZG"
 N_POINTS = 1000
+
+
+
+# -------- HERE THE CORE SCRIPT ------------
 band_path = ase.dft.kpoints.bandpath(PATH,
                                      dyn.structure.unit_cell,
                                      N_POINTS)

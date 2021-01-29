@@ -39,7 +39,8 @@ try:
 except:
     __SPGLIB__ = False
 
-__EPSILON__ = 0.5e-7
+__EPSILON__ = 1e-5 
+__EPSILON_W__ = 1e-8
 
 class Phonons:
     """
@@ -572,7 +573,7 @@ class Phonons:
         trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
 
         # Exclude also other w = 0 modes
-        locked_original = np.abs(w) < __EPSILON__
+        locked_original = np.abs(w) < __EPSILON_W__
         if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
             trans_mask = locked_original
 

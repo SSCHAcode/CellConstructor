@@ -13,12 +13,11 @@ def test_upsilon():
     total_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(total_path)
 
-
-
     T = 100
 
     # Load a simple dynamical matrix
     dyn = CC.Phonons.Phonons("../TestSymmetriesSupercell/Sym.dyn.", 3)
+    w, pols = dyn.DiagonalizeSupercell()
 
     # Get the upsilon matrix for the supercell
     superdyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
