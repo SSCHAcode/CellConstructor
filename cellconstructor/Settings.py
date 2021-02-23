@@ -168,19 +168,17 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
 
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
         
-        # Work!
-        results = [function(x) for x in computing_list]
 
         # Perform the reduction
         if reduce_op == "+":
-            result = results[0]
-            for i in range(1,len(results)):
-                result+= results[i]
+            result = 0
+            for x in computing_list:
+                result += function(x)
 
         elif reduce_op == "*":
-            result = results[0]
-            for i in range(1,len(results)):
-                result*= results[i]
+            result = 1
+            for x in computing_list:
+                result *= function(x)
 
         # If a reduction must be done, return
         if not reduce_op is None:
