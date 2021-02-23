@@ -173,7 +173,7 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
         if reduce_op == "+":
             result = 0
             for x in computing_list:
-                result += function(x)
+                result += function(x) 
 
         elif reduce_op == "*":
             result = 1
