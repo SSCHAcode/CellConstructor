@@ -965,16 +965,16 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                                            k_grid,                                            
                                            e1, de, e0,
                                            sm1, sm0,
-                                           sm1_id, sm0_id,
+                                           sm1_id=None, sm0_id=None,
                                            nsm=1,
                                            q_path=[0.0,0.0,0.0],
                                            q_path_file=None, 
                                            print_path = True,
                                            T=0.0,
                                            filename_sp       = 'spectral_func',
-                                           filename_z       =  'z_func',
+                                           filename_z       =  None,
                                            filename_freq_dyn = 'freq_dynamic',
-                                           filename_shift_lw  = 'v2_freq_shit_hwhm',
+                                           filename_shift_lw  = 'v2_freq_shift_hwhm',
                                            self_consist = False,
                                            numiter=20,
                                            eps=1.0e-7,                                           
@@ -1007,10 +1007,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         e1, de ,e0: float
                     The list of energies considered (cm-1), from e0 to e1, with interval de
         sm0, sm1 : float      
-              Minimum and maximum value of the smearing (cm-1) to compute the self-energy   
-        sm0_id, sm1_id : float      
-              Minimum and maximum value of the smearing (cm-1) for the term of the Green function 
-              proportional to the identity        
+              Minimum and maximum value of the smearing (cm-1) to compute the self-energy          
 
         Optional
         --------
@@ -1021,7 +1018,11 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         T : float
             The temperature 
             (default: 0 K)
-        q_path : list of triplets
+        sm0_id, sm1_id : float      
+              Minimum and maximum value of the smearing (cm-1) for the term of the Green function 
+              proportional to the identity. If not present, it is  sm0_id = sm1_id = 2.0 * de
+              (default: None)
+        q_path : list of tripletss
                  Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
                  where the caculation is performed 
                  (defualt: [0.0,0.0,0.0])            
@@ -1038,30 +1039,31 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                      the q-point and path length (in 2pi/Angstrom) .
                      (default: True)  
         filename_sp  : string 
-                      filename_sp_[id_smear]_[smear].dat
+                      filename_sp_[smear].dat
                       is the file where the spectral function is written. 
                       Format: length of the path (in 2pi/Alat), 
                       energy (cm-1),spectral function (1/cm-1),
                       single mode contributions to spectral function (1/cm-1)
                       (default: "spectral_func")   
-        filename_z  :  string             
-                      filename_z_[id_smear]_[smear].dat
-                      is the file where the z function is written
+        filename_z  : string 
+                      if present, the file
+                      filename_z_[smear].dat
+                      with the z function is written
                       Format: length of the path (in 2pi/Alat), 
                       energy (cm-1), z function (cm-1),
-                      (default: "z_func")
+                      (default: None)
         filename_shift_lw : string      
-                            filename_shift_lw_[method]_[id_smear]_[smear].dat
+                            filename_shift_lw_[method]_[smear].dat
                             is the file where
                             len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1)
-                            are printed. [method] are "one shot", "perturb" and "self-consistent" 
+                            are printed. [method] are "one shot", "perturb" and "self-consist" 
                             (the last one optional)
-                            (default: "v2_freq_shit_hwhm")
+                            (default: "v2_freq_shift_hwhm")
         filename_freq_dyn :  string                   
-                             filename_freq_dyn_[method]_[id_smear]_[smear].dat
+                             filename_freq_dyn_[method]_[smear].dat
                              is the file where
-                             len (2pi/Angstrom), freq (cm-1) (sorted in ascending order), HWHM (cm-1)
-                             are printed. [method] are "one shot", "perturb" and "self-consistent" 
+                             len (2pi/Angstrom), freq (cm-1) (sorted in ascending order), corresponding HWHM (cm-1)
+                             are printed. [method] are "one shot", "perturb" and "self-consist" 
                              (the last one optional)
                              (default: "freq_dynamic")                                       
         self_consist : Logical
@@ -1094,8 +1096,17 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     print(" ") 
     print(" T= {:>5.1f} K".format(T))
     print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
- 
- 
+    print(" ")
+    print(" Smearing values: ")
+    for sm in np.linspace(sm0,sm1,nsm):
+        print("     sm= {:>6.2f} cm-1".format(sm))  
+    if sm1_id != None and sm0_id != None:
+        for sm in np.linspace(sm0_id,sm1_id,nsm):
+                print("     sm_id= {:>6.2f} cm-1".format(sm))  
+    else:
+        sm1_id=de*2.0
+        sm0_id=de*2.0
+            
     if ( tensor2 == None ):
         
         # Prepare the tensor2
@@ -1184,11 +1195,13 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     
     
     print(" ")
-    print(" Spectral function, in diagonal approximation, printed in "+filename_sp+"_[smear_id]_[smear].dat")
+    #print(" Spectral function, in diagonal approximation, printed in "+filename_sp+"_[smear_id]_[smear].dat")
+    print(" Spectral function, in diagonal approximation, printed in "+filename_sp+"_[smear].dat")    
     print(" ")
-    print(" ")
-    print(" Z function [PRB 97 214101 (A21)], printed in "+filename_z+"_[smear_id]_[smear].dat")
-    print(" ")       
+    if filename_z != None:
+        print(" ")
+        print(" Z function [PRB 97 214101 (A21)], printed in "+filename_z+"_[smear_id]_[smear].dat")
+        print(" ")       
 
     print(" ========================================= ")
     print(" Frequncies shifts and widths calculations ")
@@ -1196,20 +1209,26 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
     print(" Frequencies shifts and linewidths computed with perturbative approximation and one-shot calculation in: ")
     print(" ")
-    print(" "+filename_shift_lw +"_perturb_[smear_id]_[smear].dat")        
-    print(" "+filename_shift_lw +"_one_shot_[smear_id]_[smear].dat")    
+    #print(" "+filename_shift_lw +"_perturb_[smear_id]_[smear].dat")        
+    #print(" "+filename_shift_lw +"_one_shot_[smear_id]_[smear].dat")    
+    print(" "+filename_shift_lw +"_perturb_[smear].dat")        
+    print(" "+filename_shift_lw +"_one_shot_[smear].dat")    
     print(" ")
     print(" ")
     print(" Dynamical frequencies sorted, with HWHM: ")    
     print(" ")
-    print(" "+filename_freq_dyn +"_perturb_[smear_id]_[smear].dat")        
-    print(" "+filename_freq_dyn +"_one_shot_[smear_id]_[smear].dat")    
+    #print(" "+filename_freq_dyn +"_perturb_[smear_id]_[smear].dat")        
+    #print(" "+filename_freq_dyn +"_one_shot_[smear_id]_[smear].dat")    
+    print(" "+filename_freq_dyn +"_perturb_[smear].dat")        
+    print(" "+filename_freq_dyn +"_one_shot_[smear].dat")    
     print(" ")
     print(" ")
     print(" Relative spectral functions in Lorentzian approximation: ")
     print(" ")
-    print(" "+filename_sp+"_lorentz_perturb_[smear_id]_[smear].dat")        
-    print(" "+filename_sp+"_one_shot_[smear_id]_[smear].dat")    
+    #print(" "+filename_sp+"_lorentz_perturb_[smear_id]_[smear].dat")        
+    #print(" "+filename_sp+"_one_shot_[smear_id]_[smear].dat")        
+    print(" "+filename_sp+"_lorentz_perturb_[smear].dat")        
+    print(" "+filename_sp+"_one_shot_[smear].dat")    
     print(" ")
     if self_consist:
         print(" ************************************************ ")
@@ -1218,13 +1237,16 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         print(" ")
         print(" Results printed in: ")    
         print(" ")
-        print(" "+filename_shift_lw +"_[smear_id]_[smear].dat")            
+        #print(" "+filename_shift_lw +"_[smear_id]_[smear].dat")            
+        print(" "+filename_shift_lw +"_self-consist_[smear].dat")            
         print(" ")     
         print(" ")
-        print(" "+filename_freq_dyn +"_[smear_id]_[smear].dat") 
+        #print(" "+filename_freq_dyn +"_[smear_id]_[smear].dat")         
+        print(" "+filename_freq_dyn +"_self-consist_[smear].dat") 
         print(" ")
         print(" ")
-        print(" "+filename_sp+"_lorentz_[smear_id]_[smear].dat") 
+        #print(" "+filename_sp+"_lorentz_[smear_id]_[smear].dat")         
+        print(" "+filename_sp+"_lorentz_self-consist_[smear].dat") 
         print(" ")
         print(" ")
         
@@ -1232,12 +1254,14 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         #
         # pre-name for writing data
         #
-        name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:6.1f}".format(smear[ism]).strip()#
+        #name="{:5.2f}".format(smear_id[ism]).strip()+"_"+"{:6.1f}".format(smear[ism]).strip()
+        name="{:6.2f}".format(smear[ism]).strip()
         #
         # write spectral and z function
         #
+        # =======
         # spectral func
-        #
+        # =======
         filename_new=filename_sp+'_'+name+'.dat'
         fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
         with open(filename_new,'w') as f:
@@ -1252,17 +1276,17 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # =======
         # z func
         # =======
-        filename_new=filename_z+'_'+name+'.dat'
-        fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod)+"\n"
-        with open(filename_new,'w') as f:
-            f.write("# ---------------------------------------------------- \n")
-            f.write("# len (2pi/Angstrom), energy (cm-1), z function (cm-1) \n")            
-            f.write("# ---------------------------------------------------- \n")            
-            for iq,leng in enumerate(x_length):
-             for ie, ene in enumerate(energies):
-                 out=z[iq,ie,ism,:]
-                 f.write(fmt.format(leng,ene,*out))                 
-                                 
+        if filename_z != None:
+            filename_new=filename_z+'_'+name+'.dat'
+            fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod)+"\n"
+            with open(filename_new,'w') as f:
+                f.write("# ---------------------------------------------------- \n")
+                f.write("# len (2pi/Angstrom), energy (cm-1), z function (cm-1) \n")            
+                f.write("# ---------------------------------------------------- \n")            
+                for iq,leng in enumerate(x_length):
+                    for ie, ene in enumerate(energies):
+                        out=z[iq,ie,ism,:]
+                        f.write(fmt.format(leng,ene,*out))                                                  
         # ======================================
         # compute frequency shift and linewidth
         # ======================================
@@ -1315,7 +1339,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # =======================
         
         if self_consist:
-            filename_new=filename_shift_lw+'_'+name+'.dat'
+            filename_new=filename_shift_lw+'_self-consist_'+name+'.dat'
             fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
             with open(filename_new,'w') as f:
                 f.write("# ----------------------------------------------------------------- \n")
@@ -1346,7 +1370,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                  f.write(fmt.format(leng,*out))                     
         
         # ================================================
-        # freq, freq +/- hwhm && Lorentzian spectral func
+        # freq sorted, hwhm && Lorentzian spectral func
         # ================================================       
         
         if self_consist:
@@ -1358,26 +1382,28 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
 
             wq_shifted_sorted=np.take_along_axis(wq_shifted, sortidx, 1)
             hwhm_sorted=np.take_along_axis(hwhm, sortidx, 1)
-            wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
-            wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
+            #wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
+            #wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
             #
-            # freq, freq +/- hwhm
+            # freq, hwhm
             #
-            filename_new=filename_freq_dyn+'_'+name+'.dat'
-            fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+            filename_new=filename_freq_dyn+'_self-consist_'+name+'.dat'
+            fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(2*n_mod)+"\n"
             with open(filename_new,'w') as f:
-                f.write("# ------------------------------------------------------------------------------------------------------------------- \n")
-                f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), SSCHA+shift (sorted)+HWHM (cm-1), SSCHA+shift (sorted)-HWHM (cm-1) \n")
-                f.write("# ------------------------------------------------------------------------------------------------------------------- \n")                
+                f.write("# ------------------------------------------------------------ \n")
+                f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) \n")
+                f.write("# ------------------------------------------------------------ \n")                
                 for iq,leng in enumerate(x_length):
+                    #out=np.concatenate((wq_shifted_sorted[iq,:],
+                                        #wq_shifted_sorted_plus[iq,:],
+                                        #wq_shifted_sorted_minus[iq,:]))
                     out=np.concatenate((wq_shifted_sorted[iq,:],
-                                        wq_shifted_sorted_plus[iq,:],
-                                        wq_shifted_sorted_minus[iq,:]))
+                                        hwhm_sorted[iq,:]))                    
                     f.write(fmt.format(leng,*out))     
             # 
             # Lorentzian spectral func 
             #
-            filename_new=filename_sp+'_lorentz_'+name+'.dat'
+            filename_new=filename_sp+'_lorentz_self-consist_'+name+'.dat'
             fmt="{:>10.6f}\t"+"\t{:>11.3f}"+"\t{:>11.7f}"*(n_mod+1)+"\n"
             with open(filename_new,'w') as f:
                 f.write("# ---------------------------------------------------------------------------------------------------------\n")
@@ -1401,22 +1427,23 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
 
         wq_shifted_sorted=np.take_along_axis(wq_shifted, sortidx, 1)
         hwhm_sorted=np.take_along_axis(hwhm, sortidx, 1)
-        wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
-        wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
+        #wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
+        #wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
         #
         # freq, freq +/- hwhm
         #
         filename_new=filename_freq_dyn+'_one_shot_'+name+'.dat'
-        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(2*n_mod)+"\n"
         with open(filename_new,'w') as f:
-            f.write("# ------------------------------------------------------------------------------------------------------------------- \n")
-            f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), SSCHA+shift (sorted)+HWHM (cm-1), SSCHA+shift (sorted)-HWHM (cm-1) \n")
-            f.write("# ------------------------------------------------------------------------------------------------------------------- \n")        
+            f.write("# ------------------------------------------------------------ \n")
+            f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) \n")
+            f.write("# ------------------------------------------------------------ \n")        
             for iq,leng in enumerate(x_length):
+                 #out=np.concatenate((wq_shifted_sorted[iq,:],
+                                     #wq_shifted_sorted_plus[iq,:],
+                                     #wq_shifted_sorted_minus[iq,:]))
                  out=np.concatenate((wq_shifted_sorted[iq,:],
-                                     wq_shifted_sorted_plus[iq,:],
-                                     wq_shifted_sorted_minus[iq,:]))
-                 
+                                     hwhm_sorted[iq,:]))                 
                  f.write(fmt.format(leng,*out))     
         # 
         # Lorentzian spectral func 
@@ -1445,22 +1472,23 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
 
         wq_shifted_sorted=np.take_along_axis(wq_shifted, sortidx, 1)
         hwhm_sorted=np.take_along_axis(hwhm, sortidx, 1)
-        wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
-        wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
+        #wq_shifted_sorted_plus= wq_shifted_sorted+hwhm_sorted
+        #wq_shifted_sorted_minus= wq_shifted_sorted-hwhm_sorted        
         #
-        # freq, freq +/- hwhm
+        # freq, hwhm
         #
         filename_new=filename_freq_dyn+'_perturb_'+name+'.dat'
-        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+        fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(2*n_mod)+"\n"
         with open(filename_new,'w') as f:
-            f.write("# ------------------------------------------------------------------------------------------------------------------- \n")
-            f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), SSCHA+shift (sorted)+HWHM (cm-1), SSCHA+shift (sorted)-HWHM (cm-1) \n")
-            f.write("# ------------------------------------------------------------------------------------------------------------------- \n")                    
+            f.write("# ------------------------------------------------------------ \n")
+            f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) \n")
+            f.write("# ------------------------------------------------------------ \n")                    
             for iq,leng in enumerate(x_length):
+                 #out=np.concatenate((wq_shifted_sorted[iq,:],
+                                     #wq_shifted_sorted_plus[iq,:],
+                                     #wq_shifted_sorted_minus[iq,:]))
                  out=np.concatenate((wq_shifted_sorted[iq,:],
-                                     wq_shifted_sorted_plus[iq,:],
-                                     wq_shifted_sorted_minus[iq,:]))
-                 
+                                     hwhm_sorted[iq,:]))
                  f.write(fmt.format(leng,*out))     
         # 
         # Lorentzian spectral func 
@@ -1677,7 +1705,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
                             is the file where
                             len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1)
                             are printed.
-                            (default: "v2_freq_shit_hwhm")
+                            (default: "v2_freq_shift_hwhm")
         filename_freq_dyn :  string                   
                              filename_freq_dyn_[id_smear]_[smear].dat
                              is the file where
@@ -1704,7 +1732,11 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ") 
     print(" T= {:>5.1f} K".format(T))
     print(" k grid= {} x {} x {} ".format(*tuple(k_grid))) 
-
+    print(" ")
+    print(" Smearing values: ")
+    for sm in np.linspace(sm0,sm1,nsm):
+        print("     sm= {:>6.2f} cm-1".format(sm))  
+        
     if ( tensor2 == None ):
         
         # Prepare the tensor2
@@ -1778,7 +1810,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     #
     for  ism in range(nsm):
         #
-        name="{:6.1f}".format(smear[ism]).strip()
+        name="{:6.2f}".format(smear[ism]).strip()
         #
         # v2 freq, corresponding  shift & hwhm
         #
