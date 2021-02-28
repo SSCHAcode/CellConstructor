@@ -959,8 +959,7 @@ def get_diag_dynamic_bubble(tensor2,
     
     return spectralf, z, z_pert, w_q
 
-
-
+    
 def get_diag_dynamic_correction_along_path(dyn, tensor3, 
                                            k_grid,                                            
                                            e1, de, e0,
@@ -972,12 +971,12 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                                            print_path = True,
                                            T=0.0,
                                            filename_sp       = 'spectral_func',
-                                           filename_z       =  None,
+                                           filename_z        =  None,
                                            filename_freq_dyn = 'freq_dynamic',
                                            filename_shift_lw  = 'v2_freq_shift_hwhm',
                                            self_consist = False,
-                                           numiter=20,
-                                           eps=1.0e-7,                                           
+                                           iterative=False,
+                                           numiter=200,                                           
                                            d3_scale_factor=None,
                                            tensor2 = None):                                           
   
@@ -1070,12 +1069,12 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                        If True, the dynamical frequency is found solving the self-consistent 
                        relation [PRB 97 214101 (A21)]
                        (default: False)
+        iterative    : Logical
+                       If True, the self-consistent relation is found iteratively
+                       (default: False)                        
         numiter      : integer
-                       Number of maximum steps to find the self-consistency         
-                       (default : 20)
-        eps          : float
-                       threshold to verify the self-consistency 
-                       (default : 1.0e-7 cm-1)        
+                       Number of maximum steps to find the self-consistency iteratively        
+                       (default : 200)
         d3_scale_factor : float 
                           If present, the 3rd order FC is multiplied by this factor
                           (e.g. it can be used to make tests about the perturbative limit)
@@ -1100,6 +1099,11 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     print(" Smearing values: ")
     for sm in np.linspace(sm0,sm1,nsm):
         print("     sm= {:>6.2f} cm-1".format(sm))  
+    print(" ") 
+    print(" ===========================================" ) 
+    print(" " ) 
+
+
     if sm1_id != None and sm0_id != None:
         for sm in np.linspace(sm0_id,sm1_id,nsm):
                 print("     sm_id= {:>6.2f} cm-1".format(sm))  
@@ -1113,6 +1117,9 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
         tensor2.SetupFromPhonons(dyn)
         tensor2.Center()      
+    structure = tensor2.unitcell_structure
+
+
 
     # Scale the FC3 ===========================================================================
     if  d3_scale_factor != None :
@@ -1200,7 +1207,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
     if filename_z != None:
         print(" ")
-        print(" Z function [PRB 97 214101 (A21)], printed in "+filename_z+"_[smear_id]_[smear].dat")
+        print(" Z function [PRB 97 214101 (A21)], printed in "+filename_z+"_[smear].dat")
         print(" ")       
 
     print(" ========================================= ")
@@ -1290,32 +1297,60 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
         # ======================================
         # compute frequency shift and linewidth
         # ======================================
-                    
+                                
         if self_consist:
             res=np.zeros((len(q_path),n_mod,2),dtype=np.float64)      #   self-consist shifted freq and  linewidth  
             res_os=np.zeros((len(q_path),n_mod,2),dtype=np.float64)   #   one-shot     shifted freq and  linewidth      
             res_pert=np.zeros((len(q_path),n_mod,2),dtype=np.float64) #   perturbative shifted freq and  linewidth   
             for iq,leng in enumerate(x_length):
+                is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q_path[iq])
                 for ifreq in range(n_mod):
-                    freqold=wq[iq,ifreq]
-                    freqoldold=freqold
-                    for i in range(numiter):
-                        x=findne(freqold,e0,de) 
-                        if i==0: xtriv=x    
-                        freqshifted=np.real(z[iq,x-1,ism,ifreq]) # Re(z) is the shifted freq
-                        if abs(freqshifted-freqold)<eps:
-                            break
-                        elif abs(freqshifted-freqoldold)<1.0e-10:                           
-                            freqshifted+=freqold
-                            freqshifted/=2.0   
-                            break
-                        else: 
-                            freqoldold=freqold
-                            freqold=freqshifted
+                    done=False
+                    if iterative :
                     #
-                    res[iq,ifreq,0]=freqshifted
-                    res[iq,ifreq,1]=-np.imag(z[iq,x-1,ism,ifreq])
                     #
+                        freqold=wq[iq,ifreq]
+                        freqoldold=freqold
+                        for i in range(numiter):
+                            x=findne(freqold,e0,de)
+                            if i==0: xtriv=x    
+                            freqshifted=np.real(z[iq,x-1,ism,ifreq]) # Re(z) is the shifted freq
+                            if abs(freqshifted-freqold)< 2*de:
+                                done=True
+                                break
+                            else: 
+                                freqoldold=freqold
+                                freqold=freqshifted
+                    #
+                    #
+                    else:
+                        xtriv=findne(wq[iq,ifreq],e0,de)
+                        osval=np.real(z[iq,xtriv-1,ism,ifreq])
+                        diff=np.infty
+                        for x in range(ne):
+                            value=np.real(z[iq,x,ism,ifreq])-energies[x]
+                            if( abs(value ) < 2*de) :                        
+                                if (   1.0 < abs(energies[x]) or ( is_q_gamma and ifreq < 3 ) ):
+                                    done=True
+                                    if ( abs( energies[x]-osval ) < diff  ):
+                                        diff=abs( energies[x]-osval )
+                                        freqshifted=energies[x]  
+                                    
+                                         
+                    #               
+                    if done:        
+                    #
+                        res[iq,ifreq,0]=freqshifted   
+                        x=findne(freqshifted,e0,de)
+                        res[iq,ifreq,1]=-np.imag(z[iq,x-1,ism,ifreq])
+                    #
+                    else:
+                    #    
+                        print(" Self-consistency for the {:5d}-th mode of the {:5d}-th q-point not reached. "
+                               "One-shot approx. value used".format(ifreq+1,iq+1))
+                        res[iq,ifreq,0]=np.real(z[iq,xtriv-1,ism,ifreq])
+                        res[iq,ifreq,1]=-np.imag(z[iq,xtriv-1,ism,ifreq])                        
+                    #    
                     res_os[iq,ifreq,0]=np.real(z[iq,xtriv-1,ism,ifreq])                 
                     res_os[iq,ifreq,1]=-np.imag(z[iq,xtriv-1,ism,ifreq]) 
                     #
@@ -1736,7 +1771,10 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" Smearing values: ")
     for sm in np.linspace(sm0,sm1,nsm):
         print("     sm= {:>6.2f} cm-1".format(sm))  
-        
+    print(" ") 
+    print(" ===========================================" ) 
+    print(" " ) 
+    
     if ( tensor2 == None ):
         
         # Prepare the tensor2
