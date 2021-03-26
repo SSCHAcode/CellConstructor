@@ -2951,3 +2951,85 @@ class Tensor3():
         self.n_sup = Settings.broadcast(self.n_sup)
  
  
+
+
+# Plot the phonons in the given k-path
+def get_phonons_in_qpath(dynamical_matrix, q_path):
+    """
+    GET PHONONS IN K-PATH
+    =====================
+
+    Compute the phonons in the given q pat.
+
+    Parameters
+    ----------
+        dynamical_matrix : Phonons.Phonons
+            The dynamical matrix (with effective charges)
+        q_path : list of ndarray(size of 3)
+            List of q points in 2pi/A units.
+    
+    Results
+    -------
+        frequencies : ndarray(size= (Nq, Nmodes))
+            The frequencies of the dynamical matrix along the given path.
+            The result is given in cm-1
+
+
+    Examples
+    --------
+
+    To get a valid path specifying the special points of the Brilluin zone
+    you can exploit the ASE library:
+
+    .. code::
+
+        # Load the dynamical matrix
+        dyn = CC.Phonons.Phonons("mydyn", nqirr = 6)
+
+        # Get the q-path from high-symmetry points
+        path = ase.dft.kpoints.bandpath("GKWXULG",  # The q-path
+                                        dyn.structure.unit_cell,
+                                        npoints = 1000)
+        qpath = path.cartesian_kpts()
+
+        # Compute the frequencies in the q path
+        ws = CC.ForceTensor.get_phonons_in_qpath(dyn, qpath)
+
+
+        # Plot the results (with matplotlib.pyplot as plt)
+        xaxis, xticks, xlabels = path.get_linear_kpoint_axis()
+        for i in range(dyn.structure.N_atoms * 3):
+            plt.plot(x_axis, ws[:, i])
+
+        plt.gca().set_xticks(xticks)
+        plt.gca().set_xticklabels(xlabels)
+    """
+
+
+    # Generate the tensor from the dynamical matrix
+    t2 = Tensor2(dynamical_matrix.structure,
+                 dynamical_matrix.structure.generate_supercell(dynamical_matrix.GetSupercell()),
+                 dynamical_matrix.GetSupercell())
+
+    t2.SetupFromPhonons(dynamical_matrix)
+    t2.Center(Far = 4)
+    t2.Apply_ASR()
+
+    n_k, _ = q_path.shape
+
+    n_modes = 3 * dynamical_matrix.structure.N_atoms
+    ws = np.zeros((n_k, n_modes), dtype = np.double)
+    m = dynamical_matrix.structure.get_masses_array()
+    m = np.tile(m, (3,1)).T.ravel()
+    _mm_ = np.sqrt(np.outer(m, m))
+
+
+    # Interpolate the result
+    for i in range(n_k):
+        dynq = t2.Interpolate(-q_path[i,:])
+        fc = dynq / _mm_
+
+        # Diagonalize
+        ws[i, :] = np.sqrt(np.abs(np.linalg.eigvalsh(fc))) * Units.RY_TO_CM
+
+    return ws
