@@ -1260,11 +1260,11 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     
     
     	#
-    	z*=CC.Units.RY_TO_CM
-    	z_pert*=CC.Units.RY_TO_CM
-    	wq*=CC.Units.RY_TO_CM
-    	# convert from 1/Ry to 1/cm-1
-    	spectralf /= CC.Units.RY_TO_CM 
+        z *= CC.Units.RY_TO_CM
+        z_pert *= CC.Units.RY_TO_CM
+        wq *= CC.Units.RY_TO_CM
+        # convert from 1/Ry to 1/cm-1
+        spectralf /= CC.Units.RY_TO_CM 
     
  
     
