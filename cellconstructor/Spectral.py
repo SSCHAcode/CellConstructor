@@ -1420,10 +1420,10 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             if iq == 0:
                 with open(filename_new,'w') as f:
                     f.write("# ----------------------------------------------------------------- \n")
-                    f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")            
+                    f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")
                     f.write("# ----------------------------------------------------------------- \n")
-            	    out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
-            	    f.write(fmt.format(x_length[iq],*out))
+                    out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
+                    f.write(fmt.format(x_length[iq],*out))
             else:
                 with open(filename_new,'a') as f:
                     out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
@@ -1434,8 +1434,8 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             if iq == 0:
                 with open(filename_new,'w') as f:
                     f.write("# ----------------------------------------------------------------- \n")
-                    f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")            
-                    f.write("# ----------------------------------------------------------------- \n")            
+                    f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")
+                    f.write("# ----------------------------------------------------------------- \n")
                     out=np.concatenate((wq[:],res_pert[:,0]-wq[:], res_pert[:,1]))
                     f.write(fmt.format(x_length[iq],*out))
             else:
