@@ -1427,8 +1427,8 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             else:
                 with open(filename_new,'a') as f:
                     out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
-            	    f.write(fmt.format(x_length[iq],*out))
-            #         
+                    f.write(fmt.format(x_length[iq],*out))
+            #
             filename_new=filename_shift_lw+'_perturb_'+name+'.dat'
             fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
             if iq == 0:
