@@ -1310,9 +1310,9 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                 if iq == 0:
                     with open(filename_new,'w') as f:
                         f.write("# ---------------------------------------------------- \n")
-                        f.write("# len (2pi/Angstrom), energy (cm-1), z function (cm-1) \n")            
+                        f.write("# len (2pi/Angstrom), energy (cm-1), z function (cm-1) \n")           
                         f.write("# ---------------------------------------------------- \n")  
-            	        for ie, ene in enumerate(energies_cm):
+                        for ie, ene in enumerate(energies_cm):
             	            out=z[ie,ism,:]
             	            f.write(fmt.format(x_length[iq],ene,*out))
                 else:
