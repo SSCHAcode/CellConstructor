@@ -1335,7 +1335,6 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                     done=False
                     if iterative :
                     #
-                    #
                         freqold=wq[ifreq]
                         freqoldold=freqold
                         for i in range(numiter):
@@ -1347,8 +1346,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                                 break
                             else: 
                                 freqoldold=freqold
-                                freqold=freqshifted
-                    # 
+                                freqold=freqshifted 
                     #
                     else:
                         xtriv=findne(wq[ifreq],e0,de)
