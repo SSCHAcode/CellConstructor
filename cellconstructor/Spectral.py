@@ -1320,7 +1320,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                         for ie, ene in enumerate(energies_cm):
                             out=z[ie,ism,:]
             	            f.write(fmt.format(x_length[iq],ene,*out))
-                                 
+                            
             # ======================================
             # compute frequency shift and linewidth
             # ======================================
