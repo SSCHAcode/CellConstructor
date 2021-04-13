@@ -1270,7 +1270,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
     
     
     
-    	for ism in range(nsm):
+        for ism in range(nsm):
             #
             # pre-name for writing data
             #
@@ -1348,7 +1348,7 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                             else: 
                                 freqoldold=freqold
                                 freqold=freqshifted
-                    #
+                    # 
                     #
                     else:
                         xtriv=findne(wq[ifreq],e0,de)
@@ -1403,8 +1403,8 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             # v2_freq, shift, hwhm
             # ======================= 	    
             if self_consist:
-            	filename_new=filename_shift_lw+'_self-consist_'+name+'.dat'
-            	fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
+                filename_new=filename_shift_lw+'_self-consist_'+name+'.dat'
+                fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
                 if iq == 0:
                     with open(filename_new,'w') as f:
                         f.write("# ----------------------------------------------------------------- \n")
@@ -1421,11 +1421,11 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
             fmt="{:>10.6f}\t"+"\t{:>11.7f}"*(3*n_mod)+"\n"
             if iq == 0:
                 with open(filename_new,'w') as f:
-                     f.write("# ----------------------------------------------------------------- \n")
-                     f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")            
-                     f.write("# ----------------------------------------------------------------- \n")
-            	     out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
-            	     f.write(fmt.format(x_length[iq],*out))
+                    f.write("# ----------------------------------------------------------------- \n")
+                    f.write("# len (2pi/Angstrom), SSCHA freq (cm-1), shift (cm-1) , HWHM (cm-1) \n")            
+                    f.write("# ----------------------------------------------------------------- \n")
+            	    out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
+            	    f.write(fmt.format(x_length[iq],*out))
             else:
                 with open(filename_new,'a') as f:
                     out=np.concatenate((wq[:],res_os[:,0]-wq[:], res_os[:,1]))
@@ -1591,8 +1591,8 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                 with open(filename_new,'w') as f:
                     f.write("# ------------------------------------------------------------ \n")
                     f.write("# len (2pi/Angstrom), SSCHA+shift (sorted) (cm-1), HWHM (cm-1) \n")
-                    f.write("# ------------------------------------------------------------ \n")        
-                    #out=np.concatenate((wq_shifted_sorted,
+                    f.write("# ------------------------------------------------------------ \n")       
+                   #out=np.concatenate((wq_shifted_sorted,
                                     #wq_shifted_sorted_plus,
                                     #wq_shifted_sorted_minus))
                     out=np.concatenate((wq_shifted_sorted,
