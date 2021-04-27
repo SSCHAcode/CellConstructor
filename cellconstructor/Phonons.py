@@ -2650,7 +2650,7 @@ WARNING: Effective charges are not accounted by this method
                     
 
         # Apply the sum rule on the effective charge
-        if self.effective_charges != None:
+        if self.effective_charges is not None:
             total_charge = np.sum(self.effective_charges, axis = 0)
 
             # Subtract to each atom an average of the total charges
