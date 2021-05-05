@@ -3030,6 +3030,7 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
         fc = dynq / _mm_
 
         # Diagonalize
-        ws[i, :] = np.sqrt(np.abs(np.linalg.eigvalsh(fc))) * Units.RY_TO_CM
+        all_freqs = np.linalg.eigvalsh(fc)
+        ws[i, :] = np.sqrt(np.abs(all_freqs)) * Units.RY_TO_CM * np.sign(all_freqs)
 
     return ws
