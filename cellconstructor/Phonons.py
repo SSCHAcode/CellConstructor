@@ -528,7 +528,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T):
+    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -546,7 +546,8 @@ class Phonons:
         ----------
             T : float
                 Temperature of the calculation (Kelvin)
-        
+            min_w_threshold: float
+                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes). 
         Returns
         -------
             ndarray(3N x3N), dtype = np.float64
@@ -573,7 +574,7 @@ class Phonons:
         trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
 
         # Exclude also other w = 0 modes
-        locked_original = np.abs(w) < __EPSILON_W__
+        locked_original = np.abs(w) < min_w_threshold
         if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
             trans_mask = locked_original
 
@@ -597,8 +598,11 @@ class Phonons:
         
         # Compute the matrix
         factor = 2 * w / (1. + 2*nw)
-        Upsilon = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
-        
+        pols_mod = np.einsum("ab,b -> ab", pols_conj, factor)
+        Upsilon = pols.dot(pols_mod.T)
+        if debug:
+            Upsilon_old = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
+            assert np.max(np.abs(Upsilon - Upsilon_old)) < 1e-10, "Error, the new Upsilon calculation is wrong" 
         #_p1_, _p1vect_ = np.linalg.eigh(Upsilon)
         #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
