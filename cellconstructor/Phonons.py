@@ -2560,9 +2560,9 @@ WARNING: Effective charges are not accounted by this method
 
         order_mask = []
         bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
-        for i, qi in enumerate(self.q_tot):
+        for i, qi in enumerate(other_dyn.q_tot):
             found = False
-            for j, qj in enumerate(other_dyn.q_tot):
+            for j, qj in enumerate(self.q_tot):
                 # Skip if it has already been identified
                 if j in order_mask:
                     continue 
@@ -2577,6 +2577,7 @@ WARNING: Effective charges are not accounted by this method
             assert found, "Error, mismatching between q points: this matrix has q = {} missing in the other one".format(qi)
         
         # Reorder the dynamical matrix
+        print("Order: {}".format(order_mask))
         self.dynmats = [ self.dynmats[x] for x in order_mask ]
         self.q_tot = [ self.q_tot[x] for x in order_mask ]
         self.q_stars = [ self.q_tot ] 
