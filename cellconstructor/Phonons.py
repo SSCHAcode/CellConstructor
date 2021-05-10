@@ -2396,16 +2396,6 @@ class Phonons:
                 The dynamical matrix interpolated.
         """
 
-        if self.effective_charges is not None:
-            WARN_TXT="""
-WARNING: Effective charges are not accounted by this method
-         You should generate a ForceTensor.Tensor2 object
-         To account for the interpolation of long-range forces.
-            """
-
-            print(WARN_TXT)
-            warnings.warn(WARN_TXT, DeprecationWarning)
-
         
         # Check if the support dynamical matrix is given:
         is_dync = support_dyn_coarse is not None
@@ -2487,6 +2477,18 @@ WARNING: Effective charges are not accounted by this method
         
         if symmetrize:
             new_dynmat.Symmetrize()
+
+
+        if self.effective_charges is not None:
+            WARN_TXT="""
+WARNING: Effective charges are not accounted by this method
+         You should generate a ForceTensor.Tensor2 object
+         To account for the interpolation of long-range forces.
+            """
+
+            print(WARN_TXT)
+            warnings.warn(WARN_TXT, DeprecationWarning)
+
         
         return new_dynmat
             
@@ -2539,6 +2541,51 @@ WARNING: Effective charges are not accounted by this method
         #     for q in q_star:
         #         q_tot.append(q)
         # self.q_tot = q_tot
+
+    def SwapQPoints(self, other_dyn):
+        """
+        Adjust the order of the q points of this dynamical matrix (self) to match the one of the passed dynamical matrix.
+        This is usefull if you want to compare the two dynamical matrices.
+
+        The method also checks if the q points are in different brilluin zones.
+
+        NOTE: this method will match the q points, this means that the q star could be destroyed.
+        You need to call AdjustQStar to correctly generate the star  after this method.
+
+        """
+
+        ## Check of consistency between the dynamical matrices
+        assert len(self.q_tot) == len(other_dyn.q_tot)
+        assert self.GetSupercell() == other_dyn.GetSupercell()
+
+        order_mask = []
+        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+        for i, qi in enumerate(self.q_tot):
+            found = False
+            for j, qj in enumerate(other_dyn.q_tot):
+                # Skip if it has already been identified
+                if j in order_mask:
+                    continue 
+                
+                # Check if qi and qj are the same vector
+                dist = Methods.get_min_dist_into_cell(bg, qi, qj)
+                if dist < __EPSILON__:
+                    order_mask.append(j)
+                    found = True
+                    break 
+        
+            assert found, "Error, mismatching between q points: this matrix has q = {} missing in the other one".format(qi)
+        
+        # Reorder the dynamical matrix
+        self.dynmats = [ self.dynmats[x] for x in order_mask ]
+        self.q_tot = [ self.q_tot[x] for x in order_mask ]
+        self.q_stars = [ self.q_tot ] 
+                
+                
+
+
+
+
             
     def SymmetrizeSupercell(self, supercell_size = None):
         """
