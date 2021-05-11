@@ -3590,7 +3590,7 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     
     
 
-def get_dyn_from_ase_phonons(ase_ph):
+def get_dyn_from_ase_phonons(ase_ph, adjust_qstar = True):
     """
     GET THE DYNAMICAL MATRIX FROM ASE
     =================================
@@ -3601,6 +3601,9 @@ def get_dyn_from_ase_phonons(ase_ph):
     ----------
         ase_ph : ase.phonons.Phonons()
             The ASE Phonons. It must be already computed
+        adjust_qstar : bool
+            If true the q points are ordered in star, preparing the dynamical matrix 
+            for the symmetrization
     
     Results
     -------
@@ -3694,7 +3697,8 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
         dyn.dynmats[iq] = dynq[iq, :, :] * BOHR_TO_ANGSTROM**2 / RY_TO_EV
 
     # Now adjust the q stars to match the symmetries
-    dyn.AdjustQStar()
+    if adjust_qstar:
+        dyn.AdjustQStar()
 
 
     return dyn
