@@ -19,7 +19,8 @@ subroutine initialize_perm(R2, n_blocks,SClat,PBC)
     logical :: found
    
     write(*,*) " "
-    write(*,*) "Initialize indices for permutation..."
+    write(*,*) "Initialize indices for permutation...", perm_initialized
+
        
     allocate(P(n_blocks))
 
@@ -58,6 +59,16 @@ subroutine initialize_perm(R2, n_blocks,SClat,PBC)
     write(*,*) " "
     
 end subroutine initialize_perm
+
+subroutine clear_all()
+    implicit none
+
+    ! This subroutine deallocates the permutations
+    if (perm_initialized) then
+        perm_initialized = .false.
+        deallocate(P)
+    end if
+end subroutine clear_all
 
 !==========================================================================================
 
@@ -274,6 +285,7 @@ write(*, "(' Iterative ASR imposition with pow= 'f5.3)") pow
 write(*,*) " "
 end if
 
+call clear_all()
 call initialize_perm(R2, n_blocks,SClat,PBC)
 
  converged = .false.
