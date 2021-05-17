@@ -22,7 +22,7 @@ import cellconstructor.symmetries as SYM
 from cellconstructor.Units import *
 import cellconstructor.Timer as Timer
 
-import ase.visualize
+#import ase.visualize
 
 import symph
 
@@ -1119,7 +1119,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     print()
                 
                 self.coords = c1
-                ase.visualize.view(self.get_ase_atoms())
+                #ase.visualize.view(self.get_ase_atoms())
                 
                 raise ValueError("Error, the two methods to fix the coordinates in the unit cell give different results.")
 
