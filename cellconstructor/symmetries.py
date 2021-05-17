@@ -1820,6 +1820,54 @@ def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     
     return work
 
+def ApplySymmetriesToVector(symmetries, vector, unit_cell, irts):
+    """
+    APPLY SYMMETRY
+    ==============
+    
+    Apply the symmetry to the given vector of displacements.
+    Translations are neglected.
+    
+    .. math::
+        
+        \\vec {v'}[irt] = S \\vec v
+        
+    
+    Parameters
+    ----------
+        symmetries: list of ndarray(size = (3,4))
+            The symmetries operation (crystalline coordinates)
+        vector: ndarray(size = (nat, 3))
+            The vector to which apply the symmetry.
+            In cartesian coordinates
+        unit_cell : ndarray( size = (3,3))
+            The unit cell in which the structure is defined
+        irts : list of ndarray(nat, dtype = int)
+            The index of how the symmetry exchanges the atom.
+        
+    """
+    
+    # Get the vector in crystalline coordinate
+    nat, dumb = np.shape(vector)
+    n_sym = len(symmetries)
+
+    assert n_sym == len(irts)
+
+    work = np.zeros( (n_sym, nat, 3), dtype = np.double, order = "C")
+    
+    for i in range(nat):
+        # Pass to crystalline coordinates
+        v1 = Methods.covariant_coordinates(unit_cell, vector[i, :])
+        # Apply the symmetry
+        for j, symmetry in enumerate(symmetries):
+            sym = symmetry[:, :3]
+            w1 = sym.dot(v1)
+
+            # Return in cartesian coordinates
+            work[j, irts[j][i], :] = unit_cell.T.dot(w1) #np.einsum("ab,a", unit_cell, w1)
+    
+    return work
+
 
 def PrepareISOTROPYFindSymInput(structure, path_to_file = "findsym.in",
                                 title = "Prepared with Cellconstructor",
@@ -2152,7 +2200,7 @@ def GetSupercellFromQlist(q_list, unit_cell):
 #         return pol_symmetries 
 
 
-def GetSymmetriesOnModes(symmetries, structure, pol_vects):
+def _GetSymmetriesOnModes(symmetries, structure, pol_vects):
         """
         GET SYMMETRIES ON MODES
         =======================
@@ -2197,6 +2245,59 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
                 # Apply the i-th symmetry to the j-th mode
                 new_vector = ApplySymmetryToVector(sym_mat, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irt).ravel()
                 pol_symmetries[i, :, j] = underdisp_v.dot(new_vector.ravel())
+
+        return pol_symmetries
+
+def GetSymmetriesOnModes(symmetries, structure, pol_vects):
+        """
+        GET SYMMETRIES ON MODES
+        =======================
+
+        This methods returns a set of symmetry matrices that explains how polarization vectors interacts between them
+        through any symmetry operation.
+
+        Parameters
+        ----------
+            symmetries : list 
+               The list of 3x4 matrices representing the symmetries.
+            structure : Structure.Structure()
+               The structure (supercell) to allow the symmetry to correctly identify the atoms that transforms one
+               in each other.
+            pol_vects : ndarray(size = (n_dim, n_modes))
+               The array of the polarization vectors (must be real)
+
+
+        Results
+        -------
+            pol_symmetries : ndarray( size=(n_sym, n_modes, n_modes))
+               The symmetry operation between the modes. This allow to identify which mode
+               will be degenerate, and which will not interact.
+        """
+
+        # Get the vector of the displacement in the polarization
+        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
+        disp_v = np.einsum("im,i->mi", pol_vects, 1 / np.sqrt(m))
+        underdisp_v = np.einsum("im,i->mi", pol_vects, np.sqrt(m))
+
+        n_dim, n_modes = np.shape(pol_vects)
+
+        n_sym = len(symmetries)
+        nat = structure.N_atoms
+        
+        # For each symmetry operation apply the
+        pol_symmetries = np.zeros((n_sym, n_modes, n_modes), dtype = np.float64)
+
+        # Get the irt for all the symmetries
+        irts = []
+
+        for i, sym_mat in enumerate(symmetries):
+            irts.append(GetIRT(structure, sym_mat))
+        
+            
+        for j in range(n_modes):
+            # Apply the i-th symmetry to the j-th mode
+            new_vectors = ApplySymmetriesToVector(symmetries, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irts).reshape((n_sym, 3 * nat))
+            pol_symmetries[:, :, j] = underdisp_v.dot(new_vectors.T).T
 
         return pol_symmetries
         

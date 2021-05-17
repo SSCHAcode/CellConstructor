@@ -1724,6 +1724,7 @@ class Phonons:
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
             
+        # TODO: I believe this is the heavy part of the extraction
         total_coords = np.einsum("ij, i, j, kj->ik", pol_vects, 1/np.sqrt(mass1), a_mu, rand)
 
 
