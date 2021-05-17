@@ -21,7 +21,8 @@ symph_ext = Extension(name = "symph",
                                  "FModules/kind.f90",
                                  "FModules/constants.f90",
                                  "FModules/eff_charge_interp.f90",
-                                 "FModules/get_translations.f90"],
+                                 "FModules/get_translations.f90",
+                                 "FModules/get_equivalent_atoms.f90"],
                       libraries= ["lapack", "blas"],
                       extra_f90_compile_args = ["-cpp"]
                       )

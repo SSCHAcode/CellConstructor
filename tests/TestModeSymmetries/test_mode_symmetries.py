@@ -2,7 +2,7 @@ from __future__ import print_function
 from __future__ import division
 
 import cellconstructor as CC
-import cellconstructor.Phonons
+import cellconstructor.Phonons, cellconstructor.Timer
 import numpy as np
 import time
 
@@ -27,9 +27,11 @@ def test_mode_symmetries(verbose = False):
     # Get frequencies and polarization vectors
     w, pols = dyn.DiagonalizeSupercell()
 
+    timer = CC.Timer.Timer(active = True)
+
     # Get the symmetry matrix in the polarization space
     t1 = time.time()
-    sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, dyn.structure, pols)
+    sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, dyn.structure, pols, timer, debug =True)
     t2 = time.time()
     # Exploit the old slower function to test if the implementation is correct
     sim_modes2 = CC.symmetries._GetSymmetriesOnModes(symmetries, dyn.structure, pols)
@@ -49,7 +51,8 @@ def test_mode_symmetries(verbose = False):
         print()
         print("Time for the new method: {} s".format(t2-t1))
         print("Time for the old method: {} s".format(t3-t2))
-    
+
+        timer.print_report()
 
 
 if __name__ == "__main__":

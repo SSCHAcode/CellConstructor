@@ -20,6 +20,9 @@ import sys, os
 import cellconstructor.Methods as Methods
 import cellconstructor.symmetries as SYM
 from cellconstructor.Units import *
+import cellconstructor.Timer as Timer
+
+import ase.visualize
 
 import symph
 
@@ -538,7 +541,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         self.coords = np.delete(self.coords, list_pop, axis = 0)
         self.N_atoms -= N_rep
             
-    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1e-6):
+    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1e-6, timer = Timer.Timer()):
         """
         This function apply the symmetry operation to the atoms
         of the current structure.
@@ -560,34 +563,41 @@ Error, to compute the volume the structure must have a unit cell initialized:
         if not self.has_unit_cell:
             raise ValueError("The structure has no unit cell!")
 
-        #self.N_atoms *= 2
-        new_atoms = np.zeros( (self.N_atoms, 3))
-        self.fix_coords_in_unit_cell()
-        for i in range(self.N_atoms):
-            # Convert the coordinates into covariant
-            old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
-
-            # Apply the symmetry
-            new_coords = sym_mat[:, :3].dot(old_coords)
-            new_coords += sym_mat[:, 3]
-
-            # Return into the cartesian coordinates
-            coords = np.dot( np.transpose(self.unit_cell), new_coords)
-
-            # Put the atoms into the unit cell
-            new_atoms[i, :] = Methods.put_into_cell(self.unit_cell, coords)
-                
-            # Add also the atom type
-            if not delete_original:
-                self.atoms.append(self.atoms[i])
-
-        # Concatenate
         if delete_original:
-            self.coords = new_atoms
+            #self.N_atoms *= 2
+            new_atoms = np.zeros( (self.N_atoms, 3))
+            timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
+
+            old_coords = timer.execute_timed_function(Methods.covariant_coordinates, self.unit_cell, self.coords)
+            new_coords = sym_mat[:, :3].dot(old_coords.T).T
+            new_coords += np.tile( sym_mat[:, 3], (self.N_atoms, 1))
+
+            self.coords = new_coords.dot(self.unit_cell)
+
+            timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
         else:
+
+
+            for i in range(self.N_atoms):
+                # Convert the coordinates into covariant
+                old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
+
+                # Apply the symmetry
+                new_coords = sym_mat[:, :3].dot(old_coords)
+                new_coords += sym_mat[:, 3]
+
+                # Return into the cartesian coordinates
+                coords = np.dot( np.transpose(self.unit_cell), new_coords)
+
+                # Put the atoms into the unit cell
+                new_atoms[i, :] = Methods.put_into_cell(self.unit_cell, coords)
+                    
+                # Add also the atom type
+                if not delete_original:
+                    self.atoms.append(self.atoms[i])
+
             self.N_atoms *= 2
             self.coords = np.concatenate( (self.coords, new_atoms), axis = 0)
-
             self.delete_copies(verbose = False, minimum_dist = thr)
 
     def check_symmetry(self, sym_mat, thr = 1e-6):
@@ -769,7 +779,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
 
 
-    def get_equivalent_atoms(self, target_structure, return_distances = False):
+    def get_equivalent_atoms(self, target_structure, return_distances = False, debug = False):
         """
         GET EQUIVALENT ATOMS BETWEEN TWO STRUCTURES
         ===========================================
@@ -804,32 +814,39 @@ Error, to compute the volume the structure must have a unit cell initialized:
             if self.atoms.count(typ) != target_structure.atoms.count(typ):
                 raise ValueError("Error, the target structure must be of the same type of the current one")
         
-        
-        
-        equiv_atoms = []
-        effective_distances = []
-        for i in range(self.N_atoms):
-            i_typ = self.atoms[i]
+        eq_atm = list(symph.get_equivalent_atoms(self.coords, target_structure.coords, self.unit_cell, self.get_ityp(), target_structure.get_ityp()))
+
+        if debug or return_distances:
+            equiv_atoms = []
+            effective_distances = []
+            for i in range(self.N_atoms):
+                i_typ = self.atoms[i]
+                
+                # Select the possible equivalent atoms in the target structure
+                target_indices = [x for x in range(self.N_atoms) if target_structure.atoms[x] == i_typ and not (x in equiv_atoms)]
+                
+                # For each possible equivalent atoms get the minimum distance
+                d = []
+                for j in target_indices:
+                    #v = Methods.get_closest_vector(self.unit_cell, self.coords[i,:] - target_structure.coords[j, :])
+                    #d.append(np.sqrt(np.sum(v**2)))
+                    d.append(Methods.get_min_dist_into_cell(self.unit_cell, self.coords[i,:], target_structure.coords[j, :]))
+                
+                # Pick the minimum
+                j_min = target_indices[ np.argmin(d) ]
+                effective_distances.append(np.min(d))
+                
+                # Set the equivalent atom index
+                equiv_atoms.append(j_min)
             
-            # Select the possible equivalent atoms in the target structure
-            target_indices = [x for x in range(self.N_atoms) if target_structure.atoms[x] == i_typ and not (x in equiv_atoms)]
-            
-            # For each possible equivalent atoms get the minimum distance
-            d = []
-            for j in target_indices:
-                d.append(Methods.get_min_dist_into_cell(self.unit_cell, self.coords[i,:], target_structure.coords[j, :]))
-            
-            # Pick the minimum
-            j_min = target_indices[ np.argmin(d) ]
-            effective_distances.append(np.min(d))
-            
-            # Set the equivalent atom index
-            equiv_atoms.append(j_min)
-        
-        #print "Max distance:", np.max(effective_distances)
-        if return_distances:
-            return equiv_atoms, effective_distances
-        return equiv_atoms
+            #print "Max distance:", np.max(effective_distances)
+
+            assert all(eq_atm == equiv_atoms)  
+
+            if return_distances:
+                return equiv_atoms, effective_distances
+
+        return eq_atm
 
 
     def sort_molecules(self, distance = 1.3):
@@ -1068,7 +1085,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         fdata.close()
         
         
-    def fix_coords_in_unit_cell(self):
+    def fix_coords_in_unit_cell(self, delete_copies = True, debug = False):
         """
         This method fix the coordinates of the structure inside
         the unit cell. It works only if the structure has 
@@ -1077,12 +1094,39 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         if not self.has_unit_cell:
             raise ValueError("Error, try to fix the coordinates without the unit cell")
+        
+        if not debug:
+            self.coords = symph.fix_coords_in_unit_cell(self.coords, self.unit_cell)
 
-        for i in range(self.N_atoms):
-            self.coords[i,:] = Methods.put_into_cell(self.unit_cell, self.coords[i,:])
+        if debug:
+            c1 = symph.fix_coords_in_unit_cell(self.coords, self.unit_cell)
+            coords = self.coords.copy()
+            for i in range(self.N_atoms):
+                coords[i,:] = Methods.put_into_cell(self.unit_cell, self.coords[i,:])
+
+            check = np.max(np.abs(coords - c1)) < 1e-7
+            
+
+            if not check:
+                print("Error in the check coordinates")
+                print(self.unit_cell)
+
+                for i in range(self.N_atoms):
+                    print("Atom {}:".format(i))
+                    print("original: {}".format(self.coords[i, :]))
+                    print("new method: {}".format(c1[i,:]))
+                    print("old method: {}".format(coords[i,:]))
+                    print()
+                
+                self.coords = c1
+                ase.visualize.view(self.get_ase_atoms())
+                
+                raise ValueError("Error, the two methods to fix the coordinates in the unit cell give different results.")
+
 
         # Delete duplicate atoms
-        self.delete_copies()
+        if delete_copies:
+            self.delete_copies()
 
     def fix_wigner_seitz(self):
         """
@@ -1192,15 +1236,17 @@ Error, to compute the volume the structure must have a unit cell initialized:
                 The type of the atom in integer (starting from 0)
         """
         
-        if self.masses is None:
-            raise ValueError("Error, to return the ityp the masses must be initialized.")
+        if not self.masses:
+            atm_species = list(set(self.atoms))
+        else:
+            atm_species = list(self.masses)
         
         ityp = np.zeros(self.N_atoms, dtype = np.intc)
         
         for i in range(self.N_atoms):
             # Rank the atom number
             
-            ityp[i] = list(self.masses).index(self.atoms[i])
+            ityp[i] = atm_species.index(self.atoms[i])
         
         return ityp
     

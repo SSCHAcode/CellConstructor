@@ -18,6 +18,7 @@ import scipy.linalg
 
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
+import cellconstructor.Timer as Timer
 
 # Load the fortran symmetry QE module
 import symph
@@ -1749,7 +1750,7 @@ def ExcludeRotations(fc_matrix, structure):
     fc_matrix[:,:] = projector.dot(fc_matrix.dot(projector))
         
 
-def GetIRT(structure, symmetry):
+def GetIRT(structure, symmetry, timer = Timer.Timer(), debug = False):
     """
     GET IRT
     =======
@@ -1766,16 +1767,26 @@ def GetIRT(structure, symmetry):
             The unit cell structure
         symmetry: list of 3x4 matrices
             symmetries with frac translations
+        timer : Timer class
+            The functions will be timed using the timer object.
     
     """
     
     
     new_struct = structure.copy()
-    new_struct.fix_coords_in_unit_cell()
+    if timer is None:
+        new_struct.fix_coords_in_unit_cell(delete_copies = False, debug = debug)
+    else:
+        timer.execute_timed_function(new_struct.fix_coords_in_unit_cell, delete_copies = False, debug = debug)
     n_struct_2 = new_struct.copy()
 
-    new_struct.apply_symmetry(symmetry, True)
-    irt = np.array(new_struct.get_equivalent_atoms(n_struct_2), dtype =np.intc)
+    if timer is None:
+        new_struct.apply_symmetry(symmetry, True)
+        irt = np.array(new_struct.get_equivalent_atoms(n_struct_2), dtype =np.intc)
+    else:
+        timer.execute_timed_function(new_struct.apply_symmetry, symmetry, True, timer = timer)
+        irt = np.array( timer.execute_timed_function(new_struct.get_equivalent_atoms, n_struct_2), dtype =np.intc)
+
     return irt
 
 def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
@@ -1855,16 +1866,16 @@ def ApplySymmetriesToVector(symmetries, vector, unit_cell, irts):
 
     work = np.zeros( (n_sym, nat, 3), dtype = np.double, order = "C")
     
-    for i in range(nat):
-        # Pass to crystalline coordinates
-        v1 = Methods.covariant_coordinates(unit_cell, vector[i, :])
-        # Apply the symmetry
-        for j, symmetry in enumerate(symmetries):
-            sym = symmetry[:, :3]
-            w1 = sym.dot(v1)
+    # Pass to crystalline coordinates
+    v1 = Methods.covariant_coordinates(unit_cell, vector)
+    
+    # Apply the symmetry
+    for j, symmetry in enumerate(symmetries):
+        sym = symmetry[:, :3]
+        w1 = sym.dot(v1.T).T
 
-            # Return in cartesian coordinates
-            work[j, irts[j][i], :] = unit_cell.T.dot(w1) #np.einsum("ab,a", unit_cell, w1)
+        # Return in cartesian coordinates
+        work[j, irts[j][:], :] = w1.dot(unit_cell)# unit_cell.T.dot(w1) #np.einsum("ab,a", unit_cell, w1)
     
     return work
 
@@ -2248,7 +2259,7 @@ def _GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
 
-def GetSymmetriesOnModes(symmetries, structure, pol_vects):
+def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug = False):
         """
         GET SYMMETRIES ON MODES
         =======================
@@ -2291,12 +2302,18 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects):
         irts = []
 
         for i, sym_mat in enumerate(symmetries):
-            irts.append(GetIRT(structure, sym_mat))
+            irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
+            
         
             
         for j in range(n_modes):
             # Apply the i-th symmetry to the j-th mode
-            new_vectors = ApplySymmetriesToVector(symmetries, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irts).reshape((n_sym, 3 * nat))
+            t1 = time.time()
+            new_vectors = ApplySymmetriesToVector( symmetries, disp_v[j, :].reshape((nat, 3)), structure.unit_cell, irts).reshape((n_sym, 3 * nat))
+            t2 = time.time()
+
+            if timer is not None:
+                timer.add_timer(ApplySymmetriesToVector.__name__, t2-t1)
             pol_symmetries[:, :, j] = underdisp_v.dot(new_vectors.T).T
 
         return pol_symmetries
