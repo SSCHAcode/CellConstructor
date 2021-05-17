@@ -11,6 +11,7 @@ from __future__ import division
 from numpy import *
 import numpy as np
 import sys, os
+import symph
 
 import warnings
 
@@ -1049,7 +1050,7 @@ def write_namelist(total_dict):
             
     return lines
                 
-        
+    
     
 def get_translations(pols, masses):
     """
@@ -1087,6 +1088,26 @@ def get_translations(pols, masses):
     >>> pols = pols[ :, ~t_mask ]
 
     The ~ caracter is used to get the bit not operation over the t_mask array (to mark False the translational modes and True all the others) 
+    """
+    n_atoms = len(pols[:, 0]) // 3
+    n_pols = len(pols[0,:])
+
+    # Check if the masses array is good
+    if len(masses) * 3 != np.size(pols[:,0]):
+        raise ValueError("Error, the size of the two array masses and pols are not compatible.")
+
+    # Prepare a mask filled with false
+    is_translation = np.zeros( n_pols, dtype = bool)
+
+    # Cast to bool
+    is_translation[:] = symph.get_translations(pols, masses)
+
+    return is_translation
+
+
+def _get_translations(pols, masses):
+    """
+    OLD slow implemetation of get_translations 
     """
     
     # Check if the masses array is good

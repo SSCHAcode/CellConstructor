@@ -528,7 +528,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False):
+    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -563,7 +563,11 @@ class Phonons:
 #            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
+        t1 = time.time()
         w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
+        t2 = time.time()
+        if verbose:
+            print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
@@ -571,7 +575,13 @@ class Phonons:
         type_cal = np.float64#np.complex128
         
         super_struct = self.structure.generate_supercell(self.GetSupercell())
+        t3 = time.time()
         trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
+
+        t4 = time.time()
+        if verbose:
+            print("[GET UPS] Time to prepare the supercell structure: {} s".format(t3-t2))
+            print("[GET UPS] Time to get translations: {} s".format(t4-t3))
 
         # Exclude also other w = 0 modes
         locked_original = np.abs(w) < min_w_threshold
@@ -598,8 +608,18 @@ class Phonons:
         
         # Compute the matrix
         factor = 2 * w / (1. + 2*nw)
+        t1 = time.time()
+
+        if verbose:
+            print("[GET UPS] Time to prepare the upsilon computation: {} s".format(t1-t3))
+
         pols_mod = np.einsum("ab,b -> ab", pols_conj, factor)
         Upsilon = pols.dot(pols_mod.T)
+        t2 = time.time()
+
+        if verbose:
+            print("[GET UPS] Time to build the Upsilon matrix: {} s".format(t2 - t1))
+
         if debug:
             Upsilon_old = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
             assert np.max(np.abs(Upsilon - Upsilon_old)) < 1e-10, "Error, the new Upsilon calculation is wrong" 
@@ -607,6 +627,7 @@ class Phonons:
         #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
         # Get the masses for the final multiplication
+        t1 = time.time()
         mass_sqrt = np.sqrt(np.tile(super_struct.get_masses_array(), (3,1)).T.ravel())
         
         #mass1 = np.zeros( 3*super_struct.N_atoms)
@@ -616,8 +637,11 @@ class Phonons:
         _m1_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1))
         _m2_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1)).transpose()
         
-        return Upsilon * _m1_ * _m2_
-    
+        Upsilon *=  _m1_ * _m2_
+        t2 = time.time()
+        if verbose:
+            print("[GET UPS] Time to multiply the masses: {} s".format(t2 -t1))
+        return Upsilon
     
     def GetProbability(self, displacement, T, upsilon_matrix = None, normalize = True, return_braket_vals = False):
         """
