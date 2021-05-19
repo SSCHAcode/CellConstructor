@@ -1944,7 +1944,7 @@ def GetISOTROPYFindSymInput(structure, title = "Prepared with Cellconstructor",
     return lines
     
 
-def GetQGrid(unit_cell, supercell_size):
+def GetQGrid(unit_cell, supercell_size, enforce_gamma_first = True):
     """
     GET THE Q GRID
     ==============
@@ -1958,6 +1958,8 @@ def GetQGrid(unit_cell, supercell_size):
             The unit cell, rows are the vectors
         supercell_size : ndarray(size=3, dtype = int)
             The dimension of the supercell along each unit cell vector.
+        enforce_gamma_first : bool
+            If true, the Gamma point is the first one of the list.
     
     Returns
     -------
@@ -1975,12 +1977,13 @@ def GetQGrid(unit_cell, supercell_size):
     q_list = [Methods.get_closest_vector(bg, q_final[:, i]) for i in range(n_vects)]
 
     # Setup Gamma as the first vector
-    for i, q in enumerate(q_list):
-        if np.abs(np.sum(q)) < __EPSILON__:
-            tmp = q_list[0].copy()
-            q_list[0] = q.copy()
-            q_list[i] = tmp 
-            break  
+    if enforce_gamma_first:
+        for i, q in enumerate(q_list):
+            if np.abs(np.sum(q)) < __EPSILON__:
+                tmp = q_list[0].copy()
+                q_list[0] = q.copy()
+                q_list[i] = tmp 
+                break  
 
 
     return q_list

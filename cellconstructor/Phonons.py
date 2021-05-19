@@ -2532,14 +2532,13 @@ WARNING: Effective charges are not accounted by this method
             use_spglib : bool
                 If true, the SPGLIB is used to perform the symmetrization.
                 Otherwise the quantum espresso default symmetry route is used.
-                NOTE: Still does not work. Needed to adjust the get q_star to use the spglib symmetries.
         """
         
         # Initialize the symmetries
         qe_sym = symmetries.QE_Symmetry(self.structure)
 
         if use_spglib:
-            raise NotImplementedError("Error, the symmetry module from SPGLIB is not yet able to compute the q star")
+            #raise NotImplementedError("Error, the symmetry module from SPGLIB is not yet able to compute the q star")
 
             qe_sym.SetupFromSPGLIB()
         else:
