@@ -1973,6 +1973,16 @@ def GetQGrid(unit_cell, supercell_size):
 
     # Get the list of the closest vectors
     q_list = [Methods.get_closest_vector(bg, q_final[:, i]) for i in range(n_vects)]
+
+    # Setup Gamma as the first vector
+    for i, q in enumerate(q_list):
+        if np.abs(np.sum(q)) < __EPSILON__:
+            tmp = q_list[0].copy()
+            q_list[0] = q.copy()
+            q_list[i] = tmp 
+            break  
+
+
     return q_list
     
 def GetQGrid_old(unit_cell, supercell_size):

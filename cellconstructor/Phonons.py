@@ -2539,6 +2539,7 @@ WARNING: Effective charges are not accounted by this method
         qe_sym = symmetries.QE_Symmetry(self.structure)
 
         if use_spglib:
+            raise NotImplementedError("Error, the symmetry module from SPGLIB is not yet able to compute the q star")
 
             qe_sym.SetupFromSPGLIB()
         else:
