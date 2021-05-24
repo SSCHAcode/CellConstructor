@@ -60,6 +60,8 @@ def broadcast(list_of_values):
 
     if __PARALLEL_TYPE__ == "mpi4py":
         comm = mpi4py.MPI.COMM_WORLD
+        if comm.Get_size() == 1:
+            return list_of_values
         return comm.bcast(list_of_values, root = 0)
     elif __PARALLEL_TYPE__ == "serial":
         return list_of_values
