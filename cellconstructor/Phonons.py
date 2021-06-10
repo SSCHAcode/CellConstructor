@@ -1672,7 +1672,7 @@ class Phonons:
         return output_dyn            
 
             
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None, lock_low_w = False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -1689,6 +1689,8 @@ class Phonons:
                 A list of the atom index. Only the specified atoms are present in the output structure and displaced.
                 This is very usefull if you want to measure properties of a particular region of the structure.
                 By default all the atoms are used.
+            lock_low_w : bool
+                If True, frequencies below __EPSILON_W__ are fixed.
         
         Returns
         -------
@@ -1711,9 +1713,10 @@ class Phonons:
         trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
 
         # Exclude also other w = 0 modes
-        locked_original = np.abs(ws) < __EPSILON__
-        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
-            trans_mask = locked_original
+        if lock_low_w:
+            locked_original = np.abs(ws) < __EPSILON_W__
+            if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+                trans_mask = locked_original
 
         ws = ws[~trans_mask]
         pol_vects = pol_vects[:, ~trans_mask]
