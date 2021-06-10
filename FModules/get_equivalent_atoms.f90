@@ -108,10 +108,10 @@ subroutine get_gr_data(cells, coords, ityp, type1, type2, r_min, r_max, n_r, r_v
 
                 ! Get the index
                 index = int( n_r * (r - r_min) / (r_max - r_min) ) + 1
-                if (index .le. n_r .and. index .ge. r_min) then
+                if (index .le. n_r .and. index .ge. 1) then
                     gr(index) = gr(index) + 1
-                    ntot = ntot + 1
                 endif
+                ntot = ntot + 1
             end do
         end do
     end do
