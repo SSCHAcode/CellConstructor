@@ -2672,20 +2672,19 @@ WARNING: Effective charges are not accounted by this method
 
         if use_spglib:
             self.SymmetrizeSupercell()
-        
-        qe_sym = symmetries.QE_Symmetry(self.structure)
-        
-        fcq = np.array(self.dynmats, dtype = np.complex128)
-        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
-        
-        for iq,q in enumerate(self.q_tot):
-            self.dynmats[iq] = fcq[iq, :, :]
+        else:        
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+            fcq = np.array(self.dynmats, dtype = np.complex128)
+            qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
+            
+            for iq,q in enumerate(self.q_tot):
+                self.dynmats[iq] = fcq[iq, :, :]
 
-        # Symmetrize also the effective charges and the Raman Tensor if any
-        if not self.effective_charges is None:
-            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
-        if not self.raman_tensor is None:
-            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
+            # Symmetrize also the effective charges and the Raman Tensor if any
+            if not self.effective_charges is None:
+                qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+            if not self.raman_tensor is None:
+                qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
     
 

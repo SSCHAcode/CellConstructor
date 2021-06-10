@@ -450,7 +450,7 @@ def get_minimal_orthorombic_cell(euclidean_cell, ita=36):
 
 # -------
 # Compute the g(r)
-def get_gr(structures, type1, type2, r_max, dr):
+def _get_gr_slow(structures, type1, type2, r_max, dr):
     """
 Radial distribution function
 ============================
@@ -488,14 +488,14 @@ Results
 
     # Get the r axis
     N_bin = int( r_max / float(dr)) + 1
-    r_min = linspace(0, r_max, N_bin) 
+    r_min = np.linspace(0, r_max, N_bin) 
 
-    real_dr = mean(diff(r_min))
+    real_dr = np.mean(np.diff(r_min))
     #print("REAL DR:", real_dr)
     real_r = r_min + real_dr * .5
 
     # Define the counting array
-    N_r = zeros(N_bin)
+    N_r = np.zeros(N_bin)
 
     # Count how many atoms are in each shell
     for i, struct in enumerate(structures):
@@ -530,13 +530,71 @@ Results
     N_tot = sum(N_r)
     V = 4 * np.pi * r_max**3 / 3.
     rho = N_tot / V
-    g_r = N_r / (4 * np.pi * real_r * real_dr * rho)
+    g_r = N_r / (4 * np.pi * real_r**2 * real_dr * rho)
 
     # Get the final data and return
     data = np.zeros((N_bin, 2))
     data[:, 0] = real_r
     data[:, 1] = g_r
     return data
+    
+
+def get_gr(structures, type1, type2, r_min, r_max, N_r):
+    """
+Radial distribution function
+============================
+
+Computes the radial distribution function for the system. The
+:math:`g_{AB}(r)` is defined as
+
+.. math::
+
+
+   g_{AB}(r) = \\frac{\\rho_{AB}^{(2)}(r)}{\\rho_A(r) \\rho_B(r)}
+
+
+where :math:`A` and :math:`B` are two different types
+
+Parameters
+----------
+    - structures : list type(Structure)
+        A list of atomic structures on which compute the :math:`g_{AB}(r)`
+    - type1 : character
+        The character specifying the :math:`A` atomic type.
+    - type2 : character
+        The character specifying the :math:`B` atomic type.
+    - r_min, r_max : float
+        The minimum and maximum cutoff value of :math:`r`
+    - N_r : float
+        The number of bins for the distributions
+
+Results
+-------
+    - g_r : ndarray.shape() = (r/dr + 1, 2)
+         The :math:`g(r)` distribution, in the first column the :math:`r` value
+         in the second column the corresponding value of g(r)
+    """
+    n_structs = len(structures)
+    nat = structures[0].N_atoms
+    cells = np.zeros((n_structs, 3, 3), order= "F", dtype = np.double)
+    coords = np.zeros( (n_structs, nat, 3), order = "F", dtype = np.double)
+    ityp = structures[0].get_ityp() + 1
+    t1 = structures[0].get_ityp_from_species(type1) + 1
+    t2 = structures[0].get_ityp_from_species(type2) + 1
+
+    for i in range(n_structs):
+        cells[i, :, :] = structures[i].unit_cell
+        coords[i, :, :] = structures[i].coords
+    
+
+    real_r, g_r = symph.get_gr_data(cells, coords, ityp, t1, t2, r_min, r_max, N_r) 
+
+    # Get the final data and return
+    data = np.zeros((N_r, 2))
+    data[:, 0] = real_r
+    data[:, 1] = g_r
+    return data
+    
     
     
     

@@ -63,6 +63,70 @@ subroutine get_closest_vector(unit_cell, v_dist, new_v_dist)
 end subroutine get_closest_vector
 
 
+subroutine get_gr_data(cells, coords, ityp, type1, type2, r_min, r_max, n_r, r_value, gr, n_structs, nat)
+    implicit none 
+
+    integer :: n_structs, nat
+    double precision, dimension(n_structs, 3,3), intent(in) :: cells
+    double precision, dimension(n_structs, nat, 3), intent(in) :: coords
+    integer, dimension(nat), intent(in) :: ityp 
+    integer, intent(in) :: type1, type2 
+    double precision, intent(in) :: r_min, r_max
+    integer, intent(in) :: n_r
+    double precision, dimension(n_r), intent(out) :: r_value, gr
+
+
+    integer k, i1, i2, index, ntot
+    integer other
+    double precision, dimension(3) :: r_vec, r_dist
+    double precision :: r, dr, v, rho
+    double precision, parameter :: M_PI = 3.141592653589793d0
+
+    dr = (r_max - r_min) / n_r
+
+    ntot = 0
+    gr(:) = 0.0d0
+    v = 4 * M_PI * r_max*r_max*r_max / 3.0d0
+
+    do k = 1, n_structs
+        do i1 = 1, nat - 1
+            if (ityp(i1) .eq. type1) then
+                other = type2
+            else if (ityp(i1) .eq. type2) then
+                other = type1 
+            else   
+                continue
+            end if
+
+            do i2 = i1 +1, nat
+                if (ityp(i2) .ne. other) continue
+                ! Get the distance
+                r_dist(:) = coords(k, i1, :) - coords(k, i2, :)
+                call get_closest_vector(cells(k, :, :), r_dist, r_vec)
+                r = dot_product(r_vec, r_vec)
+                r = dsqrt(r)
+
+                ! Get the index
+                index = int( n_r * (r - r_min) / (r_max - r_min) ) + 1
+                if (index .le. n_r) then
+                    gr(index) = gr(index) + 1
+                    ntot = ntot + 1
+                endif
+            end do
+        end do
+    end do
+
+    ! Get the radius variable
+    do k = 1, n_r
+        r_value(k) = r_min + (k - .5) * dr
+    end do
+
+    ! Density
+    rho = ntot / v 
+    gr(:) = gr(:) / (4 * M_PI * r_value**2 * dr * rho)
+end subroutine get_gr_data
+
+
 subroutine fix_coords_in_unit_cell(coords, unit_cell, new_coords, nat)
     implicit none 
 

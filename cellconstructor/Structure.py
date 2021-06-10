@@ -156,6 +156,19 @@ Error, to compute the volume the structure must have a unit cell initialized:
             masses[i] = self.masses[ self.atoms[i] ]
         
         return masses
+
+    def get_ityp_from_species(self, species):
+        """
+        Get the integer of the atomic type from the species (string)
+        """
+
+        ityp = self.get_ityp()
+        for i in range(self.N_atoms):
+            if self.atoms[i] == species:
+                return ityp[i]
+        
+        raise ValueError("Error, species {} not present in this structure.".format(species))
+
     
     def get_atomic_types(self):
         """
@@ -1284,6 +1297,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
             itau[i] = np.argmin(d) + 1
             
         return itau
+    
 
     def get_sublattice_vectors(self, unit_cell_structure):
         """
