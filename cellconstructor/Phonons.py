@@ -1385,7 +1385,7 @@ class Phonons:
                         
                         
     def GetRamanResponce(self, pol_in, pol_out, T = 0):
-        """
+        r"""
         RAMAN RESPONSE
         ==============
         
@@ -1395,10 +1395,10 @@ class Phonons:
         
         .. math::
             
-            I_{\\nu} = \\left| \\sum_{xy} \\epsilon_x^{(1)} A^\\nu_{xy} \\epsilon_y^{(2)}\\right|^2 \\frac{n_\\nu + 1}}{\\omega_\\nu}
+            I_{\nu} = \left| \sum_{xy} \epsilon_x^{(1)} A^\nu_{xy} \epsilon_y^{(2)}\right|^2 \frac{n_\nu + 1}{\omega_\nu}
     
-        Where :math:`\\epsilon` are the polarization vectors of the incoming/outcoming light, :math:`n_\\nu` is the bosonic
-        occupation number associated to the :math:`\\nu` mode, and :math:`A^\\nu_{xy}` is the Raman tensor in the mode rapresentation
+        Where :math:`\epsilon` are the polarization vectors of the incoming/outcoming light, :math:`n_\nu` is the bosonic
+        occupation number associated to the :math:`\nu` mode, and :math:`A^\nu_{xy}` is the Raman tensor in the mode rapresentation
     
         Parameters
         ----------
@@ -2974,7 +2974,7 @@ WARNING: Effective charges are not accounted by this method
 
             e_\mu^0(R_0) = \frac{\sqrt{|\tilde e_{q\nu}^a|^2}}{N_q}
 
-            e_\mu^a(R_a) = \frac{\cos(\vec q\cdot \Delta R_{a0}) \Re\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger] - \sin(\vec q\cdot \Delta R_{a0}) \Im\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger]}{e_\mu^0(R_0)N_q}
+            e_\mu^a(R_a) = \frac{\cos(\vec q\cdot \Delta R_{a0}) \Re\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger\right] - \sin(\vec q\cdot \Delta R_{a0}) \Im\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger\right]}{e_\mu^0(R_0)N_q}
         
         Here the :math:`\tilde e_{q\nu}` are the complex polarization vectors in the q point so that :math:`\omega_{q\nu} = \omega_{\mu}`. 
         
@@ -3343,12 +3343,6 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
         
         C_{k\\alpha,k'\\beta}(a,b) = C_{k\\alpha,k'\\beta}(0, b-a)
         
-    
-    This is obtained by averaging the result
-    
-    .. math::
-        
-        C_{k\\\alpha, k'\\beta}(a,b) = \\sum_{c \\in }
     
     Parameters
     ----------

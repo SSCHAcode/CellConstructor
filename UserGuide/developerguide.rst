@@ -118,18 +118,20 @@ In particular, when coding in python, keep in mind the following rules.
 
    This is an example of well documented code. Doing this each new function will simplify the life of the other developers, and also yourself when you will return to use this function some week after you wrote it.
    Please, remember to specify the types and dimensions of input arrays, as well as output. It is very upsetting having to look to the source to know what to pass to the function.
-3. Name the function with capital letters for new words, for example::
+3. Name classes with capital letters for new words, for example::
 
      
-     def HelloWorld(x):
+     class MyNewClass(x):
         # Very good
-	pass
 
-   Not::
 
-     def hello_world(x):
-        # NO!
-	pass
+   Name functions without capital letters, using underscores, for example::
+
+      def my_function(x):
+         pass
+   
+   NOTE: The code not always follows this convention, however, this is not a good excuse to avoid doing that yourself ;-)
+
 4. Always use self-explaining names for the input variables. Avoid naming variables like ``pluto`` or ``goofy``
 
 5. Comment each step of the algorithm. Always state what the algorithm does with comments, do not expect other people to understand what is in your mind when coding.
@@ -153,6 +155,8 @@ In particular, when coding in python, keep in mind the following rules.
 
           if x < 0:
 	      raise ValueError("Error, x is lower than 0")
+
+
 10. Always write a test inside the unittest suite to reproduce a known result. In this way, if bugs are introduced in future, they will be spotted immediately.
     To this purpose, see the next section.
 
@@ -188,6 +192,9 @@ You can also add your own file, by either expliciting coding it inside the ``__i
 Inside the testing function, you must check if the code is executed correctly by using ``self.assertTrue(cond)`` where ``cond`` is a bool condition that must be fullfilled, if not the test fails (it means a bug is present).
 
 You can find online a more detailed guide on the ``unittest`` library.
+
+You can also add custom tests inside the tests directory, naming a python script as test_my_function.py.
+Look to other test you find in the same directory for examples.
 
 	      
 The Fortran interface
@@ -308,7 +315,7 @@ Keep your fortran code as simple as possible.
 
 7. You can use openmp directives, but avoid importing the openmp library and use openmp subroutines, this breaks the compatibility if openmp is unavailable on the machine.
 
-8. Always add a test into the ``scripts/cellconstructor_test.py`` file of the new function you implemented. In this way, if bugs are introduced in future, we will spot them immediately.
+8. Always add a test file of the new function you implemented. In this way, if bugs are introduced in future, we will spot them immediately.
 
 Fortran is very good to program fast tasks, however, the fortran converted subroutines are not documented and the input is uncontrolled. This means that passing an array with wrong size or typing can result in a Segmentation Fault error.
 This is very annoying, as it can be very difficult to debug, especially if you are using a function written by someone else. **Each time you implement a fortran subroutine, write also the python parser**.
