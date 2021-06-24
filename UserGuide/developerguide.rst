@@ -17,7 +17,7 @@ To download the last development distribution, use the command:
 
 .. code:: bash
 
-   $ git clone https://github.com/mesonepigreco/CellConstructor.git
+   $ git clone https://github.com/SSCHAcode/CellConstructor.git
 
 In this way a new directory CellConstructor will be created.
 After you created the directory, you can upload your local repository with the last
