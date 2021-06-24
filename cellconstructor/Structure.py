@@ -25,6 +25,7 @@ import cellconstructor.Timer as Timer
 #import ase.visualize
 
 import symph
+import warnings
 
 
 
@@ -2002,7 +2003,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         pass
 
     def IsolateAtoms(self, *args, **kwargs):
-        raise DeprecationWarning("This function is deprecated, use isolate_atoms instead.")
+        warnings.warn("This function is deprecated, use isolate_atoms instead.")
         return self.isolate_atoms(*args, **kwargs)
 
     def isolate_atoms(self, atoms_indices):
