@@ -2332,6 +2332,113 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug =
         return pol_symmetries
         
 
+def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = None, debug = False):
+        """
+        GET SYMMETRIES ON MODES
+        =======================
+
+        This methods returns a set of symmetry matrices that explains how polarization vectors interacts between them
+        through any symmetry operation.
+        Differently from the previous subroutine GetSymmetriesOnModes, 
+        which returns a tensor of the size (n_sym, n_modes, n_modes), this subroutine returns a list of lenght n_deg as
+        [(n_sym, ni, ni)]
+        where n_sym is the number of symmetries, n_deg the number of different non-degenerate modes, 
+        and ni is the dimension of the degeneracy of the i-th group of modes.
+        This allows for a much lower memory consumption for symmetries
+
+        Parameters
+        ----------
+            symmetries : list 
+               The list of 3x4 matrices representing the symmetries.
+            structure : Structure.Structure()
+               The structure (supercell) to allow the symmetry to correctly identify the atoms that transforms one
+               in each other.
+            pol_vects : ndarray(size = (n_dim, n_modes))
+               The array of the polarization vectors (must be real)
+
+
+        Results
+        -------
+            pol_symmetries : list
+                List of all the symmetries expressed in blocks.
+                pol_symmetries[a][k, x, y] = block of degenerate modes a, symmetry id k, modes x and y of the block
+            basis : list
+                basis[a] is the id of the modes inside the block a (the one corresponding to x, y indices)
+        """
+
+
+        Ns = len(symmetries)
+        
+        # Now we can pull out the translations
+        pols = pol_vects
+        w = w_freq
+        #trans_mask = Methods.get_translations(pol_vects, structure.get_masses_array())
+
+        # Exclude degeneracies
+        #w = w_freq[~trans_mask]
+        #pols = pol_vects[:, ~trans_mask]
+
+
+        # Get the degeneracy
+        n_modes = len(w)
+        N_deg = np.ones(len(w), dtype = np.intc)
+        n_blocks = min(len(w), 1) # Counter of the different non-degenerate modes
+        start_deg = -1
+        deg_space = [ [x] for x in range(n_modes)]
+        final_space = []
+        for i in range(1, len(w)):
+            if np.abs(w[i-1] - w[i]) < __EPSILON__ :
+                N_deg[i] = N_deg[i-1] + 1
+
+                if start_deg == -1:
+                    start_deg = i - 1
+
+                for j in range(start_deg, i):
+                    N_deg[j] = N_deg[i]
+                    deg_space[j].append(i)
+                    deg_space[i].append(j)
+
+                print("DD:", deg_space[i])
+            else:
+                start_deg = -1
+                n_blocks += 1
+                final_space.append(deg_space[i-1])
+                print()
+                print("Mode {} no more degenerate.".format(i))
+                print("Space:", final_space[-1])
+        
+        final_space.append(deg_space[-1])
+
+        assert len(final_space) == n_blocks
+            
+        
+        # Now compute the symmetries only in the correct blocks
+        i_mode = 0
+        result_list = []
+        for i in range(n_blocks):
+            mode_mask = np.zeros(n_modes, dtype = bool)
+
+            print("Block: {}".format(i))
+            print("degeneracies: {}".format(final_space[i]))
+            for k in final_space[i]:
+                mode_mask[k] = True
+            print("freqs: {}".format(w[mode_mask]))
+                
+        
+            #assert np.sum(mode_mask.astype(int)) == N_deg[i_mode], "Error, something went wrong while computing the degeneracies."
+
+            select_pols = pols[:, mode_mask]
+            pol_syms = GetSymmetriesOnModes(symmetries, structure, select_pols, timer, debug)
+
+            i_mode += len(deg_space[i_mode])
+
+            result_list.append(pol_syms)
+        
+        return result_list, final_space
+
+
+
+
 def get_degeneracies(w):
     """
     GET THE SUBSPACES OF DEGENERACIES

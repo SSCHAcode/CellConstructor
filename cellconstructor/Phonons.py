@@ -1347,7 +1347,7 @@ class Phonons:
         
         .. math::
             
-            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} |\omega_\mu^2| e_\\mu^a e_\\mu^b 
+            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} (\omega_\mu + \\min_\\mu \\omega)^2 e_\\mu^a e_\\mu^b 
             
         
         In this way the dynamical matrix will be always positive definite.

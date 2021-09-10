@@ -40,6 +40,25 @@ def test_mode_symmetries(verbose = False):
 
     assert np.max( np.abs(sim_modes2 - sim_modes)) < 1e-8
 
+    # Now try to get the modes using the new function that exploits the degeneracies
+
+    sim_modes3, basis = CC.symmetries.GetSymmetriesOnModesDeg(symmetries, dyn.structure,
+                                                              pols, w, timer)
+
+
+    print(basis)
+    for i, modes in enumerate(basis):
+
+        ss = np.zeros( (len(symmetries), len(modes), len(modes)), dtype = np.double)
+        for j, m in enumerate(modes):
+            for k, n in enumerate(modes):
+                ss[:, j, k] = sim_modes2[:, m, n]
+                       
+        diff = ss - sim_modes3[i]
+        print("I = {}, MODES = {}".format( i, modes))
+        assert np.max( np.abs(diff)) < 1e-8, "Error on block {}:\n ss = {}\n new = {}".format(i, ss, sim_modes3[i])
+    
+
     #sim_modes2 = CC.symmetries.GetSymmetriesOnModesFast(symmetries, dyn.structure, pols)
     if verbose:
         for i in range(len(symmetries)):
