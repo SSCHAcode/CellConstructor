@@ -2386,8 +2386,11 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
         start_deg = -1
         deg_space = [ [x] for x in range(n_modes)]
         final_space = []
+
+        threshold = 1e-8
+
         for i in range(1, len(w)):
-            if np.abs(w[i-1] - w[i]) < __EPSILON__ :
+            if np.abs(w[i-1] - w[i]) < threshold :
                 N_deg[i] = N_deg[i-1] + 1
 
                 if start_deg == -1:
@@ -2398,15 +2401,16 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
                     deg_space[j].append(i)
                     deg_space[i].append(j)
 
-                print("DD:", deg_space[i])
             else:
                 start_deg = -1
                 n_blocks += 1
+                deg_space[i-1].sort()
                 final_space.append(deg_space[i-1])
                 print()
                 print("Mode {} no more degenerate.".format(i))
                 print("Space:", final_space[-1])
         
+        deg_space[-1].sort()
         final_space.append(deg_space[-1])
 
         assert len(final_space) == n_blocks
@@ -2423,6 +2427,7 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
             for k in final_space[i]:
                 mode_mask[k] = True
             print("freqs: {}".format(w[mode_mask]))
+
                 
         
             #assert np.sum(mode_mask.astype(int)) == N_deg[i_mode], "Error, something went wrong while computing the degeneracies."
