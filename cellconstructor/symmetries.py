@@ -2406,9 +2406,6 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
                 n_blocks += 1
                 deg_space[i-1].sort()
                 final_space.append(deg_space[i-1])
-                print()
-                print("Mode {} no more degenerate.".format(i))
-                print("Space:", final_space[-1])
         
         deg_space[-1].sort()
         final_space.append(deg_space[-1])
@@ -2422,11 +2419,8 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
         for i in range(n_blocks):
             mode_mask = np.zeros(n_modes, dtype = bool)
 
-            print("Block: {}".format(i))
-            print("degeneracies: {}".format(final_space[i]))
             for k in final_space[i]:
                 mode_mask[k] = True
-            print("freqs: {}".format(w[mode_mask]))
 
                 
         
