@@ -528,7 +528,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T):
+    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -546,7 +546,8 @@ class Phonons:
         ----------
             T : float
                 Temperature of the calculation (Kelvin)
-        
+            min_w_threshold: float
+                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes). 
         Returns
         -------
             ndarray(3N x3N), dtype = np.float64
@@ -562,7 +563,11 @@ class Phonons:
 #            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
+        t1 = time.time()
         w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
+        t2 = time.time()
+        if verbose:
+            print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
@@ -570,10 +575,16 @@ class Phonons:
         type_cal = np.float64#np.complex128
         
         super_struct = self.structure.generate_supercell(self.GetSupercell())
+        t3 = time.time()
         trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
 
+        t4 = time.time()
+        if verbose:
+            print("[GET UPS] Time to prepare the supercell structure: {} s".format(t3-t2))
+            print("[GET UPS] Time to get translations: {} s".format(t4-t3))
+
         # Exclude also other w = 0 modes
-        locked_original = np.abs(w) < __EPSILON_W__
+        locked_original = np.abs(w) < min_w_threshold
         if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
             trans_mask = locked_original
 
@@ -597,12 +608,26 @@ class Phonons:
         
         # Compute the matrix
         factor = 2 * w / (1. + 2*nw)
-        Upsilon = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
-        
+        t1 = time.time()
+
+        if verbose:
+            print("[GET UPS] Time to prepare the upsilon computation: {} s".format(t1-t3))
+
+        pols_mod = np.einsum("ab,b -> ab", pols_conj, factor)
+        Upsilon = pols.dot(pols_mod.T)
+        t2 = time.time()
+
+        if verbose:
+            print("[GET UPS] Time to build the Upsilon matrix: {} s".format(t2 - t1))
+
+        if debug:
+            Upsilon_old = np.einsum( "i, ji, ki", factor, pols, pols_conj, dtype = type_cal)
+            assert np.max(np.abs(Upsilon - Upsilon_old)) < 1e-10, "Error, the new Upsilon calculation is wrong" 
         #_p1_, _p1vect_ = np.linalg.eigh(Upsilon)
         #np.savetxt("factor.dat", np.transpose([factor * RY_TO_CM / 2, _p1_[3:]* RY_TO_CM / 2]))
         
         # Get the masses for the final multiplication
+        t1 = time.time()
         mass_sqrt = np.sqrt(np.tile(super_struct.get_masses_array(), (3,1)).T.ravel())
         
         #mass1 = np.zeros( 3*super_struct.N_atoms)
@@ -612,8 +637,11 @@ class Phonons:
         _m1_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1))
         _m2_ = np.tile(mass_sqrt, (3 * super_struct.N_atoms, 1)).transpose()
         
-        return Upsilon * _m1_ * _m2_
-    
+        Upsilon *=  _m1_ * _m2_
+        t2 = time.time()
+        if verbose:
+            print("[GET UPS] Time to multiply the masses: {} s".format(t2 -t1))
+        return Upsilon
     
     def GetProbability(self, displacement, T, upsilon_matrix = None, normalize = True, return_braket_vals = False):
         """
@@ -1319,7 +1347,7 @@ class Phonons:
         
         .. math::
             
-            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} |\omega_\mu^2| e_\\mu^a e_\\mu^b 
+            \\Phi'_{ab} = \\sqrt{M_aM_b}\sum_{\mu} (\omega_\mu + \\min_\\mu \\omega)^2 e_\\mu^a e_\\mu^b 
             
         
         In this way the dynamical matrix will be always positive definite.
@@ -1357,7 +1385,7 @@ class Phonons:
                         
                         
     def GetRamanResponce(self, pol_in, pol_out, T = 0):
-        """
+        r"""
         RAMAN RESPONSE
         ==============
         
@@ -1367,10 +1395,10 @@ class Phonons:
         
         .. math::
             
-            I_{\\nu} = \\left| \\sum_{xy} \\epsilon_x^{(1)} A^\\nu_{xy} \\epsilon_y^{(2)}\\right|^2 \\frac{n_\\nu + 1}}{\\omega_\\nu}
+            I_{\nu} = \left| \sum_{xy} \epsilon_x^{(1)} A^\nu_{xy} \epsilon_y^{(2)}\right|^2 \frac{n_\nu + 1}{\omega_\nu}
     
-        Where :math:`\\epsilon` are the polarization vectors of the incoming/outcoming light, :math:`n_\\nu` is the bosonic
-        occupation number associated to the :math:`\\nu` mode, and :math:`A^\\nu_{xy}` is the Raman tensor in the mode rapresentation
+        Where :math:`\epsilon` are the polarization vectors of the incoming/outcoming light, :math:`n_\nu` is the bosonic
+        occupation number associated to the :math:`\nu` mode, and :math:`A^\nu_{xy}` is the Raman tensor in the mode rapresentation
     
         Parameters
         ----------
@@ -1644,7 +1672,7 @@ class Phonons:
         return output_dyn            
 
             
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None, lock_low_w = False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -1661,6 +1689,8 @@ class Phonons:
                 A list of the atom index. Only the specified atoms are present in the output structure and displaced.
                 This is very usefull if you want to measure properties of a particular region of the structure.
                 By default all the atoms are used.
+            lock_low_w : bool
+                If True, frequencies below __EPSILON_W__ are fixed.
         
         Returns
         -------
@@ -1683,9 +1713,10 @@ class Phonons:
         trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
 
         # Exclude also other w = 0 modes
-        locked_original = np.abs(ws) < __EPSILON__
-        if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
-            trans_mask = locked_original
+        if lock_low_w:
+            locked_original = np.abs(ws) < __EPSILON_W__
+            if np.sum(locked_original.astype(int)) > np.sum(trans_mask.astype(int)):
+                trans_mask = locked_original
 
         ws = ws[~trans_mask]
         pol_vects = pol_vects[:, ~trans_mask]
@@ -1720,6 +1751,7 @@ class Phonons:
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
             
+        # TODO: I believe this is the heavy part of the extraction
         total_coords = np.einsum("ij, i, j, kj->ik", pol_vects, 1/np.sqrt(mass1), a_mu, rand)
 
 
@@ -2392,16 +2424,6 @@ class Phonons:
                 The dynamical matrix interpolated.
         """
 
-        if self.effective_charges is not None:
-            WARN_TXT="""
-WARNING: Effective charges are not accounted by this method
-         You should generate a ForceTensor.Tensor2 object
-         To account for the interpolation of long-range forces.
-            """
-
-            print(WARN_TXT)
-            warnings.warn(WARN_TXT, DeprecationWarning)
-
         
         # Check if the support dynamical matrix is given:
         is_dync = support_dyn_coarse is not None
@@ -2483,6 +2505,18 @@ WARNING: Effective charges are not accounted by this method
         
         if symmetrize:
             new_dynmat.Symmetrize()
+
+
+        if self.effective_charges is not None:
+            WARN_TXT="""
+WARNING: Effective charges are not accounted by this method
+         You should generate a ForceTensor.Tensor2 object
+         To account for the interpolation of long-range forces.
+            """
+
+            print(WARN_TXT)
+            warnings.warn(WARN_TXT, DeprecationWarning)
+
         
         return new_dynmat
             
@@ -2501,13 +2535,13 @@ WARNING: Effective charges are not accounted by this method
             use_spglib : bool
                 If true, the SPGLIB is used to perform the symmetrization.
                 Otherwise the quantum espresso default symmetry route is used.
-                NOTE: Still does not work. Needed to adjust the get q_star to use the spglib symmetries.
         """
         
         # Initialize the symmetries
         qe_sym = symmetries.QE_Symmetry(self.structure)
 
         if use_spglib:
+            #raise NotImplementedError("Error, the symmetry module from SPGLIB is not yet able to compute the q star")
 
             qe_sym.SetupFromSPGLIB()
         else:
@@ -2535,6 +2569,52 @@ WARNING: Effective charges are not accounted by this method
         #     for q in q_star:
         #         q_tot.append(q)
         # self.q_tot = q_tot
+
+    def SwapQPoints(self, other_dyn):
+        """
+        Adjust the order of the q points of this dynamical matrix (self) to match the one of the passed dynamical matrix.
+        This is usefull if you want to compare the two dynamical matrices.
+
+        The method also checks if the q points are in different brilluin zones.
+
+        NOTE: this method will match the q points, this means that the q star could be destroyed.
+        You need to call AdjustQStar to correctly generate the star  after this method.
+
+        """
+
+        ## Check of consistency between the dynamical matrices
+        assert len(self.q_tot) == len(other_dyn.q_tot)
+        assert self.GetSupercell() == other_dyn.GetSupercell()
+
+        order_mask = []
+        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+        for i, qi in enumerate(other_dyn.q_tot):
+            found = False
+            for j, qj in enumerate(self.q_tot):
+                # Skip if it has already been identified
+                if j in order_mask:
+                    continue 
+                
+                # Check if qi and qj are the same vector
+                dist = Methods.get_min_dist_into_cell(bg, qi, qj)
+                if dist < __EPSILON__:
+                    order_mask.append(j)
+                    found = True
+                    break 
+        
+            assert found, "Error, mismatching between q points: this matrix has q = {} missing in the other one".format(qi)
+        
+        # Reorder the dynamical matrix
+        print("Order: {}".format(order_mask))
+        self.dynmats = [ self.dynmats[x] for x in order_mask ]
+        self.q_tot = [ self.q_tot[x] for x in order_mask ]
+        self.q_stars = [ self.q_tot ] 
+                
+                
+
+
+
+
             
     def SymmetrizeSupercell(self, supercell_size = None):
         """
@@ -2595,20 +2675,19 @@ WARNING: Effective charges are not accounted by this method
 
         if use_spglib:
             self.SymmetrizeSupercell()
-        
-        qe_sym = symmetries.QE_Symmetry(self.structure)
-        
-        fcq = np.array(self.dynmats, dtype = np.complex128)
-        qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
-        
-        for iq,q in enumerate(self.q_tot):
-            self.dynmats[iq] = fcq[iq, :, :]
+        else:        
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+            fcq = np.array(self.dynmats, dtype = np.complex128)
+            qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
+            
+            for iq,q in enumerate(self.q_tot):
+                self.dynmats[iq] = fcq[iq, :, :]
 
-        # Symmetrize also the effective charges and the Raman Tensor if any
-        if not self.effective_charges is None:
-            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
-        if not self.raman_tensor is None:
-            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
+            # Symmetrize also the effective charges and the Raman Tensor if any
+            if not self.effective_charges is None:
+                qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+            if not self.raman_tensor is None:
+                qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
     
 
@@ -2895,7 +2974,7 @@ WARNING: Effective charges are not accounted by this method
 
             e_\mu^0(R_0) = \frac{\sqrt{|\tilde e_{q\nu}^a|^2}}{N_q}
 
-            e_\mu^a(R_a) = \frac{\cos(\vec q\cdot \Delta R_{a0}) \Re\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger] - \sin(\vec q\cdot \Delta R_{a0}) \Im\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger]}{e_\mu^0(R_0)N_q}
+            e_\mu^a(R_a) = \frac{\cos(\vec q\cdot \Delta R_{a0}) \Re\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger\right] - \sin(\vec q\cdot \Delta R_{a0}) \Im\left[\tilde e_{q\nu}^a\tilde {e_{q\nu}^b}^\dagger\right]}{e_\mu^0(R_0)N_q}
         
         Here the :math:`\tilde e_{q\nu}` are the complex polarization vectors in the q point so that :math:`\omega_{q\nu} = \omega_{\mu}`. 
         
@@ -3264,12 +3343,6 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
         
         C_{k\\alpha,k'\\beta}(a,b) = C_{k\\alpha,k'\\beta}(0, b-a)
         
-    
-    This is obtained by averaging the result
-    
-    .. math::
-        
-        C_{k\\\alpha, k'\\beta}(a,b) = \\sum_{c \\in }
     
     Parameters
     ----------

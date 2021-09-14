@@ -523,6 +523,22 @@ class TestStructureMethods(unittest.TestCase):
             zero = np.max(np.abs(zero))
             self.assertTrue(zero < 1e-8)
 
+    def test_translations(self):
+        """
+        Test the translation function
+        """
+
+        dyn = self.dynSnSe
+        
+        ss = dyn.structure.generate_supercell(dyn.GetSupercell())
+        w, pols = dyn.DiagonalizeSupercell()
+
+        trans = CC.Methods.get_translations(pols, ss.get_masses_array())
+        assert not  any(~trans[:3])
+
+        assert all(trans == CC.Methods._get_translations(pols, ss.get_masses_array()))
+
+
 
     def test_stress_symmetries(self):
         syms = CC.symmetries.QE_Symmetry(self.struct_ice)

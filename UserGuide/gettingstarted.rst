@@ -608,7 +608,7 @@ is the pair radial distribution function, defined as
 
 .. math::
 
-   g_{AB}(r) = \\frac{\\rho_{AB}^{(2)}(r)}{\\rho_A(r) \\rho_B(r)}
+   g_{AB}(r) = \frac{\rho_{AB}^{(2)}(r)}{\rho_A(r) \rho_B(r)}
 
 
 This quantity probes the how many couples of the AB atoms are inside a shell of
@@ -633,11 +633,12 @@ the harmonic ensemble, and compute the g(r) on it.
    T = 0 # temperature in K
 
    # The maximum distances for computing the g(r)
+   R_MIN = 0.9
    R_MAX_OH = 2
    R_MAX_HH = 3
 
-   # The thickness of the shell
-   DR = 0.025
+   # The number of bins to divide the interval
+   N_bins = 1000
 
    # The limits for the final plot
    R_LIM_OH= (0.75, 2)
@@ -654,9 +655,9 @@ the harmonic ensemble, and compute the g(r) on it.
 
    # Get the g(r) between O and H atoms
    print ("Computing OH g(r)...")
-   grOH = CC.Methods.get_gr(structures, "O", "H", R_MAX_OH, DR)
+   grOH = CC.Methods.get_gr(structures, "O", "H", R_MIN, R_MAX_OH, N_bins)
    print ("Computing HH g(r)...")
-   grHH = CC.Methods.get_gr(structures, "H", "H", R_MAX_HH, DR)
+   grHH = CC.Methods.get_gr(structures, "H", "H", R_MIN, R_MAX_HH, N_bins)
 
    # Plot the result
    plt.plot(grOH[:,0], grOH[:,1])

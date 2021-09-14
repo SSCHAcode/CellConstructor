@@ -21,8 +21,8 @@ def test_upsilon():
 
     # Get the upsilon matrix for the supercell
     superdyn = dyn.GenerateSupercellDyn(dyn.GetSupercell())
-    ups1 = superdyn.GetUpsilonMatrix(T)
-    ups2 = dyn.GetUpsilonMatrix(T)
+    ups1 = superdyn.GetUpsilonMatrix(T, debug = True)
+    ups2 = dyn.GetUpsilonMatrix(T, debug = True)
 
     delta = np.max(np.abs( (ups1 - ups2)))
     assert delta < 1e-7
