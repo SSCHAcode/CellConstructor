@@ -14,6 +14,13 @@ try:
     import ase.io
 except:
     __ASE__ = False
+
+try:
+    import phonopy, phonopy.structure.atoms
+    __PHONOPY__ = True
+except:
+    __PHONOPY__ = False
+
     
 import sys, os
 
@@ -39,10 +46,43 @@ class Structure:
         # Coordinates are always express in chartesian axis
         self.coords = np.zeros((self.N_atoms, 3), dtype = np.float64)
         self.atoms = ["H"] * nat
-        self.unit_cell = np.zeros((3,3))
+        self.unit_cell = np.zeros((3,3))  # Note: setting the unit cell to something different from zero automatically put has_unit_cell to true
         self.has_unit_cell = False
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
+
+        # Setup the attribute control
+        self.__total_attributes__ = [item for item in self.__dict__.keys()]
+        self.fixed_attributes = True # This must be the last attribute to be setted
+
+
+    def __setattr__(self, name, value):
+        """
+        This method is used to set an attribute.
+        It will raise an exception if the attribute does not exists (with a suggestion of similar entries)
+        """
+
+        
+        if "fixed_attributes" in self.__dict__:
+            if name in self.__total_attributes__:
+                super(Structure, self).__setattr__(name, value)
+            elif self.fixed_attributes:
+                similar_objects = str( difflib.get_close_matches(name, self.__total_attributes__))
+                ERROR_MSG = """
+        Error, the attribute '{}' is not a member of '{}'.
+        Suggested similar attributes: {} ?
+        """.format(name, type(self).__name__,  similar_objects)
+
+                raise AttributeError(ERROR_MSG)
+        else:
+            super(Structure, self).__setattr__(name, value)
+
+
+        # Here check the consistency of the input
+        if name == "unit_cell":
+            if np.abs(np.linalg.det(value)) > 1e-8:
+                self.has_unit_cell = True 
+        
         
     def get_volume(self):
         """
@@ -1233,6 +1273,40 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         
         return atm
+
+    def get_phonopy_calculation(self, supercell = [1,1,1]):
+        """
+        Convert the CellConstructor structure to a phonopy object 
+        for the calculation of phonons using finite differences.
+
+        Note: while phonopy allows for nonconventional supercells, 
+        this method is only interfaced to create supercell calculations which are finite multiple
+        of the unit cell defined by the self structure.
+
+        Parameters
+        ----------
+            supercell : list of 3 int
+                The supercell (how many times the unit cell vector).
+        """
+
+        if not __PHONOPY__:
+            raise ValueError("Error, to run 'get_phonopy_calculation' you need to have Phonopy installed.")
+        
+        if not self.has_unit_cell:
+            raise ValueError("Error, to run 'get_phonopy_calculation' the system has to have a defined unit cell")
+        
+        if self.get_volume() < 1e-8:
+            raise ValueError("Error, this structure has singular unit cell; I cannot initialize a phonopy object.")
+
+        if len(supercell) != 3:
+            raise ValueError("Error, the given supercell must be a 3 element vector ({} elements given)".format(self.supercell))
+
+        
+        scaled_position = Methods.covariant_coordinates(self.unit_cell, self.coords)
+        unitcell = phonopy.structure.atoms.PhonopyAtoms(symbols = self.atoms, cell = self.unit_cell, scaled_positions = scaled_position)
+
+        return phonopy.Phonopy(unitcell, np.eye(3).dot(np.array(supercell)))
+
     
     def get_ityp(self):
         """
@@ -2118,3 +2192,39 @@ Error, to compute the volume the structure must have a unit cell initialized:
         #free_energy = 3 * kbT * np.log(2*kbT)/2 + kbT / 2 * np.sum(np.log(Idiag))
 
         return free_energy
+
+
+
+
+def get_structures_from_phonopy_supercells(ph_supercells):
+    """
+    Get a list of CellConstructor structures starting from the phonopy supercells_with_displacements
+    object.
+    """
+
+    if not __PHONOPY__:
+        raise ImportError("Error, to execute this method you must have Phonopy installed.")
+
+    if not isinstance(ph_supercells, list):
+        raise ValueError("Error ph_supercells must be a list.")
+
+    if not isinstance(ph_supercells[0], phonopy.structure.atoms.PhonopyAtoms):
+        raise ValueError("Error, ph_supercells must be a list of PhonopyAtoms object.")
+
+    n_tot = len(ph_supercells)
+    atms = ph_supercells[0].get_chemical_symbols()
+    nat = len(atms)
+
+    s_basis = Structure(nat)
+    s_basis.atoms = atms
+    s_basis.has_unit_cell = True
+    s_basis.unit_cell = ph_supercells[0].get_cell()
+
+    all_structures = []
+    for i in range(n_tot):
+        s = s_basis.copy()
+        s.coords = ph_supercells[0].get_positions().copy()
+    
+        all_structures.append(s)
+
+    return all_structures

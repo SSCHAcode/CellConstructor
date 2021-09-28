@@ -1377,7 +1377,8 @@ def GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T, s
     N_structures  : {}
     N_eff_charges : {}
     """.format(N_config, len(effective_charges))
-    assert N_config == len(effective_charges), __ERR_MSG__
+    if not N_config == len(effective_charges):
+        raise ValueError(__ERR_MSG__)
 
     # Read the structures
     new_structures = []
@@ -1433,7 +1434,7 @@ def GetSecondOrderDipoleMoment(original_dyn, structures, effective_charges, T, s
         eff_cgs[:, i, :] = ef_new.reshape((3, 3 * nat_sc))
         eff_cgs[:, i,:] -= ef_cg_new
 
-        u_norm = np.sqrt(u_disps[i,:].dot(u_disps[i,:]))
+        #u_norm = np.sqrt(u_disps[i,:].dot(u_disps[i,:]))
         #eff_project = eff_cgs[0, i, :].dot(u_disps[i,:]) / u_norm
         #print("{:d}) u_disp: {:.4f} | eff_charge (along u): {:.4f}".format(i+1, u_norm, eff_project))
 
