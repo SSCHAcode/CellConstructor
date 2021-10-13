@@ -188,6 +188,43 @@ def SaveXYZTrajectory(fname, atoms, comments = []):
         atms.save_xyz(fname, comment, overwrite)
             
 
+def load_scf_trajectory(fname):
+    """
+    Load a list of scf structures as a trajectory from the given filename
+
+    Parameters
+    ----------
+        fname : string
+            Path to the file on which the trajectory is saved
+    
+    Results
+    -------
+        trajectory : list of CC.Structure.Structure
+            The list of the structures inside the file name
+    """
+
+    structures = []
+
+    with open(fname, "r") as fp:
+        lines = []
+        for line in fp.readlines():
+            if "CELL_PARAMETERS" in line:
+                if len(lines):
+                    s = Structure()
+                    s.read_scf("".join(lines), read_string = True)
+                    lines = []
+                    structures.append(s)
+            lines.append(line)
+        
+        s = Structure()
+        s.read_scf("".join(lines), read_string = True)
+        structures.append(s)
+
+    return structures
+                
+            
+
+
 def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1)):
     """
     XYZ VIDEO
