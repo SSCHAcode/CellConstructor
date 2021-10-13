@@ -226,12 +226,15 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
         
         ityp = []
+        dictionary = {}
         cont = 1
         for i, atm in enumerate(self.atoms):
-            ityp.append(cont)
-            
-            if atm not in self.atoms[:i]:
-                cont += 1
+            #ityp.append(cont)
+            if not atm in dictionary:
+                dictionary[atm] = count
+                count += 1
+        
+        ityp = [dictionary[x] for x in self.atoms]
 
         # For fortran and C compatibility parse the array
         return np.array(ityp, dtype = np.intc)
