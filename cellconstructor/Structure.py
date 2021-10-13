@@ -227,7 +227,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
         ityp = []
         dictionary = {}
-        cont = 1
+        count = 1
         for i, atm in enumerate(self.atoms):
             #ityp.append(cont)
             if not atm in dictionary:
