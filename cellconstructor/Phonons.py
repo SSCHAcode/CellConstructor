@@ -2546,6 +2546,19 @@ WARNING: Effective charges are not accounted by this method
             qe_sym.SetupFromSPGLIB()
         else:
             qe_sym.SetupQPoint()
+
+        i_gamma = -1
+        for iq, q in enumerate(self.q_tot):
+            if np.max(np.abs(q)) < __EPSILON__:
+                i_gamma = iq
+        
+        if i_gamma != 0:
+            mydyn = self.dynmats[0].copy()
+            self.dynmats[0] = self.dynmats[iq].copy()
+            self.dynmats[iq] = mydyn
+            self.q_tot[iq] = self.q_tot[0].copy()
+            self.q_tot[0][:] = 0
+
         
         # Get the q_stars
         q_stars, q_order = qe_sym.SetupQStar(self.q_tot)
