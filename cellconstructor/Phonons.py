@@ -528,7 +528,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False):
+    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False, w_pols = None):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -547,7 +547,10 @@ class Phonons:
             T : float
                 Temperature of the calculation (Kelvin)
             min_w_threshold: float
-                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes). 
+                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes).
+            w_pols: (list of w and pols)
+                If different from None, contains the frequencies and polarization vectors of this matrix. 
+                Usefull to avoid multiple diagonalizations 
         Returns
         -------
             ndarray(3N x3N), dtype = np.float64
@@ -563,11 +566,15 @@ class Phonons:
 #            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
-        t1 = time.time()
-        w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
-        t2 = time.time()
-        if verbose:
-            print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
+        if w_pols is None:
+            t1 = time.time()
+            w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
+            t2 = time.time()
+            if verbose:
+                print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
+        else:
+            w = w_pols[0] 
+            pols = w_pols[1]
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
@@ -2146,7 +2153,7 @@ class Phonons:
         return ChiMuNu
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = None,
-                          displacement = None, use_unit_cell = True):
+                          displacement = None, use_unit_cell = True, w_pols = None):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -2190,6 +2197,8 @@ class Phonons:
             use_unit_cell : bool
                 If ture, do not compute the real space force constant matrix on the super cell. This is the fastest option.
                 Put it to false only for debugging purpouses.
+            w_pols : list of (w, pols)
+                If given, the frequencies and polarization vectors are not recomputed from scratch
         
         Returns
         -------
@@ -2221,7 +2230,11 @@ class Phonons:
 
         # Fast computation
         if use_unit_cell:
-            w, pols = self.DiagonalizeSupercell()
+            if w_pols is not None:
+                w = w_pols[0]
+                pols = w_pols[1]
+            else:
+                w, pols = self.DiagonalizeSupercell()
 
             # Correctly account for not positive definite dynamical matrices
             w2 = w**2 * np.sign(w)
