@@ -3674,7 +3674,8 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
             
     return output_dyn
     
-    
+
+
 
 def get_dyn_from_ase_phonons(ase_ph, adjust_qstar = True):
     """
@@ -3788,3 +3789,75 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
     return dyn
+
+
+
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 5e-2, progress = -1, progress_bar = False):
+    """
+    COMPUTE THE FORCE CONSTANT MATRIX
+    =================================
+
+    Use finite displacements to compute the force constant matrix.
+    (Works only at Gamma)
+
+    Parameters
+    ----------
+        structure : CC.Structure.Structure
+            The structure on the parameters
+        ase_calculator : ase.calculators.calculator
+            The ase calculator to compute energy and forces
+        epsilon : double
+            The finite displacement
+        progress : int
+            If positive, prints the status each tot structures
+        progress_bar : bool
+            If True, overwrite the progress line each structure
+
+    Results
+    -------
+        phonons : CC.Phonons.Phonons()
+            The dynamical matrix
+    """
+
+    final_dyn = Phonons(structure)
+
+    nat3 = 3 * structure.N_atoms
+    fc = np.zeros( (nat3, nat3), dtype = np.double)
+
+    atm = structure.get_ase_atoms()
+    atm.set_calculator(ase_calculator)
+    fc[:,:] = np.tile(atm.get_forces().ravel(), (nat3, 1))
+    if progress > 0:
+        print()
+        print("Computing phonons with finite differences.")
+
+    for i in range(structure.N_atoms):
+        for j in range(3):
+
+            if progress > 0:
+                if (3*i + j) % progress == 0:
+                    if progress_bar:
+                        sys.stdout.write("\rProgress {:4.1f} % ... ".format(100 * (3*i + j + 1) / nat3))
+                        sys.stdout.flush()
+                    else:
+                        print("Finite displacement of structure {} / {}".format(3*i + j + 1, nat3))
+
+
+            s = structure.copy()
+            s.coords[i, j] += epsilon 
+            atm = s.get_ase_atoms()
+            atm.set_calculator(ase_calculator)
+            fc[3*i + j, :] -= atm.get_forces().ravel()
+    
+
+    if progress > 0:
+        print()
+        print("Done.")
+
+    # Impose hermitianity
+    fc = .5 * (fc + fc.T) / epsilon
+
+    # Convert to the correct units
+    final_dyn.dynmats[0] = fc  / RY_TO_EV * BOHR_TO_ANGSTROM**2
+
+    return final_dyn
