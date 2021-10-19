@@ -528,7 +528,7 @@ class Phonons:
         # Then they are compatible
         return True
     
-    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False):
+    def GetUpsilonMatrix(self, T, min_w_threshold = __EPSILON_W__, debug = False, verbose = False, w_pols = None):
         """
         This subroutine returns the inverse of the correlation matrix.
         It is computed as following
@@ -547,7 +547,10 @@ class Phonons:
             T : float
                 Temperature of the calculation (Kelvin)
             min_w_threshold: float
-                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes). 
+                The threshold for frequency under which the modes are considered fixed and neglected (as Gamma acoustic modes).
+            w_pols: (list of w and pols)
+                If different from None, contains the frequencies and polarization vectors of this matrix. 
+                Usefull to avoid multiple diagonalizations 
         Returns
         -------
             ndarray(3N x3N), dtype = np.float64
@@ -563,11 +566,15 @@ class Phonons:
 #            raise ValueError("Error, this function yet not supports the supercells.")
         
         # We need frequencies and polarization vectors
-        t1 = time.time()
-        w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
-        t2 = time.time()
-        if verbose:
-            print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
+        if w_pols is None:
+            t1 = time.time()
+            w, pols = self.DiagonalizeSupercell() #self.DyagDinQ(iq)
+            t2 = time.time()
+            if verbose:
+                print("[GET UPS] Time to diagonalize the dynamical matrix {} s".format(t2-t1))
+        else:
+            w = w_pols[0] 
+            pols = w_pols[1]
         # Transform the polarization vector into real one
         #pols = np.real(pols)
         
@@ -2146,7 +2153,7 @@ class Phonons:
         return ChiMuNu
     
     def get_energy_forces(self, structure, vector1d = False, real_space_fc = None, super_structure = None, supercell = None,
-                          displacement = None, use_unit_cell = True):
+                          displacement = None, use_unit_cell = True, w_pols = None):
         """
         COMPUTE ENERGY AND FORCES
         =========================
@@ -2190,6 +2197,8 @@ class Phonons:
             use_unit_cell : bool
                 If ture, do not compute the real space force constant matrix on the super cell. This is the fastest option.
                 Put it to false only for debugging purpouses.
+            w_pols : list of (w, pols)
+                If given, the frequencies and polarization vectors are not recomputed from scratch
         
         Returns
         -------
@@ -2221,7 +2230,11 @@ class Phonons:
 
         # Fast computation
         if use_unit_cell:
-            w, pols = self.DiagonalizeSupercell()
+            if w_pols is not None:
+                w = w_pols[0]
+                pols = w_pols[1]
+            else:
+                w, pols = self.DiagonalizeSupercell()
 
             # Correctly account for not positive definite dynamical matrices
             w2 = w**2 * np.sign(w)
@@ -3674,7 +3687,8 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
             
     return output_dyn
     
-    
+
+
 
 def get_dyn_from_ase_phonons(ase_ph, adjust_qstar = True):
     """
@@ -3788,3 +3802,75 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
     return dyn
+
+
+
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 5e-2, progress = -1, progress_bar = False):
+    """
+    COMPUTE THE FORCE CONSTANT MATRIX
+    =================================
+
+    Use finite displacements to compute the force constant matrix.
+    (Works only at Gamma)
+
+    Parameters
+    ----------
+        structure : CC.Structure.Structure
+            The structure on the parameters
+        ase_calculator : ase.calculators.calculator
+            The ase calculator to compute energy and forces
+        epsilon : double
+            The finite displacement
+        progress : int
+            If positive, prints the status each tot structures
+        progress_bar : bool
+            If True, overwrite the progress line each structure
+
+    Results
+    -------
+        phonons : CC.Phonons.Phonons()
+            The dynamical matrix
+    """
+
+    final_dyn = Phonons(structure)
+
+    nat3 = 3 * structure.N_atoms
+    fc = np.zeros( (nat3, nat3), dtype = np.double)
+
+    atm = structure.get_ase_atoms()
+    atm.set_calculator(ase_calculator)
+    fc[:,:] = np.tile(atm.get_forces().ravel(), (nat3, 1))
+    if progress > 0:
+        print()
+        print("Computing phonons with finite differences.")
+
+    for i in range(structure.N_atoms):
+        for j in range(3):
+
+            if progress > 0:
+                if (3*i + j) % progress == 0:
+                    if progress_bar:
+                        sys.stdout.write("\rProgress {:4.1f} % ... ".format(100 * (3*i + j + 1) / nat3))
+                        sys.stdout.flush()
+                    else:
+                        print("Finite displacement of structure {} / {}".format(3*i + j + 1, nat3))
+
+
+            s = structure.copy()
+            s.coords[i, j] += epsilon 
+            atm = s.get_ase_atoms()
+            atm.set_calculator(ase_calculator)
+            fc[3*i + j, :] -= atm.get_forces().ravel()
+    
+
+    if progress > 0:
+        print()
+        print("Done.")
+
+    # Impose hermitianity
+    fc = .5 * (fc + fc.T) / epsilon
+
+    # Convert to the correct units
+    final_dyn.dynmats[0] = fc  / RY_TO_EV * BOHR_TO_ANGSTROM**2
+
+    return final_dyn
