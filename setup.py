@@ -71,7 +71,7 @@ setup( name = "CellConstructor",
        install_requires = ["numpy", "ase", "scipy"],
        license = "MIT",
        include_package_data = True,
-       scripts = ["scripts/symmetrize_dynmat.py", "scripts/cellconstructor_test.py"],
+       scripts = ["scripts/symmetrize_dynmat.py", "scripts/cellconstructor_test.py", "scripts/view_scf_atoms.py"],
        ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext, secondorder_ext]
        )
 

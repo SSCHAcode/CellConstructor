@@ -226,12 +226,15 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
         
         ityp = []
-        cont = 1
+        dictionary = {}
+        count = 1
         for i, atm in enumerate(self.atoms):
-            ityp.append(cont)
-            
-            if atm not in self.atoms[:i]:
-                cont += 1
+            #ityp.append(cont)
+            if not atm in dictionary:
+                dictionary[atm] = count
+                count += 1
+        
+        ityp = [dictionary[x] for x in self.atoms]
 
         # For fortran and C compatibility parse the array
         return np.array(ityp, dtype = np.intc)
@@ -299,7 +302,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         # Close the xyz file
         xyz.close()
 
-    def read_scf(self, filename, alat=1):
+    def read_scf(self, filename, alat=1, read_string = False):
         """
         Read the given filename in the quantum espresso format.
         Note:
@@ -313,13 +316,21 @@ Error, to compute the volume the structure must have a unit cell initialized:
                If present the system will convert both the cell and the atoms position
                by this factor. If it is also specified in the CELL_PARAMETERS line,
                the one specified in the file will be used.
+            - read_string : bool
+                If true the filename is interpreted directly as a scf string, not as a file to be read.
         """
-        # Check if the specified filename exists
-        if not os.path.exists(filename):
-            raise ValueError("File %s does not exist" % filename)
 
-        # Read the input filename
-        fp = open(filename, "r")
+        # Check if the specified filename exists
+        if not read_string:
+            if not os.path.exists(filename):
+                raise ValueError("File %s does not exist" % filename)
+
+            # Read the input filename
+            fp = open(filename, "r")
+            lines = fp.readlines()
+            fp.close()
+        else:
+            lines = filename.split("\n")
 
         n_atoms = 0
         #good_lines = []
@@ -337,7 +348,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         #atom_index = 0
         cell = np.zeros((3,3), dtype = np.float64)
         tmp_coords = []
-        for line in fp.readlines():
+        for line in lines:
             line = line.strip()
 
             #Skipp comments
@@ -362,6 +373,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     
                 continue
             if values[0] == "ATOMIC_POSITIONS":
+                self.atoms = []
                 read_cell = False
                 read_atoms = True
                 if "crystal" in values[1].lower():
@@ -385,7 +397,6 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     tmp_coords.append([np.float64(v) for v in values[1:4]])
 
                 n_atoms += 1
-        fp.close()
         
             
             
@@ -1082,7 +1093,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
             self.coords[i,:]  = self.unit_cell.T.dot(xcoords[i,:])
 
 
-    def save_scf(self, filename, alat = 1, avoid_header=False):
+    def save_scf(self, filename, alat = 1, avoid_header=False, crystal = False, get_text = False):
         """
         This methods export the phase in the quantum espresso readable format.
         Of course, only the data reguarding the unit cell and the atomic position will be written.
@@ -1091,13 +1102,17 @@ Error, to compute the volume the structure must have a unit cell initialized:
         Parameters
         ----------
             filename : string
-                The name of the file that you want to save.
+                The name of the file that you want to save. If None, no file is generated (in that case, use get_text to get the string of the scf file)
             alat : float, optional
                 If different from 1, both the cell and the coordinates are saved in alat units.
                 It must be in Angstrom.
             avoid_header : bool, optional
                 If true nor the cell neither the ATOMIC_POSITION header is printed.
                 Usefull for the sscha.x code.
+            crystal : bool, optional
+                If true, the atomic coordinates are saved in crystal components
+            get_text : bool
+                If true, the scf file is returned as pure text.
         """
 
         if alat <= 0:
@@ -1121,22 +1136,35 @@ Error, to compute the volume the structure must have a unit cell initialized:
             
             
         if not avoid_header:
-            if alat == 1:
-                data.append("ATOMIC_POSITIONS angstrom\n")
+            if crystal:
+                unit_type = "crystal"
             else:
-                data.append("ATOMIC_POSITIONS alat\n")
+                if alat == 1:
+                    unit_type = "angstrom"
+                else:
+                    data.append("ATOMIC_POSITIONS alat\n")
+            
+            data.append("ATOMIC_POSITIONS {}\n".format(unit_type))
         for i in range(self.N_atoms):
-            coords = np.copy(self.coords)
-            coords /= alat
+            if not crystal:
+                coords = np.copy(self.coords)
+                coords /= alat
+            else:
+                coords = Methods.covariant_coordinates(self.unit_cell, self.coords)
+
             data.append("%s    %.16f  %.16f  %.16f\n" % (self.atoms[i],
                                                          coords[i, 0],
                                                          coords[i, 1],
                                                          coords[i, 2]))
 
         # Write
-        fdata = open(filename, "w")
-        fdata.writelines(data)
-        fdata.close()
+        if filename is not None:
+            fdata = open(filename, "w")
+            fdata.writelines(data)
+            fdata.close()
+
+        if get_text:
+            return "".join(data)
         
         
     def fix_coords_in_unit_cell(self, delete_copies = True, debug = False):
