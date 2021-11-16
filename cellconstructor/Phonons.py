@@ -40,7 +40,7 @@ except:
     __SPGLIB__ = False
 
 __EPSILON__ = 1e-5 
-__EPSILON_W__ = 1e-10
+__EPSILON_W__ = 3e-9
 
 class Phonons:
     """
