@@ -582,6 +582,8 @@ Results
     t1 = structures[0].get_ityp_from_species(type1) + 1
     t2 = structures[0].get_ityp_from_species(type2) + 1
 
+    #print(t1, t2, ityp)
+
     for i in range(n_structs):
         cells[i, :, :] = structures[i].unit_cell
         coords[i, :, :] = structures[i].coords

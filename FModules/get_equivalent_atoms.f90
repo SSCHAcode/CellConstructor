@@ -90,29 +90,31 @@ subroutine get_gr_data(cells, coords, ityp, type1, type2, r_min, r_max, n_r, r_v
 
     do k = 1, n_structs
         do i1 = 1, nat - 1
+            other = 0
             if (ityp(i1) .eq. type1) then
                 other = type2
             else if (ityp(i1) .eq. type2) then
                 other = type1 
-            else   
-                continue
             end if
 
-            do i2 = i1 +1, nat
-                if (ityp(i2) .ne. other) continue
-                ! Get the distance
-                r_dist(:) = coords(k, i1, :) - coords(k, i2, :)
-                call get_closest_vector(cells(k, :, :), r_dist, r_vec)
-                r = dot_product(r_vec, r_vec)
-                r = dsqrt(r)
+            if (other .gt. 0) then
+                do i2 = i1 +1, nat
+                    if (ityp(i2) .eq. other) then
+                        ! Get the distance
+                        r_dist(:) = coords(k, i1, :) - coords(k, i2, :)
+                        call get_closest_vector(cells(k, :, :), r_dist, r_vec)
+                        r = dot_product(r_vec, r_vec)
+                        r = dsqrt(r)
 
-                ! Get the index
-                index = int( n_r * (r - r_min) / (r_max - r_min) ) + 1
-                if (index .le. n_r .and. index .ge. 1) then
-                    gr(index) = gr(index) + 1
-                endif
-                ntot = ntot + 1
-            end do
+                        ! Get the index
+                        index = int( n_r * (r - r_min) / (r_max - r_min) ) + 1
+                        if (index .le. n_r .and. index .ge. 1) then
+                            gr(index) = gr(index) + 1
+                        endif
+                        ntot = ntot + 1
+                    endif
+                end do
+            endif
         end do
     end do
 
