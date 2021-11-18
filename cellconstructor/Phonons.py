@@ -1797,7 +1797,7 @@ class Phonons:
         
         return final_structures
 
-    def GetHarmonicFreeEnergy(self, T, allow_imaginary_freq = False):
+    def GetHarmonicFreeEnergy(self, T, allow_imaginary_freq = False, w_pols = None):
         """
         COMPUTE THE HARMONIC QUANTUM FREE ENERGY
         ========================================
@@ -1817,6 +1817,9 @@ class Phonons:
         ---------
             T : float
                 Temperature (in K) of the system.
+            w_pols : (w, pols)
+                If given, it should be a len=2 tuple with the frequencies and the polarization
+                vectors as obtaind from DiagonalizeSupercell method 
                 
         Returns
         -------
@@ -1826,7 +1829,11 @@ class Phonons:
         
         K_to_Ry=6.336857346553283e-06
 
-        w, pols = self.DiagonalizeSupercell()
+        if w_pols is None:
+            w, pols = self.DiagonalizeSupercell()
+        else:
+            w = w_pols[0].copy()
+            pols = w_pols[1].copy()
             
         # Remove translations
         tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
