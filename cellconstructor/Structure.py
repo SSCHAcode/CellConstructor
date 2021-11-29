@@ -40,7 +40,7 @@ import warnings
 __all__ = ["Structure"]
 BOHR_TO_ANGSTROM=0.529177249
 
-class Structure:    
+class Structure(object):    
     def __init__(self, nat=0):
         self.N_atoms=nat
         # Coordinates are always express in chartesian axis
