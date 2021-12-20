@@ -1782,8 +1782,11 @@ class Phonons:
         for i in range(size):
             tmp_str = super_structure.copy()
             # Prepare the new atomic positions 
-            for k in range(tmp_str.N_atoms):
-                tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] 
+
+            # TODO: THis is the heavy part, probably we can replace this for loop
+            tmp_str.coords[:,:] += total_coords[:,i].reshape((tmp_str.N_atoms, 3))
+            #for k in range(tmp_str.N_atoms):
+            #    tmp_str.coords[k,:] += total_coords[3*k : 3*(k+1), i] 
             
             # Check if you must to pop some atoms:
             if len (isolate_atoms):
