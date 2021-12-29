@@ -133,7 +133,7 @@ class Phonons:
                 self.q_tot.append(np.zeros(3, dtype = np.float64))
         
                 
-    def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False, use_format= False):
+    def LoadFromQE(self, fildyn_prefix, nqirr=1, full_name = False, use_format= False, is_fulltext = False):
         r"""
         This Function loads the phonons information from the quantum espresso dynamical matrix.
         the fildyn prefix is the prefix of the QE dynamical matrix, that must be followed by numbers from 1 to nqirr.
@@ -154,6 +154,9 @@ class Phonons:
                 If true, the IQ index of the dynamical matrix is replaced in the specified format, i.e.
                 a standard matrix with prefix dyn (dyn1, dyn2, ...) will be dyn{} with the format notation.
                 This allows the user to insert the IQ index in many formats and any position of the file name.
+            - is_fulltext : bool
+                If true (default false), the fildyn_prefix is ment to be the full text of the dynamical matrix
+                instead to the path of the file. 
         """
         
         # Check if the nqirr is correct
@@ -163,27 +166,33 @@ class Phonons:
         if full_name and nqirr > 1:
             raise ValueError("Error, with full_name only gamma matrices are loaded.")
 
+        if is_fulltext and nqirr > 1:
+            raise ValueError("Error, with is_fulltext only gamma single dynamical matrices can be loaded.")
+
         # Initialize the atomic structure
         self.structure = Structure.Structure()
         
         # Start processing the dynamical matrices
         for iq in range(nqirr):
             # Check if the selected matrix exists
-            if use_format:
-                filepath = fildyn_prefix.format(iq+1)
-            else:
-                if not full_name:
-                    filepath = "%s%i" % (fildyn_prefix, iq + 1)
+            if not is_fulltext:
+                if use_format:
+                    filepath = fildyn_prefix.format(iq+1)
                 else:
-                    filepath = fildyn_prefix
-                    
-            if not os.path.isfile(filepath):
-                raise ValueError("Error, file %s does not exist." % filepath)
-            
-            # Load the matrix as a regular file
-            dynfile = open(filepath, "r")
-            dynlines = [line.strip() for line in dynfile.readlines()]
-            dynfile.close()
+                    if not full_name:
+                        filepath = "%s%i" % (fildyn_prefix, iq + 1)
+                    else:
+                        filepath = fildyn_prefix
+                        
+                if not os.path.isfile(filepath):
+                    raise ValueError("Error, file %s does not exist." % filepath)
+                
+                # Load the matrix as a regular file
+                dynfile = open(filepath, "r")
+                dynlines = [line.strip() for line in dynfile.readlines()]
+                dynfile.close()
+            else:
+                dynlines = [x.strip() for x in fildyn_prefix.split("\n")]
             
             if (iq == 0):
                 # This is a gamma point file, generate the structure
