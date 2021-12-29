@@ -40,7 +40,7 @@ import warnings
 __all__ = ["Structure"]
 BOHR_TO_ANGSTROM=0.529177249
 
-class Structure:    
+class Structure(object):    
     def __init__(self, nat=0):
         self.N_atoms=nat
         # Coordinates are always express in chartesian axis
@@ -121,7 +121,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
             mass = atoms.get_masses()
             for i, ma in enumerate(mass):
                 if not self.atoms[i] in self.masses:
-                    self.masses[self.atoms[i]] = ma * ELECTRON_MASS_UMA
+                    self.masses[self.atoms[i]] = ma / MASS_RY_TO_UMA
 
     
     def build_masses(self):

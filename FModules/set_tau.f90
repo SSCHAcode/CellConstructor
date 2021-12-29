@@ -12,10 +12,15 @@ SUBROUTINE set_tau (nat, nat_blk, at, at_blk, tau, tau_blk, &
   INTEGER i,i1,i2,i3,na,na_blk
   DOUBLE PRECISION small
   INTEGER NN1,NN2,NN3
-  PARAMETER (NN1=20, NN2=20, NN3=20, small=1.d-8)
+  PARAMETER (small=1.d-8)
   !
   CALL recips (at(1,1),at(1,2),at(1,3),bg(1,1),bg(1,2),bg(1,3))
   !
+
+  NN1 = 2 * nat / nat_blk 
+  NN2 = 2 * nat / nat_blk 
+  NN3 = 2 * nat / nat_blk 
+
   na = 0
   !
   DO i1 = -NN1,NN1
