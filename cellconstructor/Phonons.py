@@ -1901,8 +1901,6 @@ class Phonons:
                 The phonon density of state.
         """
 
-        nq = len(self.q_tot)
-
         if use_cm:
             w_array = w_array.copy() / RY_TO_CM
             smearing /= RY_TO_CM
@@ -1918,7 +1916,6 @@ class Phonons:
         for w0 in w:
             dos += np.exp( -(w_array - w0)**2 / (2 * smearing*smearing)) / np.sqrt(2 * np.pi * smearing*smearing)
         
-        dos /= nq
 
         return dos
 
