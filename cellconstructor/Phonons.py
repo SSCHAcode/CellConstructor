@@ -1874,7 +1874,7 @@ class Phonons:
                 
         return free_energy
         
-    def get_phonon_dos(self, w_array, smearing, exclude_acoustic = True, use_cm = False):
+    def get_phonon_dos(self, w_array, smearing, exclude_acoustic = True, use_cm = False, w_pols = None):
         r"""
         GET THE PHONON DOS
         ==================
@@ -1892,6 +1892,8 @@ class Phonons:
             use_cm : bool
                 If true, the frequency array and the smearing is supposed to be given in cm-1 
                 instead of Ry.
+            w_pols : (frequencies, polarizations)
+                If provided, it avoids performing a new diagonalization
         
         Results
         -------
@@ -1906,15 +1908,15 @@ class Phonons:
             smearing /= RY_TO_CM
 
         dos = np.zeros(np.shape(w_array), dtype = np.float64)
-        for i, q_vec in enumerate(self.q_tot):
-            w, p = self.DyagDinQ(i)
-
-            if q_vec.dot(q_vec) < __EPSILON__:
-                trans = Methods.get_translations(p, self.structure.get_masses_array())
-                w = w[~trans]
-            
-            for w0 in w:
-                dos += np.exp( -(w_array - w0)**2 / (2 * smearing*smearing)) / np.sqrt(2 * np.pi * smearing*smearing)
+        if w_pols is None:
+            w, p = self.DiagonalizeSupercell()
+            trans = Methods.get_translations(p, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+            w = w[~trans]
+        else:
+            w, p = w_pols
+        
+        for w0 in w:
+            dos += np.exp( -(w_array - w0)**2 / (2 * smearing*smearing)) / np.sqrt(2 * np.pi * smearing*smearing)
         
         dos /= nq
 
