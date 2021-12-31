@@ -168,7 +168,7 @@ def SaveXYZTrajectory(fname, atoms, comments = []):
     Parameters:
     -----------
         - fname : string
-            Path to the xyz animation file
+            Path to the xyz animation file. 
         - atoms : list
             A list of the Structure() object to be written
         - comments: list, optional
@@ -225,7 +225,7 @@ def load_scf_trajectory(fname):
             
 
 
-def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1)):
+def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1), w_pols = None):
     """
     XYZ VIDEO
     =========
@@ -251,17 +251,25 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
             The total number of frames.
         supercell : list of 3 ints
             The dimension of the supercell to be shown
+        w_pols : (frequencies, polarizaitons)
+            The result of the dyagonalization of the dynamical matrix. 
+
         
     """
     # Define the conversion between the frequency in Ry and femptoseconds
     Ry_To_fs = 0.303990284048
     
     # Get polarization vectors and frequencies
-    ws, polvects = dynmat.DyagDinQ(0)
+    if w_pols is not None:
+        ws, polvects = w_pols
+    else:
+        ws, polvects = dynmat.DyagDinQ(0)
     
     # Extract the good one
     w = ws[mode_id]
-    polv = polvects[:, mode_id]
+    _m_ = np.tile(dynmat.structure.get_masses_array(), (3,1)).T.ravel()
+    polv = polvects[:, mode_id] / _m_
+    polv /= np.linalg.norm(polv)
     
     # Get the basis structure
     basis = dynmat.structure.generate_supercell(supercell)
@@ -284,7 +292,9 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
         times.append(" t = %.4f" % t)
     
     # Save the video
-    SaveXYZTrajectory(filename, video_list, times)
+    if filename is not None:
+        SaveXYZTrajectory(filename, video_list, times)
+    return video_list
 
 def QHA_FreeEnergy(ph1, ph2, T, N_points = 2, return_interpolated_dyn = False):
     """

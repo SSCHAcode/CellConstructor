@@ -3823,7 +3823,7 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
 
-def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 5e-2, progress = -1, progress_bar = False):
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, progress = -1, progress_bar = False):
     """
     COMPUTE THE FORCE CONSTANT MATRIX
     =================================
