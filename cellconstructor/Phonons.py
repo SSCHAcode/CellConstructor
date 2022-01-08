@@ -1688,7 +1688,7 @@ class Phonons:
         return output_dyn            
 
             
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None, lock_low_w = False):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None, lock_low_w = False, remove_non_isolated_atoms = False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -1702,11 +1702,15 @@ class Phonons:
             T : float
                 The temperature for the generation of the ensemble
             isolate_atoms : list, optional
-                A list of the atom index. Only the specified atoms are present in the output structure and displaced.
-                This is very usefull if you want to measure properties of a particular region of the structure.
-                By default all the atoms are used.
+                A list of the atom index. Only the atoms present in this list will be randomize.
+                If remove_non_isolated_atoms is True, then the output structures contain only non isolated atoms.
+            project_on_vectors : ndarray
+                Vectors in Cartesian Space on which the random displacements are projected. Usefull if you want to remove some
+                mode or atomic motion.
             lock_low_w : bool
                 If True, frequencies below __EPSILON_W__ are fixed.
+            remove_non_isolated_atoms : bool
+                If true it removes atoms non included in the isolate_atoms list (if not empty)
         
         Returns
         -------
@@ -1723,7 +1727,15 @@ class Phonons:
             
         # Now extract the values
         ws, pol_vects = self.DiagonalizeSupercell()
-        super_structure = self.structure.generate_supercell(self.GetSupercell())
+        super_structure, itau = self.structure.generate_supercell(self.GetSupercell(), get_itau= True)
+
+        # get the new isolated_atoms in the supercell
+        if len(isolate_atoms):
+            new_isolate_atoms = []
+            for i, it in enumerate(itau):
+                if it in isolate_atoms:
+                    new_isolate_atoms.append(i)
+            
         
         # Remove translations
         trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
@@ -1792,6 +1804,7 @@ class Phonons:
             tmp_str = super_structure.copy()
             # Prepare the new atomic positions 
 
+
             # TODO: THis is the heavy part, probably we can replace this for loop
             tmp_str.coords[:,:] += total_coords[:,i].reshape((tmp_str.N_atoms, 3))
             #for k in range(tmp_str.N_atoms):
@@ -1799,11 +1812,14 @@ class Phonons:
             
             # Check if you must to pop some atoms:
             if len (isolate_atoms):
-                
-                tmp_str.N_atoms = len(isolate_atoms)
-                new_coords = tmp_str.coords.copy()
-                for j, x in enumerate(isolate_atoms):
-                    tmp_str.coords[j,:] = new_coords[x,:]
+
+                if remove_non_isolated_atoms:
+                    tmp_str = tmp_str.isolate_atoms(new_isolate_atoms) # Use the list in the supercell
+                else:
+                    tmp_str.N_atoms = len(isolate_atoms) * np.prod(self.GetSupercell())
+                    new_coords = tmp_str.coords.copy()
+                    for j, x in enumerate(isolate_atoms):
+                        tmp_str.coords[j,:] = new_coords[x,:]
             final_structures.append(tmp_str)
         
         

@@ -302,7 +302,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         # Close the xyz file
         xyz.close()
 
-    def read_scf(self, filename, alat=1, read_string = False):
+    def read_scf(self, filename, alat=1, read_string = False, read_espresso = False):
         """
         Read the given filename in the quantum espresso format.
         Note:
@@ -318,6 +318,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
                the one specified in the file will be used.
             - read_string : bool
                 If true the filename is interpreted directly as a scf string, not as a file to be read.
+            - read_espresso : bool
+                If true, the SCF data are expected in between of a quantum espresso PW input.
         """
 
         # Check if the specified filename exists
@@ -339,6 +341,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
         read_cell = False
         cell_index = 0
         read_atoms = True
+        if read_espresso:
+            read_atoms = False
         cell_present = False
         
         read_crystal = False
@@ -1433,6 +1437,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
         -------
             - supercell : Structure
                   This structure is the supercell of the system.
+            - itau : ndarray
+                  For each atom in the supercell, the index of the corresponding atom 
+                  in the primitive cell. Only if get_itau = True
         """
         
 
