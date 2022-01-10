@@ -1160,7 +1160,7 @@ def get_translations(pols, masses):
     is_translation = np.zeros( n_pols, dtype = bool)
 
     # Cast to bool
-    is_translation[:] = symph.get_translations(pols, masses)
+    is_translation[:] = symph.get_translations(pols, masses, n_pols, n_atoms)
 
     return is_translation
 
