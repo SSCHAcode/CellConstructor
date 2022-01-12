@@ -86,6 +86,7 @@ class Espresso(FileIOCalculator):
         """
         FileIOCalculator.__init__(self)
 
+        self.command = command
         self.kpts = kpts
         self.koffset = koffset
         self.input_data = input_data
@@ -112,7 +113,7 @@ class Espresso(FileIOCalculator):
 ATOMIC_SPECIES
 """
         for atm in typs:
-            scf_text += "{}  {}   {}\n".format(atm, self.pseudopotentials[atm], self.masses[atm])
+            scf_text += "{}  {}   {}\n".format(atm, self.masses[atm], self.pseudopotentials[atm])
         
         scf_text += """
 K_POINTS automatic

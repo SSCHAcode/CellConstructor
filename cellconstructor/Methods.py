@@ -1078,16 +1078,28 @@ def write_namelist(total_dict):
         
     
     lines = []
-    for key in total_dict.keys():
+    keys = list(total_dict)
+    new_keys = []
+    if "control" in keys:
+        new_keys.append("control")
+        keys.remove("control")
+    if "system" in keys:
+        new_keys.append("system")
+        keys.remove("system")
+
+    for k in keys:
+        new_keys.append(k)
+
+    for key in new_keys:
         if type(total_dict[key]) == dict:
             # Namelist
             lines.append("&%s\n" % key)
             for key2 in total_dict[key].keys():
                 value = total_dict[key][key2]
                 valuestr = ""
-                if type(value) == list:
+                if isinstance(value, list):
                     valuestr = " ".join(value)
-                elif type(value) == "ciao":
+                elif isinstance(value, str):
                     valuestr = "\"%s\"" % value
                 else:
                     valuestr = str(value)
