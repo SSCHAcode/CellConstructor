@@ -1101,6 +1101,8 @@ def write_namelist(total_dict):
                     valuestr = " ".join(value)
                 elif isinstance(value, str):
                     valuestr = "\"%s\"" % value
+                elif isinstance(value, bool):
+                    valuestr = f".{str(value).lower()}."
                 else:
                     valuestr = str(value)
             
@@ -1143,7 +1145,6 @@ def get_translations(pols, masses):
     -------
         is_translation_mask : ndarray(3 * N_atoms)
              A bool array of True if the i-th polarization vectors correspond to a translation, false otherwise.
-
 
 
     Example

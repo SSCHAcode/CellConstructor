@@ -2,6 +2,8 @@ import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Methods
 
+import subprocess
+
 import ase, ase.io
 import ase.calculators.calculator
 
@@ -68,18 +70,27 @@ class FileIOCalculator(Calculator):
         self.directory = directory
     
     def execute(self):
-        cmd = "cd {} && {} && cd ..".format(self.directory, self.command.replace("PREFIX", self.label))
-        cmd = self.command.replace("PREFIX", os.path.join(self.directory, self.label))
-        print("EXECUTING: {}".format(cmd))
+        #cmd = "cd {} && {} && cd ..".format(self.directory, self.command.replace("PREFIX", self.label))
+        cmd = self.command.replace("PREFIX", os.path.join(os.path.abspath(self.directory),self.label))
+
+
+        new_env = {k: v for k, v in os.environ.items() if "MPI" not in k if "PMI" not in k}
+        sys.stdout.flush()
+        with open(os.path.join(self.directory, self.label + ".pwo"), "w") as foutput:
+            proc = subprocess.Popen(cmd, shell = True, env = new_env, cwd = self.directory, stdout = foutput)
+        sys.stdout.flush()
+        errorcode = proc.wait()
+        sys.stdout.flush()
+
+        
         os.system(cmd)
-        print("DONE: {}".format(cmd))
 
     def read_results(self):
         pass 
 
 
 class Espresso(FileIOCalculator):
-    def __init__(self,  input_data, pseudopotentials, masses = None, command = "pw.x -i PREFIX.pwi > PREFIX.pwo", kpts = (1,1,1), koffset = (0,0,0)):
+    def __init__(self,  input_data, pseudopotentials, masses = None, command = "pw.x -i PREFIX.pwi", kpts = (1,1,1), koffset = (0,0,0)):
         """
         ESPRESSO CALCULATOR
         ===================
