@@ -19,6 +19,8 @@ import cellconstructor.symmetries as symmetries
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
+import cellconstructor.calculators as calculators
+
 import warnings
 
 # Import the Fortran Code
@@ -3871,9 +3873,11 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     nat3 = 3 * structure.N_atoms
     fc = np.zeros( (nat3, nat3), dtype = np.double)
 
-    atm = structure.get_ase_atoms()
-    atm.set_calculator(ase_calculator)
-    fc[:,:] = np.tile(atm.get_forces().ravel(), (nat3, 1))
+    energy, forces = calculators.get_energy_forces(ase_calculator, structure)
+
+    #atm = structure.get_ase_atoms()
+    #atm.set_calculator(ase_calculator)
+    fc[:,:] = np.tile(forces.ravel(), (nat3, 1))
     if progress > 0:
         print()
         print("Computing phonons with finite differences.")
@@ -3892,9 +3896,11 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
 
             s = structure.copy()
             s.coords[i, j] += epsilon 
-            atm = s.get_ase_atoms()
-            atm.set_calculator(ase_calculator)
-            fc[3*i + j, :] -= atm.get_forces().ravel()
+
+            energy, forces = calculators.get_energy_forces(ase_calculator, s)
+            #atm = s.get_ase_atoms()
+            #atm.set_calculator(ase_calculator)
+            fc[3*i + j, :] -= forces.ravel()
     
 
     if progress > 0:
