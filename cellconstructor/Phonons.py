@@ -7,7 +7,8 @@ Created on Wed Jun  6 10:29:32 2018
 """
 
 from __future__ import print_function
-from __future__ import division 
+from __future__ import division
+from cellconstructor import Settings 
 
 import numpy as np
 import os, sys
@@ -3873,36 +3874,60 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     nat3 = 3 * structure.N_atoms
     fc = np.zeros( (nat3, nat3), dtype = np.double)
 
-    energy, forces = calculators.get_energy_forces(ase_calculator, structure)
+    # Enable the parallel calculation
+    ase_calculator.directory = "calc_{}".format(Settings.get_rank())
+    ase_calculator.set_label("label_{}".format(Settings.get_rank()))
+
 
     #atm = structure.get_ase_atoms()
     #atm.set_calculator(ase_calculator)
-    fc[:,:] = np.tile(forces.ravel(), (nat3, 1))
+    fc[:,:] = np.zeros((nat3, nat3), np.double)
     if progress > 0:
         print()
         print("Computing phonons with finite differences.")
 
+
+    list_of_calculations = []
+
     for i in range(structure.N_atoms):
         for j in range(3):
+            list_of_calculations.append((i,j))
 
-            if progress > 0:
-                if (3*i + j) % progress == 0:
-                    if progress_bar:
-                        sys.stdout.write("\rProgress {:4.1f} % ... ".format(100 * (3*i + j + 1) / nat3))
-                        sys.stdout.flush()
-                    else:
-                        print("Finite displacement of structure {} / {}".format(3*i + j + 1, nat3))
+    def compute_force(indices):
+        i, j = indices
+
+        if progress > 0 and Settings.am_i_the_master():
+            if (3*i + j) % progress == 0:
+                if progress_bar:
+                    sys.stdout.write("\rProgress {:4.1f} % ... ".format(100 * (3*i + j + 1) / nat3))
+                    sys.stdout.flush()
+                else:
+                    print("Finite displacement of structure {} / {}".format(3*i + j + 1, nat3))
+                
 
 
-            s = structure.copy()
-            s.coords[i, j] += epsilon 
+        s = structure.copy()
+        s.coords[i, j] += epsilon 
 
-            energy, forces = calculators.get_energy_forces(ase_calculator, s)
-            #atm = s.get_ase_atoms()
-            #atm.set_calculator(ase_calculator)
-            fc[3*i + j, :] -= forces.ravel()
+        energy, forces = calculators.get_energy_forces(ase_calculator, s)
+        fc_tmp = np.zeros((nat3, nat3), dtype = np.double)
+        fc_tmp[3*i+j,:]  -= forces.ravel()
+        return fc_tmp
+        #atm = s.get_ase_atoms()
+        #atm.set_calculator(ase_calculator)
+        fc[3*i + j, :] -= forces.ravel()
     
+    fc = Settings.GoParallel(compute_force, list_of_calculations, reduce_op='+')
 
+    energy = None
+    forces = None
+    if Settings.am_i_the_master():
+        energy, forces = calculators.get_energy_forces(ase_calculator, structure)
+    Settings.barrier()
+    forces = Settings.broadcast(forces)
+    
+    fc[:,:] += np.tile(forces.ravel(), (nat3, 1))
+    
     if progress > 0:
         print()
         print("Done.")

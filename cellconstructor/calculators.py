@@ -60,10 +60,19 @@ class FileIOCalculator(Calculator):
         self.write_input(structure)
         self.execute()
         self.read_results()
+
+    def set_label(self, lbl):
+        self.label = lbl
+
+    def set_directory(self, directory):
+        self.directory = directory
     
     def execute(self):
         cmd = "cd {} && {} && cd ..".format(self.directory, self.command.replace("PREFIX", self.label))
+        cmd = self.command.replace("PREFIX", os.path.join(self.directory, self.label))
+        print("EXECUTING: {}".format(cmd))
         os.system(cmd)
+        print("DONE: {}".format(cmd))
 
     def read_results(self):
         pass 
@@ -106,6 +115,7 @@ class Espresso(FileIOCalculator):
 
         total_input = self.input_data
         total_input["system"].update({"nat" : structure.N_atoms, "ntyp" : len(typs), "ibrav" : 0})
+        total_input["control"].update({"outdir" : self.directory, "prefix" : self.label})
 
         scf_text = "".join(CC.Methods.write_namelist(total_input))
 
