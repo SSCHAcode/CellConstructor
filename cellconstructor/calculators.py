@@ -70,7 +70,7 @@ class FileIOCalculator(Calculator):
 
 
 class Espresso(FileIOCalculator):
-    def __init__(self,  data_input, pseudopotentials, masses = None, command = "pw.x -i PREFIX.pwi > PREFIX.pwo", kpts = (1,1,1), koffset = (0,0,0)):
+    def __init__(self,  input_data, pseudopotentials, masses = None, command = "pw.x -i PREFIX.pwi > PREFIX.pwo", kpts = (1,1,1), koffset = (0,0,0)):
         """
         ESPRESSO CALCULATOR
         ===================
@@ -88,7 +88,7 @@ class Espresso(FileIOCalculator):
 
         self.kpts = kpts
         self.koffset = koffset
-        self.data_input = data_input
+        self.input_data = input_data
         self.pseudopotentials = pseudopotentials
         if masses is None:
             masses = {}
@@ -103,10 +103,10 @@ class Espresso(FileIOCalculator):
 
         typs = np.unique(structure.atoms)
 
-        total_input = self.data_input
+        total_input = self.input_data
         total_input["system"].update({"nat" : structure.N_atoms, "ntyp" : len(typs), "ibrav" : 0})
 
-        scf_text = "".join(CC.Methods.write_namelist(self.data_input))
+        scf_text = "".join(CC.Methods.write_namelist(total_input))
 
         scf_text += """
 ATOMIC_SPECIES
