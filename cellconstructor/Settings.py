@@ -2,6 +2,7 @@ from __future__ import print_function
 """
 This file keeps in mind common settings that needs to be initialized once.
 """
+import numpy as np
 
 # The parallelization setup
 __PARALLEL_TYPE__ = "serial"
@@ -28,6 +29,13 @@ def ParallelPrint(*args, **kwargs):
     """
     if am_i_the_master():
         print(*args, **kwargs)
+
+def all_print(*args, **kwargs):
+    """
+    Print for all the processors
+    """
+    print("[RANK {}] ".format(get_rank()), end = "")
+    print(*args, **kwargs)
 
 
 def am_i_the_master():
@@ -169,6 +177,7 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             computing_list.append(list_of_inputs[i])
 
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
+        #all_print("Computing:", computing_list)
         
 
         # Perform the reduction
@@ -192,6 +201,8 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             else:
                 raise NotImplementedError("Error, not implemented {}".format(__PARALLEL_TYPE__))
 
+
+            #np.savetxt("result_{}.dat".format(rank), result)
             result = results[0]
             # Perform the last reduction
             if reduce_op == "+":
@@ -200,6 +211,8 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             elif reduce_op == "*":
                 for i in range(1,len(results)):
                     result*= results[i]
+            
+            #np.savetxt("result_{}_total.dat".format(rank), result)
 
             return result 
         else:

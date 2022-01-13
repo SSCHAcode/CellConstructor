@@ -7,6 +7,8 @@ import subprocess
 import ase, ase.io
 import ase.calculators.calculator
 
+import cellconstructor.Settings as Settings
+
 import numpy as np
 
 import sys, os
@@ -50,13 +52,16 @@ def get_energy_forces(calculator, structure):
 class FileIOCalculator(Calculator):
     def __init__(self):
         Calculator.__init__(self)
+        self.structure = None
 
-    def write_input(self):
+    def write_input(self, structure):
         if self.directory is None:
             self.directory = os.path.abspath(".")
 
         if not os.path.isdir(self.directory):
             os.makedirs(self.directory)
+        
+        self.structure = structure
 
     def calculate(self, structure):
         self.write_input(structure)
@@ -83,7 +88,7 @@ class FileIOCalculator(Calculator):
         sys.stdout.flush()
 
         
-        os.system(cmd)
+        #os.system(cmd)
 
     def read_results(self):
         pass 
@@ -120,7 +125,7 @@ class Espresso(FileIOCalculator):
         assert len(list(self.pseudopotentials)) == len(list(self.masses)), "Error, pseudopotential and masses must match"
 
     def write_input(self, structure):
-        FileIOCalculator.write_input(self)
+        FileIOCalculator.write_input(self, structure)
 
         typs = np.unique(structure.atoms)
 
@@ -155,9 +160,46 @@ K_POINTS automatic
 
         filename = os.path.join(self.directory, self.label + ".pwo")
 
-        atm = ase.io.read(filename)
+        
+        #Settings.all_print("reading {}".format(filename))
+        #atm = ase.io.read(filename)
 
-        self.properties = {"energy" : atm.get_total_energy(), "forces" : atm.get_forces()}
+        energy = 0
+        read_forces = False
+        counter = 0
+        forces = np.zeros_like(self.structure.coords)
+        with open(filename, "r") as fp:
+            for line in fp.readlines():
+                line = line.strip()
+                data = line.split()
+
+                # Avoid white lines
+                if not line:
+                    continue
+
+                if line[0] == "!":
+                    energy = float(data[4])
+
+                if "Forces acting on atoms" in line:
+                    read_forces = True
+                    continue
+                
+                if read_forces and len(data) == 9:
+                    if data[0] == "atom":
+                        counter += 1
+
+                        at_index = int(data[1]) - 1
+                        forces[at_index, :] = [float(x) for x in data[6:]]
+                    
+                    if counter >= self.structure.N_atoms:
+                        read_forces = False
+
+                
+        # Convert to match ASE conventions
+        energy *= CC.Units.RY_TO_EV
+        forces *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM
+
+        self.properties = {"energy" : energy, "forces" : forces}
         
 
         
