@@ -45,6 +45,15 @@ thirdorder_ext = Extension(name = "thirdorder",
                       extra_f90_compile_args = ["-cpp"]
                       )
 
+cond_ext = Extension(name = "thermal_conductivity",
+                      sources = ["FModules/get_scattering_q_grid.f90",
+                                 "FModules/third_order_cond.f90",
+                                 "FModules/get_lf.f90"],
+                      libraries= ["lapack", "blas"],
+                      extra_f90_compile_args = ["-cpp", "-fcheck=all", "-fopenmp", "-lgomp"],
+                      extra_link_args = ["-fopenmp"]
+                      )
+
 
 
 # The C module extension actually depeds on the python version
@@ -72,7 +81,7 @@ setup( name = "CellConstructor",
        license = "MIT",
        include_package_data = True,
        scripts = ["scripts/symmetrize_dynmat.py", "scripts/cellconstructor_test.py", "scripts/view_scf_atoms.py"],
-       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext, secondorder_ext]
+       ext_modules = [symph_ext, cc_modules_ext, thirdorder_ext, secondorder_ext, cond_ext]
        )
 
 def readme():

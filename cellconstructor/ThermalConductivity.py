@@ -772,7 +772,7 @@ class ThermalConductivity:
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, isotope_scattering, isotopes)
+                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, isotope_scattering=isotope_scattering, isotopes= isotopes)
                     kappa = kappa/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
@@ -1068,7 +1068,7 @@ class ThermalConductivity:
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon lifetimes for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_lifetimes(temperature, isotope_scattering, isotopes)
+            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
@@ -1099,7 +1099,7 @@ class ThermalConductivity:
         if(lf_key in self.lifetimes.keys()):
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lifetimes(temperature, isotope_scattering, isotopes)
+            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
@@ -1200,7 +1200,7 @@ class ThermalConductivity:
   
     ####################################################################################################################################
    
-    def get_lifetimes(self, temperature, method = 'fortran-LA', isotope_scattering = True, isotopes = None):
+    def get_lifetimes(self, temperature, isotope_scattering = True, isotopes = None, method = 'fortran-LA'):
 
         """
         Get phonon lifetimes in the full Brillouin zone at temperature.
@@ -1221,6 +1221,7 @@ class ThermalConductivity:
 
         start_time = time.time()
         lf_key = format(temperature, '.1f')
+        print('Calculating lifetimes at: ' + lf_key + ' K.')
 
         if(method == 'python-LA'):
 
@@ -1269,6 +1270,7 @@ class ThermalConductivity:
 
         elif(method == 'fortran-LA'):
 
+            print('Calculating lifetimes in fortran!')
             irrqgrid = np.zeros((3, self.nirrkpt))
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
             for ikpt in range(self.nirrkpt):
@@ -1344,6 +1346,10 @@ class ThermalConductivity:
 
             self.lifetimes[lf_key] = lifetimes/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
             self.freqs_shifts[lf_key] = shifts
+
+        else:
+            print('Unrecognized method! Exit!')
+            raise RuntimeError('No such method for calculating phonon lifetimes!')
 
         print('Calculated SSCHA lifetimes in: ', time.time() - start_time)
 
