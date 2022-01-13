@@ -29,7 +29,7 @@ class Calculator:
         self.label = "label"
         self.directory = None 
         self.command = None 
-        self.properties = {}
+        self.results = {}
         self.structure = None  
 
 
@@ -45,7 +45,7 @@ def get_energy_forces(calculator, structure):
         return atm.get_total_energy(), atm.get_forces()
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
-        return calculator.properties["energy"], calculator.properties["forces"]
+        return calculator.results["energy"], calculator.results["forces"]
     else:
         raise ValueError("Error, unknown calculator type")
 
@@ -53,6 +53,7 @@ class FileIOCalculator(Calculator):
     def __init__(self):
         Calculator.__init__(self)
         self.structure = None
+        self.output_file = "PREFIX.pwo"
 
     def write_input(self, structure):
         if self.directory is None:
@@ -77,11 +78,12 @@ class FileIOCalculator(Calculator):
     def execute(self):
         #cmd = "cd {} && {} && cd ..".format(self.directory, self.command.replace("PREFIX", self.label))
         cmd = self.command.replace("PREFIX", os.path.join(os.path.abspath(self.directory),self.label))
+        outputfname = self.output_file.replace("PREFIX", os.path.join(os.path.abspath(self.directory),self.label))
 
 
         new_env = {k: v for k, v in os.environ.items() if "MPI" not in k if "PMI" not in k}
         sys.stdout.flush()
-        with open(os.path.join(self.directory, self.label + ".pwo"), "w") as foutput:
+        with open(os.path.join(self.directory, outputfname), "w") as foutput:
             proc = subprocess.Popen(cmd, shell = True, env = new_env, cwd = self.directory, stdout = foutput)
         sys.stdout.flush()
         errorcode = proc.wait()
@@ -116,6 +118,7 @@ class Espresso(FileIOCalculator):
         self.koffset = koffset
         self.input_data = input_data
         self.pseudopotentials = pseudopotentials
+        self.output_file = "PREFIX.pwo"
         if masses is None:
             masses = {}
             for atm in pseudopotentials:
@@ -161,7 +164,7 @@ K_POINTS automatic
         filename = os.path.join(self.directory, self.label + ".pwo")
 
         
-        #Settings.all_print("reading {}".format(filename))
+        #   Settings.all_print("reading {}".format(filename))
         #atm = ase.io.read(filename)
 
         energy = 0
@@ -199,7 +202,7 @@ K_POINTS automatic
         energy *= CC.Units.RY_TO_EV
         forces *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM
 
-        self.properties = {"energy" : energy, "forces" : forces}
+        self.results = {"energy" : energy, "forces" : forces}
         
 
         
