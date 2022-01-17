@@ -1240,7 +1240,12 @@ class Phonons:
             fp.write("*" * 75 + "\n")
             fp.close()
             
-    def save_phononpy(self, supercell_size = (1,1,1)):
+    def save_phononpy(self, *args, **kwargs):
+        "Mapping to save_phonopy"
+        warnings.warn("Deprecated, use save_phonopy instead.")
+        self.save_phonopy(*args, **kwargs)
+
+    def save_phonopy(self, path = ".", supercell_size = None):
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
         =====================================
@@ -1254,16 +1259,20 @@ class Phonons:
 
         Parameters
         ----------
+            path: str
+                Path to the directory in which the FORCE_CONSTANTS and unitcell.in files are created.
             supercell_size : list of 3
                 The supercell that defines the dynamical matrix, note phononpy 
-                works in the supercell.
+                works in the supercell. If none, it is inferred from the q points
 
 
         """
+        if supercell_size is None:
+            supercell_size = self.GetSupercell()
 
         # Save it into the phononpy in the supercell
         superdyn = self.GenerateSupercellDyn(supercell_size)
-        filename = "FORCE_CONSTANTS"
+        filename = os.path.join(path, "FORCE_CONSTANTS")
 
         nat_sc = superdyn.structure.N_atoms
         nat = self.structure.N_atoms
@@ -1314,7 +1323,7 @@ class Phonons:
             lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
         
 
-        f = open("unitcell.in", "w")
+        f = open(os.path.join(path, "unitcell.in"), "w")
         f.writelines(lines)
         f.close()
 

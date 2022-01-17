@@ -531,6 +531,69 @@ The structure is read from the first dynamical matrix (usually the gamma point).
 An experimental interface to phonopy is under developement.
 
 
+Load phonons from Phonopy and ASE
+---------------------------------
+
+Often, you may have to load a dynamical matrix from other sources than quantum-espresso.
+The two most common file formats are the Phonopy and the ASE calculation.
+
+For phonopy, we expect you generate a FORCE_CONSTANTS file and a phonopy.yaml file containing the information about the structure and the atoms in the supercell.
+
+NOTE: Up to version 1.0 the Phonopy importer assumes the FORCE_CONSTANTS and the structure are written in Rydberg atomic units. This will probably change in the near future.
+
+.. code::
+
+   import cellconstructor as CC
+   import cellconstructor.Phonons
+
+   # Load the dynamical matrix in phonopy format
+   dyn = CC.Phonons.Phonons()
+   dyn.load_phonopy("path/to/phonopy.yaml")
+
+   # Save as new_dyn in quantum espresso format
+   dyn.save_qe("new_dyn")
+
+   # Save in the phonopy format
+   dyn.save_phonopy("path/to/directory")
+
+Optionally, it is possible to provide also the path to the FORCE_CONSTANTS file, which by default is assumed to be in the same directory as the phonopy.yaml.
+This script can be employed to convert from Phonopy to quantum espresso file format.
+
+In the same way, it is possible to generate the FORCE_CONSTANTS file with the method save_phonopy. Here, you just need to specify the directory.
+Instead of the phonopy.yaml, the unitcell.in in quantum espresso format is generated. Phonopy is able to read this file.
+
+
+The ASE calculator can be used to directly compute the dynamical matrix from finite displacements.
+Once you have your ase.phonons.Phonons object, you can convert it into a CellConstructor Phonons object using the method get_dyn_from_ase_phonons.
+
+.. code::
+   
+   import ase
+   from ase.build import bulk
+   from ase.calculators.emt import EMT
+   from ase.phonons import Phonons
+   
+   import cellconstructor as CC, cellconstructor.Phonons
+
+   # Here the code to get the ase.phonon.Phonons object
+   # Setup crystal and EMT calculator
+   atoms = bulk('Al', 'fcc', a=4.05)
+
+   # Phonon calculator with ASE
+   N = 6
+   ph = Phonons(atoms, EMT(), supercell=(N, N, N), delta=0.05)
+   ph.run()
+
+   # Read forces and assemble the dynamical matrix
+   ph.read(acoustic=True)
+   ph.clean()
+
+   # Convert into the cellconstructor and save in quantum espresso format
+   dyn = CC.get_dyn_from_ase_phonons(ph)
+   dyn.save_qe("my_dyn_computed_with_ase")
+
+
+
 
 Generate a video of phonon vibrations
 -------------------------------------
