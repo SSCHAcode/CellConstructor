@@ -7,6 +7,10 @@ import numpy as np
 
 def test_phonopy_input():
 
+    # Go to the current directory
+    total_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(total_path)
+
     dyn = CC.Phonons.Phonons()
     dyn.load_phonopy()
 
