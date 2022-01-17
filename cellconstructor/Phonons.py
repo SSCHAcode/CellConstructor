@@ -1318,6 +1318,194 @@ class Phonons:
         f.writelines(lines)
         f.close()
 
+    def load_phonopy(self, yaml_filename = "phonopy.yaml", fc_filename = None):
+        """
+        LOAD FROM PHONOPY FORCE CONSTANTS
+        =================================
+
+        This subroutine load the dynamical matrix from the phonopy FORCE_CONSTANT file.
+        It needs two files: the file with the structure information, 
+        and the file with the force constant matrix.
+
+        Parameters
+        ----------
+            yaml_filename : string
+                Path to the YAML file, this contains the info of the structure and the supercell.
+            fc_filename: string
+                Path to the FORCE_CONSTANTS file. If None, a file called FORCE_CONSTANTS in the same directory
+                as phonopy.yaml will be looked for.
+        """
+
+        unit_cell = np.zeros((3,3), dtype = np.double)
+        supercell = np.zeros(3, dtype = np.intc)
+        coords = []
+        atoms = []
+        masses = {}
+
+        superstruct = None
+        unit_cell_itau = []
+
+        with open(yaml_filename, "r") as fp:
+            
+            read_primitive_cell = False
+            read_coord = False
+            read_lattice = False
+            read_supercell = False
+            read_superstruct = False
+            counter = 0
+            for line in fp.readlines():
+
+                line = line.strip()
+                if not line:
+                    continue
+
+
+                data = line.replace(",","").split()
+
+                if line == "supercell_matrix:":
+                    read_supercell = True
+                    counter = 0
+                    continue
+
+                if read_supercell and len(data) == 6:
+                    supercell[counter] = int(data[2 + counter])
+                    counter += 1
+
+                    if counter == 3:
+                        counter = 0
+                        read_supercell = False
+
+                if line == "unit_cell:":
+                    read_primitive_cell = True
+                    continue
+
+                if line == "lattice:":
+                    read_lattice = True
+                    counter = 0
+                    continue
+                
+                if read_lattice and len(data) == 8:
+                    unit_cell[counter, :] = [float(data[x]) for x in range(2, 5)]
+                    counter += 1
+                    if counter == 3:
+                        counter = 0
+                        read_lattice = False
+
+                if line == "points:":
+                    read_coord = True
+                    atoms = []
+                    coords = []
+                    continue
+
+                if read_coord:
+                    if "symbol" in line:
+                        atoms.append(data[2])
+                    if "coordinates" in line:
+                        vector = np.array([float(data[x]) for x in range(2, 5)])
+                        coords.append(Methods.cryst_to_cart(unit_cell, vector))
+                    if "mass" in line:
+                        if not atoms[-1] in masses:
+                            masses[atoms[-1]] = float(data[1]) / MASS_RY_TO_UMA
+                    if "reduced_to" in line:
+                        if read_primitive_cell:
+                            unit_cell_itau.append(int(data[1]) - 1)
+                
+                if  "supercell" in line:
+                    if read_primitive_cell:
+                        self.structure = Structure.Structure(len(atoms))
+                        self.structure.atoms = atoms
+                        self.structure.coords[:,:] = np.array(coords) * BOHR_TO_ANGSTROM
+                        self.structure.masses = masses
+                        self.structure.has_unit_cell = True
+                        self.structure.unit_cell = unit_cell.copy() * BOHR_TO_ANGSTROM
+                    read_coord = False
+                    read_lattice = False
+                    read_primitive_cell = False
+                    read_superstruct = True
+                    continue
+        
+        # Now create the superstructure
+        if read_superstruct:
+            superstruct = Structure.Structure(len(atoms))
+            superstruct.atoms = atoms
+            superstruct.coords[:,:] = np.array(coords) * BOHR_TO_ANGSTROM
+            superstruct.masses = masses
+            superstruct.unit_cell = unit_cell.copy() * BOHR_TO_ANGSTROM
+            superstruct.has_unit_cell = True
+
+        # Get the Equivalent atoms in the unit cell
+        itau = superstruct.get_itau(self.structure) - 1
+
+        # Now load the Force constant matrix
+        if fc_filename is None:
+            fc_filename = os.path.join(os.path.dirname(yaml_filename), "FORCE_CONSTANTS")
+
+        fc = np.zeros( (superstruct.N_atoms * 3, superstruct.N_atoms * 3), dtype = np.double)
+        FC_TMP = np.zeros((3,3), dtype = np.double)
+
+        with open(fc_filename, "r") as fp:
+            
+            x = 0
+            y = 0
+            counter = 0
+            FC = np.zeros((3,3), dtype = np.double)
+            for i, line in enumerate(fp.readlines()):
+                line = line.strip()
+                data = line.split()
+
+
+                if i == 0:
+                    nat_prim = int(data[0])
+                    nat_tot = int(data[1])
+                    continue
+
+                if not line:
+                    continue
+                
+                if len(data) == 2:
+                    x = int(data[0]) - 1
+                    y = int(data[1]) - 1
+                    counter = 0
+
+                    # Get the blocks
+                    blocks = []
+                    DR = self.structure.coords[x] - superstruct.coords[y]
+                    for ia in range(superstruct.N_atoms):
+                        if unit_cell_itau[itau[ia]] != x:
+                            continue
+                        for ib in range(superstruct.N_atoms):
+                            if unit_cell_itau[itau[ib]] != unit_cell_itau[itau[y]]:
+                                continue
+                            
+                            # Check if the two ia and ib are the correct block
+                            delta_r = superstruct.coords[ia, :] - superstruct.coords[ib, :]
+                            dist = Methods.get_closest_vector(superstruct.unit_cell, DR - delta_r)
+                            if np.linalg.norm(dist) < __EPSILON__:
+                                blocks.append((ia,ib))
+
+                elif len(data) == 3:
+                    FC_TMP[counter, :] = [float(fx) for fx in data]
+                    counter += 1
+                    
+                    if counter == 3:
+                        # Save the FC in the correct blocks
+                        counter = 0
+                        for ia, ib in blocks:
+                            fc[3*ia : 3*ia + 3, 3*ib: 3*ib + 3] = FC_TMP
+                            fc[3*ib : 3*ib + 3, 3*ia: 3*ia + 3] = FC_TMP
+            
+        
+        # Now transform back in real space
+        q_tot = symmetries.GetQGrid(self.structure.unit_cell, supercell)
+        dynq = GetDynQFromFCSupercell(fc, np.array(q_tot), self.structure, superstruct, itau)
+        self.dynmats = [None] * len(q_tot)
+        self.q_tot = q_tot
+        self.q_stars = [q_tot]
+
+        for iq in range(len(q_tot)):
+            self.dynmats[iq] = dynq[iq, :, :] 
+
+        self.AdjustQStar()
             
             
     def ForcePositiveDefinite(self):
