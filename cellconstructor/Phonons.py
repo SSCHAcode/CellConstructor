@@ -1359,7 +1359,6 @@ class Phonons:
                 if not line:
                     continue
 
-
                 data = line.replace(",","").split()
 
                 if line == "supercell_matrix:":
