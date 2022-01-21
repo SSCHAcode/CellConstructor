@@ -1155,7 +1155,7 @@ class Phonons:
                 fp.write("\n")
                 fp.write("     Dynamical Matrix in cartesian axes\n")
                 fp.write("\n")
-                fp.write("     q = (    %.12f   %.12f   %.12f )\n" % 
+                fp.write("     q = ( %18.12f %18.12f %18.12f )\n" % 
                          (q_star[jq][0] * self.alat , q_star[jq][1]*self.alat, q_star[jq][2]*self.alat ))
                 fp.write("\n")
             
@@ -1208,7 +1208,7 @@ class Phonons:
             fp.write("\n")
             fp.write("     Diagonalizing the dynamical matrix\n")
             fp.write("\n")
-            fp.write("     q = (    %.12f   %.12f   %.12f )\n" % 
+            fp.write("     q = ( %18.12f %18.12f %18.12f )\n" % 
                      (q_star[0][0] *self.alat , q_star[0][1] *self.alat, q_star[0][2] *self.alat))
             fp.write("\n")
             fp.write("*" * 75 + "\n")
@@ -2493,14 +2493,31 @@ class Phonons:
             if nqtot != len(support_dyn_fine.q_tot):
                 raise ValueError("Error, the number of q points of the support must coincide with the fine grid")
             
-            # Check if the support dyn course q points coincides
-            bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
-            for iq, q in enumerate(self.q_tot):
-                if Methods.get_min_dist_into_cell(bg, q, support_dyn_coarse.q_tot[iq]) > __EPSILON__:
-                    print ("ERROR, NOT MATCHING Q:")
-                    print ("self q1 = ", q)
-                    print ("support coarse q2 = ", support_dyn_coarse.q_tot[iq])
-                    raise ValueError("Error, the coarse support grid as a q point that does not match the self one")
+            assert self.GetSupercell() == support_dyn_coarse.GetSupercell(), """
+Error, support dyn is defined on a different supercell
+       supercell self: {}
+       supercell support_dyn_coarse: {}
+""".format(self.GetSupercell(), support_dyn_coarse.GetSupercell())
+
+            assert self.structure.N_atoms == support_dyn_coarse.structure.N_atoms, """
+Error, support_dyn is defined on a wrong structure.
+"""
+
+            # # Check if the support dyn course q points coincides
+            # bg = Methods.get_reciprocal_vectors(self.structure.unit_cell)
+            # for iq, q in enumerate(self.q_tot):
+            #     if Methods.get_min_dist_into_cell(bg, q, support_dyn_coarse.q_tot[iq]) > __EPSILON__:
+            #         # Get the NQIRR
+            #         limit = iq
+            #         for nqirr in range(len(self.q_stars)):
+            #             limit -= len(self.q_stars[nqirr])
+            #             if limit < 0:
+            #                 break
+
+            #         print ("ERROR, NOT MATCHING Q IN STAR NUMBER ({}):".format(nqirr +1))
+            #         print ("self q1 = ", q)
+            #         print ("support coarse q2 = ", support_dyn_coarse.q_tot[iq])
+            #         raise ValueError("Error, the coarse support grid as a q point that does not match the self one")
         
             
             # Overwrite the q list
@@ -2525,12 +2542,19 @@ class Phonons:
         fcq = np.zeros( (len(self.q_tot), 3 * nat, 3*nat), dtype = np.complex128)
         for iq, q in enumerate(self.q_tot):
             fcq[iq, :, :] = self.dynmats[iq].copy()
-            if is_dync:
-                fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
+            #if is_dync:
+            #    fcq[iq, :, :] -= support_dyn_coarse.dynmats[iq]
                 
         # Get the real space force constant matrix
         #r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, super_structure)
         r_fcq = GetSupercellFCFromDyn(fcq, np.array(self.q_tot), self.structure, superstruct_coarse)
+
+
+        if is_dync:
+            fcq = np.zeros( (len(self.q_tot), 3 * nat, 3*nat), dtype = np.complex128)
+            for iq, q in enumerate(self.q_tot):
+                fcq[iq, :, :] = support_dyn_coarse.dynmats[iq].copy()
+            r_fcq -= GetSupercellFCFromDyn(fcq, np.array(support_dyn_coarse.q_tot), self.structure, superstruct_coarse)
 
         #r_fcq = self.GetRealSpaceFC(coarse_grid)
             
