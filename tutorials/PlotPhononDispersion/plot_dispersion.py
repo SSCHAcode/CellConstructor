@@ -78,13 +78,13 @@ for i in range(N_POINTS):
 
 
 # ============= PLOT THE FIGURE =================
-plt.figure()
+fig = plt.figure(dpi = 200)
+ax = plt.gca()
 
 # Plot all the modes
 for i in range(n_modes):
-    plt.plot(x_axis, ws[:,i])
+    ax.plot(x_axis, ws[:,i])
 
-ax = plt.gca()
 # Plot vertical lines for each high symmetry points
 for x in xticks:
     ax.axvline(x, 0, 1, color = "k", lw = 0.4)
@@ -96,5 +96,7 @@ ax.set_xticklabels(xlabels)
 ax.set_ylabel("Energy [cm-1]")
 ax.set_xlabel("q path")
 
-plt.tight_layout()
+fig.tight_layout()
+fig.savefig("dispersion.png")
+fig.savefig("dispersion.eps")
 plt.show()

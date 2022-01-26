@@ -60,17 +60,29 @@ def get_rank():
     else:
         raise NotImplementedError("Error, I do not know what is the rank with the {} parallelization".format(__PARALLEL_TYPE__))
         
-def broadcast(list_of_values):
+def broadcast(list_of_values, enforce_double = False, other_type = None):
     """
     Broadcast the list to all the processors from the master.
-    It returns a list equal for all the processors from the master
+    It returns a list equal for all the processors from the master.
+
+    If you are broadcasting a numpy array, use enforce_double. If the array is not a C double
+    type, specify the other_type (must be an MPI type).
     """
 
     if __PARALLEL_TYPE__ == "mpi4py":
         comm = mpi4py.MPI.COMM_WORLD
         if comm.Get_size() == 1:
             return list_of_values
-        return comm.bcast(list_of_values, root = 0)
+
+        if not enforce_double:
+            return comm.bcast(list_of_values, root = 0)
+        else:
+            total_shape = list_of_values.shape
+            mpitype =  mpi4py.MPI.DOUBLE
+            if other_type is not None:
+                mpitype = other_type
+            new_data = comm.Bcast([list_of_values.ravel(), np.prod(total_shape), mpitype], root = 0)
+            return new_data.reshape(total_shape)
     elif __PARALLEL_TYPE__ == "serial":
         return list_of_values
     else:

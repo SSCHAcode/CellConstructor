@@ -49,6 +49,29 @@ def get_energy_forces(calculator, structure):
     else:
         raise ValueError("Error, unknown calculator type")
 
+def get_results(calculator, structure, get_stress = True):
+    """
+    Accepts both an ASE calculator and a Calculator from Cellconstructor
+    and computes all the implemented properties (energy, forces and stress tensor).
+    """
+
+    results = {}
+    if isinstance(calculator, ase.calculators.calculator.Calculator):
+        atm = structure.get_ase_atoms()
+        atm.set_calculator(calculator)
+        results["energy"] = atm.get_total_energy()
+        results["forces"] = atm.get_forces()
+        if get_stress:
+            results["stress"] = atm.get_stress(voigt = False)
+    elif isinstance(calculator, Calculator):
+        calculator.calculate(structure)
+        results =  calculator.results
+    else:
+        raise ValueError("Error, unknown calculator type")
+
+    return results
+
+
 class FileIOCalculator(Calculator):
     def __init__(self):
         Calculator.__init__(self)

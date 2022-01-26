@@ -321,9 +321,9 @@ class Tensor2(GenericTensor):
         
         # Broadcast
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)       
         
         
@@ -534,9 +534,9 @@ class Tensor2(GenericTensor):
                 print(" ")
                 print(" ====================================================================")
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -618,7 +618,7 @@ class Tensor2(GenericTensor):
 
 
 
-        self.tensor = Settings.broadcast(self.tensor)        
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)        
         
 
 
@@ -1322,11 +1322,11 @@ class Tensor3():
                     
         # Broadcast            
                     
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)                    
                     
                     
@@ -1616,11 +1616,11 @@ class Tensor3():
                 print(" ")
                 print(" ====================================================================")
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -1704,7 +1704,7 @@ class Tensor3():
 
 
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
 
 
 
@@ -1957,18 +1957,18 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
         #
         self.x_r_vector2_sparse = Settings.broadcast(self.x_r_vector2_sparse)
         self.x_r_vector3_sparse = Settings.broadcast(self.x_r_vector3_sparse)
-        self.r_vector2_sparse = Settings.broadcast(self.r_vector2_sparse)
-        self.r_vector3_sparse = Settings.broadcast(self.r_vector3_sparse)
+        self.r_vector2_sparse = Settings.broadcast(self.r_vector2_sparse, enforce_double=True)
+        self.r_vector3_sparse = Settings.broadcast(self.r_vector3_sparse, enforce_double=True)
         self.n_R_sparse = Settings.broadcast(self.n_R_sparse)
         self.atom_sparse = Settings.broadcast(self.atom_sparse)
         self.r_blocks_sparse_list = Settings.broadcast(self.r_blocks_sparse_list)    
@@ -2053,7 +2053,7 @@ class Tensor3():
                 print(" ============================================================")
  
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
 
 
 
@@ -2142,11 +2142,11 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
 
 
@@ -2699,11 +2699,11 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -2798,11 +2798,11 @@ class Tensor3():
 
 
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -2942,11 +2942,11 @@ class Tensor3():
                 print(" ")
                 print(" ============================================================")
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
  
