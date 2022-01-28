@@ -718,7 +718,7 @@ class ThermalConductivity:
 
    ####################################################################################################################################
 
-    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', isotope_scattering = True, isotopes = None, \
+    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
             write_lineshapes=False, ne = 2000, kappa_filename = 'Thermal_conductivity'):
 
         """
@@ -729,6 +729,7 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
+        lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
         ne               : Number of frequency points to calculate phonon lineshapes on. Less anharmonic materials \
                            and lower temperatures will need more points.
@@ -772,7 +773,7 @@ class ThermalConductivity:
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, isotope_scattering=isotope_scattering, isotopes= isotopes)
+                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
                     kappa = kappa/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
@@ -783,7 +784,7 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, isotope_scattering, isotopes)
+                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, isotope_scattering, isotopes, lf_method = lf_method)
                     kappa_diag = kappa_diag/self.volume/float(self.nkpt)*1.0e30
                     kappa_nondiag = kappa_nondiag/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
@@ -813,7 +814,7 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_gk_offdiag(temperatures[itemp], write_lifetimes, energies)
+                    kappa_diag, kappa_nondiag = self.calculate_kappa_gk_offdiag(temperatures[itemp], write_lineshapes, energies)
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
                         kappa_file.write(3*' ' + format(kappa_diag[icart][icart], '.12e'))
@@ -1055,7 +1056,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, isotope_scattering = True, isotopes = None):
+    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculate lattice thermal conductivity using single relaxation time approximation at temperature. Calculates only including diagonal term.
@@ -1068,7 +1069,7 @@ class ThermalConductivity:
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon lifetimes for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes)
+            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
@@ -1076,7 +1077,7 @@ class ThermalConductivity:
             self.get_heat_capacity(temperature)
 
         if(write_lifetimes):
-            self.write_transport_properties_to_file(temperature)
+            self.write_transport_properties_to_file(temperature, isotope_scattering)
             
         kappa = np.einsum('ij,ijk,ijl,ij->kl',self.cp[cp_key],self.gvels,self.gvels,self.lifetimes[lf_key])
         kappa += kappa.T
@@ -1086,7 +1087,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, isotope_scattering = True, isotopes = None):
+    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Physics volume 15, pages 809–813 (2019)).
@@ -1099,7 +1100,7 @@ class ThermalConductivity:
         if(lf_key in self.lifetimes.keys()):
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes)
+            self.get_lifetimes(temperature, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
@@ -1107,7 +1108,7 @@ class ThermalConductivity:
         scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
 #        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
         if(write_lifetimes):
-            self.write_transport_properties_to_file(temperature)
+            self.write_transport_properties_to_file(temperature, isotope_scattering)
         kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels,self.gvels,self.lifetimes[lf_key])
 
         kappa_nondiag = np.zeros_like(kappa_diag)
@@ -1786,7 +1787,7 @@ class ThermalConductivity:
 
     ######################################################################################################################################
 
-    def write_transport_properties_to_file(self, temperature, filename = 'Phonon_transport_properties_'):
+    def write_transport_properties_to_file(self, temperature, isotope_scattering, filename = 'Phonon_transport_properties_'):
         """
         Write transport properties (frequencies, lifetimes, heat capacities) from SSCHA tensors to file.
 
@@ -1798,7 +1799,8 @@ class ThermalConductivity:
                 outfile.write('#  ' + format('Frequency (THz)', STR_FMT))
                 outfile.write('   ' + format('Lifetime (ps)', STR_FMT))
                 outfile.write('   ' + format('Freq. shift (THz)', STR_FMT))
-                outfile.write('   ' + format('Isotope scatt. rate (THz)', STR_FMT))
+                if(isotope_scattering):
+                    outfile.write('   ' + format('Isotope scatt. rate (THz)', STR_FMT))
                 outfile.write('   ' + format('Mode heat capacity (J/K)', STR_FMT))
                 outfile.write('\n')
                 for iqpt in range(self.nkpt):
@@ -1806,7 +1808,8 @@ class ThermalConductivity:
                         outfile.write(3*' ' + format(self.freqs[iqpt, iband]*SSCHA_TO_THZ, '.12e'))
                         outfile.write(3*' ' + format(self.lifetimes[lf_key][iqpt, iband]*1.0e12, '.12e'))
                         outfile.write(3*' ' + format(self.freqs_shifts[lf_key][iqpt, iband]*SSCHA_TO_THZ, '.12e'))
-                        outfile.write(3*' ' + format(self.scattering_rates_isotope[iqpt, iband]*SSCHA_TO_THZ, '.12e'))
+                        if(isotope_scattering):
+                            outfile.write(3*' ' + format(self.scattering_rates_isotope[iqpt, iband]*SSCHA_TO_THZ, '.12e'))
                         outfile.write(3*' ' + format(self.cp[lf_key][iqpt, iband], '.12e'))
                         outfile.write('\n')
         else:

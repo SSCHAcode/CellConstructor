@@ -24,13 +24,14 @@ module third_order_cond
             arg = tpi * SUM(q2(:)*R2(:,i_block) + q3(:)*R3(:,i_block))
             phase = CMPLX(Cos(arg),Sin(arg), kind=DP)
       !
-            DO c = 1,3*nat
-            DO b = 1,3*nat
-            DO a = 1,3*nat
-                fc_interp(a,b,c) = fc_interp(a,b,c) + phase*fc(i_block,a,b,c)
-            ENDDO
-            ENDDO
-            ENDDO
+!            DO c = 1,3*nat
+!            DO b = 1,3*nat
+!            DO a = 1,3*nat
+!                fc_interp(a,b,c) = fc_interp(a,b,c) + phase*fc(i_block,a,b,c)
+!            ENDDO
+!            ENDDO
+!            ENDDO
+             fc_interp = fc_interp + phase*fc(i_block,:,:,:)
       ! 
         END DO
 

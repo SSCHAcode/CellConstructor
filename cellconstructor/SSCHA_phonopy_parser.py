@@ -178,19 +178,41 @@ def phonopy_fc3_to_tensor3(tc):
         permutations = tc.symmetry.atomic_permutations
         distribute_fc3(tc.fc3, first_disp_atoms, target_atoms, phonon.supercell.cell.T, rotations, permutations, s2compact, verbose=False)
 
-    tensor3 = CC.ForceTensor.Tensor3(unitcell, supercell, np.diag(tc.supercell_matrix))
+    supercell_matrix = np.diag(tc.supercell_matrix).astype(int)
+    supercell_structure = unitcell.generate_supercell(supercell_matrix)
+#    print(supercell.coords)
+#    print(supercell_structure.coords)
+    atom_mapping = np.zeros(len(supercell.coords), dtype=int)
+    for iat in range(len(supercell.coords)):
+        found_atom = False
+        for jat in range(len(supercell.coords)):
+            if(np.linalg.norm(supercell.coords[iat] - supercell_structure.coords[jat]) < 1.0e-5):
+                atom_mapping[iat] = jat
+                found_atom = True
+                break
+        if(not found_atom):
+            print('Could not find ' + str(iat + 1) + ' atom in the structure!')
+#    print(atom_mapping)
+    tensor3 = CC.ForceTensor.Tensor3(unitcell, supercell_structure, supercell_matrix)
 
     aux_tensor = np.zeros((3*sc_nat, 3*sc_nat, 3*sc_nat))
     for iat in range(sc_nat):
+        iat1 = atom_mapping[iat]
         for jat in range(sc_nat):
+            jat1 = atom_mapping[jat]
             for kat in range(sc_nat):
+                kat1 = atom_mapping[kat]
                 for i in range(3):
                     for j in range(3):
                         for k in range(3):
-                            aux_tensor[iat*3+i, jat*3+j, kat*3+k] = tc.fc3[iat,jat,kat,i,j,k]
-
-    aux_tensor *= BOHR_TO_ANGSTROM**3/RY_TO_EV
-    tensor3.SetupFromTensor(aux_tensor)
+                            aux_tensor[iat1*3+i, jat1*3+j, kat1*3+k] = tc.fc3[iat,jat,kat,i,j,k]
+    d3 = np.asfortranarray(aux_tensor)
+    qe_sym = CC.symmetries.QE_Symmetry(supercell_structure)
+    qe_sym.SetupFromSPGLIB()
+    qe_sym.ApplySymmetryToTensor3(d3)
+    d3 *= BOHR_TO_ANGSTROM**3/RY_TO_EV
+    tensor3.SetupFromTensor(d3)
+    np.save("d3_realspace_sym.npy", d3)
 
     return tensor3
 
