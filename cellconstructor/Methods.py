@@ -1679,3 +1679,33 @@ def save_qe(dyn,q,dynq,freqs, pol_vects,fname):
                           np.real(pol_vects[3*i+2, mu]), np.imag(pol_vects[3*i+1,mu])))
         fp.write("*" * 75 + "\n")
         fp.close()    
+
+def transform_voigt(tensor, voigt_to_mat = False):
+    """
+    Transforms the voigt notation.
+    If voit_to_mat is True, the tensor is assumed to be in voigt format.
+    Otherwise it assumed as a 3x3 symmetric matrix (upper triangle will be read).
+    """
+
+    if voigt_to_mat:
+        assert len(tensor) == 6
+        new_tensor = np.zeros((3,3), dtype = type(tensor[0]))
+        for i in range(3):
+            new_tensor[i,i] = tensor[i]
+
+        new_tensor[1,2] = new_tensor[2,1] = tensor[3]
+        new_tensor[0,2] = new_tensor[2,0] = tensor[4]
+        new_tensor[1,0] = new_tensor[0,1] = tensor[5]
+    else:
+        assert tensor.shape == (3,3)
+        new_tensor = np.zeros(6, dtype =  type(tensor[0,0]))
+
+        for i in range(3):
+            new_tensor[i] = tensor[i,i]
+        new_tensor[3] = tensor[1,2]
+        new_tensor[4] = tensor[0,2]
+        new_tensor[5] = tensor[0,1]
+    
+    return new_tensor
+    
+

@@ -534,6 +534,50 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         return Methods.get_reciprocal_vectors(self.unit_cell) * 2 * np.pi
         #return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
+
+    def strain(self, strain_tensor, voigt = False, fix_volume = False):
+        """
+        APPLY A STRAIN TO THE STRUCTURE
+        ===============================
+
+        This method applies a strain tensor to the structure.
+        Note, it will not affect the current structure, 
+        but it returns a new strained strcture. 
+
+        Parameters
+        ----------
+            strain_tensor: ndarray (size = (3,3), dtype = np.double)
+                The strain tensor. It must be a 3x3 tensor.
+                If you want to use the Voigt notation, set voigt to true
+            voigt : bool
+                If true, the strain_tensor is assumed in the voigt notation
+                (a 6 element array).
+            fix_volume : bool
+                If true, impose a hard volume constrain, that prevents the train to 
+                change the total volume of the system.
+
+        Results
+        -------
+            strained_structure : CC.Structure.Structure()
+                The result of the strain.
+        """
+
+        if voigt:
+            strain_tensor = Methods.transform_voigt(strain_tensor, voigt_to_mat = True)
+
+        
+        I = np.eye(3)
+        unit_cell = self.unit_cell.dot( I + strain_tensor.transpose())
+        
+        if fix_volume:
+            # Fix the volume
+            unit_cell[:,:] *= self.get_volume() / np.abs(np.linalg.det(unit_cell))**(1/np.float64(3))
+        
+        strained_struct = self.copy()
+        strained_struct.change_unit_cell(unit_cell)
+
+        return strained_struct
+        
         
         
     def delete_copies(self, minimum_dist=1e-6, verbose=False):
