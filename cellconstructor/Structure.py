@@ -536,13 +536,26 @@ Error, to compute the volume the structure must have a unit cell initialized:
         #return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
 
     def strain(self, strain_tensor, voigt = False, fix_volume = False):
-        """
+        r"""
         APPLY A STRAIN TO THE STRUCTURE
         ===============================
 
         This method applies a strain tensor to the structure.
         Note, it will not affect the current structure, 
         but it returns a new strained strcture. 
+
+        Note: in the voigt representation, the off-diagonal terms of the strain tensor are intended as the sum
+        of the two symmetric components of the tensor.
+
+        .. math ::
+
+            \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\
+            2\epsilon_4 \\ 2\epsilon_5 \\ 2\epsilon_6 \end{pmatrix} = 
+            \begin{pmatrix} \epsilon_1 & \epsilon_6 & \epsilon_5 \\
+            \epsilon_6 & \epsilon_2 & \epsilon_4 \\
+            \epsilon_5 & \epsilon_4 & \epsilon_3 \end{pmatrix}
+
+            
 
         Parameters
         ----------
@@ -563,6 +576,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
 
         if voigt:
+            strain_tensor[3:] /= 2
             strain_tensor = Methods.transform_voigt(strain_tensor, voigt_to_mat = True)
 
         
