@@ -555,7 +555,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
             \epsilon_6 & \epsilon_2 & \epsilon_4 \\
             \epsilon_5 & \epsilon_4 & \epsilon_3 \end{pmatrix}
 
-            
+
 
         Parameters
         ----------
@@ -585,7 +585,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
         if fix_volume:
             # Fix the volume
-            unit_cell[:,:] *= self.get_volume() / np.abs(np.linalg.det(unit_cell))**(1/np.float64(3))
+            unit_cell[:,:] *= (self.get_volume() / np.abs(np.linalg.det(unit_cell)))**(1/np.float64(3))
         
         strained_struct = self.copy()
         strained_struct.change_unit_cell(unit_cell)
