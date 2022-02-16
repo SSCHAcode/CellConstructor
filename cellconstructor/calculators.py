@@ -10,7 +10,7 @@ import ase.calculators.calculator
 import cellconstructor.Settings as Settings
 
 import numpy as np
-
+import copy
 import sys, os
 
 
@@ -150,6 +150,21 @@ class Espresso(FileIOCalculator):
 
         assert len(list(self.pseudopotentials)) == len(list(self.masses)), "Error, pseudopotential and masses must match"
 
+    def setup_from_ase(self, ase_calc):
+        """
+        Copy the parameters from the ASE calculator
+        """
+
+        for kwarg in ase_calc.parameters:
+            self.__setattr__(kwarg, copy.deepcopy(ase_calc.parameters[kwarg]))
+
+        self.set_label(ase_calc.label)
+
+        #self.input_data = copy.deepcopy(ase_calc.parameters["input_data"])
+        #self.kpts = ase_calc.parameters["kpts"]
+        #self.koffset = ase_calc.parameters["koffset"]
+        #self.pseudopotentials = copy.deepcopy(ase_calc.parameters["pseudopotentials"])
+
     def write_input(self, structure):
         FileIOCalculator.write_input(self, structure)
 
@@ -157,9 +172,14 @@ class Espresso(FileIOCalculator):
 
         total_input = self.input_data
         total_input["system"].update({"nat" : structure.N_atoms, "ntyp" : len(typs), "ibrav" : 0})
-        total_input["control"].update({"outdir" : self.directory, "prefix" : self.label})
+        #total_input["control"].update({"outdir" : self.directory, "prefix" : self.label})
+        if not "prefix" in  total_input["control"]:
+            total_input["control"].update({"prefix" : self.label}) 
 
         scf_text = "".join(CC.Methods.write_namelist(total_input))
+
+        print("TOTAL INPUT:")
+        print(total_input)
 
         scf_text += """
 ATOMIC_SPECIES
@@ -193,6 +213,10 @@ K_POINTS automatic
         energy = 0
         read_forces = False
         counter = 0
+        stress = np.zeros((3,3), dtype = np.double)
+
+        read_stress = False
+        got_stress = False
         forces = np.zeros_like(self.structure.coords)
         with open(filename, "r") as fp:
             for line in fp.readlines():
@@ -208,6 +232,13 @@ K_POINTS automatic
 
                 if "Forces acting on atoms" in line:
                     read_forces = True
+                    read_stress = False
+                    continue
+                
+                if "total   stress" in line:
+                    read_stress = True
+                    read_forces = False
+                    counter = 0
                     continue
                 
                 if read_forces and len(data) == 9:
@@ -219,13 +250,24 @@ K_POINTS automatic
                     
                     if counter >= self.structure.N_atoms:
                         read_forces = False
+                
+                if read_stress and len(data) == 6:
+                    stress[counter, :] = [float(x) for x in data[:3]]
+                    counter += 1
+                    if counter == 3:
+                        got_stress = True
+                        read_stress = False
 
                 
         # Convert to match ASE conventions
         energy *= CC.Units.RY_TO_EV
         forces *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM
+        stress *= CC.Units.RY_PER_BOHR3_TO_EV_PER_A3
+        
 
         self.results = {"energy" : energy, "forces" : forces}
+        if got_stress:
+            self.results.update({"stress" : - stress})
         
 
         
