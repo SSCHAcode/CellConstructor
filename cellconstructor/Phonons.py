@@ -1753,15 +1753,26 @@ class Phonons:
         v =  np.einsum("ija, i, j", self.raman_tensor, pol_in, pol_out)        
         
         # Take out the translations from v
-        t1 = np.tile(np.array([1,0,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
-        t2 = np.tile(np.array([0,1,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
-        t3 = np.tile(np.array([0,0,1], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        #t1 = np.tile(np.array([1,0,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        #t2 = np.tile(np.array([0,1,0], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
+        #t3 = np.tile(np.array([0,0,1], dtype = np.float64), (self.structure.N_atoms, 1)).ravel()
         
-        v -= t1.dot(v)
-        v -= t2.dot(v)
-        v -= t3.dot(v)
+        #v -= t1.dot(v)
+        #v -= t2.dot(v)
+        #v -= t3.dot(v)
+
+        nat = np.shape(self.raman_tensor)[-1] // 3
+        dtype =  type(v[0])
+
+        trans = np.eye(3*nat, dtype = dtype)
+        for i in range(3):
+            v1 = np.zeros(3*nat, dtype = dtype)
+            v1[3*np.arange(nat)+i] = 1
+            v1 /= np.sqrt(v1.dot(v1))
+            
+            trans -= np.outer(v1,v1)
         
-        return v
+        return trans.dot(v)
     
     def GetRamanActive(self, use_spglib = False):
         """
