@@ -263,10 +263,12 @@ K_POINTS automatic
         energy *= CC.Units.RY_TO_EV
         forces *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM
         stress *= CC.Units.RY_PER_BOHR3_TO_EV_PER_A3
+        stress = CC.Methods.transform_voigt(stress)  # To be consistent with ASE, use voigt notation
         
 
         self.results = {"energy" : energy, "forces" : forces}
         if got_stress:
+            # Use voit
             self.results.update({"stress" : - stress})
         
 
