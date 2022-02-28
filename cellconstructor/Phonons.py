@@ -1473,11 +1473,13 @@ class Phonons:
                 if len(data) == 2:
                     x = int(data[0]) - 1
                     y = int(data[1]) - 1
+                    x = itau[x]
                     counter = 0
 
                     # Get the blocks
                     blocks = []
-                    DR = self.structure.coords[x] - superstruct.coords[y]
+                    #print(x, y)
+                    DR = self.structure.coords[x, :] - superstruct.coords[y,:]
                     for ia in range(superstruct.N_atoms):
                         if unit_cell_itau[itau[ia]] != x:
                             continue
