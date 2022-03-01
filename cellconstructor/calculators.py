@@ -237,8 +237,9 @@ K_POINTS automatic
                     continue
 
                 if read_structure:
-                    if line.replace("=", " ").split()[0] == "celldm(1)":
-                        alat *= float(line[1])
+                    new_data = line.replace("=", " ").split()
+                    if new_data[0] == "celldm(1)":
+                        alat *= float(new_data[1])
                     
                     if "number of atoms/cell" in line:
                         nat = int(data[-1])
