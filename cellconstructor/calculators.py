@@ -68,6 +68,8 @@ def get_results(calculator, structure, get_stress = True):
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         results =  calculator.results
+        if get_stress:
+            results["stress"] = CC.Methods.transform_voigt(results["stress"], voigt_to_mat = True)
     else:
         raise ValueError("Error, unknown calculator type")
 
