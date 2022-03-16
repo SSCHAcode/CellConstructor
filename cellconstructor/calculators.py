@@ -185,7 +185,7 @@ class Espresso(FileIOCalculator):
 
         typs = np.unique(structure.atoms)
 
-        total_input = self.input_data
+        total_input = copy.deepcopy(self.input_data)
         total_input["system"].update({"nat" : structure.N_atoms, "ntyp" : len(typs), "ibrav" : 0})
         #total_input["control"].update({"outdir" : self.directory, "prefix" : self.label})
         if not "prefix" in  total_input["control"]:
