@@ -144,7 +144,7 @@ class Espresso(FileIOCalculator):
         self.command = command
         self.kpts = kpts
         self.koffset = koffset
-        self.input_data = input_data
+        self.input_data = copy.deepcopy(input_data)  # Copy to avoid double modification
         self.pseudopotentials = pseudopotentials
         self.output_file = "PREFIX.pwo"
         if masses is None:
