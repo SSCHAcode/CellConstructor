@@ -1473,11 +1473,13 @@ class Phonons:
                 if len(data) == 2:
                     x = int(data[0]) - 1
                     y = int(data[1]) - 1
+                    x = itau[x]
                     counter = 0
 
                     # Get the blocks
                     blocks = []
-                    DR = self.structure.coords[x] - superstruct.coords[y]
+                    #print(x, y)
+                    DR = self.structure.coords[x, :] - superstruct.coords[y,:]
                     for ia in range(superstruct.N_atoms):
                         if unit_cell_itau[itau[ia]] != x:
                             continue
@@ -4073,7 +4075,7 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
 
-def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, progress = -1, progress_bar = False):
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, supercell = (1,1,1), progress = -1, progress_bar = False):
     """
     COMPUTE THE FORCE CONSTANT MATRIX
     =================================
@@ -4100,9 +4102,11 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
             The dynamical matrix
     """
 
-    final_dyn = Phonons(structure)
 
-    nat3 = 3 * structure.N_atoms
+    super_structure = structure.generate_supercell(supercell)
+    final_dyn = Phonons(super_structure)
+
+    nat3 = 3 * super_structure.N_atoms
     fc = np.zeros( (nat3, nat3), dtype = np.double)
 
     # Enable the parallel calculation
@@ -4120,7 +4124,7 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
 
     list_of_calculations = []
 
-    for i in range(structure.N_atoms):
+    for i in range(super_structure.N_atoms):
         for j in range(3):
             list_of_calculations.append((i,j))
 
@@ -4138,8 +4142,9 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
                 
 
 
-        s = structure.copy()
+        s = super_structure.copy()
         s.coords[i, j] += epsilon 
+
 
         ase_calculator.set_label("disp_{}".format(3*i + j))
         ase_calculator.directory = "disp_{}".format(3*i + j)
@@ -4161,7 +4166,7 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     energy = None
     forces = None
     if Settings.am_i_the_master():
-        energy, forces = calculators.get_energy_forces(ase_calculator, structure)
+        energy, forces = calculators.get_energy_forces(ase_calculator, super_structure)
         fc[:,:] += np.tile(forces.ravel(), (nat3, 1))
     Settings.barrier()
     fc = Settings.broadcast(fc)
@@ -4178,5 +4183,18 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
 
     # Convert to the correct units
     final_dyn.dynmats[0] = fc  / RY_TO_EV * BOHR_TO_ANGSTROM**2
+
+
+    # Now we have the dynamical matrix in the supercell, get the dynamical matrix in the correct unit cell
+    if np.prod(supercell) > 1:
+        correct_dyn = Phonons(structure, nqirr = np.prod(supercell))
+        q_tot = symmetries.GetQGrid(structure.unit_cell, supercell)
+        dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        for iq, q in enumerate(q_tot):
+            correct_dyn.dynmats[iq] = dynq[iq, :,:]
+            correct_dyn.q_tot[iq] = q
+        
+        correct_dyn.AdjustQStar()
+        final_dyn = correct_dyn
 
     return final_dyn

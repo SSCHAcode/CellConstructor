@@ -9,6 +9,8 @@ import ase.calculators.calculator
 
 import cellconstructor.Settings as Settings
 
+import cellconstructor.Units
+
 import numpy as np
 import copy
 import sys, os
@@ -66,6 +68,8 @@ def get_results(calculator, structure, get_stress = True):
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         results =  calculator.results
+        if get_stress:
+            results["stress"] = CC.Methods.transform_voigt(results["stress"], voigt_to_mat = True)
     else:
         raise ValueError("Error, unknown calculator type")
 
@@ -120,7 +124,7 @@ class FileIOCalculator(Calculator):
 
 
 class Espresso(FileIOCalculator):
-    def __init__(self,  input_data, pseudopotentials, masses = None, command = "pw.x -i PREFIX.pwi", kpts = (1,1,1), koffset = (0,0,0)):
+    def __init__(self,  input_data = {}, pseudopotentials = {}, masses = None, command = "pw.x -i PREFIX.pwi", kpts = (1,1,1), koffset = (0,0,0)):
         """
         ESPRESSO CALCULATOR
         ===================
@@ -226,7 +230,14 @@ K_POINTS automatic
 
         read_stress = False
         got_stress = False
-        forces = np.zeros_like(self.structure.coords)
+        read_structure = False
+        read_coords = False
+        alat = CC.Units.A_TO_BOHR
+        if self.structure is None:
+            read_structure = True
+        else:
+            forces = np.zeros_like(self.structure.coords)
+
         with open(filename, "r") as fp:
             for line in fp.readlines():
                 line = line.strip()
@@ -235,6 +246,43 @@ K_POINTS automatic
                 # Avoid white lines
                 if not line:
                     continue
+
+                if read_structure:
+                    new_data = line.replace("=", " ").split()
+                    if new_data[0] == "celldm(1)":
+                        alat *= float(new_data[1])
+                    
+                    if "number of atoms/cell" in line:
+                        nat = int(data[-1])
+                        self.structure = CC.Structure.Structure(nat)
+                        self.structure.has_unit_cell = True
+                        self.structure.unit_cell = np.eye(3)
+                        forces = np.zeros_like(self.structure.coords)
+
+                    if data[0] == "a(1)":
+                        self.structure.unit_cell[0,:] = [float(x) * alat for x in data[3:-1]]
+                    if data[0] == "a(2)":
+                        self.structure.unit_cell[1,:] = [float(x) * alat for x in data[3:-1]]
+                    if data[0] == "a(3)":
+                        self.structure.unit_cell[2,:] = [float(x) * alat for x in data[3:-1]]
+                    
+                    if "Cartesian axes" in line:
+                        read_coords = True
+
+
+                    if read_coords:
+                        # Improve the split of the line to avoid merging numbers
+                        data = line.replace("-", " -").replace("(", "( ").split()
+                        if len(data) == 10:
+                            i_atm = int(data[0]) - 1
+                            self.structure.coords[i_atm, :] = [float(x) for x in data[6:9]]
+                            self.structure.atoms[i_atm] = data[1]
+                            if i_atm == self.structure.N_atoms - 1:
+                                read_coords = False
+                                read_structure = False
+                            continue
+
+
 
                 if line[0] == "!":
                     energy = float(data[4])
