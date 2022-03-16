@@ -150,6 +150,15 @@ class Espresso(FileIOCalculator):
 
         assert len(list(self.pseudopotentials)) == len(list(self.masses)), "Error, pseudopotential and masses must match"
 
+
+    def set_label(self, lbl, override_prefix = True, *args, **kwargs):
+        FileIOCalculator.set_label(self, lbl, *args, **kwargs)
+
+        # Enforce the override of the prefix
+        if override_prefix:
+            if "control" in self.input_data:
+                self.input_data["control"].update({"prefix" : lbl})
+
     def setup_from_ase(self, ase_calc):
         """
         Copy the parameters from the ASE calculator
