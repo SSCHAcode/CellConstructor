@@ -10,6 +10,7 @@ import ase.calculators.calculator
 import cellconstructor.Settings as Settings
 
 import cellconstructor.Units
+import copy
 
 import numpy as np
 import copy
@@ -161,6 +162,7 @@ class Espresso(FileIOCalculator):
         # Enforce the override of the prefix
         if override_prefix:
             if "control" in self.input_data:
+                self.input_data = copy.deepcopy(self.input_data)
                 self.input_data["control"].update({"prefix" : lbl})
 
     def setup_from_ase(self, ase_calc):
