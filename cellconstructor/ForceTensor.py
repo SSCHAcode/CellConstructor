@@ -727,6 +727,7 @@ class Tensor2(GenericTensor):
                 If q2 is gamma and effective charges are present, this vector is used
                 to pick the direction of the nonanalitical correction to apply.
                 If it is not initialized, a random versor will be chosen.
+                If it is the 0 vector, the nonanalitic correction at gamma will be avoided.
 
         Results
         -------
@@ -756,16 +757,21 @@ class Tensor2(GenericTensor):
             # Check if the vector is gamma
             if np.max(np.abs(q2)) < 1e-12:
                 q_vect = np.zeros(3, dtype = np.double)
+                compute_nonanal = True
                 if q_direct is not None:
                     # the - to take into account the difference between QE convension and our
-                    q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
+                    if np.linalg.norm(q_direct) < 1e-8:
+                        compute_nonanal = False
+                    else:
+                        q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
                 else:
                     q_vect[:] = np.random.normal(size = 3)
                     q_vect /= np.sqrt(q_vect.dot(q_vect))
 
                 # Apply the nonanal contribution at gamma
-                QE_itau = np.arange(self.nat) + 1
-                symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
+                if compute_nonanal:
+                    QE_itau = np.arange(self.nat) + 1
+                    symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
 
             # Copy in the final fc the result
             for i in range(self.nat):
@@ -980,7 +986,7 @@ class Tensor2(GenericTensor):
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = np.conj(self.Interpolate(q_vector, asr = asr))
+            dynq = self.Interpolate(-q_vector, asr = asr)
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
