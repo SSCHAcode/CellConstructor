@@ -245,7 +245,7 @@ K_POINTS automatic
         got_stress = False
         read_structure = False
         read_coords = False
-        alat = CC.Units.A_TO_BOHR
+        alat = CC.Units.BOHR_TO_ANGSTROM
         if self.structure is None:
             read_structure = True
         else:
@@ -288,7 +288,7 @@ K_POINTS automatic
                         data = line.replace("-", " -").replace("(", "( ").split()
                         if len(data) == 10:
                             i_atm = int(data[0]) - 1
-                            self.structure.coords[i_atm, :] = [float(x) for x in data[6:9]]
+                            self.structure.coords[i_atm, :] = [float(x) * alat for x in data[6:9]]
                             self.structure.atoms[i_atm] = data[1]
                             if i_atm == self.structure.N_atoms - 1:
                                 read_coords = False
