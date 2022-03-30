@@ -1466,43 +1466,59 @@ class Phonons:
                     nat_prim = int(data[0])
                     nat_tot = int(data[1])
                     continue
-
-                if not line:
-                    continue
                 
-                if len(data) == 2:
-                    x = int(data[0]) - 1
-                    y = int(data[1]) - 1
-                    x = itau[x]
-                    counter = 0
+                iteration = (i - 1) // 4
+                counter = (i-1) % 4
+                x = iteration // nat_tot
+                y = iteration % nat_tot
 
-                    # Get the blocks
-                    blocks = []
-                    #print(x, y)
-                    DR = self.structure.coords[x, :] - superstruct.coords[y,:]
-                    for ia in range(superstruct.N_atoms):
-                        if unit_cell_itau[itau[ia]] != x:
-                            continue
-                        for ib in range(superstruct.N_atoms):
-                            if unit_cell_itau[itau[ib]] != unit_cell_itau[itau[y]]:
-                                continue
-                            
-                            # Check if the two ia and ib are the correct block
-                            delta_r = superstruct.coords[ia, :] - superstruct.coords[ib, :]
-                            dist = Methods.get_closest_vector(superstruct.unit_cell, DR - delta_r)
-                            if np.linalg.norm(dist) < __EPSILON__:
-                                blocks.append((ia,ib))
-
-                elif len(data) == 3:
-                    FC_TMP[counter, :] = [float(fx) for fx in data]
-                    counter += 1
+                if counter > 0:
+                    for new_x in np.arange(superstruct.N_atoms)[itau == x]:
+                        fc[3 * new_x + counter -1, 3*y: 3*y + 3] = [float(fx) for fx in data]
+                        fc[3*y: 3*y + 3, 3 * new_x + counter -1] = [float(fx) for fx in data]
+                #     counter += 1
                     
-                    if counter == 3:
-                        # Save the FC in the correct blocks
-                        counter = 0
-                        for ia, ib in blocks:
-                            fc[3*ia : 3*ia + 3, 3*ib: 3*ib + 3] = FC_TMP
-                            fc[3*ib : 3*ib + 3, 3*ia: 3*ia + 3] = FC_TMP
+                #     if counter == 3:
+                #         # Save the FC in the correct blocks
+                #         counter = 0
+                #         for ia, ib in blocks:
+                #             fc[3*ia : 3*ia + 3, 3*ib: 3*ib + 3] = FC_TMP
+                #             fc[3*ib : 3*ib + 3, 3*ia: 3*ia + 3] = FC_TMP
+                
+
+                # if len(data) == 2:
+                #     #x = int(data[0]) - 1
+                #     #y = int(data[1]) - 1
+                #     #x = itau[x]
+                #     counter = 0
+
+                #     # Get the blocks
+                #     blocks = []
+                #     #print(x, y)
+                #     DR = self.structure.coords[x, :] - superstruct.coords[y,:]
+                #     for ia in range(superstruct.N_atoms):
+                #         if unit_cell_itau[itau[ia]] != x:
+                #             continue
+                #         for ib in range(superstruct.N_atoms):
+                #             if unit_cell_itau[itau[ib]] != unit_cell_itau[itau[y]]:
+                #                 continue
+                            
+                #             # Check if the two ia and ib are the correct block
+                #             delta_r = superstruct.coords[ia, :] - superstruct.coords[ib, :]
+                #             dist = Methods.get_closest_vector(superstruct.unit_cell, DR - delta_r)
+                #             if np.linalg.norm(dist) < __EPSILON__:
+                #                 blocks.append((ia,ib))
+
+                # elif len(data) == 3:
+                #     FC_TMP[counter, :] = [float(fx) for fx in data]
+                #     counter += 1
+                    
+                #     if counter == 3:
+                #         # Save the FC in the correct blocks
+                #         counter = 0
+                #         for ia, ib in blocks:
+                #             fc[3*ia : 3*ia + 3, 3*ib: 3*ib + 3] = FC_TMP
+                #             fc[3*ib : 3*ib + 3, 3*ia: 3*ia + 3] = FC_TMP
             
         
         # Now transform back in real space

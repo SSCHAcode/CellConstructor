@@ -90,7 +90,9 @@ class FileIOCalculator(Calculator):
         if not os.path.isdir(self.directory):
             os.makedirs(self.directory)
         
-        self.structure = structure
+        # This is not thread safe, as writing the input override the structure of the shared calculator object
+        # Which is then overridden by the read_results
+        #self.structure = structure.copy()
 
     def calculate(self, structure):
         self.write_input(structure)
@@ -219,8 +221,10 @@ K_POINTS automatic
     def read_results(self):
         FileIOCalculator.read_results(self)
 
+
         filename = os.path.join(self.directory, self.label + ".pwo")
 
+        print('READING RESULTS FROM FILE ', filename)
         
         #   Settings.all_print("reading {}".format(filename))
         #atm = ase.io.read(filename)
@@ -324,6 +328,7 @@ K_POINTS automatic
         stress *= CC.Units.RY_PER_BOHR3_TO_EV_PER_A3
         stress = CC.Methods.transform_voigt(stress)  # To be consistent with ASE, use voigt notation
         
+        print('READING RESULTS : energy = {}.'.format(energy))
 
         self.results = {"energy" : energy, "forces" : forces}
         if got_stress:
