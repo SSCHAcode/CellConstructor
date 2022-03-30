@@ -35,6 +35,9 @@ class Calculator:
         self.results = {}
         self.structure = None  
 
+    def set_directory(self):
+        pass
+
 
 
 def get_energy_forces(calculator, structure):
@@ -104,6 +107,10 @@ class FileIOCalculator(Calculator):
 
     def set_directory(self, directory):
         self.directory = directory
+
+        # Produce the directory if it does not exists
+        if not os.path.exists(directory):
+            os.makedirs(directory)
     
     def execute(self):
         #cmd = "cd {} && {} && cd ..".format(self.directory, self.command.replace("PREFIX", self.label))
