@@ -164,6 +164,13 @@ class Espresso(FileIOCalculator):
 
         assert len(list(self.pseudopotentials)) == len(list(self.masses)), "Error, pseudopotential and masses must match"
 
+    def copy(self):
+        """
+        Return an identical instance, without inhering the info of the calculation.
+        """
+        new_class = Espresso(self.input_data, self.pseudopotentials, self.masses, self.command, self.kpts, self.koffset)
+        return new_class
+
 
     def set_label(self, lbl, override_prefix = True, *args, **kwargs):
         FileIOCalculator.set_label(self, lbl, *args, **kwargs)
