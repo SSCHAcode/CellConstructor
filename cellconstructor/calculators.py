@@ -232,7 +232,7 @@ K_POINTS automatic
             fp.write(scf_text)
         
 
-    def read_results(self):
+    def read_results(self, override_structure = True):
         FileIOCalculator.read_results(self)
 
 
@@ -250,7 +250,7 @@ K_POINTS automatic
 
         read_stress = False
         got_stress = False
-        read_structure = False
+        read_structure = override_structure
         read_coords = False
         alat = CC.Units.BOHR_TO_ANGSTROM
         if self.structure is None:
