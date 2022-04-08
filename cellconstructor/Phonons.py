@@ -2961,6 +2961,9 @@ WARNING: Effective charges are not accounted by this method
             self.dynmats[iq] = fcq[iq, :, :]
 
         # Symmetrize also the effective charges and the Raman Tensor if any
+        # To do this, the symmetries must be initialized once again in the unit cell
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        qe_sym.SetupFromSPGLIB()
         if not self.effective_charges is None:
             qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
         if not self.raman_tensor is None:
