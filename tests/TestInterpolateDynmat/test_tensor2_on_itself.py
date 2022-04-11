@@ -18,11 +18,14 @@ def test_interpolate_on_itself(dyn_name, nqirr, verbose = False):
 
     # Load the dynamical matrix
     dyn = CC.Phonons.Phonons(dyn_name, nqirr)
+    dyn.Symmetrize()
 
     t2 = CC.ForceTensor.Tensor2(dyn.structure,
                                 dyn.structure.generate_supercell(dyn.GetSupercell()),
                                 dyn.GetSupercell())
     t2.SetupFromPhonons(dyn)
+    t2.Center(Far = 3)
+    #t2.Apply_ASR()
 
     m = dyn.structure.get_masses_array()
     m = np.tile(m, (3,1)).T.ravel()

@@ -253,6 +253,11 @@ K_POINTS automatic
         read_structure = override_structure
         read_coords = False
         alat = CC.Units.BOHR_TO_ANGSTROM
+
+        # If we read until the stress
+        # Everything went correctly, otherwise check for the JOB DONE
+        job_done = False
+
         if self.structure is None:
             read_structure = True
         else:
@@ -266,6 +271,10 @@ K_POINTS automatic
                 # Avoid white lines
                 if not line:
                     continue
+                
+                # Check if the script exited correctly
+                if "JOB DONE" in line:
+                    job_done = True
 
                 if read_structure:
                     new_data = line.replace("=", " ").split()
@@ -342,13 +351,17 @@ K_POINTS automatic
         stress *= CC.Units.RY_PER_BOHR3_TO_EV_PER_A3
         stress = CC.Methods.transform_voigt(stress)  # To be consistent with ASE, use voigt notation
         
-        print('READING RESULTS : energy = {}.'.format(energy))
+        print('READING RESULTS : energy = {} | job done = {}'.format(energy, job_done))
 
-        self.results = {"energy" : energy, "forces" : forces}
-        if got_stress:
-            # Use voit
-            self.results.update({"stress" : - stress})
-        
+        # Everything went on correctly, update the results
+        if job_done or got_stress:
+            self.results = {"energy" : energy, "forces" : forces}
+            if got_stress:
+                # Use voit
+                self.results.update({"stress" : - stress})
+        else:
+            self.results = None
+            
 
         
 
