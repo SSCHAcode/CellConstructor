@@ -2163,7 +2163,7 @@ class Phonons:
         
         # Compute the entropy for each mode
         av_energy = Kb_ry * beta * w / (2 * np.tanh(beta * w / 2))
-        entropy = av_energy - Kb_ry * np.log(np.sinh(beta * w / 2))
+        entropy = av_energy - Kb_ry * np.log(2*np.sinh(beta * w / 2))
 
         return np.sum(entropy)
 
