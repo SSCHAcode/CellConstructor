@@ -167,7 +167,7 @@ def gaussian(x, x0, sigma):
 
     ####################################################################################################################################
 
-def heat_capacity(freqs, temperature, hbar1, kb1):
+def heat_capacity(freqs, temperature, hbar1, kb1, cp_mode = 'quantum'):
 
     """
 
@@ -177,14 +177,18 @@ def heat_capacity(freqs, temperature, hbar1, kb1):
     temperature - temperature at which to calculate heat capacity
     hbar1 - reduced Planck's constant in appropriate units
     kb1   - Boltzmann constant in appropriate units
+    mode - how to treat phonon populations, quantum - bose einstein, classical - kbT/hbar\omega
 
     """
-
-    if(freqs > 0.0):
-        x1 = np.exp(hbar1*freqs/kb1/temperature)
-        return (hbar1*freqs)**2*x1/kb1/temperature**2/(x1-1.0)**2
-    else:
-        return 0.0
+    if(cp_mode == 'quantum'):
+        if(freqs > 0.0):
+            x1 = np.exp(hbar1*freqs/kb1/temperature)
+            return (hbar1*freqs)**2*x1/kb1/temperature**2/(x1-1.0)**2
+        else:
+            return 0.0
+    elif(cp_mode == 'classical'):
+        return kb1
+    
 
     #####################################################################################################################################
 
@@ -202,7 +206,9 @@ def same_vector(vec1, vec2, cell):
 
     invcell = np.linalg.inv(cell)
     rvec1 = np.dot(vec1, invcell)
+    rvec1 -= np.rint(rvec1)
     rvec2 = np.dot(vec2, invcell)
+    rvec2 -= np.rint(rvec2)
     res = False
 
     if(np.linalg.norm(rvec1 - rvec2) < 1.0e-4):
@@ -245,6 +251,51 @@ def same_vector(vec1, vec2, cell):
                         curr_degs.append(j)
                 degs.append(curr_degs)
         return degs
+
+def stupid_centering_fc3(tensor3):
+
+    rprim = tensor3.unitcell_structure.unit_cell.copy()
+    print(rprim)
+    positions = tensor3.unitcell_structure.coords.copy()
+    xpos = np.dot(positions, np.linalg.inv(rprim))
+    natom = len(xpos)
+    print(xpos)
+    symbols = tensor3.unitcell_structure.atoms
+    unique_symbols = np.unique(symbols)
+    unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
+    numbers = np.zeros(len(symbols))
+    for iat in range(len(symbols)):
+        for jat in range(len(unique_symbols)):
+            if(symbols[iat] == unique_symbols[jat]):
+                numbers[iat] = unique_numbers[jat]
+    print(numbers)
+    cell = (rprim, xpos, numbers)
+
+    if(tensor3.n_R == tensor3.n_sup**2):
+        print('Not previously centered. Stupid centering!')
+        for ir in range(tensor3.n_R):
+            xvec2 = tensor3.x_r_vector2[:,ir]
+            xvec3 = tensor3.x_r_vector3[:,ir]
+            xvec2_old = xvec2.copy()
+            xvec3_old = xvec3.copy()
+            rvec2 = np.dot(xvec2, cell[0])
+            rvec3 = np.dot(xvec3, cell[0])
+            for i in range(3):
+                if(xvec2[i] > float(tensor3.supercell_size[i])/2.0):
+                    xvec2[i] -= tensor3.supercell_size[i]
+                elif(xvec2[i] <= -1.0*float(tensor3.supercell_size[i])/2.0):
+                    xvec2[i] += tensor3.supercell_size[i]
+                if(xvec3[i] > float(tensor3.supercell_size[i])/2.0):
+                    xvec3[i] -= tensor3.supercell_size[i]
+                elif(xvec3[i] <= -1.0*float(tensor3.supercell_size[i])/2.0):
+                    xvec3[i] += tensor3.supercell_size[i]
+            tensor3.x_r_vector2[:,ir] = xvec2
+            tensor3.x_r_vector3[:,ir] = xvec3
+            tensor3.r_vector2[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector2[:,ir])
+            tensor3.r_vector3[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector3[:,ir])
+    else:
+        print('Probably already centered! Nothing to do!')
+    return tensor3
 
 class ThermalConductivity:
 
@@ -718,7 +769,7 @@ class ThermalConductivity:
 
    ####################################################################################################################################
 
-    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
+    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', cp_mode = 'quantum', gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
             write_lineshapes=False, ne = 2000, kappa_filename = 'Thermal_conductivity'):
 
         """
@@ -729,6 +780,7 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
+        cp_mode          : How to handle phonon populations (quantum or classical)
         gauss_smearing   : If true will use the Gaussian function to satisfy energy conservation insted of Lorentzian
         lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
@@ -774,7 +826,7 @@ class ThermalConductivity:
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
+                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, cp_mode = cp_mode, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
                     kappa = kappa/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
@@ -785,7 +837,7 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
+                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, cp_mode = cp_mode, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
                     kappa_diag = kappa_diag/self.volume/float(self.nkpt)*1.0e30
                     kappa_nondiag = kappa_nondiag/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
@@ -960,6 +1012,9 @@ class ThermalConductivity:
 
             lineshapes = np.zeros((self.nkpt, self.nband, len(energies)))
             if(not self.set_up_scattering_grids):
+                #if(gauss_smearing):
+                #    self.set_scattering_grids_simple()
+                #else:
                 self.set_scattering_grids_fortran()
 
             irrqgrid = np.zeros((3, self.nirrkpt))
@@ -1040,7 +1095,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_heat_capacity(self, temperature):
+    def get_heat_capacity(self, temperature, cp_mode = 'quantum'):
 
         """
         Calculate phonon mode heat capacity at temperature.
@@ -1051,13 +1106,13 @@ class ThermalConductivity:
         cp = np.zeros_like(self.freqs)
         for ikpt in range(self.nkpt):
             for iband in range(self.nband):
-                cp[ikpt, iband] = heat_capacity(self.freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB)
+                cp[ikpt, iband] = heat_capacity(self.freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = cp_mode)
         self.cp[cp_key] = cp
 
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, gauss_smearing = False, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
+    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, cp_mode = 'quantum', gauss_smearing = False, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculate lattice thermal conductivity using single relaxation time approximation at temperature. Calculates only including diagonal term.
@@ -1070,12 +1125,12 @@ class ThermalConductivity:
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon lifetimes for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
+            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method, cp_mode = cp_mode)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon mode heat capacities for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_heat_capacity(temperature)
+            self.get_heat_capacity(temperature, cp_mode = cp_mode)
 
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
@@ -1088,7 +1143,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
+    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, cp_mode = 'quantum', gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Physics volume 15, pages 809–813 (2019)).
@@ -1101,11 +1156,11 @@ class ThermalConductivity:
         if(lf_key in self.lifetimes.keys()):
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
+            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method, cp_mode = cp_mode)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_heat_capacity(temperature)
+            self.get_heat_capacity(temperature, cp_mode = cp_mode)
         scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
 #        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
         if(write_lifetimes):
@@ -1203,7 +1258,7 @@ class ThermalConductivity:
   
     ####################################################################################################################################
    
-    def get_lifetimes(self, temperature, gauss_smearing = False, isotope_scattering = True, isotopes = None, method = 'fortran-LA'):
+    def get_lifetimes(self, temperature, gauss_smearing = False, isotope_scattering = True, isotopes = None, method = 'fortran-LA', cp_mode = 'quantum'):
 
         """
         Get phonon lifetimes in the full Brillouin zone at temperature.
@@ -1220,6 +1275,9 @@ class ThermalConductivity:
         """
 
         if(not self.set_up_scattering_grids):
+            #if(gauss_smearing):
+            #    self.set_scattering_grids_simple()
+            #else:
             self.set_scattering_grids_fortran()
 
         if(isotope_scattering and not self.got_scattering_rates_isotopes):
@@ -1300,10 +1358,14 @@ class ThermalConductivity:
             scattering_grids = np.asfortranarray(scattering_grids).T
             weights = np.asfortranarray(weights)
 
+            classical = False
+            if(cp_mode == 'classical'):
+                classical = True
+
             selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
                     self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), self.sigmas.T, temperature, \
-                    gauss_smearing, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
+                    gauss_smearing, classical, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
                     num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
