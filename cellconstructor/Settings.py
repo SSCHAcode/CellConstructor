@@ -67,7 +67,13 @@ def broadcast(list_of_values, enforce_double = False, other_type = None):
 
     If you are broadcasting a numpy array, use enforce_double. If the array is not a C double
     type, specify the other_type (must be an MPI type).
+
+    NOTE: Now enforce_double is just a dumb variable, as it is always overridded.
+          It seems that Bcast does not work as expected
     """
+
+    # STRONG OVERRIDE OVER ENFORCE DOUBLE THAT IS NOT WORKING
+    enforce_double = False 
 
     if __PARALLEL_TYPE__ == "mpi4py":
         comm = mpi4py.MPI.COMM_WORLD
@@ -81,7 +87,8 @@ def broadcast(list_of_values, enforce_double = False, other_type = None):
             mpitype =  mpi4py.MPI.DOUBLE
             if other_type is not None:
                 mpitype = other_type
-            new_data = comm.Bcast([list_of_values.ravel(), np.prod(total_shape), mpitype], root = 0)
+            new_data = list_of_values.ravel()
+            comm.Bcast([new_data, np.prod(total_shape), mpitype], root = 0)
             return new_data.reshape(total_shape)
     elif __PARALLEL_TYPE__ == "serial":
         return list_of_values
