@@ -268,7 +268,7 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
     # Extract the good one
     w = ws[mode_id]
     _m_ = np.tile(dynmat.structure.get_masses_array(), (3,1)).T.ravel()
-    polv = polvects[:, mode_id] / _m_
+    polv = polvects[:, mode_id] / np.sqrt(_m_)
     polv /= np.linalg.norm(polv)
     
     # Get the basis structure
