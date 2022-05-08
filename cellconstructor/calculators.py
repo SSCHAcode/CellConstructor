@@ -457,8 +457,18 @@ class Relax:
                 struc = self.structure.copy()
                 struc.coords[:,:] = xk.reshape(struc.coords.shape)
                 self.trajectory.append(struc)
+
+        if self.verbose:
+            print("STATIC STRUCTURE RELAX")
+            print()
+            print("{:5s}  {:16s}      {:16s}     ".format("ITERS", "ENERGY", "FORCE GRAD"))
+            print("--------------------------------------------------")
+
         
         res = scipy.optimize.minimize(func, self.structure.coords.ravel(), method = self.method, jac = True, callback = callback, **kwargs)
+
+        if self.verbose:
+            print()
 
         final_struct = self.structure.copy()
         final_struct.coords[:,:] = res.x.reshape(final_struct.coords.shape)
