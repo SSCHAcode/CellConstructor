@@ -222,8 +222,25 @@ def load_scf_trajectory(fname):
 
     return structures
                 
-            
+def save_scf_trajectory(fname, trajectory):
+    """
+    Load a list of scf structures as a trajectory from the given filename
 
+    Parameters
+    ----------
+        fname : string
+            Path to the file on which the trajectory is saved
+        trajectory : list
+            The list of cellconstructor structures
+    
+    """
+
+    with open(fname, "w") as fp:
+        for s in trajectory:
+            text = s.save_scf(None, get_text = True) 
+            fp.write(text)
+            fp.write("\n")
+            
 
 def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1), w_pols = None):
     """

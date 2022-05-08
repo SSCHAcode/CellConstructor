@@ -1,3 +1,4 @@
+from ast import Delete
 import cellconstructor as CC
 import cellconstructor.Structure
 import cellconstructor.Methods
@@ -369,72 +370,101 @@ K_POINTS automatic
         
 
 # Here the methods to minimize the structure with a standard calculator
-def static_relax(structure, calculator, method = "BFGS", verbose = True, **kwargs):
-    """
-    RELAX THE STRUCTURE
-    -------------------
+class Relax:
+    def __init__(self, structure, calculator, method = "BFGS", verbose = True, store_trajectory = True):
+        """
+        Class that perform the structure relaxation.
 
-    Relax the structure keeping fixed the lattice parameters using a BFGS algorithm.
+        Parameters
+        ----------
+            structure : CC.Structure.Structure()
+                The atomic structure
+            calculator : CC.calculators.Calculator()
+                The CellConstructor (or ASE) calculator.
+            method : string
+                The algorithm for the minimization. Default BFGS
+            verbose : bool
+                If true, prints the current total energy and forces
+            store_trajector : bool
+                If true, the trajectory of the minimization is saved in self.trajectory
+        """
+        self.structure = structure
+        self.calculator = calculator
+        self.method = method
+        self.verbose = verbose
+        self.store_trajectory = store_trajectory
 
-    Parameters
-    ----------
-        structure : CC.Structure.Structure()
-            The atomic structure
-        calculator : CC.calculators.Calculator()
-            The CellConstructor (or ASE) calculator.
-        method : string
-            The algorithm for the minimization. Default BFGS
-        verbose : bool
-            If true, prints the current total energy and forces
-        **kwargs : 
-            Any optional arguments of scipy.optimize.minimize to control
-            the minimization.
+        self.trajectory = []
 
-    Results
-    -------
-        optimized_structure : CC.Structure.Structure()
-            The structure after the optimization
-    """
+        # Usefull variables to track the energy and add a callback
+        self.last_eval = None
+        self.last_energy = None
+        self.last_force = None
+        self.iterations = 1
 
-
-    # Parse the function to match the scipy minimizer
-    last_eval = np.zeros(structure.coords.ravel().shape, dtye = np.double)
-    last_energy = 0
-    last_force = np.zeros_like(last_eval)
-    iterations = 1
-
-    def func(x):
-        global last_eval
-        global last_energy
-        global last_force
-
-        if np.linalg.norm(x - last_eval) < 1e-16:
-            return last_energy, last_force
-
-        struct = structure.copy()
-        struct.coords[:,:] = x.reshape(struct.coords.shape)
-
-        energy, forces = get_energy_forces(struct, calculator)
-
-        last_eval[:] = x.copy()
-        last_energy = energy
-        last_force[:] = -forces.ravel().copy()
-
-        return energy, -forces.ravel()
-
-    def callback(xk):
-        global iterations
         
-        if verbose:
-            energy, force = func(xk)
-            print("{:5d}) {:16.8f} eV   {:16.8f} eV/A".format(iterations, energy, np.linalg.norm(force)))
-    
-    res = scipy.optimize.minimize(func, structure.coords.ravel(), method = method, jac = True, callback = callback)
+    def static_relax(self, **kwargs):
+        """
+        RELAX THE STRUCTURE
+        -------------------
 
-    final_struct = structure.copy()
-    final_struct.coords[:,:] = res.x.reshape(final_struct.coords.shape)
+        Relax the structure keeping fixed the lattice parameters using a BFGS algorithm.
 
-    return final_struct
+        Parameters
+        ----------
+            **kwargs : 
+                Any optional arguments of scipy.optimize.minimize to control
+                the minimization.
+
+        Results
+        -------
+            optimized_structure : CC.Structure.Structure()
+                The structure after the optimization
+        """
+
+        if "method" in kwargs:
+            self.method = kwargs["method"]
+
+
+        # Parse the function to match the scipy minimizer
+        self.last_eval = np.zeros(self.structure.coords.ravel().shape, dtype = np.double)
+        self.last_energy = 0
+        self.last_force = np.zeros_like(self.last_eval)
+
+        def func(x):
+            if np.linalg.norm(x - self.last_eval) < 1e-16:
+                return self.last_energy, self.last_force
+
+            struct = self.structure.copy()
+            struct.coords[:,:] = x.reshape(struct.coords.shape)
+
+            energy, forces = get_energy_forces(self.calculator, struct)
+
+            self.last_eval[:] = x.copy()
+            self.last_energy = energy
+            self.last_force[:] = -forces.ravel().copy()
+
+            return energy, -forces.ravel()
+
+        def callback(xk):
+            
+            if self.verbose:
+                energy, force = func(xk)
+                print("{:5d}) {:16.8f} eV   {:16.8f} eV/A".format(self.iterations, energy, np.linalg.norm(force)))
+                self.iterations += 1
+            
+            if self.store_trajectory:
+                struc = self.structure.copy()
+                struc.coords[:,:] = xk.reshape(struc.coords.shape)
+                self.trajectory.append(struc)
+        
+        res = scipy.optimize.minimize(func, self.structure.coords.ravel(), method = self.method, jac = True, callback = callback, **kwargs)
+
+        final_struct = self.structure.copy()
+        final_struct.coords[:,:] = res.x.reshape(final_struct.coords.shape)
+        self.structure = final_struct
+
+        return final_struct
 
 
 
