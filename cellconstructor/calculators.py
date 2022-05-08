@@ -12,9 +12,12 @@ import cellconstructor.Settings as Settings
 import cellconstructor.Units
 import copy
 
+import scipy, scipy.optimize
+
 import numpy as np
 import copy
 import sys, os
+
 
 
 
@@ -362,6 +365,78 @@ K_POINTS automatic
         else:
             self.results = None
             
+
+        
+
+# Here the methods to minimize the structure with a standard calculator
+def static_relax(structure, calculator, method = "BFGS", verbose = True, **kwargs):
+    """
+    RELAX THE STRUCTURE
+    -------------------
+
+    Relax the structure keeping fixed the lattice parameters using a BFGS algorithm.
+
+    Parameters
+    ----------
+        structure : CC.Structure.Structure()
+            The atomic structure
+        calculator : CC.calculators.Calculator()
+            The CellConstructor (or ASE) calculator.
+        method : string
+            The algorithm for the minimization. Default BFGS
+        verbose : bool
+            If true, prints the current total energy and forces
+        **kwargs : 
+            Any optional arguments of scipy.optimize.minimize to control
+            the minimization.
+
+    Results
+    -------
+        optimized_structure : CC.Structure.Structure()
+            The structure after the optimization
+    """
+
+
+    # Parse the function to match the scipy minimizer
+    last_eval = np.zeros(structure.coords.ravel().shape, dtye = np.double)
+    last_energy = 0
+    last_force = np.zeros_like(last_eval)
+    iterations = 1
+
+    def func(x):
+        global last_eval
+        global last_energy
+        global last_force
+
+        if np.linalg.norm(x - last_eval) < 1e-16:
+            return last_energy, last_force
+
+        struct = structure.copy()
+        struct.coords[:,:] = x.reshape(struct.coords.shape)
+
+        energy, forces = get_energy_forces(struct, calculator)
+
+        last_eval[:] = x.copy()
+        last_energy = energy
+        last_force[:] = -forces.ravel().copy()
+
+        return energy, -forces.ravel()
+
+    def callback(xk):
+        global iterations
+        
+        if verbose:
+            energy, force = func(xk)
+            print("{:5d}) {:16.8f} eV   {:16.8f} eV/A".format(iterations, energy, np.linalg.norm(force)))
+    
+    res = scipy.optimize.minimize(func, structure.coords.ravel(), method = method, jac = True, callback = callback)
+
+    final_struct = structure.copy()
+    final_struct.coords[:,:] = res.x.reshape(final_struct.coords.shape)
+
+    return final_struct
+
+
 
         
 
