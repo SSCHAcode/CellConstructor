@@ -3886,7 +3886,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
 
 
 
-def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure, fc2 = None, itau = None):
+def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure,  itau = None, fc2 = None):
     r"""
     GET THE DYNAMICAL MATRICES
     ==========================
