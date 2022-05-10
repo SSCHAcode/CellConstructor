@@ -561,7 +561,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     iq_list = []
     q_list = []
     for iq, q in enumerate(q_path):
-        iq_list.append(iq)     #yes I know this is stupid, is just range(q_path)
+        iq_list.append(iq)     #yes I know this is stupid, is just range(len(q_path))
         q_list.append(q)
 
     with Pool() as plwork:    # diegom test 6 cores with Pool(6)************
@@ -571,6 +571,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
                         itertools.repeat(frequencies),itertools.repeat(v2_wq),
                         itertools.repeat(print_dyn))
         v2_wq,frequencies=plwork.starmap(multiprocessing_work1,parameters)
+    plwork.close()    #remember to close all your pools or they keep using memory/space.    
     # ============================================================================
 
     # === print result ==================================
@@ -591,6 +592,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
 
 def multiprocessing_work1(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequencies,v2_wq,print_dyn):
     # print("Diegom_test,iq=",iq)
+    print("iq=",iq)
     dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3,
                                           k_grid=k_grid, q=np.array(q),
                                           T=T, verbose = False)
