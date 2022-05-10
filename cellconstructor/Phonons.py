@@ -17,6 +17,7 @@ import scipy, scipy.optimize
 import itertools
 import cellconstructor.Structure as Structure
 import cellconstructor.symmetries as symmetries
+import cellconstructor.ForceTensor as ForceTensor
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
@@ -3325,7 +3326,7 @@ WARNING: Effective charges are not accounted by this method
         if apply_sum_rule:
             self.ApplySumRule()
 
-    def DiagonalizeSupercell(self, verbose = False):
+    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None):
         r"""
         DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
@@ -3345,6 +3346,12 @@ WARNING: Effective charges are not accounted by this method
         
         Here the :math:`\tilde e_{q\nu}` are the complex polarization vectors in the q point so that :math:`\omega_{q\nu} = \omega_{\mu}`. 
         
+        Parameters
+        ----------
+            lo_to_split : string or ndarray
+                Could be a string with random, or a ndarray indicating the direction on which the
+                LO-TO splitting is computed. If None it is neglected.
+                If LO-TO is specified but no effective charges are present, then a warning is print and it is ignored.
         Results
         -------
             w_mu : ndarray( size = (n_modes), dtype = np.double)
@@ -3408,8 +3415,28 @@ WARNING: Effective charges are not accounted by this method
                 # Enforce reality to avoid complex polarization vectors
                 self.dynmats[iq] = re_part
 
-            # Diagonalize the matrix in the given q point
-            wq, eq = self.DyagDinQ(iq)
+            # Check if this is gamma (to apply the LO-TO splitting)
+            if Methods.get_min_dist_into_cell(bg, q, np.zeros(3)) < 1e-16 and lo_to_split is not None:
+                if self.effective_charges is None:
+                    warnings.warn("WARNING: Requested LO-TO splitting without effective charges. LO-TO ignored.")
+                
+                # Initialize the Force Constant
+                t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(self.GetSupercell()), self.GetSupercell())
+                t2.SetupFromPhonons(self)
+
+                if lo_to_split.lower() == "random":
+                    fc_gamma = t2.Interpolate(np.zeros(3))
+                else:
+                    fc_gamma = t2.Interpolate(np.zeros(3), q_direct= -lo_to_split)
+                
+                _m_ = np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
+                d_gamma = fc_gamma / np.sqrt(np.outer(_m_, _m_))
+                wq2, eq = np.linalg.eigh(d_gamma)
+
+                wq = np.sqrt(np.abs(wq2)) * np.sign(wq2)
+            else:
+                # Diagonalize the matrix in the given q point
+                wq, eq = self.DyagDinQ(iq)
 
             # Iterate over the frequencies of the given q point
             nm_q = i_mu
@@ -3859,7 +3886,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
 
 
 
-def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure, itau = None):
+def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure,  itau = None, fc2 = None):
     r"""
     GET THE DYNAMICAL MATRICES
     ==========================
@@ -3905,6 +3932,8 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     dynmat = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     
+    if fc2 is not None:
+        dynmat2 = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     #print "NQ:", nq
     
     
@@ -3919,6 +3948,9 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
             q_dot_R = q_tot.dot(R)
             
             dynmat[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc_supercell[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+
+            if fc2 is not None:
+                dynmat2[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc2[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
             
 #    
 #    # Fill the dynamical matrix
@@ -3940,8 +3972,10 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
         
     
         
-    
-    return dynmat
+    if fc2 is not None:
+        return dynmat, dynmat2
+    else:
+        return dynmat
 
 
 

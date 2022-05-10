@@ -222,8 +222,25 @@ def load_scf_trajectory(fname):
 
     return structures
                 
-            
+def save_scf_trajectory(fname, trajectory):
+    """
+    Load a list of scf structures as a trajectory from the given filename
 
+    Parameters
+    ----------
+        fname : string
+            Path to the file on which the trajectory is saved
+        trajectory : list
+            The list of cellconstructor structures
+    
+    """
+
+    with open(fname, "w") as fp:
+        for s in trajectory:
+            text = s.save_scf(None, get_text = True) 
+            fp.write(text)
+            fp.write("\n")
+            
 
 def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1), w_pols = None):
     """
@@ -268,7 +285,7 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
     # Extract the good one
     w = ws[mode_id]
     _m_ = np.tile(dynmat.structure.get_masses_array(), (3,1)).T.ravel()
-    polv = polvects[:, mode_id] / _m_
+    polv = polvects[:, mode_id] / np.sqrt(_m_)
     polv /= np.linalg.norm(polv)
     
     # Get the basis structure
