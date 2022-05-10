@@ -22,7 +22,7 @@ import time
 
 from cellconstructor.Settings import ParallelPrint as print
 from multiprocessing import Pool
-import itertool
+
 
 """
 In this module we compute the Spectral function
@@ -570,7 +570,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
                         itertools.repeat(mm_mat),itertools.repeat(name_dyn),
                         itertools.repeat(frequencies),itertools.repeat(v2_wq),
                         itertools.repeat(print_dyn))
-        plwork.starmap(multiprocessing_work1,parameters)
+        v2_wq,frequencies=plwork.starmap(multiprocessing_work1,parameters)
     # ============================================================================
 
     # === print result ==================================
@@ -599,7 +599,7 @@ def multiprocessing_work1(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequenc
     frequencies[iq,:] = np.sign(w2)*np.sqrt(np.abs(w2))
     if print_dyn:
         Methods.save_qe(dyn,q,dynq,frequencies[iq,:],pol,fname=name_dyn+str(iq+1))
-
+    return v2_wq,frequencies
 
 
 
