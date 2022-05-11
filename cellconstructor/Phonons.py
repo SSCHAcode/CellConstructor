@@ -2119,7 +2119,7 @@ class Phonons:
                 
         return free_energy
 
-    def get_harmonic_entropy(self, T, w_pols = None, small_w_freq = __EPSILON_W__):
+    def get_harmonic_entropy(self, T, w_pols = None, small_w_freq = __EPSILON_W__, allow_imaginary_freq = False):
         """
         Get the harmonic entropy.
 
@@ -2133,6 +2133,8 @@ class Phonons:
                 This way the diagonalization is performed only once if computed in a cycle.
             small_w_freq : float
                 If provided, all the frequencies below this value are neglected
+            allow_imaginary_freq : bool
+                If true, imaginary frequencies are ignored.
 
         Results
         -------
@@ -2149,11 +2151,14 @@ class Phonons:
         tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
 
         # Exclude also other w = 0 modes (good for rotations)
-        locked_original = np.abs(w) < __EPSILON__
+        locked_original = np.abs(w) < __EPSILON_W__
         if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
             tmask = locked_original
 
         w = w[ ~tmask ]
+
+        if allow_imaginary_freq:
+            w = w[w > 0]
 
         # Check the presence of imaginary frequencie
         if not np.all( w>0):
