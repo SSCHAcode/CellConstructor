@@ -3822,7 +3822,7 @@ def ImposeSCTranslations(fc_supercell, unit_cell_structure, supercell_structure,
     
         
 
-def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, img_thr = 1e-6):
+def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structure, itau = None, img_thr = 1e-5):
     """
     GET THE REAL SPACE FORCE CONSTANT 
     =================================
