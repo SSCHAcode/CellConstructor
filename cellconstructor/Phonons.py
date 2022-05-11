@@ -3923,7 +3923,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
 
 
 
-def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure, itau = None):
+def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_structure,  itau = None, fc2 = None):
     r"""
     GET THE DYNAMICAL MATRICES
     ==========================
@@ -3969,6 +3969,8 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     #dynmat = np.zeros( (nq, 3*nat, 3*nat), dtype = np.complex128, order = "F")
     dynmat = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     
+    if fc2 is not None:
+        dynmat2 = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     #print "NQ:", nq
     
     
@@ -3983,6 +3985,9 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
             q_dot_R = q_tot.dot(R)
             
             dynmat[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc_supercell[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+
+            if fc2 is not None:
+                dynmat2[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc2[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
             
 #    
 #    # Fill the dynamical matrix
@@ -4004,8 +4009,10 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
         
     
         
-    
-    return dynmat
+    if fc2 is not None:
+        return dynmat, dynmat2
+    else:
+        return dynmat
 
 
 
