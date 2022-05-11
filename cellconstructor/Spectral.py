@@ -21,7 +21,7 @@ import cellconstructor.Methods as Methods
 import time
 
 from cellconstructor.Settings import ParallelPrint as print
-from multiprocessing import Pool
+from multiprocessing import Pool, freeze_support
 
 
 """
