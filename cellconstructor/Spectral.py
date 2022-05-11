@@ -575,7 +575,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     # with Pool() as plwork:    # diegom test 6 cores with Pool(6)************
     #     v2_wq[:,:],frequencies[:,:] = plwork.starmap(multiprocessing_work1,parameters)
     plwork = Pool()
-    v2_wq, frequencies = plwork.starmap(multiprocessing_work1,parameters)
+    v2_wq, frequencies = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
     plwork.close()    #remember to close all your pools or they keep using memory/space.
     plwork.join()
     # ============================================================================
@@ -596,7 +596,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     np.savetxt(filename_st,result,fmt=fmt_txt,header=head)
     # ==================================================================================
 
-def multiprocessing_work1(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequencies,v2_wq,print_dyn):
+def multiprocessing_work_static_correction_along_path(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequencies,v2_wq,print_dyn):
     # print("Diegom_test,iq=",iq)
     print("iq=",iq)
     dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3,
