@@ -563,21 +563,27 @@ def get_static_correction_along_path_multiprocessing(dyn,
     for iq, q in enumerate(q_path):
         iq_list.append(iq)     #yes I know this is stupid, is just range(len(q_path))
         q_list.append(q)
+    lengthT = x_length_exp.T
+    result = []
+    parameters = zip(iq_list, q_list,itertools.repeat(tensor2),itertools.repeat(tensor3),
+                    itertools.repeat(k_grid),itertools.repeat(T),
+                    itertools.repeat(mm_mat),itertools.repeat(name_dyn),
+                    itertools.repeat(frequencies),itertools.repeat(v2_wq),
+                    itertools.repeat(print_dyn),itertools.repeat(lengthT))
 
-    with Pool() as plwork:    # diegom test 6 cores with Pool(6)************
-        parameters = zip(iq_list, q_list,itertools.repeat(tensor2),itertools.repeat(tensor3),
-                        itertools.repeat(k_grid),itertools.repeat(T),
-                        itertools.repeat(mm_mat),itertools.repeat(name_dyn),
-                        itertools.repeat(frequencies),itertools.repeat(v2_wq),
-                        itertools.repeat(print_dyn))
-        v2_wq,frequencies=plwork.starmap(multiprocessing_work1,parameters)
-    plwork.close()    #remember to close all your pools or they keep using memory/space.    
+    freeze_support() #for windows users
+    # with Pool() as plwork:    # diegom test 6 cores with Pool(6)************
+    #     v2_wq[:,:],frequencies[:,:] = plwork.starmap(multiprocessing_work1,parameters)
+    plwork = Pool()
+    v2_wq, frequencies = plwork.starmap(multiprocessing_work1,parameters)
+    plwork.close()    #remember to close all your pools or they keep using memory/space.
+    plwork.join()
     # ============================================================================
 
     # === print result ==================================
-    frequencies *= CC.Units.RY_TO_CM
-    v2_wq *= CC.Units.RY_TO_CM
-    result=np.hstack((x_length_exp.T,v2_wq,frequencies))
+    # frequencies *= CC.Units.RY_TO_CM
+    # v2_wq *= CC.Units.RY_TO_CM
+    # result=np.hstack((x_length_exp.T,v2_wq,frequencies))
     fmt_txt='%10.6f\t\t'+n_mod*'%11.7f\t'+'\t'+n_mod*'%11.7f\t'
 
     print(" ")
@@ -601,8 +607,10 @@ def multiprocessing_work1(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequenc
     frequencies[iq,:] = np.sign(w2)*np.sqrt(np.abs(w2))
     if print_dyn:
         Methods.save_qe(dyn,q,dynq,frequencies[iq,:],pol,fname=name_dyn+str(iq+1))
-    return v2_wq,frequencies
-
+    frequencies[iq,:] *= CC.Units.RY_TO_CM
+    v2_wq[iq,:] *= CC.Units.RY_TO_CM
+    result = np.hstack((lengthT,v2_wq,frequencies))
+    return result[iq,:]
 
 
 
