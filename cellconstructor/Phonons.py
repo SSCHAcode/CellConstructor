@@ -2084,7 +2084,7 @@ class Phonons:
                 Free energy (in Ry) at the given temperature.
         """
         
-        K_to_Ry=6.336857346553283e-06
+        K_to_Ry=K_B / RY_TO_EV#6.336857346553283e-06
 
         if w_pols is None:
             w, pols = self.DiagonalizeSupercell()
@@ -2161,10 +2161,14 @@ class Phonons:
 
         beta = RY_TO_KELVIN / T  
         Kb_ry = K_B / RY_TO_EV
-        
+
+
         # Compute the entropy for each mode
-        av_energy = Kb_ry * beta * w / (2 * np.tanh(beta * w / 2))
-        entropy = av_energy - Kb_ry * np.log(2*np.sinh(beta * w / 2))
+        exp_factor = np.exp(-beta * w)
+        entropy = -Kb_ry * np.log(1 - exp_factor) + Kb_ry* beta*w * (exp_factor / (1 - exp_factor))
+        #av_energy = Kb_ry * beta * w / (2 * np.tanh(beta * w / 2))
+        #entropy = av_energy - Kb_ry * np.log(2*np.sinh(beta * w / 2))
+
 
         return np.sum(entropy)
 
@@ -2712,6 +2716,37 @@ class Phonons:
                 The supercell in each direction.
         """
         return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
+
+    def InterpolateMesh(self, mesh_dim):
+        """
+        INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
+        ==================================================
+
+        This method employs the Tensor2 interpolateion functions 
+        from the ForceTensor module to perform the interpolation.
+
+        Parameters
+        ----------
+            mesh_dim : list of int
+                The dimension of the q-mesh on which perform the interpolation.
+
+        Results
+        -------
+            new_dyn : Phonons.Phonons()
+                A new dynamical matrix defined on the desidered mesh.
+        """
+
+        # Setup the force constant tensor
+        current_mesh = self.GetSupercell()
+        t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
+        t2.SetupFromPhonons(self)
+
+        out_dyn = t2.GeneratePhonons(mesh_dim)
+        return out_dyn
+
+
+
+
     
     def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, 
                     support_dyn_fine = None, symmetrize = False):
@@ -2728,6 +2763,8 @@ class Phonons:
         If you want to account for effective charges you should use the ForceTensor.Tensor2 class
         to interpolate.
 
+        NOTE: This is going to be replaced with the InterpolateMesh function, 
+              accounting properly for effective charges
         
         Parameters
         ----------
