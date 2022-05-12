@@ -572,7 +572,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
                     itertools.repeat(print_dyn),itertools.repeat(lengthT))
 
     freeze_support() #for windows users
-    # with Pool() as plwork:    # diegom test 6 cores with Pool(6)************
+    # with Pool() as plwork:    # test 6 cores with Pool(6)************
     #     v2_wq[:,:],frequencies[:,:] = plwork.starmap(multiprocessing_work1,parameters)
     plwork = Pool()
     v2_wq, frequencies = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
@@ -597,7 +597,6 @@ def get_static_correction_along_path_multiprocessing(dyn,
     # ==================================================================================
 
 def multiprocessing_work_static_correction_along_path(iq,q,tensor2,tensor3,k_grid,T,mm_mat,name_dyn,frequencies,v2_wq,print_dyn):
-    # print("Diegom_test,iq=",iq)
     print("iq=",iq)
     dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3,
                                           k_grid=k_grid, q=np.array(q),
