@@ -7,6 +7,7 @@ from __future__ import division
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
+import h5py
 
 # Import the Fortran Code
 import symph
@@ -255,11 +256,14 @@ def same_vector(vec1, vec2, cell):
 def stupid_centering_fc3(tensor3):
 
     rprim = tensor3.unitcell_structure.unit_cell.copy()
-    print(rprim)
+    irprim = np.linalg.inv(rprim)
+    rsup = tensor3.supercell_structure.unit_cell.copy()
+    irsup = np.linalg.inv(rsup)
+    #print(rprim)
     positions = tensor3.unitcell_structure.coords.copy()
     xpos = np.dot(positions, np.linalg.inv(rprim))
     natom = len(xpos)
-    print(xpos)
+    #print(xpos)
     symbols = tensor3.unitcell_structure.atoms
     unique_symbols = np.unique(symbols)
     unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
@@ -268,38 +272,70 @@ def stupid_centering_fc3(tensor3):
         for jat in range(len(unique_symbols)):
             if(symbols[iat] == unique_symbols[jat]):
                 numbers[iat] = unique_numbers[jat]
-    print(numbers)
+    #print(numbers)
     cell = (rprim, xpos, numbers)
 
     if(tensor3.n_R == tensor3.n_sup**2):
         print('Not previously centered. Stupid centering!')
         for ir in range(tensor3.n_R):
-            xvec2 = tensor3.x_r_vector2[:,ir]
-            xvec3 = tensor3.x_r_vector3[:,ir]
-            xvec2_old = xvec2.copy()
-            xvec3_old = xvec3.copy()
-            rvec2 = np.dot(xvec2, cell[0])
-            rvec3 = np.dot(xvec3, cell[0])
-            for i in range(3):
-                if(xvec2[i] > float(tensor3.supercell_size[i])/2.0):
-                    xvec2[i] -= tensor3.supercell_size[i]
-                elif(xvec2[i] <= -1.0*float(tensor3.supercell_size[i])/2.0):
-                    xvec2[i] += tensor3.supercell_size[i]
-                if(xvec3[i] > float(tensor3.supercell_size[i])/2.0):
-                    xvec3[i] -= tensor3.supercell_size[i]
-                elif(xvec3[i] <= -1.0*float(tensor3.supercell_size[i])/2.0):
-                    xvec3[i] += tensor3.supercell_size[i]
-            tensor3.x_r_vector2[:,ir] = xvec2
-            tensor3.x_r_vector3[:,ir] = xvec3
-            tensor3.r_vector2[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector2[:,ir])
-            tensor3.r_vector3[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector3[:,ir])
+            rvec2 = tensor3.r_vector2[:,ir].copy()
+            rvec3 = tensor3.r_vector3[:,ir].copy()
+            xvec2 = np.dot(rvec2, irsup)
+            xvec3 = np.dot(rvec3, irsup)
+            size2 = np.linalg.norm(rvec2)
+            size3 = np.linalg.norm(rvec3)
+            size = np.linalg.norm(rvec3 - rvec2) + size2 + size3
+            for i in range(-2,3):
+                for j in range(-2,3):
+                    for k in range(-2,3):
+                        xvec21 = xvec2 + np.array([i,j,k])
+                        rvec21 = np.dot(xvec21, rsup)
+                        for i1 in range(-2,3):
+                            for j1 in range(-2,3):
+                                for k1 in range(-2,3):
+                                    xvec31 = xvec3 + np.array([i1,j1,k1])
+                                    rvec31 = np.dot(xvec31, rsup)
+                                    size1 = np.linalg.norm(rvec21) + np.linalg.norm(rvec31) + np.linalg.norm(rvec31 - rvec21)
+                                    if(size1 < size):
+                                        size = size1
+                                        rvec2 = rvec21.copy()
+                                        rvec3 = rvec31.copy()
+            tensor3.r_vector2[:,ir] = rvec2
+            tensor3.r_vector3[:,ir] = rvec3
+            tensor3.x_r_vector2[:,ir] = np.dot(tensor3.r_vector2[:,ir], irprim)
+            tensor3.x_r_vector3[:,ir] = np.dot(tensor3.r_vector3[:,ir], irprim)
+
+
+        #for ir in range(tensor3.n_R):
+        #    xvec2 = tensor3.x_r_vector2[:,ir]
+        #    xvec3 = tensor3.x_r_vector3[:,ir]
+        #    xvec2_old = xvec2.copy()
+        #    xvec3_old = xvec3.copy()
+        #    rvec2 = np.dot(xvec2, cell[0])
+        #    rvec3 = np.dot(xvec3, cell[0])
+        #    for i in range(3):
+        #        if(xvec2[i] >= float(tensor3.supercell_size[i])/2.0):
+        #            xvec2[i] -= tensor3.supercell_size[i]
+        #        elif(xvec2[i] < -1.0*float(tensor3.supercell_size[i])/2.0):
+        #            xvec2[i] += tensor3.supercell_size[i]
+        #        if(xvec3[i] >= float(tensor3.supercell_size[i])/2.0):
+        #            xvec3[i] -= tensor3.supercell_size[i]
+        #        elif(xvec3[i] < -1.0*float(tensor3.supercell_size[i])/2.0):
+        #            xvec3[i] += tensor3.supercell_size[i]
+        #    tensor3.x_r_vector2[:,ir] = xvec2
+        #    tensor3.x_r_vector3[:,ir] = xvec3
+        #    tensor3.r_vector2[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector2[:,ir])
+        #    tensor3.r_vector3[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector3[:,ir])
     else:
         print('Probably already centered! Nothing to do!')
+
+
+
     return tensor3
 
 class ThermalConductivity:
 
-    def __init__(self, dyn, tensor3, kpoint_grid = 10, smearing_scale = 1.0, smearing_type = 'adaptive', off_diag = False):
+    def __init__(self, dyn, tensor3, kpoint_grid = 2, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', off_diag = False):
 
         """
 
@@ -309,14 +345,15 @@ class ThermalConductivity:
 
         Necesary:
 
-            dyn: SSCHA dynamical matrix object 
-            tensor3: SSCHA 3rd order force constants
+            dyn            : SSCHA dynamical matrix object 
+            tensor3        : SSCHA 3rd order force constants
 
-            kpoint_grid: Initializes the grid for Brillouin zone integration. It is used in the calculation of lattice thermal conductivity and
-            the calculation of the phonon lifetimes. Default is 10.
-            smearing_scale: Scale for the smearing constant if adaptive smearing is used. Default value is 2.0
-            smearing_type: Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
-            off_diag: Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
+            kpoint_grid    : Initializes the grid for Brillouin zone integration. It is used in the calculation of lattice thermal conductivity and
+            the calculation of the phonon lifetimes. Default is 2.
+            smearing_scale : Scale for the smearing constant if adaptive smearing is used. Default value is 2.0
+            smearing_type  : Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
+            cp_mode        : Flag determining how phonon occupation factors are calculated (quantum/classical), default is quantum
+            off_diag       : Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
 
         """
 
@@ -334,6 +371,7 @@ class ThermalConductivity:
         print('Supercell: ')
         print(self.supercell)
         self.smearing_type = smearing_type
+        self.cp_mode = cp_mode
         self.off_diag = off_diag
         self.volume = self.dyn.structure.get_volume()
         
@@ -350,6 +388,7 @@ class ThermalConductivity:
         self.delta_omega = 0.0
 
         self.freqs = np.zeros((self.nkpt, self.nband))
+        self.gruneisen = np.zeros((self.nkpt, self.nband))
         self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
         if(self.off_diag):
             self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3))
@@ -366,6 +405,175 @@ class ThermalConductivity:
         self.got_scattering_rates_isotopes = False
 
     ##################################################################################################################################
+
+    def save(self, filename = 'sscha_thermal_conductivity.h5'):
+
+        """
+            Routine to save most of the information needed for further postprocessing.
+            
+            filename : Title of the file the information is to be stored to
+        
+        """
+
+        hf = h5py.File(filename, 'w')
+
+        ne = None
+
+        if(self.smearing_scale is not None):
+            hf.create_dataset('smearing_scale', data = np.array([self.smearing_scale]))
+        hf.create_dataset('kpoint_grid', data = self.kpoint_grid)
+        hf.create_dataset('unit_cell', data = self.unitcell)
+        hf.create_dataset('supercell', data = self.supercell)
+        dt = h5py.special_dtype(vlen=str)
+        hf.create_dataset('smearing_type', data = self.smearing_type, dtype=dt)
+        hf.create_dataset('cp_mode', data = self.cp_mode)
+        hf.create_dataset('off_diag', data = self.off_diag)
+        hf.create_dataset('reciprocal_lattice', data = self.reciprocal_lattice)
+        hf.create_dataset('k_points', data = self.k_points)
+        hf.create_dataset('qpoints', data = self.qpoints)
+        hf.create_dataset('delta_omega', data = self.delta_omega)
+        hf.create_dataset('nkpt', data = self.nkpt)
+        hf.create_dataset('nband', data = self.nband)
+        hf.create_dataset('nirrkpt', data = self.nirrkpt)
+        
+        irrqpts = [hf.create_group('irreducible_kpoint' + str(i + 1)) for i in range(self.nirrkpt)]
+        for ikpt in range(self.nirrkpt):
+            irrqpts[ikpt].create_dataset('k_point', data = self.irr_k_points[ikpt])
+            irrqpts[ikpt].create_dataset('star', data = self.qstar_list[ikpt])
+            irrqpts[ikpt].create_dataset('frequency', data = self.freqs[self.qstar_list[ikpt][0]])
+            eigvecs = []
+            gvels = []
+            sigmas = []
+            for istar in range(len(self.qstar[ikpt])):
+                jkpt = self.qstar_list[ikpt][istar]
+                eigvecs.append(self.eigvecs[jkpt])
+                gvels.append(self.gvels[jkpt])
+                sigmas.append(self.sigmas[jkpt])
+            eigvecs = np.array(eigvecs)
+            gvels = np.array(gvels)
+            sigmas = np.array(sigmas)
+            irrqpts[ikpt].create_dataset('eigenvectors', data = eigvecs)
+            irrqpts[ikpt].create_dataset('group_velocities', data = gvels)
+            irrqpts[ikpt].create_dataset('sigmas', data = sigmas)
+            keys = []
+            for key in self.lifetimes.keys():
+                keys.append(key)
+            if(len(keys) > 0):
+                for ik in range(len(keys)):
+                    irrqpts[ikpt].create_dataset('lifetimes_' + keys[ik], data = self.lifetimes[keys[ik]][self.qstar_list[ikpt][0]])
+            keys = []
+            for key in self.freqs_shifts.keys():
+                keys.append(key)
+            if(len(keys) > 0):
+                for ik in range(len(keys)):
+                    irrqpts[ikpt].create_dataset('freqs_shifts_' + keys[ik], data = self.freqs_shifts[keys[ik]][self.qstar_list[ikpt][0]])
+            keys = []
+            for key in self.lineshapes.keys():
+                keys.append(key)
+            if(len(keys) > 0):
+                for ik in range(len(keys)):
+                    if(ne is None):
+                        ne = np.shape(self.lineshapes[keys[ik]])[-1]
+                    else:
+                        if(ne != np.shape(self.lineshapes[keys[ik]])[-1]):
+                            raise RuntimeError('Number of energy/frequency points not same for all temperatures!')
+                    irrqpts[ikpt].create_dataset('lineshapes_' + keys[ik], data = self.lineshapes[keys[ik]][self.qstar_list[ikpt][0]])
+            keys = []
+            for key in self.cp.keys():
+                keys.append(key)
+            if(len(keys) > 0):
+                for ik in range(len(keys)):
+                    irrqpts[ikpt].create_dataset('cp_' + keys[ik], data = self.cp[keys[ik]][self.qstar_list[ikpt][0]])
+        keys = []
+        for key in self.kappa.keys():
+            keys.append(key)
+        if(len(keys) > 0):
+            for ik in range(len(keys)):
+                hf.create_dataset('kappa_' + keys[ik], data = self.kappa[keys[ik]])
+
+        hf.create_dataset('ne', data = ne)
+        hf.close()
+
+    def load(self, filename):
+
+        """
+            Routine to read the information that one might need for postprocessing!
+
+        """
+
+        hf = h5py.File(filename, 'r')
+
+        try:
+            self.smearing_scale = np.array(hf.get('smearing_scale'))
+        except:
+            pass
+        self.kpoint_grid = np.array(hf.get('kpoint_grid'))
+        self.unitcell = np.array(hf.get('unit_cell'))
+        self.supercell = np.array(hf.get('supercell'))
+        self.smearing_type = np.array2string(np.array(hf.get('smearing_type')))[2:-1]
+        self.cp_mode = np.array2string(np.array(hf.get('cp_mode')))[2:-1]
+        self.off_diag = np.array(hf.get('off_diag')).item()
+        self.reciprocal_lattice = np.array(hf.get('reciprocal_lattice'))
+        self.k_points = np.array(hf.get('k_points'))
+        self.qpoints = np.array(hf.get('qpoints'))
+        self.delta_omega = np.array(hf.get('delta_omega')).item()
+        self.nkpt = np.array(hf.get('nkpt')).item()
+        self.nband = np.array(hf.get('nband')).item()
+        self.nirrkpt = np.array(hf.get('nirrkpt')).item()
+        ne = np.array(hf.get('ne')).item()
+        self.freqs = np.zeros((self.nkpt, self.nband))
+        self.gruneisen = np.zeros((self.nkpt, self.nband))
+        self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
+        if(self.off_diag):
+            self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3))
+        else:
+            self.gvels = np.zeros((self.nkpt, self.nband, 3))
+        self.sigmas = np.zeros_like(self.freqs)
+
+        self.irr_k_points = []
+        self.qstar_list = []
+        for i in range(self.nirrkpt):
+            self.irr_k_points.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('k_point')))
+            self.qstar_list.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('star')))
+            eigvecs = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('eigenvectors'))
+            gvels = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('group_velocities'))
+            sigmas = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('sigmas'))
+
+            for istar in range(len(self.qstar_list[-1])):
+                jkpt = self.qstar_list[-1][istar]
+                self.freqs[jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('frequency'))
+                self.eigvecs[jkpt] = eigvecs[istar]
+                self.gvels[jkpt] = gvels[istar]
+                self.sigmas[jkpt] = sigmas[istar]
+                keys = []
+                for key in hf.get('irreducible_kpoint' + str(i + 1)).keys():
+                    keys.append(key)
+                for key in keys:
+                    if('cp' in key):
+                        temp = key.split('_')[-1]
+                        if(temp not in self.cp.keys()):
+                            self.cp[temp] = np.zeros((self.nkpt, self.nband))
+                        self.cp[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
+                    elif('lifetimes' in key):
+                        temp = key.split('_')[-1]
+                        if(temp not in self.lifetimes.keys()):
+                            self.lifetimes[temp] = np.zeros((self.nkpt, self.nband))
+                        self.lifetimes[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
+                    elif('freqs_shifts' in key):
+                        temp = key.split('_')[-1]
+                        if(temp not in self.lifetimes.keys()):
+                            self.freqs_shifts[temp] = np.zeros((self.nkpt, self.nband))
+                        self.freqs_shifts[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
+                    elif('lineshapes' in key):
+                        temp = key.split('_')[-1]
+                        if(temp not in self.lineshapes.keys()):
+                            self.lineshapes[temp] = np.zeros((self.nkpt, self.nband, ne))
+                        self.lineshapes[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
+                    
+        for key in hf.keys():
+            if('kappa' in key):
+                temp = key.split('_')[-1]
+                self.kappa[temp] = np.array(hf.get(key))
     
     def set_kpoints(self):
 
@@ -652,10 +860,13 @@ class ThermalConductivity:
             for ikpt in range(self.nkpt):
                 for iband in range(self.nband):
                     delta_v = np.linalg.norm(self.gvels[ikpt,iband])
-                    self.sigmas[ikpt][iband] = delta_v*delta_q*self.smearing_scale
-            min_smear = np.average(np.average(self.sigmas))/10.0 #np.amin(self.sigmas[self.sigmas > 1.0e-6])
-            print(min_smear)
-            self.sigmas[self.sigmas < min_smear] = min_smear
+                    if(delta_v > 0.0):
+                        self.sigmas[ikpt][iband] = delta_v*delta_q*self.smearing_scale
+                    else:
+                        self.sigmas[ikpt][iband] = 0.0
+            min_smear = np.average(np.average(self.sigmas))/100.0 #np.amin(self.sigmas[self.sigmas > 1.0e-6])
+            #print(min_smear)
+            self.sigmas[self.sigmas == 0.0] = min_smear
             #self.sigmas[self.freqs <= np.amin(self.freqs)*10] = min_smear/10.0
         if(self.smearing_type == 'constant'):
             self.sigmas[:,:] = smearing_value
@@ -769,7 +980,7 @@ class ThermalConductivity:
 
    ####################################################################################################################################
 
-    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', cp_mode = 'quantum', gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
+    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
             write_lineshapes=False, ne = 2000, kappa_filename = 'Thermal_conductivity'):
 
         """
@@ -780,7 +991,6 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
-        cp_mode          : How to handle phonon populations (quantum or classical)
         gauss_smearing   : If true will use the Gaussian function to satisfy energy conservation insted of Lorentzian
         lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
@@ -826,7 +1036,7 @@ class ThermalConductivity:
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, cp_mode = cp_mode, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
+                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
                     kappa = kappa/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
@@ -837,7 +1047,7 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, cp_mode = cp_mode, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
+                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
                     kappa_diag = kappa_diag/self.volume/float(self.nkpt)*1.0e30
                     kappa_nondiag = kappa_nondiag/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
@@ -1038,15 +1248,20 @@ class ThermalConductivity:
             scattering_grids = np.asfortranarray(scattering_grids).T
             weights = np.asfortranarray(weights)
 
+            classical = False
+            if(self.cp_mode == 'classical'):
+                classical = True
+
             curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                     self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                    self.sigmas.T, np.zeros_like(self.sigmas.T, dtype=float), temperature, gauss_smearing, energies, len(energies), self.nirrkpt, \
-                    self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events) 
+                    self.sigmas.T, np.zeros_like(self.sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                    self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+
             for ikpt in range(self.nirrkpt):
                 jkpt = self.qstar_list[ikpt][0]
-                print('Normalization of lineshapes (should be 0.5): ')
-                print(np.sum(curr_ls[ikpt], axis=1)*energies[0])
+                #print('Normalization of lineshapes (should be 0.5): ')
+                #print(np.sum(curr_ls[ikpt], axis=1)*energies[0])
                 if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, self.k_points[jkpt])):
                     for iband in range(self.nband):
                         if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
@@ -1095,7 +1310,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_heat_capacity(self, temperature, cp_mode = 'quantum'):
+    def get_heat_capacity(self, temperature):
 
         """
         Calculate phonon mode heat capacity at temperature.
@@ -1106,13 +1321,13 @@ class ThermalConductivity:
         cp = np.zeros_like(self.freqs)
         for ikpt in range(self.nkpt):
             for iband in range(self.nband):
-                cp[ikpt, iband] = heat_capacity(self.freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = cp_mode)
+                cp[ikpt, iband] = heat_capacity(self.freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = self.cp_mode)
         self.cp[cp_key] = cp
 
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, cp_mode = 'quantum', gauss_smearing = False, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
+    def calculate_kappa_srta_diag(self, temperature, write_lifetimes, gauss_smearing = False, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculate lattice thermal conductivity using single relaxation time approximation at temperature. Calculates only including diagonal term.
@@ -1125,12 +1340,12 @@ class ThermalConductivity:
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon lifetimes for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method, cp_mode = cp_mode)
+            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon mode heat capacities for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_heat_capacity(temperature, cp_mode = cp_mode)
+            self.get_heat_capacity(temperature)
 
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
@@ -1143,7 +1358,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, cp_mode = 'quantum', gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
+    def calculate_kappa_srta_offdiag(self, temperature, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Physics volume 15, pages 809–813 (2019)).
@@ -1156,11 +1371,11 @@ class ThermalConductivity:
         if(lf_key in self.lifetimes.keys()):
             print('Lifetimes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method, cp_mode = cp_mode)
+            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_heat_capacity(temperature, cp_mode = cp_mode)
+            self.get_heat_capacity(temperature)
         scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
 #        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
         if(write_lifetimes):
@@ -1258,7 +1473,7 @@ class ThermalConductivity:
   
     ####################################################################################################################################
    
-    def get_lifetimes(self, temperature, gauss_smearing = False, isotope_scattering = True, isotopes = None, method = 'fortran-LA', cp_mode = 'quantum'):
+    def get_lifetimes(self, temperature, gauss_smearing = False, isotope_scattering = True, isotopes = None, method = 'fortran-LA'):
 
         """
         Get phonon lifetimes in the full Brillouin zone at temperature.
@@ -1269,8 +1484,7 @@ class ThermalConductivity:
         method             : Method by which phonon lifetimes are to be calculated.
             fortran/python : practically means only how many times fortran routine is being called. "fortran" much faster.
             LA/P           : Approximation used for the lifetimes. 
-                             LA means lorentzian approximation (gives the value for which Lorentzian function with that value would \
-                                    best approximate phonon lineshape). Default value.
+                             LA means one shot approximation defined in J. Phys.: Condens. Matter 33 363001 . Default value.
                              P means perturbative approximation. The one used by most other codes!
         """
 
@@ -1359,7 +1573,7 @@ class ThermalConductivity:
             weights = np.asfortranarray(weights)
 
             classical = False
-            if(cp_mode == 'classical'):
+            if(self.cp_mode == 'classical'):
                 classical = True
 
             selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
@@ -1402,10 +1616,14 @@ class ThermalConductivity:
             scattering_grids = np.asfortranarray(scattering_grids).T
             weights = np.asfortranarray(weights)
 
+            classical = False
+            if(self.cp_mode == 'classical'):
+                classical = True
+
             selfengs = thermal_conductivity.get_lf.calculate_lifetimes_perturbative(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
                     self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), self.sigmas.T, temperature, \
-                    gauss_smearing, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                    gauss_smearing, classical, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
                 for iqpt in range(len(self.qstar_list[ikpt])):
@@ -1740,7 +1958,7 @@ class ThermalConductivity:
 
         de = de /(np.sqrt(RY_TO_J/AU/MASS_RY_TO_UMA)/BOHR_TO_ANGSTROM/100.0/2.0/np.pi)
         if(np.all(self.freqs == 0)):
-            print('All frequencies are zero. Be sure that the harmonic properties are initialized!')
+            print('All frequencies are zero. Make sure that the harmonic properties are initialized!')
         else:
             frequencies = self.freqs.flatten()
             smearing = self.sigmas.flatten()
@@ -1749,7 +1967,8 @@ class ThermalConductivity:
             deltas = np.zeros((nsamples, len(frequencies)))
             for i in range(nsamples):
                 for j in range(len(frequencies)):
-                    deltas[i,j] = gaussian(frequencies[j], samples[i], smearing[j])
+                    if(frequencies[j] > 0.0):
+                        deltas[i,j] = gaussian(frequencies[j], samples[i], smearing[j])
             dos = np.sum(deltas, axis = 1)
 
         dos = dos/float(len(self.freqs))
@@ -2363,3 +2582,46 @@ class ThermalConductivity:
         return w_q, shift,hwhm
 
     ######################################################################################################################################
+
+    def calculate_mode_gruneisen(self):
+
+        uc_positions = self.dyn.structure.coords.copy()
+        natom = len(uc_positions)
+        masses = self.dyn.structure.get_masses_array()
+        for ikpt in range(self.nirrkpt):
+            for iband in range(self.nband):
+                gruneisen = 0.0 + 0.0j
+                for iuc in range(len(self.fc3.r_vector2[0])):
+                    phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(self.k_points[ikpt], self.fc3.r_vector2[:,iuc])))
+                    for iat in range(natom):
+                        for jat in range(natom):
+                            #rvec = self.fc3.r_vector2[:,iuc] + uc_positions[jat,:] - uc_positions[iat, :]
+                            #phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(self.k_points[ikpt], rvec)))
+                            mass_factor = 1.0/np.sqrt(masses[iat]*masses[jat])
+                            for kat in range(natom):
+                                #for i in range(3):
+                                #    for j in range(3):
+                                #        for k in range(3):
+                                #            gruneisen += self.fc3.tensor[iuc,3*iat + i,3*jat + j,3*kat + k]*self.eigvecs[ikpt,iband,3*iat + i].conj()*self.eigvecs[ikpt,iband,3*jat + j]*(self.fc3.r_vector3[k,iuc] + uc_positions[kat,k])\
+                                #                    *phase_factor*mass_factor
+                                gruneisen += np.einsum('ijk, i, j, k', self.fc3.tensor[iuc,3*iat:3*(iat + 1),3*jat:3*(jat + 1),3*kat:3*(kat + 1)], self.eigvecs[ikpt,iband,3*iat:3*(iat+1)].conj(),
+                                        self.eigvecs[ikpt,iband,3*jat:3*(jat+1)], self.fc3.r_vector3[:,iuc] + uc_positions[kat])*phase_factor*mass_factor
+                if(self.freqs[self.qstar_list[ikpt][0], iband] > 0.0):
+                    #print(gruneisen.real, gruneisen.imag)
+                    for iqpt in range(len(self.qstar_list[ikpt])):
+                        jqpt = self.qstar_list[ikpt][iqpt]
+                        self.gruneisen[jqpt][iband] = -1.0*gruneisen.real/self.freqs[jqpt, iband]**2/6.0/BOHR_TO_ANGSTROM
+                else:
+                    for iqpt in range(len(self.qstar_list[ikpt])):
+                        jqpt = self.qstar_list[ikpt][iqpt]
+                        self.gruneisen[jqpt][iband] = 0.0
+
+        with open('Gruneisen_parameter', 'w+') as outfile:
+            outfile.write('#   ' + format('Frequencies (THz)', STR_FMT))
+            outfile.write('    ' + format('Gruneisen_parameter', STR_FMT))
+            outfile.write('\n')
+            for ikpt in range(self.nkpt):
+                for iband in range(self.nband):
+                    outfile.write(3*' ' + format(self.freqs[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
+                    outfile.write(3*' ' + format(self.gruneisen[ikpt][iband], '.12e'))
+                    outfile.write('\n')
