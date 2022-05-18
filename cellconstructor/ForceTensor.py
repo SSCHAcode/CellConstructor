@@ -380,7 +380,7 @@ Error, the supercell of the phonon object is {}.
                     -Far,+Far multiples of the super-lattice vectors
         """    
         # Check if the phonons is initialized
-        if self.QE_tau is None:
+        if np.max(np.abs(self.x_r_vector2)) == 0:
             raise ValueError("Error, Tensor object not initialized!")
 
         if Settings.am_i_the_master():
