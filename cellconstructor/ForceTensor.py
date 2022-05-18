@@ -379,9 +379,9 @@ Error, the supercell of the phonon object is {}.
                     In the centering, supercell equivalent atoms are considered within 
                     -Far,+Far multiples of the super-lattice vectors
         """    
-        # Check if the phonons is initialized
-        if np.max(np.abs(self.x_r_vector2)) == 0:
-            raise ValueError("Error, Tensor object not initialized!")
+        # Check if the phonons is initialized TODO
+        #if np.max(np.abs(self.x_r_vector2)) == 0:
+        #    raise ValueError("Error, Tensor object not initialized!")
 
         if Settings.am_i_the_master():
             
