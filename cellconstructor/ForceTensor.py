@@ -100,6 +100,7 @@ class Tensor2(GenericTensor):
 Error, the supercell of the phonon object is {}.
        it must match with the supercell defined for the Tensor2: {}
 """.format(phonons.GetSupercell(), self.supercell_size)
+        print(ERR)
 
         assert np.all([self.supercell_size[i] == phonons.GetSupercell()[i] for i in range(3)]), ERR
 
