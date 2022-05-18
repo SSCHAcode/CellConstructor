@@ -1851,7 +1851,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
                                            iterative=False,
                                            numiter=200,
                                            d3_scale_factor=None,
-                                           tensor2 = None):
+                                           tensor2 = None, processes = None):
 
 
     """
@@ -2127,7 +2127,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
                     itertools.repeat(filename_shift_lw),itertools.repeat(filename_freq_dyn))
 
     freeze_support() #for windows users
-    plwork = Pool()
+    plwork = Pool(processes)
     plwork.starmap(multiprocessing_work_diag_dynamic_correction_along_path,parameters)
     plwork.close()    #remember to close all your pools or they keep using memory/space.
     plwork.join()
