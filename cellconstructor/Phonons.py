@@ -1932,7 +1932,8 @@ class Phonons:
             data1.append(v1*data3)
     return np.resize(data1,(size,n_modes))
 
-    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None, lock_low_w = False, remove_non_isolated_atoms = False):
+    def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None,
+                    lock_low_w = False, remove_non_isolated_atoms = False, sobol = False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -2018,8 +2019,10 @@ class Phonons:
 
         # Prepare the random numbers
         size = int(size)
-#        rand = np.random.normal(size = (size, n_modes))
-        rand = sobol_norm_rand(size, n_modes) # ***** Diegom_test ******
+
+        rand = np.random.normal(size = (size, n_modes))
+        if (sobol):
+            rand = sobol_norm_rand(size, n_modes) # ***** Diegom_test ******
 
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
