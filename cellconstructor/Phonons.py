@@ -1917,20 +1917,20 @@ class Phonons:
         return output_dyn
 
     def sobol_norm_rand(size,n_modes,scramble=True):  # **** Diegom_test ****
-    sampler = qmc.Sobol(d=2,scramble=scramble)
-    size_rand = size+n_modes
-    size_sobol = int(np.log(size_rand)/np.log(2))+1
-    sample = sampler.random_base2(m=size_sobol)
-    data1 = []
-    while (len(data1<size_rand)):
-        data = sampler.random()
-        v1 = 2.0*data[0][0]-1.0
-        v2 = 2.0*data[0][1]-1.0
-        Riq = v1*v1+v2*v2
-        if (0< Riq <= 1):
-            data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
-            data1.append(v1*data3)
-    return np.resize(data1,(size,n_modes))
+        sampler = qmc.Sobol(d=2,scramble=scramble)
+        size_rand = size+n_modes
+        size_sobol = int(np.log(size_rand)/np.log(2))+1
+        sample = sampler.random_base2(m=size_sobol)
+        data1 = []
+        while (len(data1<size_rand)):
+            data = sampler.random()
+            v1 = 2.0*data[0][0]-1.0
+            v2 = 2.0*data[0][1]-1.0
+            Riq = v1*v1+v2*v2
+            if (0< Riq <= 1):
+                data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
+                data1.append(v1*data3)
+        return np.resize(data1,(size,n_modes))
 
     def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None,
                     lock_low_w = False, remove_non_isolated_atoms = False, sobol = False):
@@ -2023,7 +2023,7 @@ class Phonons:
             rand = np.random.normal(size = (size, n_modes))
         elif (sobol):
             rand = sobol_norm_rand(size, n_modes) # ***** Diegom_test ******
-        else raise ValueError('sobol is not True or False') # This should never raise  
+        else raise ValueError('sobol is not True or False') # This should never raise
 
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
