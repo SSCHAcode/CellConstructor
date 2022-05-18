@@ -100,10 +100,18 @@ class Tensor2(GenericTensor):
 Error, the supercell of the phonon object is {}.
        it must match with the supercell defined for the Tensor2: {}
 """.format(phonons.GetSupercell(), self.supercell_size)
-        print(ERR)
+        #print(ERR)
 
         assert np.all([self.supercell_size[i] == phonons.GetSupercell()[i] for i in range(3)]), ERR
 
+        # Check that no 1 atom with 1 q point
+        if np.prod(phonons.GetSupercell()) == 1 and phonons.structure.N_atoms == 1:
+            ERR = """
+Error, cannot initialize a tensor from a structure with 1 atom with only Gamma 
+       check if you imported the dynamical matrix with the correct nqirr.
+
+"""
+            raise ValueError(ERR)
         current_dyn = phonons.Copy()
 
         # Check if the dynamical matrix has the effective charges
