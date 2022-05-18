@@ -423,7 +423,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
                                      print_dyn = False,
                                      name_dyn = "sscha_plus_odd_dyn",
                                      d3_scale_factor = None,
-                                     tensor2 = None):
+                                     tensor2 = None, processes = None):
     """
     Get the dyn + static bubble correction along a given path and prints the SSCHA and the
     corrected frequencies in the file filename_st (path length in 2pi/Angstrom, SSCHA frequencies (cm-1),
@@ -574,7 +574,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     freeze_support() #for windows users
     # with Pool() as plwork:    # test 6 cores with Pool(6)************
     #     v2_wq[:,:],frequencies[:,:] = plwork.starmap(multiprocessing_work1,parameters)
-    plwork = Pool()
+    plwork = Pool(processes)
     v2_wq, frequencies = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
     plwork.close()    #remember to close all your pools or they keep using memory/space.
     plwork.join()
