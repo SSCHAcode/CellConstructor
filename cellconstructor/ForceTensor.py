@@ -95,6 +95,14 @@ class Tensor2(GenericTensor):
                 The dynamical matrix from which you want to setup the tensor
         """
 
+        # Check if the supercell is correct
+        ERR = """
+Error, the supercell of the phonon object is {}.
+       it must match with the supercell defined for the Tensor2: {}
+""".format(phonons.GetSupercell(), self.supercell_size)
+
+        assert np.all([self.supercell_size[i] == phonons.GetSupercell()[i] for i in range(3)]), ERR
+
         current_dyn = phonons.Copy()
 
         # Check if the dynamical matrix has the effective charges
