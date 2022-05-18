@@ -2960,7 +2960,7 @@ class Tensor3():
 
 
 # Plot the phonons in the given k-path
-def get_phonons_in_qpath(dynamical_matrix, q_path):
+def get_phonons_in_qpath(dynamical_matrix, q_path, center_args = {}):
     """
     GET PHONONS IN K-PATH
     =====================
@@ -2973,6 +2973,9 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
             The dynamical matrix (with effective charges)
         q_path : list of ndarray(size of 3)
             List of q points in 2pi/A units.
+        center_args : dict
+            Dictionary of parameters to be passed to the Center function of
+            Tensor2
     
     Results
     -------
@@ -3018,7 +3021,7 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
                  dynamical_matrix.GetSupercell())
 
     t2.SetupFromPhonons(dynamical_matrix)
-    t2.Center(Far = 4)
+    t2.Center(**center_args)
     t2.Apply_ASR()
 
     n_k, _ = q_path.shape
