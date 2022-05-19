@@ -13,6 +13,7 @@ from cellconstructor import Settings
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
+from scipy.stats import qmc
 
 import itertools
 import cellconstructor.Structure as Structure
@@ -1916,21 +1917,6 @@ class Phonons:
 
         return output_dyn
 
-    def sobol_norm_rand(size,n_modes,scramble=True):  # **** Diegom_test ****
-        sampler = qmc.Sobol(d=2,scramble=scramble)
-        size_rand = size+n_modes
-        size_sobol = int(np.log(size_rand)/np.log(2))+1
-        sample = sampler.random_base2(m=size_sobol)
-        data1 = []
-        while (len(data1<size_rand)):
-            data = sampler.random()
-            v1 = 2.0*data[0][0]-1.0
-            v2 = 2.0*data[0][1]-1.0
-            Riq = v1*v1+v2*v2
-            if (0< Riq <= 1):
-                data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
-                data1.append(v1*data3)
-        return np.resize(data1,(size,n_modes))
 
     def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None,
                     lock_low_w = False, remove_non_isolated_atoms = False, sobol = False):
@@ -1963,6 +1949,22 @@ class Phonons:
                 A list of Structure.Structure()
         """
         K_to_Ry=6.336857346553283e-06
+        
+        def sobol_norm_rand(size,n_modes,scramble=True):  # **** Diegom_test ****
+            sampler = qmc.Sobol(d=2,scramble=scramble)
+            size_rand = size+n_modes
+            size_sobol = int(np.log(size_rand)/np.log(2))+1
+            sample = sampler.random_base2(m=size_sobol)
+            data1 = []
+            while (len(data1<size_rand)):
+                data = sampler.random()
+                v1 = 2.0*data[0][0]-1.0
+                v2 = 2.0*data[0][1]-1.0
+                Riq = v1*v1+v2*v2
+                if (0< Riq <= 1):
+                    data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
+                    data1.append(v1*data3)
+            return np.resize(data1,(size,n_modes))
 
 
         # Check if isolate atoms is good
