@@ -1949,14 +1949,14 @@ class Phonons:
                 A list of Structure.Structure()
         """
         K_to_Ry=6.336857346553283e-06
-        
+
         def sobol_norm_rand(size,n_modes,scramble=True):  # **** Diegom_test ****
             sampler = qmc.Sobol(d=2,scramble=scramble)
             size_rand = size+n_modes
             size_sobol = int(np.log(size_rand)/np.log(2))+1
             sample = sampler.random_base2(m=size_sobol)
             data1 = []
-            while (len(data1<size_rand)):
+            while (len(data1)<size_rand):
                 data = sampler.random()
                 v1 = 2.0*data[0][0]-1.0
                 v2 = 2.0*data[0][1]-1.0
