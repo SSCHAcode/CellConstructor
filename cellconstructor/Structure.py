@@ -439,11 +439,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         atoms = ase.io.read(filename)
 
         # Now obtain all the information
-        self.unit_cell = atoms.get_cell()
-        self.has_unit_cell = True
-        self.atoms = atoms.get_chemical_symbols()
-        self.N_atoms = len(self.atoms)
-        self.coords = atoms.positions.copy()
+        self.generate_from_ase_atoms(atoms)
         
 
     def set_unit_cell(self, filename, delete_copies = False, rescale_coords = False):

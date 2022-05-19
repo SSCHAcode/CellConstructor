@@ -4217,8 +4217,9 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
     if adjust_qstar:
         dyn.AdjustQStar()
 
-
     return dyn
+
+
 
 
 
