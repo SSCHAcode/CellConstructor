@@ -2023,7 +2023,8 @@ class Phonons:
             rand = np.random.normal(size = (size, n_modes))
         elif (sobol):
             rand = sobol_norm_rand(size, n_modes) # ***** Diegom_test ******
-        else raise ValueError('sobol is not True or False') # This should never raise
+        else:
+            raise ValueError('sobol is not True or False') # This should never raise
 
         # Get the masses for the final multiplication
         mass1 = np.tile(super_structure.get_masses_array(), (3, 1)).T.ravel()
