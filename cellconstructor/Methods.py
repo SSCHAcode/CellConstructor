@@ -1709,3 +1709,87 @@ def transform_voigt(tensor, voigt_to_mat = False):
     return new_tensor
     
 
+def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
+    """
+    GET THE BANDPATH
+    ================
+
+    Given the structure, get the kpoints in cartesian coordinates that reproduce the bandpath.
+
+    This method is usefull to plot the phonon dispersion.
+
+    Parameters
+    ----------
+        unit_cell :: ndarray(size = (3,3))
+            The primitive cell on which to simulate the bandpath
+        path_string :: str
+            The string of the path (for example GXWKG)
+        special_points : dict
+            A dictionary containing all the special points in the path and the respective coordinates in crystalline axis (relative to the reciprocal vectors).
+        n_points : int
+            The total number of points in which the path is divided.
+
+
+    Results
+    -------
+        qpath : ndarray(sizeof=(n_points, 3))
+            The q path in cartesian coordinates
+        (xaxis, xticks, xlabels) : 
+            The xaxis that represent the lenght of the qpath from the first point.
+            xlabels is the labels of each ticks and xticks 
+
+    """
+
+    # Get the reciprocal lattice
+    bg = get_reciprocal_vectors(unit_cell)
+
+    new_special_points = {x : np.array(special_points[x]).dot(bg) for x in special_points}
+
+    if len(path_string) < 2:
+        raise ValueError("Error, at least 2 q points needs to be processed")
+
+    path_points = np.zeros((len(path_string), 3), dtype = np.double)
+    for i, c in enumerate(path_string):
+        path_points[i] = new_special_points[c]
+
+
+    single_lenghts = np.linalg.norm(np.diff(path_points, axis = 0), axis = 1)
+    print('SL:', single_lenghts)
+    total_lenght = np.sum(single_lenghts)
+
+    xaxis = np.linspace(0, total_lenght, n_points)
+    xticks = np.zeros(len(path_string))
+    for i, ll in enumerate(single_lenghts):
+        xticks[i+1] = xticks[i] + ll
+
+    xlabels = [x.replace('G', r'$\Gamma$') for x in path_string]
+
+
+    q_path = np.zeros((n_points, 3), dtype = np.double)
+    dq = total_lenght / n_points
+    counter = 0
+    visited = []
+    for i in range(1, n_points):
+        
+        # Identify in which line it is
+        xval = xaxis[i]
+        index = 0
+        while xval >= single_lenghts[index] + __EPSILON__:
+
+            print(xval, index, single_lenghts)
+            xval -= single_lenghts[index]
+            index += 1
+
+
+        # If the line is changed, add a counter
+        if not index in visited:
+            visited.append(index)
+            counter = 0
+        else:
+            counter += 1
+
+        q_versor = (path_points[index+1,:] - path_points[index,:]) / single_lenghts[index]
+
+        q_path[i, :] =  path_points[index, :] + counter * dq * q_versor
+
+    return q_path, (xaxis, xticks, xlabels)
