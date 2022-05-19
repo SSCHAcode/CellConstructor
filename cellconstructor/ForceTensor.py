@@ -95,6 +95,23 @@ class Tensor2(GenericTensor):
                 The dynamical matrix from which you want to setup the tensor
         """
 
+        # Check if the supercell is correct
+        ERR = """
+Error, the supercell of the phonon object is {}.
+       it must match with the supercell defined for the Tensor2: {}
+""".format(phonons.GetSupercell(), self.supercell_size)
+        #print(ERR)
+
+        assert np.all([self.supercell_size[i] == phonons.GetSupercell()[i] for i in range(3)]), ERR
+
+        # Check that no 1 atom with 1 q point
+        if np.prod(phonons.GetSupercell()) == 1 and phonons.structure.N_atoms == 1:
+            ERR = """
+Error, cannot initialize a tensor from a structure with 1 atom with only Gamma 
+       check if you imported the dynamical matrix with the correct nqirr.
+
+"""
+            raise ValueError(ERR)
         current_dyn = phonons.Copy()
 
         # Check if the dynamical matrix has the effective charges
@@ -370,6 +387,10 @@ class Tensor2(GenericTensor):
                     In the centering, supercell equivalent atoms are considered within 
                     -Far,+Far multiples of the super-lattice vectors
         """    
+        # Check if the phonons is initialized TODO
+        #if np.max(np.abs(self.x_r_vector2)) == 0:
+        #    raise ValueError("Error, Tensor object not initialized!")
+
         if Settings.am_i_the_master():
             
             
@@ -2960,7 +2981,7 @@ class Tensor3():
 
 
 # Plot the phonons in the given k-path
-def get_phonons_in_qpath(dynamical_matrix, q_path):
+def get_phonons_in_qpath(dynamical_matrix, q_path, center_args = {}):
     """
     GET PHONONS IN K-PATH
     =====================
@@ -2973,6 +2994,9 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
             The dynamical matrix (with effective charges)
         q_path : list of ndarray(size of 3)
             List of q points in 2pi/A units.
+        center_args : dict
+            Dictionary of parameters to be passed to the Center function of
+            Tensor2
     
     Results
     -------
@@ -3018,7 +3042,7 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
                  dynamical_matrix.GetSupercell())
 
     t2.SetupFromPhonons(dynamical_matrix)
-    t2.Center(Far = 4)
+    t2.Center(**center_args)
     t2.Apply_ASR()
 
     n_k, _ = q_path.shape
