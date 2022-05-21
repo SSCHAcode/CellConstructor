@@ -2722,7 +2722,7 @@ class Phonons:
         """
         return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
 
-    def InterpolateMesh(self, mesh_dim):
+    def InterpolateMesh(self, mesh_dim, support_dyn_coarse=None, support_dyn_fine=None):
         """
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
@@ -2730,10 +2730,19 @@ class Phonons:
         This method employs the Tensor2 interpolateion functions 
         from the ForceTensor module to perform the interpolation.
 
+        You can pass two auxiliary dynamical matrices to improve the convergence.
+        The coarse support dynamical matrix must be on the same mesh as self
+        The fine matrix must be on the same mesh as mesh_dim.
+
+
         Parameters
         ----------
             mesh_dim : list of int
                 The dimension of the q-mesh on which perform the interpolation.
+            support_dyn_coarse : Phonons [optional]
+                A dynamical matrix defined on the same q points as this one.
+            support_dyn_fine : Phonons [optional]
+                An auxiliary dynamical matrix for intermediate interpolation 
 
         Results
         -------
@@ -2746,7 +2755,88 @@ class Phonons:
         t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
         t2.SetupFromPhonons(self)
 
+        if support_dyn_coarse is not None:
+            # -------------- CHECK THE CORRECT INPUT ------------
+            ERR_ON_TYPE = """
+Error, both support_dyn_coarse and support_dyn_fine must be provided
+       and must be a CC.Phonons.Phonons object        
+"""
+            assert isinstance(support_dyn_coarse, Phonons), ERR_ON_TYPE
+            assert isinstance(support_dyn_fine, Phonons), ERR_ON_TYPE
+
+            # Check that the input is consistent
+            if np.any( list(self.GetSupercell()) != list(support_dyn_coarse.GetSupercell())):
+                ERR_MESS = """
+Error, the support_dyn_coarse is defined on {} supercell.
+       it must be the same as the self dyn ({})                 
+""".format(support_dyn_coarse.GetSupercell(), self.GetSupercell())
+                raise ValueError(ERR_MESS)
+            
+            if np.any( list(support_dyn_fine.GetSupercell()) != list(mesh_dim)):
+                ERR_MESS = """
+Error, the support_dyn_fine is defined on {} supercell.
+       it must be the same as the mesh_dim argument ({})                 
+""".format(support_dyn_fine.GetSupercell(), mesh_dim)
+                raise ValueError(ERR_MESS)
+
+            # Check that all the unit cell are equal
+            ERR_MESS = """
+Error, the unit cell for all the dynamical matrices passed must be the same.
+       You can change the unit cell of the two support matrices with the method
+       dyn.AdjustToNewCell(unit_cell)
+"""
+            if np.linalg.norm(self.structure.unit_cell - support_dyn_coarse.structure.unit_cell) > __EPSILON__:
+                raise ValueError(ERR_MESS)
+            
+            if np.linalg.norm(self.structure.unit_cell - support_dyn_fine.structure.unit_cell) > __EPSILON__:
+                raise ValueError(ERR_MESS)
+            
+
+            # Compare also the structures as this may change the centering
+            ERR_MESS = """
+Error, the structures of the provided matrices must be the same.
+"""     
+            if np.linalg.norm(self.structure.coords - support_dyn_coarse.structure.coords) > __EPSILON__:
+                raise ValueError(ERR_MESS)
+            if np.linalg.norm(self.structure.coords - support_dyn_fine.structure.coords) > __EPSILON__:
+                raise ValueError(ERR_MESS)
+
+            # Compare also the atomic order
+            if np.any(self.structure.atoms != support_dyn_coarse.structure.atoms):
+                raise ValueError(ERR_MESS)
+            if np.any(self.structure.atoms != support_dyn_fine.structure.atoms):
+                raise ValueError(ERR_MESS)
+
+
+
+
+            t2_aux = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
+            t2_aux.SetupFromPhonons(support_dyn_coarse)
+
+            # Now subtract the two
+            t2.tensor -= t2_aux.tensor
+
+            # We already are subtracting the effective charges
+            # No need to account for long range forces here
+            t2.effective_charges = None
+
+
         out_dyn = t2.GeneratePhonons(mesh_dim)
+
+        # Check if we must add back also the other tensor
+        if support_dyn_fine is not None:
+            t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(mesh_dim), mesh_dim)
+            t2.SetupFromPhonons(support_dyn_fine)
+            # This assures the same order for the q points
+            second_out = t2.GeneratePhonons(mesh_dim)
+
+            for iq, dyn in enumerate(out_dyn.dynmats):
+                dyn[:,:] += second_out.dynmats[iq]
+        
+        out_dyn.effective_charges = self.effective_charges
+        out_dyn.dielectric_tensor = self.dielectric_tensor
+        out_dyn.raman_tensor = self.raman_tensor
+
         return out_dyn
 
 
@@ -2754,7 +2844,7 @@ class Phonons:
 
     
     def Interpolate(self, coarse_grid, fine_grid, support_dyn_coarse = None, 
-                    support_dyn_fine = None, symmetrize = False):
+                    support_dyn_fine = None, symmetrize = False, force_old_method = False):
         """
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
@@ -2787,13 +2877,19 @@ class Phonons:
                 with the fine_grid.
             symmetrize : bool, optional
                 If true activate the symmetrization for the new matrix
+            force_old_method : bool
+                If true, employs an old algorithm for the interpolation
+                Only for testing
         
         Results
         -------
             interpolated_dyn : Phonons()
                 The dynamical matrix interpolated.
         """
+        warnings.warn("DEPRECATED FUNCTION: Use self.InterpolateMesh instead!")
 
+        if not force_old_method:
+            return self.InterpolateMesh(fine_grid, support_dyn_coarse, support_dyn_fine)
         
         # Check if the support dynamical matrix is given:
         is_dync = support_dyn_coarse is not None
