@@ -1942,6 +1942,10 @@ class Phonons:
                 If True, frequencies below __EPSILON_W__ are fixed.
             remove_non_isolated_atoms : bool
                 If true it removes atoms non included in the isolate_atoms list (if not empty)
+            sobol : bool, optional (Default = False)
+                 Defines if the calculation uses random Gaussian generator or Sobol Gaussian generator.
+            sobol_scramble : bool, optional (Default = False)
+                Set the optional scrambling of the generated numbers taken from the Sobol sequence.
 
         Returns
         -------
