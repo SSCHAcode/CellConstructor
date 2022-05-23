@@ -1919,7 +1919,7 @@ class Phonons:
 
 
     def ExtractRandomStructures(self, size=1, T=0, isolate_atoms = [], project_on_vectors = None,
-                    lock_low_w = False, remove_non_isolated_atoms = False, sobol = False):
+                    lock_low_w = False, remove_non_isolated_atoms = False, sobol = False, sobol_scramble = False):
         """
         EXTRACT RANDOM STRUCTURES
         =========================
@@ -2024,7 +2024,7 @@ class Phonons:
         if (not sobol):
             rand = np.random.normal(size = (size, n_modes))
         elif (sobol):
-            rand = sobol_norm_rand(size, n_modes) # ***** Diegom_test ******
+            rand = sobol_norm_rand(size, n_modes, scramble = sobol_scramble) # ***** Diegom_test ******
         else:
             raise ValueError('sobol is not True or False') # This should never raise
 
