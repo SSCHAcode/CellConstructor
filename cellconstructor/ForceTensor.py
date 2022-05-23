@@ -966,7 +966,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
     #     return new_tensor
 
-    def GeneratePhonons(self, supercell, asr = False):
+    def GeneratePhonons(self, supercell, asr = False, lo_to_splitting = False):
         """
         GENERATE PHONONS
         ================
@@ -988,6 +988,10 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
             - asr : bool
                 If true, the ASR is imposed during the interpolation.
                 This is the best way to correct the modes even close to gamma
+            - lo_to_splitting : bool
+                If true, the phonons at gamma will have the LO-TO splitting
+                from a random direction.
+                Note, this will break symmetrization.
         
         Results
         -------
@@ -1007,7 +1011,12 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = self.Interpolate(-q_vector, asr = asr)
+            q_direction = None
+            if lo_to_splitting:
+                q_direction = np.random.normal(size = 3) 
+                q_direction /= np.linalg.norm(q_direction)
+
+            dynq = self.Interpolate(-q_vector, asr = asr, q_direct= q_direction)
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
