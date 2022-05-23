@@ -2722,7 +2722,7 @@ class Phonons:
         """
         return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
 
-    def InterpolateMesh(self, mesh_dim):
+    def InterpolateMesh(self, mesh_dim, lo_to_splitting = False):
         """
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
@@ -2746,7 +2746,7 @@ class Phonons:
         t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
         t2.SetupFromPhonons(self)
 
-        out_dyn = t2.GeneratePhonons(mesh_dim)
+        out_dyn = t2.GeneratePhonons(mesh_dim, lo_to_splitting=lo_to_splitting)
         return out_dyn
 
 
