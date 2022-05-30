@@ -578,7 +578,8 @@ def get_static_correction_along_path_multiprocessing(dyn,
     # with Pool() as plwork:    # test 6 cores with Pool(6)************
     #     v2_wq[:,:],frequencies[:,:] = plwork.starmap(multiprocessing_work1,parameters)
     plwork = Pool(processes)
-    v2_wq, frequencies = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
+    #v2_wq, frequencies = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
+    result = plwork.starmap(multiprocessing_work_static_correction_along_path,parameters)
     plwork.close()    #remember to close all your pools or they keep using memory/space.
     plwork.join()
     # ============================================================================
