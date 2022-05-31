@@ -2177,7 +2177,72 @@ class Phonons:
 
         return np.sum(entropy)
 
-        
+    def get_harmonic_heat_capacity(self, T, w_pols = None, small_w_freq = __EPSILON_W__, allow_imaginary_freq = False):
+        r"""
+        HEAT CAPACITY
+        =============
+
+        Compute the (quantum) harmonic heat capacity by deriving the entropy with respect to temperature
+
+
+        .. math::
+
+            C_v = \sum_\mu k_b \beta^2\omega_\mu^2 \frac{e^{\beta\omega_\mu}}{(e^{\beta\omega_\mu} - 1)^2}
+
+        Parameters
+        ----------
+            T : float
+                Temperature in K
+            w_pols : (ndarray, ndarray)
+                Frequencies and polarization vectors of the diagonalized dynamical matrix.
+                Obtained from self.DiagonalizeSupercell
+                This way the diagonalization is performed only once if computed in a cycle.
+            small_w_freq : float
+                If provided, all the frequencies below this value are neglected
+            allow_imaginary_freq : bool
+                If true, imaginary frequencies are ignored.
+
+        Results
+        -------
+            heat_capacity : float
+                The heat_capacity in Ry / K for the whole supercell structure
+        """
+
+        if T < __EPSILON__:
+            return 0
+            
+
+        if w_pols is None:
+            w, pols = self.DiagonalizeSupercell()
+        else:
+            w, pols = w_pols
+
+        # Remove translations
+        tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+
+        # Exclude also other w = 0 modes (good for rotations)
+        locked_original = np.abs(w) < __EPSILON_W__
+        if np.sum(locked_original.astype(int)) > np.sum(tmask.astype(int)):
+            tmask = locked_original
+
+        w = w[ ~tmask ]
+
+        if allow_imaginary_freq:
+            w = w[w > 0]
+
+        # Check the presence of imaginary frequencie
+        if not np.all( w>0):
+            raise ValueError("Error, the entropy is not defined when the dynamical matrix has imaginary frequencies!")
+
+        beta = RY_TO_KELVIN / T  
+        Kb_ry = K_B / RY_TO_EV
+
+        # Compute the specific heat for each mode
+        exp_factor2 = np.exp(beta * w)
+        cv = Kb_ry * (beta*w)**2 * exp_factor2 / (exp_factor2 - 1)**2
+
+        # Sum the result in the full supercell
+        return np.sum(cv)
 
         
     def get_phonon_dos(self, w_array, smearing, exclude_acoustic = True, use_cm = False, w_pols = None):
