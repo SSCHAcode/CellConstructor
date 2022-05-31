@@ -1102,7 +1102,7 @@ def write_namelist(total_dict):
                 elif isinstance(value, str):
                     valuestr = "\"%s\"" % value
                 elif isinstance(value, bool):
-                    valuestr = f".{str(value).lower()}."
+                    valuestr = ".{}.".format(str(value).lower())
                 else:
                     valuestr = str(value)
             
