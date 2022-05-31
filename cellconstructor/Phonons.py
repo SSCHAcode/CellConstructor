@@ -1971,7 +1971,7 @@ class Phonons:
             #     if (0< Riq <= 1):
             #         data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
             #         data1.append(v1*data3)
-
+            data2 = []
             for i in range(n_modes):
                 data1 = []
                 while (len(data1)<size):
@@ -1983,7 +1983,7 @@ class Phonons:
                         data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
                         data1.append(v1*data3)
                 data2.append(data1)
-            return np.resize(data1,(size,n_modes))
+            return np.resize(data2,(size,n_modes))
 
 
         # Check if isolate atoms is good
