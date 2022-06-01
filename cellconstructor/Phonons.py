@@ -15,7 +15,7 @@ import os, sys
 import scipy, scipy.optimize
 from scipy.stats import qmc
 
-import itertools
+import itertools, math
 import cellconstructor.Structure as Structure
 import cellconstructor.symmetries as symmetries
 import cellconstructor.ForceTensor as ForceTensor
@@ -1983,8 +1983,32 @@ class Phonons:
                         data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
                         data1.append(v1*data3)
                 data2.append(data1)
-            return np.resize(data2,(size,n_modes))
 
+
+
+            return np.resize(data2,(size,n_modes))
+        def sobol_norm_rand3(size,n_modes,scramble=False,salt=0.0):  # **** Diegom_test **** adding random 'salt'
+
+            sampler = qmc.Sobol(d=2, scramble=scramble)
+            size_sobol = int(math.ceil(np.log(size/2)/np.log(2))) #int(np.log(self.size)/np.log(2))
+            print("size = ",size," ;size Sobol = ",size_sobol)
+            sample = sampler.random_base2(m=size_sobol)
+
+
+            data1=[0,0]
+            for i in (range(1,len(sample))):
+                u1 = sample[i][0]
+                u2 = sample[i][1]
+                r = -np.sqrt(-2*np.log(u1))
+                theta = 2*np.pi*u2
+                data1.append(r*np.cos(theta))
+                data1.append(r*np.sin(theta))
+            m = len(data1)-size
+            data2 = data1[m:]
+            print (len(data1),len(data2),size)
+            data = np.resize(data2,(n_modes,size))
+
+            return data.T
 
         # Check if isolate atoms is good
         if len(isolate_atoms):
