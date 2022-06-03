@@ -7,6 +7,8 @@ Created on Wed Jun  6 10:45:50 2018
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from hashlib import new
+from importlib.resources import path
 
 from numpy import *
 import numpy as np
@@ -1741,7 +1743,7 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
     """
 
     # Get the reciprocal lattice
-    bg = get_reciprocal_vectors(unit_cell)
+    bg = get_reciprocal_vectors(unit_cell) 
 
     new_special_points = {x : np.array(special_points[x]).dot(bg) for x in special_points}
 
@@ -1752,9 +1754,11 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
     for i, c in enumerate(path_string):
         path_points[i] = new_special_points[c]
 
+    #print('BG:', bg * 2 * np.pi)
+    #print('UC:', unit_cell)
+    #print('SPECIAL POINTS:', {x : new_special_points[x] * 2 * np.pi for x  in new_special_points})
 
     single_lenghts = np.linalg.norm(np.diff(path_points, axis = 0), axis = 1)
-    print('SL:', single_lenghts)
     total_lenght = np.sum(single_lenghts)
 
     xaxis = np.linspace(0, total_lenght, n_points)
