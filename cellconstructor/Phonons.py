@@ -23,6 +23,7 @@ import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 
 import cellconstructor.calculators as calculators
+from cellconstructor.Moro_object import Moro
 
 import warnings
 
@@ -1957,56 +1958,8 @@ class Phonons:
         K_to_Ry=6.336857346553283e-06
 
         def sobol_norm_rand(size,n_modes,scramble=False,salt=0.0):  # **** Diegom_test **** adding random 'salt'
-            sampler = qmc.Sobol(d=2,scramble=scramble)
-            #size_rand = size+n_modes
-            #size_sobol = int(np.log(size_rand)/np.log(2))+1
-            size_sobol = int(np.log(size)/np.log(2))+1
-            sample = sampler.random_base2(m=size_sobol)
-            # data1 = []
-            # while (len(data1)<size_rand):
-            #     data = sampler.random()+salt*(np.random.randn()-1)
-            #     v1 = 2.0*data[0][0]-1.0
-            #     v2 = 2.0*data[0][1]-1.0
-            #     Riq = v1*v1+v2*v2
-            #     if (0< Riq <= 1):
-            #         data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
-            #         data1.append(v1*data3)
-            data2 = []
-            for i in range(n_modes):
-                data1 = []
-                while (len(data1)<size):
-                    data = sampler.random()+salt*(np.random.randn()-1)
-                    v1 = 2.0*data[0][0]-1.0
-                    v2 = 2.0*data[0][1]-1.0
-                    Riq = v1*v1+v2*v2
-                    if (0< Riq <= 1):
-                        data3 = np.sqrt(-2.0*np.log(Riq)/Riq)
-                        data1.append(v1*data3)
-                data2.append(data1)
-
-
-
-            return np.resize(data2,(size,n_modes))
-        def sobol_norm_rand3(size,n_modes,scramble=False,salt=0.0):  # **** Diegom_test **** adding random 'salt'
-
-            sampler = qmc.Sobol(d=2, scramble=scramble)
-            size_sobol = int(math.ceil(np.log(size/2)/np.log(2))) #int(np.log(self.size)/np.log(2))
-            print("size = ",size," ;size Sobol = ",size_sobol)
-            sample = sampler.random_base2(m=size_sobol)
-
-
-            data1=[0,0]
-            for i in (range(1,len(sample))):
-                u1 = sample[i][0]
-                u2 = sample[i][1]
-                r = -np.sqrt(-2*np.log(u1))
-                theta = 2*np.pi*u2
-                data1.append(r*np.cos(theta))
-                data1.append(r*np.sin(theta))
-            m = len(data1)-size
-            data2 = data1[m:]
-            print (len(data1),len(data2),size)
-            data = np.resize(data2,(n_modes,size))
+            Sobol = Moro()
+            data = Sobol.sobol(size,n_modes)
 
             return data.T
 
