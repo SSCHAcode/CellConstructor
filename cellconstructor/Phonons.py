@@ -2022,7 +2022,7 @@ class Phonons:
         if (not sobol):
             rand = np.random.normal(size = (size, n_modes))
         elif (sobol):
-            rand = sobol_norm_rand(size, n_modes, scramble = sobol_scramble, salt = sobol_scatter) # ***** Diegom_test ******
+            rand = sobol_norm_rand(size, n_modes, scramble = sobol_scramble, sobol_salt = sobol_scatter) # ***** Diegom_test ******
         else:
             raise ValueError('sobol is not True or False') # This should never raise
 
