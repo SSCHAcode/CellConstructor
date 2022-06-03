@@ -151,6 +151,10 @@ class Espresso(FileIOCalculator):
                 Dictionary of the file names of the pseudopotentials
             masses : dict
                 Dictionary of the masses (in UMA) of the specified atomic species
+            kpts : list
+                A list of the k points grid to sample the space.
+                If the calculation is given at gamma, use the gamma string.
+                Note gamma is incompatible with a koffset
         """
         FileIOCalculator.__init__(self)
 
@@ -215,18 +219,25 @@ class Espresso(FileIOCalculator):
 
         print("TOTAL INPUT:")
         print(total_input)
-
         scf_text += """
 ATOMIC_SPECIES
 """
         for atm in typs:
             scf_text += "{}  {}   {}\n".format(atm, self.masses[atm], self.pseudopotentials[atm])
         
-        scf_text += """
-K_POINTS automatic
-{} {} {} {} {} {}
-""".format(self.kpts[0], self.kpts[1], self.kpts[2],
-            self.koffset[0], self.koffset[1], self.koffset[2])
+        if isinstance(self.kpts, str):
+            if self.kpts.lower() == 'gamma':
+                scf_text += '''
+    K_POINTS gamma
+    '''
+            else:
+                raise ValueError('Error, kpts msut be either list or gamma, {} not recognized'.format(self.kpts))
+        else:
+            scf_text += """
+    K_POINTS automatic
+    {} {} {} {} {} {}
+    """.format(self.kpts[0], self.kpts[1], self.kpts[2],
+                self.koffset[0], self.koffset[1], self.koffset[2])
         
         scf_text += structure.save_scf(None, get_text = True)
 
