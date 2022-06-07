@@ -97,7 +97,6 @@ class Moro(object):
 #        plt.show()
         m = len(data)-size      #****Diegom_test**** cut extra points (may work?)
         data1 = data[m:]
-#        data1 = np.random.normal(size = size) #****Diegom_test**** look if this is exactly like the standard random¡¡¡
         x = np.resize(data1,(n_modes,size))
         print ('exit data:')
         print (x)
@@ -109,15 +108,15 @@ class Moro(object):
         sample0 = sampler.random_base2(m=size_sobol)
         sample = sampler.random_base2(m=size_sobol)
         print ('size=',size,'size_sobol=',size_sobol,'ss=',2**size_sobol)
-        print (sample)
+        #print (sample)
         data = np.zeros(shape=(size,n_modes))
         for i in range(size):
             for j in range(n_modes):
                 data[i][j] = self.gauss(sample[i][j])
         m = len(data)-size      #****Diegom_test**** cut extra points (may work?)
         x = data[m:]
-        print ('exit data:')
-        print (x)
+        #print ('exit data:')
+        #print (x)
 
         return x
 # ----------
