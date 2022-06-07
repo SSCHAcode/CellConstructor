@@ -1960,9 +1960,10 @@ class Phonons:
         def sobol_norm_rand(size,n_modes,scramble=False,sobol_salt=0.0):  # **** Diegom_test **** adding random 'salt'
             Sobol = Moro()
             data = Sobol.sobol_modes(size,n_modes,scramble=scramble)
-            for i in range(size):
-                 for j in range(n_modes):
-                     data[i][j]=data[i][j]+(np.random.rand()-0.5)*sobol_salt
+            if (sobol_salt!=0.0):
+                for i in range(size):
+                     for j in range(n_modes):
+                         data[i][j]=data[i][j]+(np.random.rand()-0.5)*sobol_salt
             return data
 
         # Check if isolate atoms is good
