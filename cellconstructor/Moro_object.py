@@ -103,8 +103,8 @@ class Moro(object):
         print (x)
         return x
 
-    def sobol_modes(self,size,n_modes):
-        sampler = qmc.Sobol(d=n_modes, scramble=False)
+    def sobol_modes(self,size,n_modes,scramble):
+        sampler = qmc.Sobol(d=n_modes, scramble=scramble)
         size_sobol = int(math.ceil(np.log(size)/np.log(2)))
         sample0 = sampler.random_base2(m=size_sobol)
         sample = sampler.random_base2(m=size_sobol)
