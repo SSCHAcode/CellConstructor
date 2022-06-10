@@ -1243,7 +1243,7 @@ class Phonons:
             
     def save_phononpy(self, *args, **kwargs):
         "Mapping to save_phonopy"
-        warnings.warn("Deprecated, use save_phonopy instead.")
+        warnings.warn("[DEPRECATION WARNING] save_phononpy is deprecated: use save_phonopy instead.")
         self.save_phonopy(*args, **kwargs)
 
     def save_phonopy(self, path = ".", supercell_size = None):

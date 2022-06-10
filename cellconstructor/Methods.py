@@ -1743,18 +1743,20 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
     # Get the reciprocal lattice
     bg = get_reciprocal_vectors(unit_cell)
 
-    new_special_points = {x : np.array(special_points[x]).dot(bg) for x in special_points}
+
+    new_special_points = {x : np.array(special_points[x], dtype = np.double).dot(bg) for x in special_points}
+    print(new_special_points)
 
     if len(path_string) < 2:
         raise ValueError("Error, at least 2 q points needs to be processed")
 
     path_points = np.zeros((len(path_string), 3), dtype = np.double)
     for i, c in enumerate(path_string):
-        path_points[i] = new_special_points[c]
+        path_points[i, :] = new_special_points[c]
 
 
     single_lenghts = np.linalg.norm(np.diff(path_points, axis = 0), axis = 1)
-    print('SL:', single_lenghts)
+    #print('SL:', single_lenghts)
     total_lenght = np.sum(single_lenghts)
 
     xaxis = np.linspace(0, total_lenght, n_points)
@@ -1766,6 +1768,7 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
 
 
     q_path = np.zeros((n_points, 3), dtype = np.double)
+    q_path[-1, :] = path_points[-1,:]  # Set the starting point in the path
     dq = total_lenght / n_points
     counter = 0
     visited = []
@@ -1790,6 +1793,6 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
 
         q_versor = (path_points[index+1,:] - path_points[index,:]) / single_lenghts[index]
 
-        q_path[i, :] =  path_points[index, :] + counter * dq * q_versor
+        q_path[i-1, :] =  path_points[index, :] + counter * dq * q_versor
 
     return q_path, (xaxis, xticks, xlabels)
