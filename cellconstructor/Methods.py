@@ -1761,10 +1761,6 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
     #print('SPECIAL POINTS:', {x : new_special_points[x] * 2 * np.pi for x  in new_special_points})
 
     single_lenghts = np.linalg.norm(np.diff(path_points, axis = 0), axis = 1)
-<<<<<<< HEAD
-    #print('SL:', single_lenghts)
-=======
->>>>>>> c4449aa93ba972500623251f62262d2c38d4deac
     total_lenght = np.sum(single_lenghts)
 
     xaxis = np.linspace(0, total_lenght, n_points)
