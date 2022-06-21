@@ -21,8 +21,9 @@ module third_order_cond
     !
 
         DO i_block = 1, n_blocks
-            arg = tpi * SUM(q2(:)*R2(:,i_block) + q3(:)*R3(:,i_block))
-            phase = CMPLX(Cos(arg),Sin(arg), kind=DP)
+            !arg = tpi * SUM(q2(:)*R2(:,i_block) + q3(:)*R3(:,i_block))
+            arg = tpi*(dot_product(q2, R2(:,i_block)) + dot_product(q3, R3(:,i_block)))
+            phase = exp(cmplx(0.0_DP, arg))!CMPLX(Cos(arg),Sin(arg), kind=DP)
 
              fc_interp = fc_interp + phase*fc(i_block,:,:,:)
       ! 

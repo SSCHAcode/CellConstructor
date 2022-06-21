@@ -8,6 +8,7 @@ import numpy as np
 import os, sys
 import scipy, scipy.optimize
 import h5py
+import psutil
 
 # Import the Fortran Code
 import symph
@@ -277,61 +278,654 @@ def stupid_centering_fc3(tensor3):
 
     if(tensor3.n_R == tensor3.n_sup**2):
         print('Not previously centered. Stupid centering!')
+        got = [False for x in range(tensor3.n_R)]
+        pairs = []
+        # Check if it satisfies the permutation symmetry
+        for i in range(tensor3.n_R):
+            rvec2 = tensor3.r_vector2[:,i].copy()
+            rvec3 = tensor3.r_vector3[:,i].copy()
+            if(np.linalg.norm(rvec2) < 1.0e-5 and np.linalg.norm(rvec3) < 1.0e-5):
+                pairs.append([i,i])
+                got[i] = True
+            else:
+                if(not got[i]):
+                    for j in range(i, tensor3.n_R):
+                        if(not got[j]):
+                            rvec21 = tensor3.r_vector2[:,j].copy()
+                            rvec31 = tensor3.r_vector3[:,j].copy()
+                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
+                                pairs.append([i,j])
+                                got[i] = True
+                                got[j] = True
+        if(not np.all(got)):
+            for i in range(tensor3.n_R):
+                if(not got[i]):
+                    print(tensor3.x_r_vector2[:,i])
+                    print(tensor3.x_r_vector3[:,i])
+                    print('')
+        else:
+            print('Found all pairs')
+            for ipair in range(len(pairs)):
+                if(pairs[ipair][0] != pairs[ipair][1]):
+                    ip = pairs[ipair][0]
+                    jp = pairs[ipair][1]
+                    for i in range(3*natom):
+                        for iat in range(natom):
+                            for jat in range(natom):
+                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
+                                    print('Permutation symmetry failed original!')
+                                    print(tensor3.tensor[ip,i])
+                                    print(tensor3.tensor[jp,i])
+                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
+                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    break
+        new_r_vector2 = []
+        new_r_vector3 = []
+        new_tensor = []
+        print('Finished check. Centering...')
         for ir in range(tensor3.n_R):
             rvec2 = tensor3.r_vector2[:,ir].copy()
             rvec3 = tensor3.r_vector3[:,ir].copy()
             xvec2 = np.dot(rvec2, irsup)
             xvec3 = np.dot(rvec3, irsup)
             size2 = np.linalg.norm(rvec2)
+            size20 = np.linalg.norm(rvec2)
             size3 = np.linalg.norm(rvec3)
+            size30 = np.linalg.norm(rvec3)
             size = np.linalg.norm(rvec3 - rvec2) + size2 + size3
+            rvec2_new = []
+            rvec3_new = []
+            # Find the shortest pair vectors in the mirror supercells -2 < x < 2
             for i in range(-2,3):
                 for j in range(-2,3):
                     for k in range(-2,3):
                         xvec21 = xvec2 + np.array([i,j,k])
                         rvec21 = np.dot(xvec21, rsup)
-                        for i1 in range(-2,3):
-                            for j1 in range(-2,3):
-                                for k1 in range(-2,3):
-                                    xvec31 = xvec3 + np.array([i1,j1,k1])
-                                    rvec31 = np.dot(xvec31, rsup)
-                                    size1 = np.linalg.norm(rvec21) + np.linalg.norm(rvec31) + np.linalg.norm(rvec31 - rvec21)
-                                    if(size1 < size):
-                                        size = size1
-                                        rvec2 = rvec21.copy()
-                                        rvec3 = rvec31.copy()
-            tensor3.r_vector2[:,ir] = rvec2
-            tensor3.r_vector3[:,ir] = rvec3
-            tensor3.x_r_vector2[:,ir] = np.dot(tensor3.r_vector2[:,ir], irprim)
-            tensor3.x_r_vector3[:,ir] = np.dot(tensor3.r_vector3[:,ir], irprim)
+                        size21 = np.linalg.norm(rvec21)
+                        if(size21 <= size2 + 1.0e-6):
+                            if(abs(size21 - size2) < 1.0e-6):
+                                rvec2_new.append(rvec21.copy())
+                            else:
+                                rvec2_new = []
+                                rvec2_new.append(rvec21.copy())
+                            size2 = size21
+                            rvec2 = rvec21.copy()
+                        xvec31 = xvec3 + np.array([i,j,k])
+                        rvec31 = np.dot(xvec31, rsup)
+                        size31 = np.linalg.norm(rvec31)
+                        if(size31 <= size3 + 1.0e-6):
+                            if(abs(size31 - size3) < 1.0e-6):
+                                rvec3_new.append(rvec31.copy())
+                            else:
+                                rvec3_new = []
+                                rvec3_new.append(rvec31.copy())
+                            size3 = size31
+                            rvec3 = rvec31.copy()
+                        #for i1 in range(-2,3):
+                        #    for j1 in range(-2,3):
+                        #        for k1 in range(-2,3):
+                        #            xvec31 = xvec3 + np.array([i1,j1,k1])
+                        #            rvec31 = np.dot(xvec31, rsup)
+                        #            size31 = np.linalg.norm(rvec31)
+                        #            size1 = np.linalg.norm(rvec21) + np.linalg.norm(rvec31) + np.linalg.norm(rvec31 - rvec21)
+                        #            #if(size21 < size2 and size31 < size3):
+                        #            if(size21 <= size2 and size31 <= size3):
+                        #                size2 = size21
+                        #                size3 = size31
+                        #                size = size1
+                        #                rvec2 = rvec21.copy()
+                        #                rvec3 = rvec31.copy()
+            #print(xvec2, xvec3, size20, size30)
+            #print(np.dot(rvec2, irsup), np.dot(rvec3, irsup), size2, size3)
+            #print('')
+            #print(len(rvec2_new))
+            #print(np.dot(rvec2_new, irprim))
+            #print(len(rvec3_new))
+            #print(np.dot(rvec3_new, irprim))
+            #print('')
+            #if(len(rvec2_new) > 1 or len(rvec3_new) > 1):
+            #    size4 = np.linalg.norm(rvec2_new[0] - rvec3_new[0])
+            #    rvec2 = rvec2_new[0]
+            #    rvec3 = rvec3_new[0]
+            #    for i in range(len(rvec2_new)):
+            #        for j in range(len(rvec3_new)):
+            #            if(np.linalg.norm(rvec2_new[i] - rvec3_new[j]) < size4):
+            #                size4 = np.linalg.norm(rvec2_new[i] - rvec3_new[j])
+            #                rvec2 = rvec2_new[i]
+            #                rvec3 = rvec3_new[j]
+            # For each pair of the shortest pairs construct another entry to tensor3 and scale it with multiplicity
+            for iuc in range(len(rvec2_new)):
+                for juc in range(len(rvec3_new)):
+                    new_r_vector2.append(rvec2_new[iuc])
+                    new_r_vector3.append(rvec3_new[juc])
+                    new_tensor.append(tensor3.tensor[ir]/float(len(rvec2_new)*len(rvec3_new)))
+            #tensor3.r_vector2[:,ir] = rvec2
+            #tensor3.r_vector3[:,ir] = rvec3
+            #tensor3.x_r_vector2[:,ir] = np.rint(np.dot(tensor3.r_vector2[:,ir], irprim), dtype=float)
+            #tensor3.x_r_vector3[:,ir] = np.rint(np.dot(tensor3.r_vector3[:,ir], irprim), dtype=float)
+        tensor3.n_R = len(new_r_vector2)
+        tensor3.r_vector2 = np.array(new_r_vector2).T
+        tensor3.r_vector3 = np.array(new_r_vector3).T
+        tensor3.x_r_vector2 = np.zeros_like(tensor3.r_vector2)
+        tensor3.x_r_vector3 = np.zeros_like(tensor3.r_vector3)
+        tensor3.tensor = np.array(new_tensor)
+        got = [False for x in range(tensor3.n_R)]
+        pairs = []
+        for i in range(tensor3.n_R):
+            rvec2 = tensor3.r_vector2[:,i].copy()
+            rvec3 = tensor3.r_vector3[:,i].copy()
+            tensor3.x_r_vector2[:,i] = np.rint(np.dot(tensor3.r_vector2[:,i], irprim), dtype=float)
+            tensor3.x_r_vector3[:,i] = np.rint(np.dot(tensor3.r_vector3[:,i], irprim), dtype=float)
+            # Find pairs to check if this centering broke permutation symmetry
+            if(np.linalg.norm(rvec2 - rvec3) < 1.0e-5):
+                pairs.append([i,i])
+                got[i] = True
+            else:
+                if(not got[i]):
+                    for j in range(i, tensor3.n_R):
+                        if(not got[j]):
+                            rvec21 = tensor3.r_vector2[:,j].copy()
+                            rvec31 = tensor3.r_vector3[:,j].copy()
+                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
+                                pairs.append([i,j])
+                                got[i] = True
+                                got[j] = True
+        if(not np.all(got)):
+            for i in range(tensor3.n_R):
+                if(not got[i]):
+                    print(tensor3.x_r_vector2[:,i])
+                    print(tensor3.x_r_vector3[:,i])
+                    print('')
+        else:
+            print('Found all pairs')
+            for ipair in range(len(pairs)):
+                if(pairs[ipair][0] != pairs[ipair][1]):
+                    ip = pairs[ipair][0]
+                    jp = pairs[ipair][1]
+                    for i in range(3*natom):
+                        for iat in range(natom):
+                            for jat in range(natom):
+                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
+                                    print('Permutation symmetry failed!')
+                                    print(tensor3.tensor[ip,i])
+                                    print(tensor3.tensor[jp,i])
+                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
+                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    break
 
-
-        #for ir in range(tensor3.n_R):
-        #    xvec2 = tensor3.x_r_vector2[:,ir]
-        #    xvec3 = tensor3.x_r_vector3[:,ir]
-        #    xvec2_old = xvec2.copy()
-        #    xvec3_old = xvec3.copy()
-        #    rvec2 = np.dot(xvec2, cell[0])
-        #    rvec3 = np.dot(xvec3, cell[0])
-        #    for i in range(3):
-        #        if(xvec2[i] >= float(tensor3.supercell_size[i])/2.0):
-        #            xvec2[i] -= tensor3.supercell_size[i]
-        #        elif(xvec2[i] < -1.0*float(tensor3.supercell_size[i])/2.0):
-        #            xvec2[i] += tensor3.supercell_size[i]
-        #        if(xvec3[i] >= float(tensor3.supercell_size[i])/2.0):
-        #            xvec3[i] -= tensor3.supercell_size[i]
-        #        elif(xvec3[i] < -1.0*float(tensor3.supercell_size[i])/2.0):
-        #            xvec3[i] += tensor3.supercell_size[i]
-        #    tensor3.x_r_vector2[:,ir] = xvec2
-        #    tensor3.x_r_vector3[:,ir] = xvec3
-        #    tensor3.r_vector2[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector2[:,ir])
-        #    tensor3.r_vector3[:,ir] = tensor3.unitcell_structure.unit_cell.T.dot(tensor3.x_r_vector3[:,ir])
     else:
         print('Probably already centered! Nothing to do!')
 
+    return tensor3
 
+def stupid_centering_fc3_v3(tensor3, Far = 1):
+    #print(psutil.virtual_memory().percent)
+    rprim = tensor3.unitcell_structure.unit_cell.copy()
+    irprim = np.linalg.inv(rprim)
+    rsup = tensor3.supercell_structure.unit_cell.copy()
+    irsup = np.linalg.inv(rsup)
+    #print(rprim)
+    positions = tensor3.unitcell_structure.coords.copy()
+    xpos = np.dot(positions, np.linalg.inv(rprim))
+    natom = len(xpos)
+    #print(xpos)
+    symbols = tensor3.unitcell_structure.atoms
+    unique_symbols = np.unique(symbols)
+    unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
+    numbers = np.zeros(len(symbols))
+    for iat in range(len(symbols)):
+        for jat in range(len(unique_symbols)):
+            if(symbols[iat] == unique_symbols[jat]):
+                numbers[iat] = unique_numbers[jat]
+    #print(numbers)
+    cell = (rprim, xpos, numbers)
+    if(tensor3.n_R == tensor3.n_sup**2):
+        print('ForceTensor most likely not previously centered! ')
+        permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+        print(psutil.virtual_memory().percent)
+        if(permutation):
+            print('Permutation symmetry satisfied. Centering ...')
+            hfc3, hr_vector2, hr_vector3, tot_trip = thermal_conductivity.third_order_cond_centering.find_triplets(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, rsup, irsup, positions, tensor3.n_R, natom)
+            hfc3 = np.asfortranarray(hfc3)
+            hr_vector3 = np.asfortranarray(hr_vector3)
+            hr_vector2 = np.asfortranarray(hr_vector2)
+            #print(np.shape(hfc3), np.shape(hr_vector3), np.shape(hr_vector2), tensor3.n_R, natom)
+            print(tot_trip)
+            maxtrip = np.sum(tot_trip)*natom**3
+           # print(maxtrip, tensor3.n_R, natom)
+           # print(psutil.virtual_memory().percent)
+           # print(np.shape(hfc3), np.shape(hr_vector2), np.shape(hr_vector3))
+           # print('This should occupy: ' + format((np.prod(np.shape(hfc3)) + np.prod(np.shape(hr_vector2)) + np.prod(np.shape(hr_vector3)))*8.0/1024.0**3, '.3f') + ' GB of memory!')
+            fc3, r_vector2, r_vector3, ntrip = thermal_conductivity.third_order_cond_centering.distribute_fc3(hfc3, hr_vector2, hr_vector3, tot_trip, maxtrip, natom, tensor3.n_R)
+            #ntrip = 0
+            #for i in range(len(r_vector2)):
+            #    if(i != 0 and np.linalg.norm(r_vector2[i]) < 1.0e-6 and np.linalg.norm(r_vector3[i]) < 1.0e-6):
+            #        ntrip = i
+            #        break
+            print('Final number of triplets: ', ntrip)
+            tensor3.n_R = ntrip
+            tensor3.r_vector2 = r_vector2[0:ntrip,:].T
+            tensor3.r_vector3 = r_vector3[0:ntrip,:].T
+            tensor3.x_r_vector2 = np.zeros_like(tensor3.r_vector2)
+            tensor3.x_r_vector3 = np.zeros_like(tensor3.r_vector3)
+            tensor3.tensor = fc3[0:ntrip]
+            tensor3.x_r_vector2 = np.rint(np.dot(r_vector2[0:ntrip,:], irprim), dtype=float).T
+            tensor3.x_r_vector3 = np.rint(np.dot(r_vector3[0:ntrip,:], irprim), dtype=float).T
+            write_fc3(tensor3)
+            permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+            if(not permutation):
+                print('After centering tensor does not satisfy permutation symmetry!')
+            return tensor3
+        else:
+            print('Permutation symmetry not satisfied. Abandon centering! ')
+
+def write_fc3(tensor3):
+    natom = len(tensor3.unitcell_structure.coords)
+    with open('fc3.dat', 'w+') as outfile:
+        for i in range(tensor3.n_R):
+            outfile.write('Triplet: '+ str(i+1) + '\n')
+            for j in range(3):
+                outfile.write(3*' ' + format(tensor3.r_vector2[j,i], '.8f'))
+            outfile.write('\n')
+            for j in range(3):
+                outfile.write(3*' ' + format(tensor3.r_vector3[j,i], '.8f'))
+            outfile.write('\n')
+            for iat in range(natom):
+                for j in range(3):
+                    outfile.write('Coordinate '+ str(1+j + 3*iat) + '\n')
+                    for jat in range(natom):
+                        for j1 in range(3):
+                            for kat in range(natom):
+                                for k1 in range(3):
+                                    outfile.write(3*' ' + format(tensor3.tensor[i,3*iat+j,3*jat+j1,3*kat+k1], '.8f'))
+                            outfile.write('\n')
+
+def stupid_centering_fc3_v2(tensor3, Far = 1):
+
+    rprim = tensor3.unitcell_structure.unit_cell.copy()
+    irprim = np.linalg.inv(rprim)
+    rsup = tensor3.supercell_structure.unit_cell.copy()
+    irsup = np.linalg.inv(rsup)
+    #print(rprim)
+    positions = tensor3.unitcell_structure.coords.copy()
+    xpos = np.dot(positions, np.linalg.inv(rprim))
+    natom = len(xpos)
+    #print(xpos)
+    symbols = tensor3.unitcell_structure.atoms
+    unique_symbols = np.unique(symbols)
+    unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
+    numbers = np.zeros(len(symbols))
+    for iat in range(len(symbols)):
+        for jat in range(len(unique_symbols)):
+            if(symbols[iat] == unique_symbols[jat]):
+                numbers[iat] = unique_numbers[jat]
+    #print(numbers)
+    cell = (rprim, xpos, numbers)
+
+    if(tensor3.n_R == tensor3.n_sup**2):
+        print('Not previously centered. Stupid centering!')
+        got = [False for x in range(tensor3.n_R)]
+        pairs = []
+        # Check if it satisfies the permutation symmetry
+        for i in range(tensor3.n_R):
+            rvec2 = tensor3.r_vector2[:,i].copy()
+            rvec3 = tensor3.r_vector3[:,i].copy()
+            if(np.linalg.norm(rvec2) < 1.0e-5 and np.linalg.norm(rvec3) < 1.0e-5):
+                pairs.append([i,i])
+                got[i] = True
+            else:
+                if(not got[i]):
+                    for j in range(i, tensor3.n_R):
+                        if(not got[j]):
+                            rvec21 = tensor3.r_vector2[:,j].copy()
+                            rvec31 = tensor3.r_vector3[:,j].copy()
+                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
+                                pairs.append([i,j])
+                                got[i] = True
+                                got[j] = True
+        if(not np.all(got)):
+            for i in range(tensor3.n_R):
+                if(not got[i]):
+                    print(tensor3.x_r_vector2[:,i])
+                    print(tensor3.x_r_vector3[:,i])
+                    print('')
+        else:
+            print('Found all pairs')
+            for ipair in range(len(pairs)):
+                if(pairs[ipair][0] != pairs[ipair][1]):
+                    ip = pairs[ipair][0]
+                    jp = pairs[ipair][1]
+                    for i in range(3*natom):
+                        for iat in range(natom):
+                            for jat in range(natom):
+                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
+                                    print('Permutation symmetry failed original!')
+                                    print(tensor3.tensor[ip,i])
+                                    print(tensor3.tensor[jp,i])
+                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
+                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    break
+        new_r_vector2 = [[] for iat in range(natom**3)]
+        new_r_vector3 = [[] for iat in range(natom**3)]
+        new_tensor = [[] for iat in range(natom**3)]
+        multiplicity = [[] for iat in range(natom**3)]
+        print('Finished check. Centering...')
+        for ir in range(tensor3.n_R):
+            rvec2 = tensor3.r_vector2[:,ir].copy()
+            rvec3 = tensor3.r_vector3[:,ir].copy()
+            xvec2 = np.dot(rvec2, irsup)
+            xvec3 = np.dot(rvec3, irsup)
+            size2 = np.linalg.norm(rvec2)
+            size20 = np.linalg.norm(rvec2)
+            size3 = np.linalg.norm(rvec3)
+            size30 = np.linalg.norm(rvec3)
+            size = np.linalg.norm(rvec3 - rvec2) + size2 + size3
+            rvec2_new = [[] for iat in range(natom**3)]
+            rvec3_new = [[] for iat in range(natom**3)]
+            # Find the shortest pair vectors in the mirror supercells -Far <= x <= Far
+            for iat in range(natom):
+                for jat in range(natom):
+                    for kat in range(natom):
+                        index = kat + jat*natom + natom**2*iat
+                        rvec2 = tensor3.r_vector2[:,ir].copy() + positions[jat] - positions[iat]
+                        rvec3 = tensor3.r_vector3[:,ir].copy() + positions[kat] - positions[iat]
+                        xvec2 = np.dot(rvec2, irsup)
+                        xvec3 = np.dot(rvec3, irsup)
+                        size2 = np.linalg.norm(rvec2)
+                        size20 = np.linalg.norm(rvec2)
+                        size3 = np.linalg.norm(rvec3)
+                        size30 = np.linalg.norm(rvec3)
+                        for i in range(-Far,Far + 1):
+                            for j in range(-Far, Far + 1):
+                                for k in range(-Far, Far +1):
+                                    xvec21 = xvec2 + np.array([i,j,k])
+                                    rvec21 = np.dot(xvec21, rsup)
+                                    size21 = np.linalg.norm(rvec21)
+                                    if(size21 <= size2 + 1.0e-6):
+                                        if(abs(size21 - size2) < 1.0e-6):
+                                            uc_vec = tensor3.r_vector2[:,ir].copy()
+                                            uc_vec = np.dot(uc_vec, irsup)
+                                            uc_vec += np.array([i,j,k])
+                                            uc_vec = np.dot(uc_vec, rsup)
+                                            rvec2_new[index].append(uc_vec)
+                                        else:
+                                            uc_vec = tensor3.r_vector2[:,ir].copy()
+                                            uc_vec = np.dot(uc_vec, irsup)
+                                            uc_vec += np.array([i,j,k])
+                                            uc_vec = np.dot(uc_vec, rsup)
+                                            rvec2_new[index] = []
+                                            rvec2_new[index].append(uc_vec)
+                                        size2 = size21
+                                        rvec2 = rvec21.copy()
+                                    xvec31 = xvec3 + np.array([i,j,k])
+                                    rvec31 = np.dot(xvec31, rsup)
+                                    size31 = np.linalg.norm(rvec31)
+                                    if(size31 <= size3 + 1.0e-6):
+                                        if(abs(size31 - size3) < 1.0e-6):
+                                            uc_vec = tensor3.r_vector3[:,ir].copy()
+                                            uc_vec = np.dot(uc_vec, irsup)
+                                            uc_vec += np.array([i,j,k])
+                                            uc_vec = np.dot(uc_vec, rsup)
+                                            rvec3_new[index].append(uc_vec)
+                                        else:
+                                            uc_vec = tensor3.r_vector3[:,ir].copy()
+                                            uc_vec = np.dot(uc_vec, irsup)
+                                            uc_vec += np.array([i,j,k])
+                                            uc_vec = np.dot(uc_vec, rsup)
+                                            rvec3_new[index] = []
+                                            rvec3_new[index].append(uc_vec)
+                                        size3 = size31
+                                        rvec3 = rvec31.copy()
+                # For each pair of the shortest pairs construct another entry to tensor3 and scale it with multiplicity
+                        for iuc in range(len(rvec2_new[index])):
+                            for juc in range(len(rvec3_new[index])):
+                                already_there = False
+                                for kuc in range(len(new_r_vector2[index])):
+                                    if(np.linalg.norm(rvec2_new[index][iuc] - new_r_vector2[index][kuc]) < 1.0e-6 and \
+                                            np.linalg.norm(rvec3_new[index][juc] - new_r_vector3[index][kuc]) < 1.0e-6):
+                                        already_there = True
+                                        print('Would double count this one!')
+                                        break
+                                if not already_there:
+                                    new_r_vector2[index].append(rvec2_new[index][iuc])
+                                    new_r_vector3[index].append(rvec3_new[index][juc])
+                                    new_tensor[index].append(tensor3.tensor[ir]/float(len(rvec2_new[index])*len(rvec3_new[index])))
+                                    multiplicity[index].append(len(rvec2_new[index])*len(rvec3_new[index]))
+        n_R = [0 for x in range(natom**3)]
+        for iat in range(natom):
+            for jat in range(natom):
+                for kat in range(natom):
+                    n_R[kat + jat*natom +iat*natom**2] = len(new_r_vector2[kat + jat*natom + natom**2*iat])
+        #Check if all n_R are equal
+        if(n_R.count(n_R[0]) == len(n_R)):
+            index0 = 0
+        else:
+            index0 = np.argsort(n_R)[-1]
+            print(n_R)
+            for ir in range(natom**3):
+                print(len(multiplicity[ir]))
+            #for ir in range(tensor3.n_R):
+            #    print(multiplicity[:][ir])
+            #print('Largest number of triplets for: ', index0)
+            #for itrip in range(len(new_r_vector2)):
+            #    if(itrip != index0):
+            #        print('Checking triplet: ', itrip)
+            #        for i in range(len(new_r_vector2[index0])):
+            #            found = False
+            #            for j in range(len(new_r_vector2[itrip])):
+            #                if(np.linalg.norm(new_r_vector2[itrip][j] - new_r_vector2[index0][i]) < 1.0e-6):
+            #                    found = True
+            #                    break
+            #            if(not found):
+            #                print('For triplet: ', itrip)
+            #                print('Could not find: ', np.dot(new_r_vector2[index0][i], irprim))
+            #raise RuntimeError('Number of lattice vectors for all triplets is not the same! ')
+        print(n_R)
+        r_vector2 = new_r_vector2[index0].copy()
+        r_vector3 = new_r_vector3[index0].copy()
+        extra = 0
+        for itrip in range(len(n_R)):
+            if(itrip != index0):
+                for iuc in range(len(new_r_vector2[itrip])):
+                    already_there = False
+                    for juc in range(len(r_vector2)):
+                        if(np.linalg.norm(r_vector2[juc] - new_r_vector2[itrip][iuc]) < 1.0e-6 and \
+                                np.linalg.norm(r_vector3[juc] - new_r_vector3[itrip][iuc]) < 1.0e-6):
+                            already_there = True
+                            break
+                    if(not already_there):
+                        extra += 1
+                        r_vector2.append(new_r_vector2[itrip][iuc])
+                        r_vector3.append(new_r_vector3[itrip][iuc])
+        print('Added ' + str(extra) + ' new triplets!')
+        fc3 = []
+        for iuc in range(len(r_vector2)):
+            fc3.append(np.zeros_like(tensor3.tensor[0]))
+            for iat in range(natom):
+                for jat in range(natom):
+                    for kat in range(natom):
+                        index = kat + jat*natom + iat*natom**2
+                        found = False
+                        for juc in range(len(new_r_vector2[index])):
+                            if(np.linalg.norm(new_r_vector2[index][juc] - r_vector2[iuc]) < 1.0e-6 and \
+                                    np.linalg.norm(new_r_vector3[index][juc] - r_vector3[iuc]) < 1.0e-6):
+                                fc3[iuc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat] = new_tensor[index][juc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat]#*multiplicity[index][juc]/multiplicity[index][iuc]
+                                found = True
+                                break
+                        #if(not found):
+                            #print('Still can not find! Very weird')
+                        #    match1 = False
+                        #    match2 = False
+                        #    for ir in range(tensor3.n_R):
+                        #        rvec2 = tensor3.r_vector2[:,ir].copy() 
+                        #        xvec2 = np.dot(rvec2, irsup)
+                        #        rvec3 = tensor3.r_vector3[:,ir].copy() 
+                        #        xvec3 = np.dot(rvec3, irsup)
+                        #        for i1 in range(-1,2):
+                        #            if(not match1):
+                        #                for j1 in range(-1,2):
+                        #                    if(not match1):
+                        #                        for k1 in range(-1,2):
+                        #                            xvec21 = xvec2 + np.array([i1,j1,k1])
+                        #                            rvec21 = np.dot(xvec21, rsup)
+                        #                            if(np.linalg.norm(rvec21 - r_vector2[iuc]) < 1.0e-6):
+                        #                                match1 = True
+                        #                                break
+                        #        for i1 in range(-1,2):
+                        #            if(not match2):
+                        #                for j1 in range(-1,2):
+                        #                    if(not match2):
+                        #                        for k1 in range(-1,2):
+                        #                            xvec31 = xvec3 + np.array([i1,j1,k1])
+                        #                            rvec31 = np.dot(xvec31, rsup)
+                        #                            if(np.linalg.norm(rvec31 - r_vector3[iuc]) < 1.0e-6):
+                        #                                match2 = True
+                        #                                break
+                        #        if(match1 and match2):
+                        #            print('Matched!', ir, index, float(iuc)/float(len(r_vector2)))
+                        #            break
+                        #    if(match1 and match2):
+                        #        fc3[iuc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat] = tensor3.tensor[ir][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat]/float(multiplicity[index][ir])                                    
+                         #   else:
+                         #       print(match1, match2)
+                         #       raise RuntimeError('Could not find triplet!')
+        print('Final number of triplets: ', len(r_vector2))
+        tensor3.n_R = len(r_vector2)
+        tensor3.r_vector2 = np.array(r_vector2).T
+        tensor3.r_vector3 = np.array(r_vector3).T
+        tensor3.x_r_vector2 = np.zeros_like(tensor3.r_vector2)
+        tensor3.x_r_vector3 = np.zeros_like(tensor3.r_vector3)
+        tensor3.tensor = np.array(fc3)
+        write_fc3(tensor3)
+        got = [False for x in range(tensor3.n_R)]
+        pairs = []
+        for i in range(tensor3.n_R):
+            rvec2 = tensor3.r_vector2[:,i].copy()
+            rvec3 = tensor3.r_vector3[:,i].copy()
+            tensor3.x_r_vector2[:,i] = np.rint(np.dot(tensor3.r_vector2[:,i], irprim), dtype=float)
+            tensor3.x_r_vector3[:,i] = np.rint(np.dot(tensor3.r_vector3[:,i], irprim), dtype=float)
+            # Find pairs to check if this centering broke permutation symmetry
+            if(np.linalg.norm(rvec2 - rvec3) < 1.0e-5):
+                pairs.append([i,i])
+                got[i] = True
+            else:
+                if(not got[i]):
+                    for j in range(i, tensor3.n_R):
+                        if(not got[j]):
+                            rvec21 = tensor3.r_vector2[:,j].copy()
+                            rvec31 = tensor3.r_vector3[:,j].copy()
+                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
+                                pairs.append([i,j])
+                                got[i] = True
+                                got[j] = True
+        if(not np.all(got)):
+            for i in range(tensor3.n_R):
+                if(not got[i]):
+                    print(tensor3.x_r_vector2[:,i])
+                    print(tensor3.x_r_vector3[:,i])
+                    print('')
+        else:
+            print('Found all pairs')
+            for ipair in range(len(pairs)):
+                if(pairs[ipair][0] != pairs[ipair][1]):
+                    ip = pairs[ipair][0]
+                    jp = pairs[ipair][1]
+                    for i in range(3*natom):
+                        for iat in range(natom):
+                            for jat in range(natom):
+                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
+                                    print('Permutation symmetry failed!')
+                                    print(tensor3.tensor[ip,i])
+                                    print(tensor3.tensor[jp,i])
+                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
+                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
+                                    break
+
+    else:
+        print('Probably already centered! Nothing to do!')
 
     return tensor3
+
+def apply_permutation_symmetry(tensor3, pairs):
+        for ipair in range(len(pairs)):
+            if(pairs[ipair][0] != pairs[ipair][1]):
+                ip = pairs[ipair][0]
+                jp = pairs[ipair][1]
+                for i in range(3*tensor3.nat):
+                    for iat in range(tensor3.nat):
+                        for jat in range(tensor3.nat):
+                            #if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
+                            tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] = (tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] + tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T)/2.0
+                            tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)] = tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)].T
+
+def apply_asr(tensor3, tol = 1.0e-10):
+
+    rprim = tensor3.unitcell_structure.unit_cell.copy()
+    irprim = np.linalg.inv(rprim)
+    rsup = tensor3.supercell_structure.unit_cell.copy()
+    irsup = np.linalg.inv(rsup)
+
+    unique_xr2 = []
+    for i in range(tensor3.n_R):
+        found = False
+        for j in range(len(unique_xr2)):
+            if(np.linalg.norm(tensor3.x_r_vector2[:,i] - tensor3.x_r_vector2[:,unique_xr2[j][0]]) < 1.0e-5):
+                found = True
+                unique_xr2[j].append(i)
+                break
+        if(not found):
+            unique_xr2.append([i])
+    got = [False for x in range(tensor3.n_R)]
+    pairs = []
+    for i in range(tensor3.n_R):
+        rvec2 = tensor3.r_vector2[:,i].copy()
+        rvec3 = tensor3.r_vector3[:,i].copy()
+        if(np.linalg.norm(rvec2 - rvec3) < 1.0e-5):
+            pairs.append([i,i])
+            got[i] = True
+        else:
+            if(not got[i]):
+                for j in range(i, tensor3.n_R):
+                    if(not got[j]):
+                        rvec21 = tensor3.r_vector2[:,j].copy()
+                        rvec31 = tensor3.r_vector3[:,j].copy()
+                        if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
+                            pairs.append([i,j])
+                            got[i] = True
+                            got[j] = True
+    if(not np.all(got)):
+        for i in range(tensor3.n_R):
+            if(not got[i]):
+                print(tensor3.x_r_vector2[:,i])
+                print(tensor3.x_r_vector3[:,i])
+        raise RuntimeError('Could not find all the pairs!')
+
+    for i in range(len(unique_xr2)):
+        suma = np.zeros_like(tensor3.tensor[i])
+        for j in range(len(unique_xr2[i])):
+            suma += tensor3.tensor[unique_xr2[i][j]]
+        norm = np.linalg.norm(suma)
+        step = 1
+        while(norm > tol):
+            suma = np.zeros_like(tensor3.tensor[i])
+            for j in range(len(unique_xr2[i])):
+                suma += tensor3.tensor[unique_xr2[i][j]]
+            suma /= float(len(unique_xr2[i]))
+            for j in range(len(unique_xr2[i])):
+                tensor3.tensor[unique_xr2[i][j]] -= suma
+            apply_permutation_symmetry(tensor3, pairs)
+            suma = np.zeros_like(tensor3.tensor[0])
+            for j in range(len(unique_xr2[i])):
+                suma += tensor3.tensor[unique_xr2[i][j]]
+            norm = np.linalg.norm(suma)
+            print('Norm on step ' + str(step) + ' ' + format(norm, '.8e'))
+            step += 1
+    return tensor3
+
 
 class ThermalConductivity:
 
@@ -474,6 +1068,7 @@ class ThermalConductivity:
                 for ik in range(len(keys)):
                     if(ne is None):
                         ne = np.shape(self.lineshapes[keys[ik]])[-1]
+                        hf.create_dataset('ne', data = ne)
                     else:
                         if(ne != np.shape(self.lineshapes[keys[ik]])[-1]):
                             raise RuntimeError('Number of energy/frequency points not same for all temperatures!')
@@ -490,8 +1085,6 @@ class ThermalConductivity:
         if(len(keys) > 0):
             for ik in range(len(keys)):
                 hf.create_dataset('kappa_' + keys[ik], data = self.kappa[keys[ik]])
-
-        hf.create_dataset('ne', data = ne)
         hf.close()
 
     def load(self, filename):
