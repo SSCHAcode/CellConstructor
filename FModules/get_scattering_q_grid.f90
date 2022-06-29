@@ -3,21 +3,21 @@
 
     contains
 
-    subroutine get_scattering_q_grid(rotations, irrqgrid, qgrid, nirrqpt, nqpt, nsym, &
-                   scattering_grid, scattering_weights)
+    subroutine get_scattering_q_grid(rotations, irrqgrid, qgrid, scatt_qgrid, &
+                    nirrqpt, nqpt, scatt_nqpt, nsym, scattering_grid, scattering_weights)
 
         implicit none
 
         integer, parameter :: DP = selected_real_kind(14,200)
 
-        integer, intent(in) :: nirrqpt, nqpt, nsym 
+        integer, intent(in) :: nirrqpt, nqpt, nsym, scatt_nqpt 
         real(kind=DP), intent(in) :: rotations(nsym,3,3)
-        real(kind=DP), intent(in) :: irrqgrid(nirrqpt, 3), qgrid(nqpt, 3)
+        real(kind=DP), intent(in) :: irrqgrid(nirrqpt, 3), qgrid(nqpt, 3), scatt_qgrid(scatt_nqpt, 3)
 
-        real(kind=DP), intent(out) :: scattering_grid(nirrqpt, nqpt, 3)
-        integer, intent(out) :: scattering_weights(nirrqpt, nqpt)
+        real(kind=DP), intent(out) :: scattering_grid(nirrqpt, scatt_nqpt, 3)
+        integer, intent(out) :: scattering_weights(nirrqpt, scatt_nqpt)
 
-        integer :: iqpt, jqpt, isym, jsym, isg, nsg, ilist, lenlist
+        integer :: iqpt, jqpt, isym, jsym, isg, nsg, ilist, lenlist, tot_events
         integer :: sg_ind(nsym)
         real(kind=DP) :: q1(3), q2(3), q3(3), q21(3), q31(3)
         logical :: in_list
@@ -40,8 +40,8 @@
             !print*, 'Size of the small group of ', iqpt, ' q point is ', nsg
 
             lenlist = 0
-            do jqpt = 1, nqpt
-                q2 = qgrid(jqpt, :)
+            do jqpt = 1, scatt_nqpt
+                q2 = scatt_qgrid(jqpt, :)
                 q3 = -1.0_DP*q1 - q2
                 in_list = .False.
 
@@ -79,7 +79,12 @@
                 endif
 
             enddo
-            !print*, 'Final number of scattering events: ', lenlist 
+            !print*, 'Final number of scattering events: ', lenlist
+            !tot_events = 0 
+            !do ilist = 1, lenlist
+            !    tot_events = tot_events + scattering_weights(iqpt,ilist)
+            !enddo
+            !print*, 'Total number of scattering events: ', tot_events, scatt_nqpt
         enddo
 
     end subroutine get_scattering_q_grid
