@@ -151,13 +151,14 @@ def sscha_phonons_from_phonopy(phonon):
 
 
 # Get ForceTensor.Tensor3 from Phono3py object 
-def phonopy_fc3_to_tensor3(tc):
+def phonopy_fc3_to_tensor3(tc, apply_symmetries = True):
     
     unitcell = get_sscha_structure_from_phonopy(tc.primitive)
     supercell = get_sscha_structure_from_phonopy(tc.supercell)
     uc_nat = unitcell.N_atoms
     sc_nat = supercell.N_atoms
     if(uc_nat in tc.fc3.shape[0:3]):
+        print('Compact forceconstants.')
         tc.generate_displacements()
         supercells = tc.supercells_with_displacements
         tc.fc3 = force_constants_3rd_order
@@ -178,23 +179,33 @@ def phonopy_fc3_to_tensor3(tc):
         permutations = tc.symmetry.atomic_permutations
         distribute_fc3(tc.fc3, first_disp_atoms, target_atoms, phonon.supercell.cell.T, rotations, permutations, s2compact, verbose=False)
 
-    supercell_matrix = np.diag(tc.supercell_matrix).astype(int)
+    supercell_matrix = (np.diag(tc.supercell_matrix).astype(int)).tolist()
+    #print(supercell_matrix)
+    #print(unitcell.unit_cell)
+    #print(unitcell.coords)
     supercell_structure = unitcell.generate_supercell(supercell_matrix)
-#    print(supercell.coords)
-#    print(supercell_structure.coords)
+    #print(supercell_structure.unit_cell)
+    #print(supercell_structure.coords)
     atom_mapping = np.zeros(len(supercell.coords), dtype=int)
+    already_there = [False for x in range(len(supercell.coords))]
     for iat in range(len(supercell.coords)):
         found_atom = False
         for jat in range(len(supercell.coords)):
-            if(np.linalg.norm(supercell.coords[iat] - supercell_structure.coords[jat]) < 1.0e-5):
+            if(np.linalg.norm(supercell.coords[iat] - supercell_structure.coords[jat]) < 1.0e-5 and not already_there[jat]):
                 atom_mapping[iat] = jat
                 found_atom = True
+                already_there[jat] = True
                 break
+            elif(np.linalg.norm(supercell.coords[iat] - supercell_structure.coords[jat]) < 1.0e-5 and already_there[jat]):
+                raise RuntimeError('Already matched this atom!')
         if(not found_atom):
             print('Could not find ' + str(iat + 1) + ' atom in the structure!')
+    if(not np.all(already_there)):
+        raise RuntimeError('Did not match all atoms...')
 #    print(atom_mapping)
     tensor3 = CC.ForceTensor.Tensor3(unitcell, supercell_structure, supercell_matrix)
-
+    #print(tensor3.supercell_structure.unit_cell)
+    #print(tensor3.supercell_structure.coords)
     aux_tensor = np.zeros((3*sc_nat, 3*sc_nat, 3*sc_nat))
     for iat in range(sc_nat):
         iat1 = atom_mapping[iat]
@@ -207,13 +218,15 @@ def phonopy_fc3_to_tensor3(tc):
                         for k in range(3):
                             aux_tensor[iat1*3+i, jat1*3+j, kat1*3+k] = tc.fc3[iat,jat,kat,i,j,k]
     d3 = np.asfortranarray(aux_tensor)
-    qe_sym = CC.symmetries.QE_Symmetry(supercell_structure)
-    qe_sym.SetupFromSPGLIB()
-    qe_sym.ApplySymmetryToTensor3(d3)
+    if(apply_symmetries):
+        qe_sym = CC.symmetries.QE_Symmetry(supercell_structure)
+        qe_sym.SetupFromSPGLIB()
+        qe_sym.ApplySymmetryToTensor3(d3)
     d3 *= BOHR_TO_ANGSTROM**3/RY_TO_EV
     tensor3.SetupFromTensor(d3)
     np.save("d3_realspace_sym.npy", d3)
 
+    print('Translated phonopy 3rd order force constants.')
     return tensor3
 
 def tensor2_to_phonopy_fc2(SSCHA_tensor, phonon):

@@ -460,7 +460,7 @@ def stupid_centering_fc3(tensor3):
 
     return tensor3
 
-def stupid_centering_fc3_v3(tensor3, Far = 1):
+def stupid_centering_fc3_v3(tensor3, check_for_symmetries = True, Far = 1):
     #print(psutil.virtual_memory().percent)
     rprim = tensor3.unitcell_structure.unit_cell.copy()
     irprim = np.linalg.inv(rprim)
@@ -483,17 +483,25 @@ def stupid_centering_fc3_v3(tensor3, Far = 1):
     cell = (rprim, xpos, numbers)
     if(tensor3.n_R == tensor3.n_sup**2):
         print('ForceTensor most likely not previously centered! ')
-        permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
-        print(psutil.virtual_memory().percent)
+        if(check_for_symmetries):
+            permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+            print(psutil.virtual_memory().percent)
+            if(not permutation):
+                print('Permutation symmetry not satisfied. Forcing symmetry! ')
+                fc3 = thermal_conductivity.third_order_cond_centering.apply_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+                tensor3.tensor = fc3
+            permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+        else:
+            permutation = True
         if(permutation):
             print('Permutation symmetry satisfied. Centering ...')
-            hfc3, hr_vector2, hr_vector3, tot_trip = thermal_conductivity.third_order_cond_centering.find_triplets(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, rsup, irsup, positions, tensor3.n_R, natom)
+            hfc3, hr_vector2, hr_vector3, tot_trip = thermal_conductivity.third_order_cond_centering.find_triplets(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, rsup, irsup, positions, Far, tensor3.n_R, natom)
             hfc3 = np.asfortranarray(hfc3)
             hr_vector3 = np.asfortranarray(hr_vector3)
             hr_vector2 = np.asfortranarray(hr_vector2)
             #print(np.shape(hfc3), np.shape(hr_vector3), np.shape(hr_vector2), tensor3.n_R, natom)
-            print(tot_trip)
-            maxtrip = np.sum(tot_trip)*natom**3
+            #print(tot_trip)
+            maxtrip = thermal_conductivity.third_order_cond_centering.number_of_triplets(hfc3, hr_vector2, hr_vector3, tot_trip, natom, tensor3.n_R)
            # print(maxtrip, tensor3.n_R, natom)
            # print(psutil.virtual_memory().percent)
            # print(np.shape(hfc3), np.shape(hr_vector2), np.shape(hr_vector3))
@@ -514,12 +522,26 @@ def stupid_centering_fc3_v3(tensor3, Far = 1):
             tensor3.x_r_vector2 = np.rint(np.dot(r_vector2[0:ntrip,:], irprim), dtype=float).T
             tensor3.x_r_vector3 = np.rint(np.dot(r_vector3[0:ntrip,:], irprim), dtype=float).T
             write_fc3(tensor3)
-            permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
-            if(not permutation):
-                print('After centering tensor does not satisfy permutation symmetry!')
+            if(check_for_symmetries):
+                permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+                if(not permutation):
+                    print('After centering tensor does not satisfy permutation symmetry!')
             return tensor3
         else:
-            print('Permutation symmetry not satisfied. Abandon centering! ')
+            raise RuntimeError('Permutation symmetry not satisfied again. Aborting ...')
+
+def apply_asr(tensor3, tol = 1.0e-10):
+
+    print('Applying ASR!')
+    natom = tensor3.unitcell_structure.N_atoms
+
+    fc3 = thermal_conductivity.third_order_cond_centering.apply_asr(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)  
+    tensor3.tensor = fc3
+    permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
+    if(not permutation):
+        print('After ASR tensor does not satisfy permutation symmetry!')
+
+    return tensor3
 
 def write_fc3(tensor3):
     natom = len(tensor3.unitcell_structure.coords)
@@ -862,74 +884,10 @@ def apply_permutation_symmetry(tensor3, pairs):
                             tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] = (tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] + tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T)/2.0
                             tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)] = tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)].T
 
-def apply_asr(tensor3, tol = 1.0e-10):
-
-    rprim = tensor3.unitcell_structure.unit_cell.copy()
-    irprim = np.linalg.inv(rprim)
-    rsup = tensor3.supercell_structure.unit_cell.copy()
-    irsup = np.linalg.inv(rsup)
-
-    unique_xr2 = []
-    for i in range(tensor3.n_R):
-        found = False
-        for j in range(len(unique_xr2)):
-            if(np.linalg.norm(tensor3.x_r_vector2[:,i] - tensor3.x_r_vector2[:,unique_xr2[j][0]]) < 1.0e-5):
-                found = True
-                unique_xr2[j].append(i)
-                break
-        if(not found):
-            unique_xr2.append([i])
-    got = [False for x in range(tensor3.n_R)]
-    pairs = []
-    for i in range(tensor3.n_R):
-        rvec2 = tensor3.r_vector2[:,i].copy()
-        rvec3 = tensor3.r_vector3[:,i].copy()
-        if(np.linalg.norm(rvec2 - rvec3) < 1.0e-5):
-            pairs.append([i,i])
-            got[i] = True
-        else:
-            if(not got[i]):
-                for j in range(i, tensor3.n_R):
-                    if(not got[j]):
-                        rvec21 = tensor3.r_vector2[:,j].copy()
-                        rvec31 = tensor3.r_vector3[:,j].copy()
-                        if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
-                            pairs.append([i,j])
-                            got[i] = True
-                            got[j] = True
-    if(not np.all(got)):
-        for i in range(tensor3.n_R):
-            if(not got[i]):
-                print(tensor3.x_r_vector2[:,i])
-                print(tensor3.x_r_vector3[:,i])
-        raise RuntimeError('Could not find all the pairs!')
-
-    for i in range(len(unique_xr2)):
-        suma = np.zeros_like(tensor3.tensor[i])
-        for j in range(len(unique_xr2[i])):
-            suma += tensor3.tensor[unique_xr2[i][j]]
-        norm = np.linalg.norm(suma)
-        step = 1
-        while(norm > tol):
-            suma = np.zeros_like(tensor3.tensor[i])
-            for j in range(len(unique_xr2[i])):
-                suma += tensor3.tensor[unique_xr2[i][j]]
-            suma /= float(len(unique_xr2[i]))
-            for j in range(len(unique_xr2[i])):
-                tensor3.tensor[unique_xr2[i][j]] -= suma
-            apply_permutation_symmetry(tensor3, pairs)
-            suma = np.zeros_like(tensor3.tensor[0])
-            for j in range(len(unique_xr2[i])):
-                suma += tensor3.tensor[unique_xr2[i][j]]
-            norm = np.linalg.norm(suma)
-            print('Norm on step ' + str(step) + ' ' + format(norm, '.8e'))
-            step += 1
-    return tensor3
-
 
 class ThermalConductivity:
 
-    def __init__(self, dyn, tensor3, kpoint_grid = 2, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', off_diag = False):
+    def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', off_diag = False):
 
         """
 
@@ -957,6 +915,13 @@ class ThermalConductivity:
             self.kpoint_grid = np.array([kpoint_grid for x in range(3)])
         else:
             self.kpoint_grid = np.array(kpoint_grid).astype(int)
+        if(scattering_grid is not None):
+            if(isinstance(scattering_grid, int)):
+                self.scattering_grid = np.array([scattering_grid for x in range(3)])
+            else:
+                self.scattering_grid = np.array(scattering_grid).astype(int)
+        else:
+            self.scattering_grid = self.kpoint_grid.copy()
         self.smearing_scale = smearing_scale
         self.unitcell = self.dyn.structure.unit_cell
         print('Primitive cell: ')
@@ -1016,6 +981,7 @@ class ThermalConductivity:
         if(self.smearing_scale is not None):
             hf.create_dataset('smearing_scale', data = np.array([self.smearing_scale]))
         hf.create_dataset('kpoint_grid', data = self.kpoint_grid)
+        hf.create_dataset('scattering_grid', data = self.scattering_grid)
         hf.create_dataset('unit_cell', data = self.unitcell)
         hf.create_dataset('supercell', data = self.supercell)
         dt = h5py.special_dtype(vlen=str)
@@ -1101,6 +1067,7 @@ class ThermalConductivity:
         except:
             pass
         self.kpoint_grid = np.array(hf.get('kpoint_grid'))
+        self.scattering_grid = np.array(hf.get('scattering_grid'))
         self.unitcell = np.array(hf.get('unit_cell'))
         self.supercell = np.array(hf.get('supercell'))
         self.smearing_type = np.array2string(np.array(hf.get('smearing_type')))[2:-1]
@@ -1167,7 +1134,9 @@ class ThermalConductivity:
             if('kappa' in key):
                 temp = key.split('_')[-1]
                 self.kappa[temp] = np.array(hf.get(key))
-    
+
+############################################################################################################################################
+
     def set_kpoints(self):
 
         """
@@ -1179,6 +1148,8 @@ class ThermalConductivity:
         time_init = time.time()
         self.k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.kpoint_grid)
         self.qpoints = np.dot(np.array(self.k_points), self.unitcell.T)
+        self.scattering_k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.scattering_grid)
+        self.scattering_qpoints = np.dot(np.array(self.scattering_k_points), self.unitcell.T)
         print('Generated grid in ' + format(time.time() - time0, '.2e') + ' seconds.')
         time0 = time.time()
         self.irr_k_points = self.symmetry.SelectIrreducibleQ(self.k_points) 
@@ -1207,6 +1178,7 @@ class ThermalConductivity:
         #print(self.qstar_list)
 
         self.nkpt = np.shape(self.k_points)[0]
+        self.scattering_nkpt = np.shape(self.scattering_k_points)[0]
         self.nirrkpt = np.shape(self.irr_k_points)[0]
         self.weights = np.zeros(self.nirrkpt, dtype = int)
         for iqpt in range(self.nirrkpt):
@@ -1252,7 +1224,10 @@ class ThermalConductivity:
         time0 = time.time()
         self.k_points = np.array(k_points)
         self.qpoints = np.dot(np.array(self.k_points), self.unitcell.T)
+        self.scattering_k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.scattering_grid)
+        self.scattering_qpoints = np.dot(np.array(self.scattering_k_points), self.unitcell.T)
         self.nkpt = np.shape(self.k_points)[0]
+        self.scattering_nkpt = np.shape(self.scattering_k_points)[0]
         self.nirrkpt = np.shape(self.irr_k_points)[0]
         self.weights = np.zeros(self.nirrkpt, dtype = int)
         for iqpt in range(self.nirrkpt):
@@ -1360,13 +1335,13 @@ class ThermalConductivity:
             irrgrid.append(self.qpoints[self.qstar_list[iqpt][0]])
         irrgrid = np.asfortranarray(irrgrid)
         (scattering_grid, scattering_weight) = thermal_conductivity.scattering_grids.get_scattering_q_grid(rotations, irrgrid, self.qpoints, \
-                self.nirrkpt, self.nkpt, nsym)
+                self.scattering_qpoints, self.nirrkpt, self.nkpt, self.scattering_nkpt, nsym)
         self.scattering_grids = []
         self.scattering_weights = []
         for iqpt in range(self.nirrkpt):
             curr_grid = []
             curr_w = []
-            for jqpt in range(self.nkpt):
+            for jqpt in range(self.scattering_nkpt):
                 if(scattering_weight[iqpt][jqpt] > 0):
                     curr_grid.append(np.dot(scattering_grid[iqpt][jqpt], self.reciprocal_lattice))
                     curr_w.append(scattering_weight[iqpt][jqpt])
@@ -1374,9 +1349,9 @@ class ThermalConductivity:
                     break
             self.scattering_grids.append(curr_grid)
             self.scattering_weights.append(curr_w)
-            if(sum(curr_w) != self.nkpt):
+            if(sum(curr_w) != self.scattering_nkpt):
                 print('WARNING! Sum of weights for ' + str(iqpt + 1) + '. q point does not match total number of q points!')
-                print(sum(curr_w), self.nkpt)
+                print(sum(curr_w), self.scattering_nkpt)
             print('Number of scattering events for ' + str(iqpt + 1) + '. q point in irr zone is ' + str(len(self.scattering_grids[iqpt])) + '!')
         self.set_up_scattering_grids = True
         print('Set up scattering grids in ' + format(time.time() - start_time, '.1f') + ' seconds.')
@@ -1457,9 +1432,9 @@ class ThermalConductivity:
                         self.sigmas[ikpt][iband] = delta_v*delta_q*self.smearing_scale
                     else:
                         self.sigmas[ikpt][iband] = 0.0
-            min_smear = np.average(np.average(self.sigmas))/100.0 #np.amin(self.sigmas[self.sigmas > 1.0e-6])
+            min_smear = np.amax(self.sigmas)/100.0 #np.amin(self.sigmas[self.sigmas > 1.0e-6])
             #print(min_smear)
-            self.sigmas[self.sigmas == 0.0] = min_smear
+            self.sigmas[self.sigmas < min_smear] = min_smear
             #self.sigmas[self.freqs <= np.amin(self.freqs)*10] = min_smear/10.0
         if(self.smearing_type == 'constant'):
             self.sigmas[:,:] = smearing_value
@@ -1836,7 +1811,7 @@ class ThermalConductivity:
             num_scattering_events = len(scattering_grids)
             if(sum(scattering_events) != num_scattering_events):
                 print('Difference in number of scattering events!')
-            if(sum(weights) != self.nkpt*self.nirrkpt):
+            if(sum(weights) != self.scattering_nkpt*self.nirrkpt):
                 print('Unexpected number of weights!')
             scattering_grids = np.asfortranarray(scattering_grids).T
             weights = np.asfortranarray(weights)
@@ -2487,6 +2462,10 @@ class ThermalConductivity:
         """
 
         uc_positions = self.dyn.structure.coords.copy()
+        #uc_positions = np.dot(uc_positions, np.linalg.inv(self.dyn.structure.unit_cell))
+        #uc_positions -= np.rint(uc_positions)
+        #uc_positions = np.dot(uc_positions, self.dyn.structure.unit_cell)
+
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1.0 / mm_mat
