@@ -1960,7 +1960,7 @@ class Phonons:
         def sobol_norm_rand(size,n_modes,scramble=False,sobol_salt=0.0):  # **** Diegom_test **** adding random 'salt'
             Sobol = Moro()
             data = Sobol.sobol_modes(size,n_modes,scramble=scramble)
-# If n_modes is bigger than 21201
+# If n_modes is bigger than 21201 comment upper line and uncomment lower line. This will be a strange ocurrence due to the fact that 21201 vibrational eigenmodes implies a dinamical matrix with more than 449482401 elements.
             #data = Sobol.sobol_big(size,n_modes,scramble=scramble)
             if (sobol_salt!=0.0):
                 for i in range(size):
