@@ -1960,6 +1960,8 @@ class Phonons:
         def sobol_norm_rand(size,n_modes,scramble=False,sobol_salt=0.0):  # **** Diegom_test **** adding random 'salt'
             Sobol = Moro()
             data = Sobol.sobol_modes(size,n_modes,scramble=scramble)
+# If n_modes is bigger than 21201
+            #data = Sobol.sobol_big(size,n_modes,scramble=scramble)
             if (sobol_salt!=0.0):
                 for i in range(size):
                      for j in range(n_modes):
