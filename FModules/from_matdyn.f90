@@ -134,7 +134,7 @@ function wsweight(r,rws,nrws, nrwsx)
   integer ir, nreq, nrws, nrwsx
   double precision, dimension(4, nrwsx), intent(in) :: rws
   double precision r(3), rrt, ck, eps, wsweight
-  parameter (eps=1.0d-6)
+  parameter (eps=1.0d-7)
 !
   wsweight = 0.d0
   nreq = 1
