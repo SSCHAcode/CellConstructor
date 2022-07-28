@@ -4,7 +4,7 @@ module get_lf
 
     subroutine calculate_lineshapes(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
                     fc3, r3_2, r3_3, rprim, pos, masses, smear, smear_id, T, gaussian, &
-                    classical, energies, ne, nirrqpt, nqpt, nat, nfc2, nfc3, n_events, lineshapes)
+                    classical, energies, ne, nirrqpt, nat, nfc2, nfc3, n_events, lineshapes)
 
         use omp_lib
         use third_order_cond
@@ -14,7 +14,7 @@ module get_lf
         integer, parameter :: DP = selected_real_kind(14,200)
         real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
 
-        integer, intent(in) :: nirrqpt, nat, nqpt, nfc2, nfc3, ne, n_events
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, ne, n_events
         integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
         real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
         real(kind=DP), intent(in) :: qgrid(3, n_events)
@@ -25,7 +25,7 @@ module get_lf
         real(kind=DP), intent(in) :: rprim(3, 3)
         real(kind=DP), intent(in) :: pos(3, nat)
         real(kind=DP), intent(in) :: masses(nat), energies(ne)
-        real(kind=DP), intent(in) :: smear(3*nat, nqpt), smear_id(3*nat, nqpt)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt), smear_id(3*nat, nirrqpt)
         real(kind=DP), intent(in) :: T
         logical, intent(in) :: gaussian, classical
         real(kind=DP), dimension(nirrqpt, 3*nat, ne), intent(out) :: lineshapes
@@ -92,15 +92,20 @@ module get_lf
                 enddo
 !                print*, 'Got grids'
                 call calculate_self_energy_P(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
-                    nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear, T, &
+                    nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
                     energies, .not. parallelize, gaussian, classical, self_energy) 
                 deallocate(curr_grid)
                 tot_qpt = sum(curr_w)
                 deallocate(curr_w)
                 self_energy = self_energy/dble(tot_qpt)
-
+                if(any(self_energy .ne. self_energy)) then
+                        print*, 'NaN in self_energy'
+                endif
                 if(gaussian) then
                         call calculate_real_part_via_Kramers_Kronig(ne, 3*nat, self_energy, energies)
+                        if(any(self_energy .ne. self_energy)) then
+                                print*, 'NaN in Kramers Kronig'
+                        endif
                 endif
 
                 call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
@@ -127,7 +132,7 @@ module get_lf
 
     subroutine calculate_lifetimes_perturbative(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
                     fc3, r3_2, r3_3, rprim, pos, masses, smear, T, gaussian, &
-                    classical, nirrqpt, nqpt, nat, nfc2, nfc3, n_events, self_energies)
+                    classical, nirrqpt, nat, nfc2, nfc3, n_events, self_energies)
 
         use omp_lib
         implicit none
@@ -135,7 +140,7 @@ module get_lf
         integer, parameter :: DP = selected_real_kind(14,200)
         real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
 
-        integer, intent(in) :: nirrqpt, nat, nqpt, nfc2, nfc3, n_events
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, n_events
         integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
         real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
         real(kind=DP), intent(in) :: qgrid(3, n_events)
@@ -146,7 +151,7 @@ module get_lf
         real(kind=DP), intent(in) :: rprim(3, 3)
         real(kind=DP), intent(in) :: pos(3, nat)
         real(kind=DP), intent(in) :: masses(nat)
-        real(kind=DP), intent(in) :: smear(3*nat, nqpt)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt)
         real(kind=DP), intent(in) :: T
         logical, intent(in) :: gaussian, classical
         complex(kind=DP), dimension(nirrqpt, 3*nat), intent(out) :: self_energies
@@ -206,7 +211,7 @@ module get_lf
                 enddo
                 call calculate_self_energy_P(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
                             nfc3, 3*nat, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, &
-                            smear, T, w_q, .not. parallelize, gaussian, classical, self_energy) 
+                            smear(:,iqpt), T, w_q, .not. parallelize, gaussian, classical, self_energy) 
 
                 deallocate(curr_grid)
                 tot_qpt = sum(curr_w)
@@ -234,7 +239,7 @@ module get_lf
 
     subroutine calculate_lifetimes(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
                     fc3, r3_2, r3_3, rprim, pos, masses, smear, T, gaussian, classical, nirrqpt, &
-                    nqpt, nat, nfc2, nfc3, n_events, self_energies)
+                    nat, nfc2, nfc3, n_events, self_energies)
 
         use omp_lib
         implicit none
@@ -242,7 +247,7 @@ module get_lf
         integer, parameter :: DP = selected_real_kind(14,200)
         real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
 
-        integer, intent(in) :: nirrqpt, nat, nqpt, nfc2, nfc3, n_events
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, n_events
         integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
         real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
         real(kind=DP), intent(in) :: qgrid(3, n_events)
@@ -253,7 +258,7 @@ module get_lf
         real(kind=DP), intent(in) :: rprim(3, 3)
         real(kind=DP), intent(in) :: pos(3, nat)
         real(kind=DP), intent(in) :: masses(nat)
-        real(kind=DP), intent(in) :: smear(3*nat, nqpt)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt)
         real(kind=DP), intent(in) :: T
         logical, intent(in) :: gaussian, classical
         complex(kind=DP), dimension(nirrqpt, 3*nat), intent(out) :: self_energies
@@ -588,12 +593,20 @@ module get_lf
     
             call check_if_gamma(nat, kpt, kprim, w2_k, is_k_gamma)
             call check_if_gamma(nat, mkpt, kprim, w2_mk_mq, is_mk_mq_gamma)
-            if(any(w2_k < 0.0_DP)) then
-                print*, 'Negative eigenvalue of dynamical matrix! Exit!'
+            if(any(w2_k < 0.0_DP) .and. .not. is_k_gamma) then
+                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_k_gamma
+                print*, kpt
+                print*, vec_dot_mat(kpt, inv(kprim))
+                print*, kprim
+                print*, w2_k
                 is_k_neg = .True.
             endif
-            if(any(w2_mk_mq < 0.0_DP)) then
-                print*, 'Negative eigenvalue of dynamical matrix! Exit!'
+            if(any(w2_mk_mq < 0.0_DP) .and. .not. is_mk_mq_gamma) then
+                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_mk_mq_gamma
+                print*, mkpt
+                print*, vec_dot_mat(mkpt, inv(kprim))
+                print*, kprim
+                print*, w2_mk_mq
                 is_mk_mq_neg = .True.
             endif
 !            print*, 'Calculated frequencies! '
@@ -654,6 +667,9 @@ module get_lf
                     d3_pols, ne, 3*nat, gaussian, classical, selfnrg)
 !            print*, 'Got selfnrg!'
             self_energy = self_energy + selfnrg*dble(weights(jqpt))
+            if(any(self_energy .ne. self_energy)) then
+                    print*, 'NaN for jqpt', jqpt
+            endif
             deallocate(ifc3, d3, d3_pols, selfnrg)
             deallocate(pols_k, pols_mk_mq)
             deallocate(kpt, mkpt)
@@ -691,14 +707,14 @@ module get_lf
                 w2_q(iat) = 0.0_DP
             enddo
         else
-           red_q(:) = 0.0_DP
-           do iat = 1, 3
-                red_q = red_q + q(iat)*ikprim(iat, :)
-           enddo
+           red_q(:) = vec_dot_mat(q, ikprim)
+           !do iat = 1, 3
+           !     red_q = red_q + q(iat)*ikprim(iat, :)
+           !enddo
            do iat = 1, 3
                 red_q(iat) = red_q(iat) - dble(NINT(red_q(iat)))
            enddo
-           if(all(abs(red_q) < 1.0d-6)) then
+           if(all(abs(red_q) < 2.0d-3)) then
                 is_gamma = .TRUE.
                 do iat = 1, 3
                         w2_q(iat) = 0.0_DP
@@ -707,6 +723,26 @@ module get_lf
         endif
 
     end subroutine
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ function vec_dot_mat(v1, m1) result (v2)
+
+        implicit none
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        real(kind=DP),intent(in) :: m1(:,:), v1(:)
+        real(kind=DP) :: v2(size(v1))
+
+        integer :: i
+
+        v2 = 0.0_DP
+        do i = 1, 3
+                v2 = v2 + v1(i)*m1(i,:)
+        enddo 
+
+ end function vec_dot_mat
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

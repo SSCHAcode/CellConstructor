@@ -253,212 +253,45 @@ def same_vector(vec1, vec2, cell):
                         curr_degs.append(j)
                 degs.append(curr_degs)
         return degs
-
-def stupid_centering_fc3(tensor3):
-
-    rprim = tensor3.unitcell_structure.unit_cell.copy()
-    irprim = np.linalg.inv(rprim)
-    rsup = tensor3.supercell_structure.unit_cell.copy()
-    irsup = np.linalg.inv(rsup)
-    #print(rprim)
-    positions = tensor3.unitcell_structure.coords.copy()
-    xpos = np.dot(positions, np.linalg.inv(rprim))
-    natom = len(xpos)
-    #print(xpos)
-    symbols = tensor3.unitcell_structure.atoms
-    unique_symbols = np.unique(symbols)
-    unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
-    numbers = np.zeros(len(symbols))
-    for iat in range(len(symbols)):
-        for jat in range(len(unique_symbols)):
-            if(symbols[iat] == unique_symbols[jat]):
-                numbers[iat] = unique_numbers[jat]
-    #print(numbers)
-    cell = (rprim, xpos, numbers)
-
-    if(tensor3.n_R == tensor3.n_sup**2):
-        print('Not previously centered. Stupid centering!')
-        got = [False for x in range(tensor3.n_R)]
-        pairs = []
-        # Check if it satisfies the permutation symmetry
-        for i in range(tensor3.n_R):
-            rvec2 = tensor3.r_vector2[:,i].copy()
-            rvec3 = tensor3.r_vector3[:,i].copy()
-            if(np.linalg.norm(rvec2) < 1.0e-5 and np.linalg.norm(rvec3) < 1.0e-5):
-                pairs.append([i,i])
-                got[i] = True
-            else:
-                if(not got[i]):
-                    for j in range(i, tensor3.n_R):
-                        if(not got[j]):
-                            rvec21 = tensor3.r_vector2[:,j].copy()
-                            rvec31 = tensor3.r_vector3[:,j].copy()
-                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
-                                pairs.append([i,j])
-                                got[i] = True
-                                got[j] = True
-        if(not np.all(got)):
-            for i in range(tensor3.n_R):
-                if(not got[i]):
-                    print(tensor3.x_r_vector2[:,i])
-                    print(tensor3.x_r_vector3[:,i])
-                    print('')
+            
+def get_kpoints_in_path(path, nkpts, kprim):
+    segments = path['path']
+    coords = path['point_coords']
+    tot_length = 0.0
+    for i in range(len(segments)):
+        qpt1 = coords[segments[i][1]]
+        qpt2 = coords[segments[i][0]]
+        qpt1 = np.dot(qpt1, kprim)
+        qpt2 = np.dot(qpt2, kprim)
+        tot_length += np.linalg.norm(qpt1 - qpt2)
+    dl = tot_length/float(nkpts)
+    distance = []
+    kpoints = []
+    for i in range(len(segments)):
+        qpt1 = coords[segments[i][1]]
+        qpt2 = coords[segments[i][0]]
+        qpt1 = np.dot(qpt1, kprim)
+        qpt2 = np.dot(qpt2, kprim)
+        length = np.linalg.norm(qpt1 - qpt2)
+        kpoints.append(qpt2)
+        if(i == 0):
+            distance.append(0.0)
         else:
-            print('Found all pairs')
-            for ipair in range(len(pairs)):
-                if(pairs[ipair][0] != pairs[ipair][1]):
-                    ip = pairs[ipair][0]
-                    jp = pairs[ipair][1]
-                    for i in range(3*natom):
-                        for iat in range(natom):
-                            for jat in range(natom):
-                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
-                                    print('Permutation symmetry failed original!')
-                                    print(tensor3.tensor[ip,i])
-                                    print(tensor3.tensor[jp,i])
-                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
-                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
-                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
-                                    break
-        new_r_vector2 = []
-        new_r_vector3 = []
-        new_tensor = []
-        print('Finished check. Centering...')
-        for ir in range(tensor3.n_R):
-            rvec2 = tensor3.r_vector2[:,ir].copy()
-            rvec3 = tensor3.r_vector3[:,ir].copy()
-            xvec2 = np.dot(rvec2, irsup)
-            xvec3 = np.dot(rvec3, irsup)
-            size2 = np.linalg.norm(rvec2)
-            size20 = np.linalg.norm(rvec2)
-            size3 = np.linalg.norm(rvec3)
-            size30 = np.linalg.norm(rvec3)
-            size = np.linalg.norm(rvec3 - rvec2) + size2 + size3
-            rvec2_new = []
-            rvec3_new = []
-            # Find the shortest pair vectors in the mirror supercells -2 < x < 2
-            for i in range(-2,3):
-                for j in range(-2,3):
-                    for k in range(-2,3):
-                        xvec21 = xvec2 + np.array([i,j,k])
-                        rvec21 = np.dot(xvec21, rsup)
-                        size21 = np.linalg.norm(rvec21)
-                        if(size21 <= size2 + 1.0e-6):
-                            if(abs(size21 - size2) < 1.0e-6):
-                                rvec2_new.append(rvec21.copy())
-                            else:
-                                rvec2_new = []
-                                rvec2_new.append(rvec21.copy())
-                            size2 = size21
-                            rvec2 = rvec21.copy()
-                        xvec31 = xvec3 + np.array([i,j,k])
-                        rvec31 = np.dot(xvec31, rsup)
-                        size31 = np.linalg.norm(rvec31)
-                        if(size31 <= size3 + 1.0e-6):
-                            if(abs(size31 - size3) < 1.0e-6):
-                                rvec3_new.append(rvec31.copy())
-                            else:
-                                rvec3_new = []
-                                rvec3_new.append(rvec31.copy())
-                            size3 = size31
-                            rvec3 = rvec31.copy()
-                        #for i1 in range(-2,3):
-                        #    for j1 in range(-2,3):
-                        #        for k1 in range(-2,3):
-                        #            xvec31 = xvec3 + np.array([i1,j1,k1])
-                        #            rvec31 = np.dot(xvec31, rsup)
-                        #            size31 = np.linalg.norm(rvec31)
-                        #            size1 = np.linalg.norm(rvec21) + np.linalg.norm(rvec31) + np.linalg.norm(rvec31 - rvec21)
-                        #            #if(size21 < size2 and size31 < size3):
-                        #            if(size21 <= size2 and size31 <= size3):
-                        #                size2 = size21
-                        #                size3 = size31
-                        #                size = size1
-                        #                rvec2 = rvec21.copy()
-                        #                rvec3 = rvec31.copy()
-            #print(xvec2, xvec3, size20, size30)
-            #print(np.dot(rvec2, irsup), np.dot(rvec3, irsup), size2, size3)
-            #print('')
-            #print(len(rvec2_new))
-            #print(np.dot(rvec2_new, irprim))
-            #print(len(rvec3_new))
-            #print(np.dot(rvec3_new, irprim))
-            #print('')
-            #if(len(rvec2_new) > 1 or len(rvec3_new) > 1):
-            #    size4 = np.linalg.norm(rvec2_new[0] - rvec3_new[0])
-            #    rvec2 = rvec2_new[0]
-            #    rvec3 = rvec3_new[0]
-            #    for i in range(len(rvec2_new)):
-            #        for j in range(len(rvec3_new)):
-            #            if(np.linalg.norm(rvec2_new[i] - rvec3_new[j]) < size4):
-            #                size4 = np.linalg.norm(rvec2_new[i] - rvec3_new[j])
-            #                rvec2 = rvec2_new[i]
-            #                rvec3 = rvec3_new[j]
-            # For each pair of the shortest pairs construct another entry to tensor3 and scale it with multiplicity
-            for iuc in range(len(rvec2_new)):
-                for juc in range(len(rvec3_new)):
-                    new_r_vector2.append(rvec2_new[iuc])
-                    new_r_vector3.append(rvec3_new[juc])
-                    new_tensor.append(tensor3.tensor[ir]/float(len(rvec2_new)*len(rvec3_new)))
-            #tensor3.r_vector2[:,ir] = rvec2
-            #tensor3.r_vector3[:,ir] = rvec3
-            #tensor3.x_r_vector2[:,ir] = np.rint(np.dot(tensor3.r_vector2[:,ir], irprim), dtype=float)
-            #tensor3.x_r_vector3[:,ir] = np.rint(np.dot(tensor3.r_vector3[:,ir], irprim), dtype=float)
-        tensor3.n_R = len(new_r_vector2)
-        tensor3.r_vector2 = np.array(new_r_vector2).T
-        tensor3.r_vector3 = np.array(new_r_vector3).T
-        tensor3.x_r_vector2 = np.zeros_like(tensor3.r_vector2)
-        tensor3.x_r_vector3 = np.zeros_like(tensor3.r_vector3)
-        tensor3.tensor = np.array(new_tensor)
-        got = [False for x in range(tensor3.n_R)]
-        pairs = []
-        for i in range(tensor3.n_R):
-            rvec2 = tensor3.r_vector2[:,i].copy()
-            rvec3 = tensor3.r_vector3[:,i].copy()
-            tensor3.x_r_vector2[:,i] = np.rint(np.dot(tensor3.r_vector2[:,i], irprim), dtype=float)
-            tensor3.x_r_vector3[:,i] = np.rint(np.dot(tensor3.r_vector3[:,i], irprim), dtype=float)
-            # Find pairs to check if this centering broke permutation symmetry
-            if(np.linalg.norm(rvec2 - rvec3) < 1.0e-5):
-                pairs.append([i,i])
-                got[i] = True
-            else:
-                if(not got[i]):
-                    for j in range(i, tensor3.n_R):
-                        if(not got[j]):
-                            rvec21 = tensor3.r_vector2[:,j].copy()
-                            rvec31 = tensor3.r_vector3[:,j].copy()
-                            if(np.linalg.norm(rvec21 - rvec3) < 1.0e-5 and np.linalg.norm(rvec31 - rvec2) < 1.0e-5):
-                                pairs.append([i,j])
-                                got[i] = True
-                                got[j] = True
-        if(not np.all(got)):
-            for i in range(tensor3.n_R):
-                if(not got[i]):
-                    print(tensor3.x_r_vector2[:,i])
-                    print(tensor3.x_r_vector3[:,i])
-                    print('')
-        else:
-            print('Found all pairs')
-            for ipair in range(len(pairs)):
-                if(pairs[ipair][0] != pairs[ipair][1]):
-                    ip = pairs[ipair][0]
-                    jp = pairs[ipair][1]
-                    for i in range(3*natom):
-                        for iat in range(natom):
-                            for jat in range(natom):
-                                if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
-                                    print('Permutation symmetry failed!')
-                                    print(tensor3.tensor[ip,i])
-                                    print(tensor3.tensor[jp,i])
-                                    print(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T)
-                                    print(np.abs(tensor3.tensor[ip,i] - tensor3.tensor[jp,i].T) > 1.0e-8*np.amax(np.abs(tensor3.tensor[ip,i])))
-                                    raise RuntimeError('Get me out!', np.amax(np.abs(tensor3.tensor[ip,i])))
-                                    break
+            distance.append(distance[-1])
+        start_dist = distance[-1]
+        nkpts1 = np.int(np.floor(length/dl))
+        for j in range(nkpts1):
+            newqpt = qpt2 + (qpt1 - qpt2)/float(nkpts1)*float(j + 1)
+            kpoints.append(newqpt)
+            distance.append(start_dist + np.linalg.norm(qpt1 - qpt2)/float(nkpts1)*float(j + 1))
+    distance = np.array(distance)
+    print('k-point path taken: ')
+    for i in range(len(segments)):
+        print(segments[i], end = ' -> ')
+    print('')
+    distance /= distance[-1]
+    return kpoints, distance, segments
 
-    else:
-        print('Probably already centered! Nothing to do!')
-
-    return tensor3
 
 def stupid_centering_fc3_v3(tensor3, check_for_symmetries = True, Far = 1):
     #print(psutil.virtual_memory().percent)
@@ -1694,6 +1527,7 @@ class ThermalConductivity:
         integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
 #        print(integrands_plus.shape)
         integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+        #integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         kappa = np.einsum('ijk,ijl,ij->kl', self.gvels, self.gvels, integrals)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
@@ -1755,6 +1589,7 @@ class ThermalConductivity:
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
         energies         : the list of frequencies for which lineshapes are calculated.
         method           : practically only determines how many times fortran routines are called. "fortran" should be much faster.
+        gauss_smearing   : are we using Gaussian smearing as approximation for energy conservation
         """
 
         start_time = time.time()
@@ -1797,9 +1632,11 @@ class ThermalConductivity:
 
             irrqgrid = np.zeros((3, self.nirrkpt))
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
+            sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
                 irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
+                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
 
             scattering_grids = []
@@ -1823,8 +1660,8 @@ class ThermalConductivity:
             curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                     self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                    self.sigmas.T, np.zeros_like(self.sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
-                    self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                    sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                    self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
                 jkpt = self.qstar_list[ikpt][0]
@@ -1848,6 +1685,135 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
+    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = False, kpoints = None, start_nkpts = 100):
+
+        """
+        Calculate phonon lineshapes in full Brillouin zone.
+
+        temperature      : temperature to calculate lineshapes on.
+        ne               : Number of frequency points for the lineshapes
+        gauss_smearing   : are we using Gaussian smearing as approximation for energy conservation
+        kpoints          : the list of kpoints in reduced coordinates to calculate lineshapes for.
+                           If not provided generate them using seekpath
+        nkpts            : Number of k points along the path. Will differ from the final number of points!
+        """
+
+        start_time = time.time()
+
+        tics = []
+        if(kpoints is None):
+            import seekpath
+            rat = np.dot(self.dyn.structure.coords, np.linalg.inv(self.dyn.structure.unit_cell))
+            sym = np.unique(self.dyn.structure.atoms)
+            nt = np.zeros(len(rat))
+            for i in range(len(rat)):
+                for j in range(len(sym)):
+                    if(self.dyn.structure.atoms[i] == sym[j]):
+                        nt[i] = j + 1
+                        break
+            path = seekpath.getpaths.get_path((self.dyn.structure.unit_cell, rat, nt))
+            kpoints, distances, segments = get_kpoints_in_path(path, start_nkpts, self.reciprocal_lattice)
+            for i in range(len(distances)):
+                if(i == 0):
+                    tics.append(distances[0])
+                elif(np.abs(distances[i] - distances[i-1]) < 1.0e-12):
+                    tics.append(distances[i])
+            tics.append(distances[-1])
+            if(len(tics) - 1 != len(segments)):
+                print('Number of tics and segments does not match! Weird!')
+                print(len(tics), len(segments) + 1)
+            kpoints = np.array(kpoints)
+        else:
+            kpoints = kpoints#np.dot(kpoints, self.reciprocal_lattice)
+        nkpts = len(kpoints)
+        freqs = np.zeros((nkpts, self.nband))
+        for ikpt in range(nkpts):
+            freqs[ikpt], _ = self.get_frequency_at_q(kpoints[ikpt])
+
+        maxfreq = np.amax(freqs)*2.1
+        energies = np.arange(ne, dtype=float)/float(ne)*maxfreq
+
+        lineshapes = np.zeros((nkpts, self.nband, ne))
+
+        irrqgrid = kpoints.T
+        scattering_events = np.zeros(nkpts, dtype=int)
+        sigmas = np.zeros((nkpts, self.nband))
+        sigmas[:,:] = self.sigmas[0,0]
+        for ikpt in range(nkpts):
+            scattering_events[ikpt] = len(self.scattering_qpoints)
+        irrqgrid = np.asfortranarray(irrqgrid)
+
+        scattering_grids = []
+        weights = []
+        for ikpt in range(nkpts):
+            for jkpt in range(len(self.scattering_qpoints)):
+                scattering_grids.append(self.scattering_qpoints[jkpt])
+                weights.append(1)
+        num_scattering_events = len(scattering_grids)
+        if(sum(scattering_events) != num_scattering_events):
+            print('Difference in number of scattering events!')
+            print(sum(scattering_events), num_scattering_events)
+        if(sum(weights) != self.scattering_nkpt*nkpts):
+            print('Unexpected number of weights!')
+            print(sum(weights), self.scattering_nkpt*nkpts)
+        scattering_grids = np.asfortranarray(scattering_grids).T
+        weights = np.asfortranarray(weights)
+
+        classical = False
+        if(self.cp_mode == 'classical'):
+            classical = True
+
+        curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
+                self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), nkpts, \
+                self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+
+        for ikpt in range(nkpts):
+            if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, kpoints[ikpt])):
+                for iband in range(self.nband):
+                    if(freqs[ikpt, iband] < np.amax(self.freqs[ikpt])*1.0e-6):
+                        curr_ls[ikpt, iband] = 0.0
+            lineshapes[ikpt,:,:] = curr_ls[ikpt,:,:]*2.0
+
+        with open(filename, 'w+') as outfile:
+            outfile.write('# Path and tics: \n')
+            outfile.write('# ' + segments[0][0] + '  ' + format(tics[0], '.8f'))
+            for i in range(len(segments) - 1):
+                if(segments[i][1] == segments[i + 1][0]):
+                    outfile.write('  ' + segments[i][1] + '  ' + format(tics[i+1], '.8f'))
+                else:
+                    outfile.write('  ' + segments[i][1] + ' | ' + segments[i+1][0] + '  ' + format(tics[i+1], '.8f'))
+            outfile.write('  ' + segments[len(segments)-1][1] + '  ' + format(tics[len(segments)], '.8f') + '\n')
+            outfile.write('# normalized distance       energy (THz)         lineshape (1/THz) \n')
+            for ikpt in range(nkpts):
+                for ie in range(ne):
+                    outfile.write('  ' + format(distances[ikpt], '.12e'))
+                    outfile.write('  ' + format(energies[ie]*SSCHA_TO_THZ, '.12e'))
+                    for iband in range(self.nband):
+                        outfile.write('  ' + format(lineshapes[ikpt,iband,ie]/SSCHA_TO_THZ, '.12e'))
+                    outfile.write('\n')
+                outfile.write('\n')
+
+        with open(filename + '_phonons', 'w+') as outfile:
+            outfile.write('# Path and tics: \n')
+            outfile.write('# ' + segments[0][0] + '  ' + format(tics[0], '.8f'))
+            for i in range(len(segments) - 1):
+                if(segments[i][1] == segments[i + 1][0]):
+                    outfile.write('  ' + segments[i][1] + '  ' + format(tics[i+1], '.8f'))
+                else:
+                    outfile.write('  ' + segments[i][1] + ' | ' + segments[i+1][0] + '  ' + format(tics[i+1], '.8f'))
+            outfile.write('  ' + segments[-1][1] + '  ' + format(tics[-1], '.8f') + '\n')
+            outfile.write('# normalized distance       frequency (THz)          \n')
+            for ikpt in range(nkpts):
+                outfile.write('  ' + format(distances[ikpt], '.12e'))
+                for iband in range(self.nband):
+                    outfile.write('  ' + format(freqs[ikpt,iband]*SSCHA_TO_THZ, '.12e'))
+                outfile.write('\n')
+
+        print('Calculated SSCHA lineshapes in: ', time.time() - start_time)
+
+    ##################################################################################################################################
     def write_lineshape(self, filename, curr_ls, jkpt, energies):
 
         """
@@ -2119,9 +2085,11 @@ class ThermalConductivity:
             print('Calculating lifetimes in fortran, lorentzian approximation!')
             irrqgrid = np.zeros((3, self.nirrkpt))
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
+            sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
                 irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
+                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
@@ -2146,8 +2114,8 @@ class ThermalConductivity:
 
             selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
-                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), self.sigmas.T, temperature, \
-                    gauss_smearing, classical, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
+                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), sigmas.T, temperature, \
+                    gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
                     num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
@@ -2163,9 +2131,11 @@ class ThermalConductivity:
             print('Calculating lifetimes in fortran, perturbative approximation!')
             irrqgrid = np.zeros((3, self.nirrkpt))
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
+            sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
                 irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
+                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
@@ -2190,8 +2160,8 @@ class ThermalConductivity:
 
             selfengs = thermal_conductivity.get_lf.calculate_lifetimes_perturbative(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
-                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), self.sigmas.T, temperature, \
-                    gauss_smearing, classical, self.nirrkpt, self.nkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), sigmas.T, temperature, \
+                    gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
                 for iqpt in range(len(self.qstar_list[ikpt])):
