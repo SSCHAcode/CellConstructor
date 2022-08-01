@@ -1772,9 +1772,16 @@ class ThermalConductivity:
         for ikpt in range(nkpts):
             if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, kpoints[ikpt])):
                 for iband in range(self.nband):
-                    if(freqs[ikpt, iband] < np.amax(self.freqs[ikpt])*1.0e-6):
+                    if(freqs[ikpt, iband] < np.amax(freqs[ikpt])*1.0e-6):
                         curr_ls[ikpt, iband] = 0.0
             lineshapes[ikpt,:,:] = curr_ls[ikpt,:,:]*2.0
+
+        with open('Qpoints_along_line', 'w+') as outfile:
+            for ikpt in range(nkpts):
+                qpt = np.dot(kpoints[ikpt], np.linalg.inv(self.reciprocal_lattice))
+                for i in range(3):
+                    outfile.write(3*' ' + format(qpt[i], '.12f'))
+                outfile.write('\n')
 
         with open(filename, 'w+') as outfile:
             outfile.write('# Path and tics: \n')
