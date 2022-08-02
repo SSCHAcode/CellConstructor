@@ -596,14 +596,18 @@ module get_lf
             if(any(w2_k < 0.0_DP) .and. .not. is_k_gamma) then
                 print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_k_gamma
                 print*, kpt
+                print*, vec_dot_mat(qpt, inv(kprim))
                 print*, vec_dot_mat(kpt, inv(kprim))
+                print*, vec_dot_mat(mkpt, inv(kprim))
                 print*, kprim
                 print*, w2_k
                 is_k_neg = .True.
             endif
             if(any(w2_mk_mq < 0.0_DP) .and. .not. is_mk_mq_gamma) then
-                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_mk_mq_gamma
+                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_mk_mq_gamma, 'mk_mq_gamma'
                 print*, mkpt
+                print*, vec_dot_mat(qpt, inv(kprim))
+                print*, vec_dot_mat(kpt, inv(kprim))
                 print*, vec_dot_mat(mkpt, inv(kprim))
                 print*, kprim
                 print*, w2_mk_mq
@@ -670,6 +674,12 @@ module get_lf
             if(any(self_energy .ne. self_energy)) then
                     print*, 'NaN for jqpt', jqpt
             endif
+            deallocate(ifc3, d3, d3_pols, selfnrg)
+            deallocate(pols_k, pols_mk_mq)
+            deallocate(kpt, mkpt)
+            deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
+            deallocate(freqs_array)
+            else
             deallocate(ifc3, d3, d3_pols, selfnrg)
             deallocate(pols_k, pols_mk_mq)
             deallocate(kpt, mkpt)

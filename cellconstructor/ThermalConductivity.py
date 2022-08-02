@@ -1557,7 +1557,7 @@ class ThermalConductivity:
         integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents_plus/(exponents_plus - 1.0)**2
         exponents_minus = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
-        integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+        integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
         kappa_diag = np.einsum('ijjk,ijjl,ij->kl', self.gvels, self.gvels, integrals)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
@@ -1747,7 +1747,7 @@ class ThermalConductivity:
         weights = []
         for ikpt in range(nkpts):
             for jkpt in range(len(self.scattering_qpoints)):
-                scattering_grids.append(self.scattering_qpoints[jkpt])
+                scattering_grids.append(self.scattering_k_points[jkpt])
                 weights.append(1)
         num_scattering_events = len(scattering_grids)
         if(sum(scattering_events) != num_scattering_events):
@@ -1929,7 +1929,7 @@ class ThermalConductivity:
                 if(self.freqs[iqpt, iband] != 0.0):
                     for jband in range(iband + 1, self.nband):
                         if(self.freqs[iqpt, jband] != 0.0):
-                            vel_fact = np.sqrt(2.0*self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            vel_fact = 1.0#np.sqrt(2.0*self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
                             kappa_nondiag += (self.freqs[iqpt, iband] + self.freqs[iqpt, jband])*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])*\
                                     (self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband])*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])*vel_fact**2/\
                                     self.freqs[iqpt,iband]/self.freqs[iqpt, jband]/2.0/(4.0*(self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
