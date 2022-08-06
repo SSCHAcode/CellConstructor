@@ -879,7 +879,7 @@ def PlotRamanSpectra(w_axis, T, sigma, dyn, pol1=None, pol2=None):
         T : float
             Temperature
         sigma : float
-            The beam frequency standard deviation
+            The frequency standard deviation (cm-1)
         dyn : Phonons.Phonons()
             The dynamical matrix
         pol1 : ndarray 3
