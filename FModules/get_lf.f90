@@ -108,7 +108,8 @@ module get_lf
                         endif
                 endif
 
-                call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
+                !call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
+                call calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
 
                 do i = 1, 3*nat
                     if(w_q(i) .ne. 0.0_DP) then
@@ -127,6 +128,39 @@ module get_lf
 
 
     end subroutine calculate_lineshapes
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
+
+        implicit none
+
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nat, ne
+        real(kind=DP), intent(in) :: w_q(3*nat), energies(ne)
+        complex(kind=DP), intent(in) :: self_energy(ne, 3*nat)
+        real(kind=DP), intent(inout) :: lineshape(ne, 3*nat)
+
+        integer :: iband, ie
+        real(kind = DP) :: a, b
+
+        lineshape(:,:) = 0.0_DP
+        do iband = 1, 3*nat
+                if(w_q(iband) .gt. 0.0_DP) then
+                        do ie = 2, ne
+                                a = (energies(ie)**2 - dble(self_energy(ie, iband)) - w_q(iband)**2)
+                                b = aimag(self_energy(ie, iband))
+                                if(a .ne. 0.0_DP .and. b .ne. 0.0_DP) then
+                                        lineshape(ie, iband) = -aimag(self_energy(ie, iband))/(a**2+b**2)
+                                endif 
+                        enddo
+                        lineshape(:, iband) = lineshape(:, iband)*w_q(iband)/PI
+                endif
+        enddo 
+
+    end subroutine calculate_correlation_function
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
