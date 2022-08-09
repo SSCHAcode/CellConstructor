@@ -1216,63 +1216,130 @@ class QE_Symmetry:
         sum_all /= self.QE_translation_nr
         vector[:,:] = sum_all
 
+    def InitFromSymmetries(self, symmetries):
+        """
+        USE THE GIVEN SYMMETRIES TO SETUP THE SYMMETRIZATION
+        ======================================
 
+        This function setup all the variables to perform the symmetrization inside the supercell.
+
+        """
+
+        trans_irt = 0
+        self.QE_s[:,:,:] = 0
+
+
+        # Check how many point group symmetries do we have
+        n_syms = 0
+        for i, sym in enumerate(symmetries):
+            # Extract the rotation and the fractional translation
+            rot = sym[:,:3]
+
+            # Check if the rotation is equal to the first one
+            if np.sum( (rot - symmetries[0][:,:3])**2 ) < 0.1 and n_syms == 0 and i > 0:
+                # We got all the rotations
+                n_syms = i 
+                break
+                
+            # Extract the point group
+            if n_syms == 0:
+                self.QE_s[:,:, i] = rot.T
+
+                # Get the IRT (Atoms mapping using symmetries)
+                irt = GetIRT(self.structure, sym)
+                self.QE_irt[i, :] = irt + 1 #Py to Fort
+
+        
+        if n_syms == 0:
+            n_syms = len(symmetries)
+        
+        # From the point group symmetries, get the supercell
+        n_supercell = len(symmetries) // n_syms
+        self.QE_translation_nr = n_supercell
+        self.QE_nsymq = n_syms
+        self.QE_nsym = n_syms
+
+        self.QE_translations_irt = np.zeros( (self.structure.N_atoms, n_supercell), dtype = np.intc, order = "F")
+        self.QE_translations = np.zeros( (3, n_supercell), dtype = np.double, order = "F")
+
+        # Now extract the translations
+        for i in range(n_supercell):
+            sym = symmetries[i * n_syms]
+            # Check if the symmetries are correctly setup
+
+            I = np.eye(3)
+            ERROR_MSG="""
+            Error, symmetries are not correctly ordered.
+            They must always start with the identity.
+
+            N_syms = {}; N = {}; SYM = {}
+            """.format(n_syms,i*n_syms, sym)
+            assert np.sum( (I - sym[:,:3])**2) < 0.5, ERROR_MSG
+
+            # Get the irt for the translation (and the translation)
+            irt = GetIRT(self.structure, sym)
+            self.QE_translations_irt[:, i] = irt + 1
+            self.QE_translations[:, i] = sym[:,3]
+
+        # For each symmetry operation, assign the inverse
+        self.QE_invs[:] = get_invs(self.QE_s, self.QE_nsym)
+        
 
                 
-    def InitFromSymmetries(self, symmetries, q_point = np.array([0,0,0])):
-        """
-        This function initialize the QE symmetries from the symmetries expressed in the
-        Cellconstructor format, i.e. a list of numpy array 3x4 where the last column is 
-        the fractional translation.
+    # def InitFromSymmetries(self, symmetries, q_point = np.array([0,0,0])):
+    #     """
+    #     This function initialize the QE symmetries from the symmetries expressed in the
+    #     Cellconstructor format, i.e. a list of numpy array 3x4 where the last column is 
+    #     the fractional translation.
         
-        TODO: add the q_point preparation by limitng the symmetries only to 
-              those that satisfies the specified q_point
-        """
+    #     TODO: add the q_point preparation by limitng the symmetries only to 
+    #           those that satisfies the specified q_point
+    #     """
         
-        nsym = len(symmetries)
+    #     nsym = len(symmetries)
         
-        self.QE_nsymq = np.intc(nsym)
-        self.QE_nsym = self.QE_nsymq
+    #     self.QE_nsymq = np.intc(nsym)
+    #     self.QE_nsym = self.QE_nsymq
         
         
-        for i, sym in enumerate(symmetries):
-            self.QE_s[:,:, i] = np.transpose(sym[:, :3])
+    #     for i, sym in enumerate(symmetries):
+    #         self.QE_s[:,:, i] = np.transpose(sym[:, :3])
             
-            # Get the atoms correspondence
-            eq_atoms = GetIRT(self.structure, sym)
+    #         # Get the atoms correspondence
+    #         eq_atoms = GetIRT(self.structure, sym)
             
-            self.QE_irt[i, :] = eq_atoms + 1
+    #         self.QE_irt[i, :] = eq_atoms + 1
             
-            # Get the inverse symmetry
-            inv_sym = np.linalg.inv(sym[:, :3])
-            for k, other_sym in enumerate(symmetries):
-                if np.sum( (inv_sym - other_sym[:, :3])**2) < __EPSILON__:
-                    break
+    #         # Get the inverse symmetry
+    #         inv_sym = np.linalg.inv(sym[:, :3])
+    #         for k, other_sym in enumerate(symmetries):
+    #             if np.sum( (inv_sym - other_sym[:, :3])**2) < __EPSILON__:
+    #                 break
             
-            self.QE_invs[i] = k + 1
+    #         self.QE_invs[i] = k + 1
             
-            # Setup the position after the symmetry application
-            for k in range(self.QE_nat):
-                self.QE_rtau[:, i, k] = self.structure.coords[eq_atoms[k], :].astype(np.float64)
+    #         # Setup the position after the symmetry application
+    #         for k in range(self.QE_nat):
+    #             self.QE_rtau[:, i, k] = self.structure.coords[eq_atoms[k], :].astype(np.float64)
         
         
-        # Get the reciprocal lattice vectors
-        b_vectors = self.structure.get_reciprocal_vectors()
+    #     # Get the reciprocal lattice vectors
+    #     b_vectors = self.structure.get_reciprocal_vectors()
         
-        # Get the minus_q operation
-        self.QE_minusq = False
+    #     # Get the minus_q operation
+    #     self.QE_minusq = False
 
-        # NOTE: HERE THERE COULD BE A BUG
+    #     # NOTE: HERE THERE COULD BE A BUG
         
-        # q != -q
-        # Get the q vectors in crystal coordinates
-        q = Methods.covariant_coordinates(b_vectors, q_point)
-        for k, sym in enumerate(self.QE_s):
-            new_q = self.QE_s[:,:, k].dot(q)
-            if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - new_q)**2) < __EPSILON__:
-                self.QE_minus_q = True
-                self.QE_irotmq = k + 1
-                break
+    #     # q != -q
+    #     # Get the q vectors in crystal coordinates
+    #     q = Methods.covariant_coordinates(b_vectors, q_point)
+    #     for k, sym in enumerate(self.QE_s):
+    #         new_q = self.QE_s[:,:, k].dot(q)
+    #         if np.sum( (Methods.put_into_cell(b_vectors, -q_point) - new_q)**2) < __EPSILON__:
+    #             self.QE_minus_q = True
+    #             self.QE_irotmq = k + 1
+    #             break
                 
     def GetSymmetries(self, get_irt=False):
         """

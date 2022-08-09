@@ -1618,7 +1618,7 @@ class Phonons:
 
                         
                         
-    def GetRamanResponce(self, pol_in, pol_out, T = 0):
+    def GetRamanResponce(self, pol_in, pol_out, T = 0, w_pols = None):
         r"""
         RAMAN RESPONSE
         ==============
@@ -1655,7 +1655,10 @@ class Phonons:
         if self.raman_tensor is None:
             raise ValueError("Error, to get the raman responce the raman tensor must be defined")
         
-        w, pol_vects = self.DyagDinQ(0)
+        if w_pols is None:
+            w, pol_vects = self.DyagDinQ(0)
+        else:
+            w, pol_vects = w_pols
         
         # Get the mass array
         _m_ = np.zeros( 3*self.structure.N_atoms)
