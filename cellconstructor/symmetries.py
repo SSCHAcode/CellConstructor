@@ -68,7 +68,8 @@ class QE_Symmetry:
         """
         
         if not structure.has_unit_cell:
-            raise ValueError("Error, symmetry operation can be initialize only if the structure has a unit cell")
+            warnings.warn("WARNING: the structure has no unit cell!!!!")
+        #    raise ValueError("Error, symmetry operation can be initialize only if the structure has a unit cell")
         
         self.structure = structure
         self.threshold = np.float64(threshold)
@@ -114,12 +115,18 @@ class QE_Symmetry:
         self.QE_at = np.zeros( (3,3), dtype = np.float64, order = "F")
         self.QE_bg = np.zeros( (3,3), dtype = np.float64, order = "F")
         
-        bg = structure.get_reciprocal_vectors()
-        for i in range(3):
-            for j in range(3):
-                self.QE_at[i,j] = structure.unit_cell[j,i]
-                self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
-
+        if structure.has_unit_cell:
+            bg = structure.get_reciprocal_vectors()
+            for i in range(3):
+                for j in range(3):
+                    self.QE_at[i,j] = structure.unit_cell[j,i]
+                    self.QE_bg[i,j] = bg[j,i] / (2* np.pi) 
+        else:
+            bg = np.eye(3)
+            for i in range(3):
+                self.QE_at[i,i] = 1
+                self.QE_bg[i,i] = 1 
+            
         # Here we define the quantities required to symmetrize the supercells
         self.QE_at_sc = self.QE_at.copy()
         self.QE_bg_sc = self.QE_bg.copy()
@@ -129,7 +136,6 @@ class QE_Symmetry:
         # After the translation, which vector is transformed in which one?
         # This info is stored here as ndarray( size = (N_atoms, N_trans), dtype = np.intc, order = "F")
         self.QE_translations_irt = [] 
-    
     def ForceSymmetry(self, structure):
         """ 
         FORCE SYMMETRY

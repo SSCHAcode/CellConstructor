@@ -3489,6 +3489,9 @@ WARNING: Effective charges are not accounted by this method
         supercell_size = len(self.q_tot)
         nat = self.structure.N_atoms
 
+        if not self.structure.has_unit_cell and supercell_size > 1:
+            raise ValueError("Error, the structure must have a defined supercell")
+
         nmodes = 3*nat*supercell_size
         nat_sc = nat*supercell_size 
 
@@ -3510,7 +3513,13 @@ WARNING: Effective charges are not accounted by this method
             R_vec[3*i : 3*i+3, :] = np.tile(super_structure.coords[i, :] - self.structure.coords[itau[i], :], (3,1))
         
         i_mu = 0
-        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+
+        if self.structure.has_unit_cell:
+            bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+        else:
+            bg = np.eye(3)
+        
+        
         for iq, q in enumerate(self.q_tot):
             # Check if the current q point has been seen (we do not distinguish between q and -q)
             skip_this_q = False

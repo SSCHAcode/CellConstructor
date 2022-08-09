@@ -1519,6 +1519,14 @@ Error, to compute the volume the structure must have a unit cell initialized:
         if len(dim) != 3:
             raise ValueError("ERROR, dim must have 3 integers.")
 
+        if np.prod(dim) == 1:
+            if not get_itau:
+                return self.copy()
+            
+            itau = np.zeros(self.N_atoms, dtype = np.intc)
+            itau[:] = np.arange(self.N_atoms)
+            return self.copy(), itau
+
         if not self.has_unit_cell:
             raise ValueError("ERROR, the specified system has not the unit cell.")
 
