@@ -2788,6 +2788,8 @@ class Phonons:
             supercell : list of 3 int
                 The supercell in each direction.
         """
+        if len(self.dynmats) == 1:
+            return [1,1,1]
         return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
 
     def InterpolateMesh(self, mesh_dim, lo_to_splitting = False):
@@ -3088,10 +3090,7 @@ WARNING: Effective charges are not accounted by this method
                 
 
 
-
-
-            
-    def SymmetrizeSupercell(self, supercell_size = None):
+    def SymmetrizeSupercell(self, sym_mat = None, supercell_size = None):
         """
         Testing function, it applies symmetries in the supercell.
         """
@@ -3099,34 +3098,47 @@ WARNING: Effective charges are not accounted by this method
         if supercell_size == None:
             supercell_size = self.GetSupercell()
 
+        print("SUPERCELL:", supercell_size)
+        isgamma = np.prod(supercell_size) == 1
+
         
-        if not __SPGLIB__:
+        if not __SPGLIB__ and sym_mat is None:
             raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
         
-        superdyn = self.GenerateSupercellDyn(supercell_size)
+        if not isgamma:
+            superdyn = self.GenerateSupercellDyn(supercell_size)
+            super_dynmat = superdyn.dynmats[0]
+            ss_struct = superdyn.structure
+        else:
+            super_dynmat = self.dynmats[0]
+            ss_struct = self.structure
 
         # Apply the sum rule
-        symmetries.CustomASR(superdyn.dynmats[0])
+        symmetries.CustomASR(super_dynmat)
 
-        qe_sym = symmetries.QE_Symmetry(superdyn.structure)
-        qe_sym.SetupFromSPGLIB()
+
+        qe_sym = symmetries.QE_Symmetry(ss_struct)
+
+        if sym_mat is None:
+            qe_sym.SetupFromSPGLIB()
+        else:
+            qe_sym.InitFromSymmetries(sym_mat)
         #qe_sym.SetupQPoint()
-        qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
+        qe_sym.ApplySymmetriesToV2(super_dynmat)
         
         #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
         #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
         #superdyn.ForceSymmetries(syms)
         
         # Get the dynamical matrix back
-        fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        if not isgamma:
+            fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
         
-        for iq, q in enumerate(self.q_tot):
-            self.dynmats[iq] = fcq[iq, :, :]
+            for iq, q in enumerate(self.q_tot):
+                self.dynmats[iq] = fcq[iq, :, :]
 
         # Symmetrize also the effective charges and the Raman Tensor if any
         # To do this, the symmetries must be initialized once again in the unit cell
-        qe_sym = symmetries.QE_Symmetry(self.structure)
-        qe_sym.SetupFromSPGLIB()
         if not self.effective_charges is None:
             qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
         if not self.raman_tensor is None:
@@ -3309,7 +3321,7 @@ WARNING: Effective charges are not accounted by this method
         if irt is None:
             aux_struct = self.structure.copy()
             aux_struct.apply_symmetry(symmat, delete_original = True)
-            aux_struct.fix_coords_in_unit_cell()
+            #aux_struct.fix_coords_in_unit_cell()
 
             eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
         else:
@@ -3336,7 +3348,9 @@ WARNING: Effective charges are not accounted by this method
                 current_m = in_fc[3 * na : 3*na + 3, 3*nb : 3*nb + 3]
                 
                 # Conver the matrix in crystalline
-                new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
+                new_m = current_m
+                if self.structure.has_unit_cell:
+                    new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
                 
                 # Apply the symmetry
                 #new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
@@ -3345,7 +3359,9 @@ WARNING: Effective charges are not accounted by this method
                 #new_m_sym =new_m.copy()
                 
                 # Convert back to cartesian coordinates
-                new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell * A_TO_BOHR, cryst_to_cart=True)
+                new_m = new_m_sym
+                if self.structure.has_unit_cell:
+                    new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell * A_TO_BOHR, cryst_to_cart=True)
                 
                 #print "%d -> %d , %d -> %d)" % (na, s_na, nb, s_nb)#, "d = %.5f" % np.real(np.sqrt(np.sum( (new_m - current_m)**2)))
                 
@@ -3391,7 +3407,7 @@ WARNING: Effective charges are not accounted by this method
         new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
 
         
-        self.structure.fix_coords_in_unit_cell()
+        #self.structure.fix_coords_in_unit_cell()
         for i, sym in enumerate(symmetries):
             # Check if the structure satisfy the symmetry
             if not self.structure.check_symmetry(sym):

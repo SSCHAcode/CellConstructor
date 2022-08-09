@@ -682,10 +682,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
                (must be smaller than the minimum distance between two generic atoms in the struct,
                but bigger than the numerical error in the wyckoff positions of the structure).
         """
-
-        if not self.has_unit_cell and not avoid_unit_cell:
-            raise ValueError("The structure has no unit cell!")
-
+        if not self.has_unit_cell:
+            avoid_unit_cell = True
+            
         if delete_original:
             #self.N_atoms *= 2
             new_atoms = np.zeros( (self.N_atoms, 3))
@@ -772,7 +771,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
         # Get the distance between the structures
         dist = np.sqrt(np.sum(u_vect ** 2)) / self.N_atoms
-        
+        print("DIST:", dist)
         if dist > thr:
             return False
         return True

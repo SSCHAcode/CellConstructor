@@ -1841,10 +1841,11 @@ def GetIRT(structure, symmetry, timer = Timer.Timer(), debug = False):
     
     
     new_struct = structure.copy()
-    if timer is None:
-        new_struct.fix_coords_in_unit_cell(delete_copies = False, debug = debug)
-    else:
-        timer.execute_timed_function(new_struct.fix_coords_in_unit_cell, delete_copies = False, debug = debug)
+    if new_struct.has_unit_cell:
+        if timer is None:
+            new_struct.fix_coords_in_unit_cell(delete_copies = False, debug = debug)
+        else:
+            timer.execute_timed_function(new_struct.fix_coords_in_unit_cell, delete_copies = False, debug = debug)
     n_struct_2 = new_struct.copy()
 
     if timer is None:
