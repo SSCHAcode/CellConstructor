@@ -1522,13 +1522,15 @@ class ThermalConductivity:
             self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
         kappa = 0.0
         exponents = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        integrands_plus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
         exponents = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        integrands_minus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
 #        print(integrands_plus.shape)
         integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         #integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-        kappa = np.einsum('ijk,ijl,ij->kl', self.gvels, self.gvels, integrals)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1554,24 +1556,26 @@ class ThermalConductivity:
             self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
         kappa_diag = np.zeros((3,3))
         exponents_plus = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents_plus/(exponents_plus - 1.0)**2
+        #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents_plus/(exponents_plus - 1.0)**2
+        integrands_plus = self.lineshapes[ls_key]**2*exponents_plus/(exponents_plus - 1.0)**2
         exponents_minus = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
+        #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
+        integrands_minus = self.lineshapes[ls_key]**2*exponents_minus/(exponents_minus - 1.0)**2
         integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
-        kappa_diag = np.einsum('ijjk,ijjl,ij->kl', self.gvels, self.gvels, integrals)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
         kappa_nondiag = np.zeros_like(kappa_diag)
         for iqpt in range(self.nkpt):
-            for iband in range(self.nband):
+            for iband in range(self.nband-1):
                 if(self.freqs[iqpt, iband] != 0.0):
-                    for jband in range(self.nband):
+                    for jband in range(iband, self.nband):
                         if(iband != jband and self.freqs[iqpt, jband] != 0.0):
-                            integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*energies**2*exponents_plus/(exponents_plus - 1.0)**2
-                            integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*energies**2*exponents_minus/(exponents_minus - 1.0)**2
+                            integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
+                            integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
                             integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-                            kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)/self.freqs[iqpt][jband]**2*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])\
+                            kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])\
                                     *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag += kappa_nondiag.T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi

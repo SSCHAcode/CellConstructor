@@ -108,8 +108,8 @@ module get_lf
                         endif
                 endif
 
-                !call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
-                call calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
+                call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
+                !call calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
 
                 do i = 1, 3*nat
                     if(w_q(i) .ne. 0.0_DP) then
