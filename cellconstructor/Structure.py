@@ -771,7 +771,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
         # Get the distance between the structures
         dist = np.sqrt(np.sum(u_vect ** 2)) / self.N_atoms
-        print("DIST:", dist)
+        #print("DIST:", dist)
         if dist > thr:
             return False
         return True

@@ -390,6 +390,7 @@ class QE_Symmetry:
         assert nat == self.QE_nat, "Error, the structure and effective charges are not compatible"
 
 
+
         # Apply the sum rule
         tot_sum = np.sum(eff_charges, axis = 0)
         eff_charges -= np.tile(tot_sum, (nat, 1)).reshape((nat, 3,3 )) / nat
@@ -397,8 +398,20 @@ class QE_Symmetry:
         new_eff_charges = np.zeros((nat, cart1, cart2), dtype = np.double)
 
         # Get the effective charges in crystal components
+        print("QE_at:", self.QE_at)
+        print("EC before:")
+        print(eff_charges[:, :, :])
         for i in range(nat):
             eff_charges[i, :, :] = Methods.convert_matrix_cart_cryst(eff_charges[i, :, :], self.QE_at.T)
+
+
+        print("SYmmetries:")
+        for i in range(self.QE_nsym):
+            print("I:", i)
+            print(self.QE_s[:, :, i].T)
+            print()
+
+        print("TRANS:", self.QE_translation_nr)
 
         # Apply translations
         if self.QE_translation_nr > 1:
@@ -417,6 +430,9 @@ class QE_Symmetry:
 
             for j in range(nat):
                 new_mat = self.QE_s[:,:, i].dot( eff_charges[irt[j], :, :].dot(self.QE_s[:,:,i].T))
+                print("SYM {} AT {}, new effective charge:".format(i, j))
+                print(new_mat)
+                print("OLD EFFECTIVE CHARGE:", eff_charges[irt[j], :, :])
                 new_eff_charges[j, :, :] += new_mat
         new_eff_charges /= self.QE_nsym
 
@@ -1232,7 +1248,9 @@ class QE_Symmetry:
         """
 
         trans_irt = 0
-        self.QE_s[:,:,:] = 0
+        warnings.warn("NOTE: use this initialization only for Effective Charges and Raman")
+        self.QE_s = np.zeros((3, 3, 48), dtype = np.double)
+        #self.QE_s[:,:,:] = 0
 
 
         # Check how many point group symmetries do we have
@@ -1412,9 +1430,24 @@ class QE_Symmetry:
             tmp_vector[0, i] = vector[i,0]
             tmp_vector[1, i] = vector[i,1]
             tmp_vector[2,i] = vector[i,2]
-        
-        symph.symvector(self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
-                        tmp_vector, self.QE_nat)
+    
+
+        print("Symmetries (total: {})".format(self.QE_nsym))
+        for i in range(self.QE_nsym):
+            print("I:", i)
+            print(self.QE_s[:, :, i].T)
+            print()
+
+        if isinstance(self.QE_s[0,0,0], np.intc):
+            symph.symvector(self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
+                            tmp_vector, self.QE_nat)
+        elif isinstance(self.QE_s[0,0,0], np.double):
+            symph.symvector_double(self.QE_nsymq, self.QE_irt, self.QE_s, self.QE_at, self.QE_bg,
+                            tmp_vector, self.QE_nat)
+        else:
+            print("TYPE:", type(self.QE_s[0,0,0]))
+            raise ValueError("Error, type of QE_s not recognized. Error while initializing the symmetries")
+
         
         
         for i in range(self.QE_nat):
@@ -1607,6 +1640,8 @@ class QE_Symmetry:
         # Apply the Permutation symmetry
         v2[:,:] = 0.5 * (v2 + v2.T)
 
+        assert isinstance(self.QE_s[0,0,0], np.intc), "Error, initialize the symmetries correctly"
+
         # First lets recall that the fortran subroutines
         # Takes the input as (3,3,nat,nat)
         new_v2 = np.zeros( (3,3, self.QE_nat, self.QE_nat), dtype = np.double, order ="F")
@@ -1621,6 +1656,14 @@ class QE_Symmetry:
             symph.trans_v2(new_v2, self.QE_translations_irt)
         
         # Apply the symmetrization
+        #print("QE IRT:", self.QE_irt[:self.QE_nsym, :]-1)
+        #print("QE BG:", self.QE_bg)
+        #print("QE AT:", self.QE_at)
+        #print("QE ALL SYMMETRIES:")
+        #for i in range(self.QE_nsym):
+        #    print("{})".format(i))
+        #    print(self.QE_s[:, :, i].T)
+        #    print()
         symph.sym_v2(new_v2, self.QE_at, self.QE_bg, self.QE_s, self.QE_irt, self.QE_nsym, self.QE_nat)
 
         # Return back

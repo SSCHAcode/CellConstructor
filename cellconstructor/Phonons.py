@@ -3101,6 +3101,10 @@ WARNING: Effective charges are not accounted by this method
         print("SUPERCELL:", supercell_size)
         isgamma = np.prod(supercell_size) == 1
 
+        if sym_mat is not None:
+            self.ForceSymmetries(sym_mat)
+            return
+
         
         if not __SPGLIB__ and sym_mat is None:
             raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
@@ -3119,12 +3123,10 @@ WARNING: Effective charges are not accounted by this method
 
         qe_sym = symmetries.QE_Symmetry(ss_struct)
 
-        if sym_mat is None:
-            qe_sym.SetupFromSPGLIB()
-        else:
-            qe_sym.InitFromSymmetries(sym_mat)
-        #qe_sym.SetupQPoint()
+        qe_sym.SetupFromSPGLIB()
         qe_sym.ApplySymmetriesToV2(super_dynmat)
+            
+        #qe_sym.SetupQPoint()
         
         #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
         #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
@@ -3219,11 +3221,11 @@ WARNING: Effective charges are not accounted by this method
                     
 
         # Apply the sum rule on the effective charge
-        if self.effective_charges is not None:
-            total_charge = np.sum(self.effective_charges, axis = 0)
+        #if self.effective_charges is not None:
+        #    total_charge = np.sum(self.effective_charges, axis = 0)
 
-            # Subtract to each atom an average of the total charges
-            self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
+        #    # Subtract to each atom an average of the total charges
+        #    self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
     
 
     def GetIRActive(self, use_spglib = False):
@@ -3326,6 +3328,8 @@ WARNING: Effective charges are not accounted by this method
             eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
         else:
             eq_atoms = irt
+
+        #print(" IRT AP sym: ", eq_atoms)
         #print eq_atoms
         
         # Get the number of atoms
@@ -3378,7 +3382,7 @@ WARNING: Effective charges are not accounted by this method
         
     
         
-    def ForceSymmetries(self, symmetries, irt = None, apply_sum_rule = True):
+    def ForceSymmetries(self, syms, irt = None, apply_sum_rule = True):
         """
         FORCE THE PHONON TO RESPECT THE SYMMETRIES
         ==========================================
@@ -3406,9 +3410,9 @@ WARNING: Effective charges are not accounted by this method
         # Apply the symmetries
         new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
 
-        
+        print("EF CH HERE:", self.effective_charges)
         #self.structure.fix_coords_in_unit_cell()
-        for i, sym in enumerate(symmetries):
+        for i, sym in enumerate(syms):
             # Check if the structure satisfy the symmetry
             if not self.structure.check_symmetry(sym):
                 print (sym)
@@ -3421,9 +3425,9 @@ WARNING: Effective charges are not accounted by this method
             current_irt = None
             if not irt is None:
                 current_irt = irt[i, :]
+            #print("I: ", i, end = "")
             current_fc = self.ApplySymmetry(sym, irt = current_irt)
             
-            print (i)
             
             # Try to add the sum rule here
             #newP = self.Copy()
@@ -3438,10 +3442,12 @@ WARNING: Effective charges are not accounted by this method
             new_fc += current_fc
         
         # Average all the symmetrized structures
-        new_fc /= len(symmetries)
+        new_fc /= len(syms)
         
         
-        print ("DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2)))
+        #print ("DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2)))
+        if apply_sum_rule:
+            symmetries.CustomASR(new_fc)
         self.dynmats[0] = new_fc.copy()
         
                     
@@ -3449,8 +3455,15 @@ WARNING: Effective charges are not accounted by this method
         #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
         
         # Apply the acustic sum rule
-        if apply_sum_rule:
-            self.ApplySumRule()
+
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        qe_sym.InitFromSymmetries(syms)
+
+        print("EF CH HERE2:", self.effective_charges)
+        if not self.effective_charges is None:
+            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+        if not self.raman_tensor is None:
+            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
     def DiagonalizeSupercell(self, verbose = False, lo_to_split = None):
         r"""
