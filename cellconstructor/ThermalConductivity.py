@@ -190,7 +190,19 @@ def heat_capacity(freqs, temperature, hbar1, kb1, cp_mode = 'quantum'):
             return 0.0
     elif(cp_mode == 'classical'):
         return kb1
+   
+    ####################################################################################################################################
     
+def bose_einstein(freqs, temperature, hbar1, kb1, cp_mode = 'quantum'):
+
+    if(cp_mode == 'quantum'):
+        if(freqs > 0.0):
+            x1 = np.exp(hbar1*freqs/kb1/temperature)
+            return 1.0/(x1-1.0)
+        else:
+            return 0.0
+    elif(cp_mode == 'classical'):
+        return kb1/temperature
 
     #####################################################################################################################################
 
@@ -960,6 +972,7 @@ class ThermalConductivity:
                     elif('lineshapes' in key):
                         temp = key.split('_')[-1]
                         if(temp not in self.lineshapes.keys()):
+                            print('Reading')
                             self.lineshapes[temp] = np.zeros((self.nkpt, self.nband, ne))
                         self.lineshapes[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
                     
@@ -1937,7 +1950,57 @@ class ThermalConductivity:
                             kappa_nondiag += (self.freqs[iqpt, iband] + self.freqs[iqpt, jband])*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])*\
                                     (self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband])*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])*vel_fact**2/\
                                     self.freqs[iqpt,iband]/self.freqs[iqpt, jband]/2.0/(4.0*(self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
-        kappa_nondiag = 2.0*kappa_nondiag*np.sqrt(AU*MASS_RY_TO_UMA*BOHR_TO_ANGSTROM**2*1.0e-20/RY_TO_J)
+        kappa_nondiag = 2.0*kappa_nondiag/SSCHA_TO_THZ/1.0e12
+
+        kappa_diag += kappa_diag.T
+        kappa_nondiag += kappa_nondiag.T
+        kappa_diag = kappa_diag/2.0*SSCHA_TO_MS**2#*(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa_nondiag = kappa_nondiag/2.0*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+
+        return kappa_diag, kappa_nondiag
+
+    ################################################################################################################################################################################
+
+    def calculate_kappa_srta_offdiag_isaeva(self, temperature, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
+
+        """
+        Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Communications volume 10, Article number: 3853 (2019)).
+        Quite slow!
+
+        """
+
+        lf_key = format(temperature, '.1f')
+        cp_key = format(temperature, '.1f')
+        if(lf_key in self.lifetimes.keys()):
+            print('Lifetimes for this temperature have already been calculated. Continuing ...')
+        else:
+            self.get_lifetimes(temperature, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
+        if(cp_key in self.cp.keys()):
+            print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
+        else:
+            self.get_heat_capacity(temperature)
+        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
+#        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
+        if(write_lifetimes):
+            self.write_transport_properties_to_file(temperature, isotope_scattering)
+        kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels,self.gvels,self.lifetimes[lf_key])
+
+        pops = np.zeros_like(self.freqs)
+        for iqpt in range(self.nkpt):
+            for iband in range(self.nband):
+                pops[iqpt, iband] = bose_einstein(self.freqs[iqpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = self.cp_mode)
+
+        kappa_nondiag = np.zeros_like(kappa_diag)
+        for iqpt in range(self.nkpt):
+            for iband in range(self.nband - 1):
+                if(self.freqs[iqpt, iband] != 0.0):
+                    for jband in range(iband + 1, self.nband):
+                        if(self.freqs[iqpt, jband] != 0.0):
+                            kappa_nondiag += self.freqs[iqpt, iband]*self.freqs[iqpt, jband]*(pops[iqpt, iband] - pops[iqpt, jband])/(self.freqs[iqpt, jband] - self.freqs[iqpt, iband])*\
+                                np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
+                                ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
+
+        kappa_nondiag = 2.0*kappa_nondiag*HPLANCK/temperature
 
         kappa_diag += kappa_diag.T
         kappa_nondiag += kappa_nondiag.T
