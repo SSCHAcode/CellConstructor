@@ -1587,7 +1587,7 @@ class ThermalConductivity:
                         if(iband != jband and self.freqs[iqpt, jband] != 0.0):
                             integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
                             integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
-                            integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+                            integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/4.0
                             kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])\
                                     *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag += kappa_nondiag.T
@@ -1946,7 +1946,7 @@ class ThermalConductivity:
                 if(self.freqs[iqpt, iband] != 0.0):
                     for jband in range(iband + 1, self.nband):
                         if(self.freqs[iqpt, jband] != 0.0):
-                            vel_fact = 1.0#np.sqrt(2.0*self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            vel_fact = np.sqrt(2.0*self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
                             kappa_nondiag += (self.freqs[iqpt, iband] + self.freqs[iqpt, jband])*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])*\
                                     (self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband])*np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])*vel_fact**2/\
                                     self.freqs[iqpt,iband]/self.freqs[iqpt, jband]/2.0/(4.0*(self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
@@ -2371,11 +2371,11 @@ class ThermalConductivity:
         for icart in range(3):
             auxfc = np.einsum('ijk,i->ijk', self.force_constants, self.ruc[:,icart])*complex(0.0, 1.0)
             ddynmat = np.einsum('ijk,i->jk', auxfc, exponents) * mm_inv_mat
-            for iat in range(len(uc_positions)):
-                for jat in range(len(uc_positions)):
-                    if(iat != jat):
-                        extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
-                        ddynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
+            #for iat in range(len(uc_positions)):
+            #    for jat in range(len(uc_positions)):
+            #        if(iat != jat):
+            #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
+            #            ddynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
             if(is_q_gamma):
                 if(self.off_diag):
                     for iband in range(self.nband):
@@ -2517,11 +2517,11 @@ class ThermalConductivity:
         phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
         exponents = np.exp(1j*phases)
         dynmat = np.einsum('ijk,i->jk', self.force_constants, exponents) * mm_inv_mat
-        for iat in range(len(uc_positions)):
-            for jat in range(len(uc_positions)):
-                if(iat != jat):
-                    extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
-                    dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
+        #for iat in range(len(uc_positions)):
+        #    for jat in range(len(uc_positions)):
+        #        if(iat != jat):
+        #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
+        #            dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
         dynmat = (dynmat + dynmat.conj().T)/2.0
         w2_q, pols_q = np.linalg.eigh(dynmat)
         is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, q)
