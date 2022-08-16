@@ -131,6 +131,183 @@ module get_lf
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    subroutine calculate_lifetimes_selfconsistently(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
+                    fc3, r3_2, r3_3, rprim, pos, masses, smear, smear_id, T, gaussian, &
+                    classical, energies, ne, nirrqpt, nat, nfc2, nfc3, n_events, selfengs)
+
+        use omp_lib
+        use third_order_cond
+
+        implicit none
+
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, ne, n_events
+        integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
+        real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
+        real(kind=DP), intent(in) :: qgrid(3, n_events)
+        real(kind=DP), intent(in) :: fc2(nfc2, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: fc3(nfc3, 3*nat, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: r2_2(3, nfc2)
+        real(kind=DP), intent(in) :: r3_2(3, nfc3), r3_3(3, nfc3)
+        real(kind=DP), intent(in) :: rprim(3, 3)
+        real(kind=DP), intent(in) :: pos(3, nat)
+        real(kind=DP), intent(in) :: masses(nat), energies(ne)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt), smear_id(3*nat, nirrqpt)
+        real(kind=DP), intent(in) :: T
+        logical, intent(in) :: gaussian, classical
+        complex(kind=DP), dimension(nirrqpt, 3*nat), intent(out) :: selfengs
+
+        integer :: iqpt, i, jqpt, tot_qpt, prev_events, nthreads
+        real(kind=DP), dimension(3) :: qpt
+        real(kind=DP), dimension(3,3) :: kprim
+        real(kind=DP), dimension(3*nat) :: w2_q, w_q, tau, omega
+        complex(kind=DP), allocatable, dimension(:, :) :: self_energy
+        complex(kind=DP), dimension(3*nat,3*nat) :: pols_q
+        real(kind=DP), allocatable, dimension(:,:) :: curr_grid
+        integer, allocatable, dimension(:) :: curr_w
+        logical :: is_q_gamma, w_neg_freqs, parallelize
+
+
+        selfengs(:,:) = complex(0.0_DP,0.0_DP)
+        kprim = transpose(inv(rprim))
+        nthreads = omp_get_max_threads()
+        print*, 'Maximum number of threads available: ', nthreads
+
+        parallelize = .True.
+        if(nirrqpt <= nthreads) then
+                parallelize = .False.
+        endif
+!        print*, 'Got parallelize'
+
+        !$OMP PARALLEL DO IF(parallelize) DEFAULT(NONE) &
+        !$OMP PRIVATE(iqpt, w_neg_freqs, qpt, w2_q, pols_q, is_q_gamma, self_energy, &
+        !$OMP curr_grid, w_q, curr_w, prev_events, tot_qpt, tau, omega) &
+        !$OMP SHARED(nirrqpt, nfc2, nat, fc2, r2_2, masses, kprim, scatt_events, &
+        !$OMP nfc3, ne, fc3, r3_2, r3_3, pos, smear, T, energies, parallelize, smear_id, selfengs, &
+        !$OMP irrqgrid, qgrid, weights, gaussian, classical)
+        do iqpt = 1, nirrqpt
+            allocate(self_energy(ne, 3*nat))
+!            print*, iqpt
+            w_neg_freqs = .False.
+            print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
+            qpt = irrqgrid(:, iqpt) 
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q)
+            call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
+
+            if(any(w2_q < 0.0_DP)) then
+                print*, 'Negative eigenvalue of dynamical matrix!'
+                w_neg_freqs = .True.
+            endif
+!            print*, 'Interpolate frequency'
+            if(.not. w_neg_freqs) then
+                w_q = sqrt(w2_q)
+                self_energy(:,:) = complex(0.0_DP, 0.0_DP)
+                allocate(curr_grid(3, scatt_events(iqpt)))
+                allocate(curr_w(scatt_events(iqpt)))
+                if(iqpt > 1) then
+                    prev_events = sum(scatt_events(1:iqpt-1))
+                else
+                    prev_events = 0
+                endif
+                do jqpt = 1, scatt_events(iqpt)
+                    curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
+                    curr_w(jqpt) = weights(prev_events + jqpt)
+                enddo
+!                print*, 'Got grids'
+                call calculate_self_energy_P(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
+                    nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
+                    energies, .not. parallelize, gaussian, classical, self_energy) 
+                deallocate(curr_grid)
+                tot_qpt = sum(curr_w)
+                deallocate(curr_w)
+                self_energy = self_energy/dble(tot_qpt)
+                if(any(self_energy .ne. self_energy)) then
+                        print*, 'NaN in self_energy'
+                endif
+                if(gaussian) then
+                        call calculate_real_part_via_Kramers_Kronig(ne, 3*nat, self_energy, energies)
+                        if(any(self_energy .ne. self_energy)) then
+                                print*, 'NaN in Kramers Kronig'
+                        endif
+                endif
+                tau(:) = 0.0_DP
+                omega(:) = 0.0_DP 
+                call solve_selfconsistent_equation(ne, 3*nat, w_q, self_energy, energies, tau, omega)
+
+                do i = 1, 3*nat
+                    if(w_q(i) .ne. 0.0_DP) then
+                        selfengs(iqpt, i) = complex(omega(i), tau(i))
+                    else
+                        selfengs(iqpt, i) = complex(0.0_DP, 0.0_DP)
+                    endif
+                enddo
+            else
+                selfengs(iqpt, i) = complex(0.0_DP, 0.0_DP)
+            endif
+            deallocate(self_energy)
+
+        enddo
+        !$OMP END PARALLEL DO
+
+    end subroutine calculate_lifetimes_selfconsistently
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine solve_selfconsistent_equation(ne, nband, w_q, self_energy, energies, tau, omega)
+
+        implicit none
+
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nband, ne
+        real(kind=DP), intent(in) :: w_q(nband), energies(ne)
+        complex(kind=DP), intent(in) :: self_energy(ne, nband)
+        real(kind=DP), intent(inout) :: tau(nband), omega(nband)
+
+        integer :: iband, ie, ie0
+        real(kind=DP) :: curr_freq, prev_freq, d_freq, den, rew, imw
+
+        den = energies(2) - energies(1) 
+        do iband = 1, nband
+                if(w_q(iband) > 0.0_DP) then
+                        curr_freq = w_q(iband)
+                        d_freq = curr_freq
+                        do while(d_freq > den)
+                                prev_freq = curr_freq
+                                do ie = 2, ne
+                                        if(curr_freq - energies(ie) < 0.0_DP .and. curr_freq - energies(ie-1) > 0.0_DP) then
+                                                ie0 = ie
+                                                EXIT
+                                        endif
+                                enddo
+                                rew = dble(self_energy(ie0-1, iband)) + (curr_freq - energies(ie-1))*&
+                                        (dble(self_energy(ie0,iband)) - dble(self_energy(ie0-1, iband)))/den
+                                curr_freq = sqrt(w_q(iband)**2 + rew)
+                                d_freq = curr_freq - prev_freq
+                        enddo
+                        omega(iband) = curr_freq
+                        do ie = 2, ne
+                                if(omega(iband) - energies(ie) < 0.0_DP .and. omega(iband) - energies(ie-1) > 0.0_DP) then
+                                        ie0 = ie
+                                        EXIT
+                                endif
+                        enddo
+                        imw = aimag(self_energy(ie0-1, iband)) + (omega(iband) - energies(ie-1))*&
+                                (aimag(self_energy(ie0,iband)) - aimag(self_energy(ie0-1, iband)))/den
+                        tau(iband) = imw/2.0_DP/w_q(iband)
+                else
+                        omega(iband) = 0.0_DP
+                        tau(iband) = 0.0_DP
+                endif
+        enddo
+
+    end subroutine solve_selfconsistent_equation
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     subroutine calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
 
         implicit none
@@ -817,7 +994,7 @@ module get_lf
                                         rse = rse + aimag(self_energy(j, iband))*(diff + suma)*(energies(2) - energies(1))/PI
                                 endif
                         enddo
-                        self_energy(i, iband) = cmplx(rse, aimag(self_energy(i, iband)))
+                        self_energy(i, iband) = complex(rse, aimag(self_energy(i, iband)))
                 enddo
         enddo
 
