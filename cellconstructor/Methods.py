@@ -858,6 +858,24 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0,:] = np.array( [a/2., 0, -c/2.])
         unit_cell[1,:] = np.array( [b * cos_ab, b*sin_ab, 0])
         unit_cell[2,:] = np.array( [a/2., 0, c/2.])
+
+    elif ibrav == 14:
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = a * celldm[1]
+        c = a * celldm[2]
+        cos_alpha = celldm[3]
+        cos_beta = celldm[4]
+        cos_gamma = celldm[5]
+
+        sin_alpha = np.sqrt(1 - cos_alpha**2)
+        sin_beta = np.sqrt(1 - cos_beta**2)
+        sin_gamma = np.sqrt(1 - cos_gamma**2)
+
+        unit_cell[0, :] = np.array([a, 0, 0], dtype = np.double)
+        unit_cell[1, :] = np.array([b * cos_gamma, b * sin_gamma, 0], dtype = np.double)
+        unit_cell[2, :] = np.array([c * cos_beta, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma, 
+            c * np.sqrt( 1 + 2*cos_alpha*cos_beta*cos_gamma - cos_alpha**2 - cos_beta**2 - cos_gamma**2) / sin_gamma])
+        
     else:
         raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
 
