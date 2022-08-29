@@ -289,7 +289,7 @@ def GoParallelTuple(function, list_of_inputs, reduce_op = None):
 
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
         
-        # Work!
+        # Work! TODO: THIS IS VERY MEMORY HEAVY
         results = [function(x) for x in computing_list]
 
         # Perform the reduction
