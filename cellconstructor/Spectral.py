@@ -1254,6 +1254,8 @@ def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3
                                                     diag_approx,nsm,smear_id_cm,smear_cm,filename_sp ,
                                                     x_length):
         print("iq=",iq)
+
+        spectralf = np.zeros( (ne, nsm), dtype = np.float64 )
         spectralf[:, :] = get_full_dynamic_bubble(tensor2, tensor3, k_grid, np.array(q),
                                                       smear_id, smear, energies, T,
                                                       static_limit, notransl ,
