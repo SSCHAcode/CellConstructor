@@ -3110,12 +3110,13 @@ WARNING: Effective charges are not accounted by this method
         #qe_sym.SetupQPoint()
         qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
         
+        
         #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
         #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
         #superdyn.ForceSymmetries(syms)
         
         # Get the dynamical matrix back
-        fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        fcq = GetDynQFromFCSupercell_parallel(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
         
         for iq, q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
