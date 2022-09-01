@@ -3134,14 +3134,14 @@ WARNING: Effective charges are not accounted by this method
         qe_sym.SetupFromSPGLIB()
         #qe_sym.SetupQPoint()
         qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
-
+        
         #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
         #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
         #superdyn.ForceSymmetries(syms)
 
         # Get the dynamical matrix back
-        fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
-
+        fcq = GetDynQFromFCSupercell_parallel(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        
         for iq, q in enumerate(self.q_tot):
             self.dynmats[iq] = fcq[iq, :, :]
 
@@ -4067,8 +4067,7 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
     if fc2 is not None:
         dynmat2 = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
     #print "NQ:", nq
-
-
+    
     for i in range(nat_sc):
         i_uc = itau[i]
         for j in range(nat_sc):
@@ -4108,6 +4107,86 @@ def GetDynQFromFCSupercell(fc_supercell, q_tot, unit_cell_structure, supercell_s
         return dynmat, dynmat2
     else:
         return dynmat
+
+
+def GetDynQFromFCSupercell_parallel(fc_supercell, q_tot, unit_cell_structure, supercell_structure,  itau = None, fc2 = None):
+    r"""
+    Look at GetDynQFromFCSupercell. This is the mpi enabled version of that subroutine.
+    TODO: Still to be tested properly
+
+    Parameters
+    ----------
+        fc_supercell : ndarray 3nat_sc x 3nat_sc
+            The dynamical matrix at each q point. Note nq must be complete, not only the irreducible.
+        q_tot : ndarray ( nq, 3)
+            The q vectors in Angstrom^-1
+        unit_cell_structure : Structure()
+            The structure of the unit cell
+        supercell_structure : Structure()
+            The structure of the supercell
+    Returns
+    -------
+        dynmat : ndarray (nq, 3nat, 3nat, dtype = np.complex128) 
+            The force constant matrix in the supercell.
+    
+    """
+    
+    # Define the number of q points, atoms and unit cell atoms
+    nq = np.shape(q_tot)[0]
+    nat_sc = np.shape(fc_supercell)[0]//3
+    nat = nat_sc // nq
+    
+    if itau is None:
+        itau = supercell_structure.get_itau(unit_cell_structure)-1
+    
+    def fourier_transform_reduction(ij_pair):
+        i, j = ij_pair
+        i_uc = itau[i]
+        j_uc = itau[j]
+        R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
+        R -= supercell_structure.coords[j, :] - unit_cell_structure.coords[j_uc,:]
+        
+        # q_dot_R is 1d array that for each q contains the scalar product with R
+        q_dot_R = q_tot.dot(R)
+        
+        dynmat = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
+        dynmat[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] = np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc_supercell[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+        #if fc2 is not None:
+        #    dynmat2 = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
+        #    dynmat2[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] += np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc2[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+            
+        return dynmat
+
+    # Prepare the inputs TODO: this can be speedup
+    list_of_inputs = []
+    for i in range(nat_sc):
+        for j in range(nat_sc):
+            list_of_inputs.append([i,j])
+    
+    dynmat = Settings.GoParallel(fourier_transform_reduction, list_of_inputs, "+")
+
+    if fc2 is not None:
+        def fourier_transform_reduction2(ij_pair):
+            i, j = ij_pair
+            i_uc = itau[i]
+            j_uc = itau[j]
+            R = supercell_structure.coords[i, :] - unit_cell_structure.coords[i_uc,:]
+            R -= supercell_structure.coords[j, :] - unit_cell_structure.coords[j_uc,:]
+            
+            # q_dot_R is 1d array that for each q contains the scalar product with R
+            q_dot_R = q_tot.dot(R)
+            
+            dynmat2 = np.zeros((nq, 3*nat, 3*nat), dtype = np.complex128)
+            dynmat2[:,3*i_uc: 3*i_uc +3,3*j_uc: 3*j_uc + 3] = np.einsum("a, bc",  np.exp(-1j * 2*np.pi * q_dot_R), fc2[3*i : 3*i + 3, 3*j : 3*j + 3]) / nq
+                
+            return dynmat2
+    
+        dynmat2 = Settings.GoParallel(fourier_transform_reduction2, list_of_inputs, "+")
+        
+        return dynmat, dynmat2 
+
+    return dynmat
+
 
 
 
