@@ -120,16 +120,16 @@ class Moro(object):
 
         return x
 
-    def sobol_big(self,size,n_modes,scramble): # in case the number of vibrational modes excedes the max setting of the generator.
-        if (n_modes>21201):
-            number = n_modes-21201
-            #if (number>21201): #Do it recursive???
-            x1 = sobol_modes(size = size, n_modes = 21201 , scramble = scramble)
-            x2 = sobol_big(size = size, n_modes = number, scramble = scramble)
-            x = x1.append(x2)
-        else:
-            x = sobol_modes(size = size, n_modes = n_modes , scramble = scramble)
-        return x
+    # def sobol_big(self,size,n_modes,scramble): # in case the number of vibrational modes excedes the max setting of the generator.
+    #     if (n_modes>21201):
+    #         number = n_modes-21201
+    #         #if (number>21201): #Do it recursive???
+    #         x1 = sobol_modes(size = size, n_modes = 21201 , scramble = scramble)
+    #         x2 = sobol_big(size = size, n_modes = number, scramble = scramble)
+    #         x = x1.append(x2)
+    #     else:
+    #         x = sobol_modes(size = size, n_modes = n_modes , scramble = scramble)
+    #     return x
 
 # ----------
 # Funciones
