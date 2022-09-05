@@ -7,6 +7,7 @@ from __future__ import division
 import numpy as np
 import os, sys
 import scipy, scipy.optimize
+from scipy import integrate
 import h5py
 import psutil
 
@@ -1542,8 +1543,9 @@ class ThermalConductivity:
         #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
         integrands_minus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
 #        print(integrands_plus.shape)
-        integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-        #integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+        #integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+        integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
+        #integrals = (integrate.simps(integrands_plus, axis = len(integrands_plus.shape) - 1) + integrate.simps(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
@@ -1718,6 +1720,8 @@ class ThermalConductivity:
         if(self.delta_omega == 0.0 and not 'energies' in locals()):
             self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
             energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
+        elif(self.delta_omega != 0.0 and not 'energies' in locals()):
+            energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
         elif(self.delta_omega == 0.0 and energies is not None):
             self.delta_omega = energies[1] - energies[0]
         lf_key = format(temperature, '.1f')
@@ -1776,7 +1780,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = False, kpoints = None, start_nkpts = 100):
+    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = True, kpoints = None, start_nkpts = 100):
 
         """
         Calculate phonon lineshapes in full Brillouin zone.
@@ -2069,7 +2073,7 @@ class ThermalConductivity:
             for iband in range(self.nband - 1):
                 if(self.freqs[iqpt, iband] != 0.0):
                     for jband in range(iband + 1, self.nband):
-                        if(self.freqs[iqpt, jband] != 0.0):
+                        if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] - self.freqs[iqpt, iband] != 0.0):
                             kappa_nondiag += self.freqs[iqpt, iband]*self.freqs[iqpt, jband]*(pops[iqpt, iband] - pops[iqpt, jband])/(self.freqs[iqpt, jband] - self.freqs[iqpt, iband])*\
                                 np.outer(self.gvels[iqpt, iband, jband], self.gvels[iqpt, jband, iband])*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
                                 ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
