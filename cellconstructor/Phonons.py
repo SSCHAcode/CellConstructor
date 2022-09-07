@@ -4014,7 +4014,8 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     """
     assert imag < img_thr, ASSERT_ERROR.format(imag)
 
-    return fc
+    # Remove anyway the imaginary part
+    return fc - 1j*np.imag(fc)
 
 
 
