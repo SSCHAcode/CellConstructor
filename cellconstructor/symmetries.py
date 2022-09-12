@@ -19,6 +19,7 @@ import scipy.linalg
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 import cellconstructor.Timer as Timer
+from cellconstructor.Settings import pprint as print
 
 # Load the fortran symmetry QE module
 import symph

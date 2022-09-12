@@ -292,12 +292,14 @@ def GoParallelTuple(function, list_of_inputs, reduce_op = None):
         # Work! TODO: THIS IS VERY MEMORY HEAVY
         results = [function(x) for x in computing_list]
 
+
         # Perform the reduction
         if reduce_op == "+":
             result = list(results[0])
             for i in range(1,len(results)):
                 for j in range(len(results[i])):
                     result[j] += results[i][j]
+            
 
         if reduce_op == "*":
             result = list(results[0])
