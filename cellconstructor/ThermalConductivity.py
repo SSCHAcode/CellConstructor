@@ -241,31 +241,31 @@ def same_vector(vec1, vec2, cell):
                                 break
     return res
 
-    ######################################################################################################################################
+######################################################################################################################################
 
-    def check_degeneracy(x, tol):
+def check_degeneracy(x, tol):
 
-        """
+    """
 
-        Simple check if there are degenerate phonon modes for a given k - point.
+    Simple check if there are degenerate phonon modes for a given k - point.
 
-        x   - frequencies at the given k - point
-        tol - tolerance to be satisfied 
+    x   - frequencies at the given k - point
+    tol - tolerance to be satisfied 
 
-        """
+    """
 
-        x1 = x.copy()
-        x1 = x1.tolist()
-        degs = []
-        for i in range(len(x1)):
-            if(not any(i in sl for sl in degs)):
-                curr_degs = []
-                curr_degs.append(i)
-                for j in range(i+1, len(x1)):
-                    if(np.abs(x1[i]-x1[j]) < tol):
-                        curr_degs.append(j)
-                degs.append(curr_degs)
-        return degs
+    x1 = x.copy()
+    x1 = x1.tolist()
+    degs = []
+    for i in range(len(x1)):
+        if(not any(i in sl for sl in degs)):
+            curr_degs = []
+            curr_degs.append(i)
+            for j in range(i+1, len(x1)):
+                if(np.abs(x1[i]-x1[j]) < tol):
+                    curr_degs.append(j)
+            degs.append(curr_degs)
+    return degs
             
 def get_kpoints_in_path(path, nkpts, kprim):
     segments = path['path']
@@ -730,6 +730,12 @@ def apply_permutation_symmetry(tensor3, pairs):
                             tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] = (tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] + tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T)/2.0
                             tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)] = tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)].T
 
+def rotate_eigenvectors(ddm, eigs):
+
+    _, eigvecs = np.linalg.eigh(np.dot(eigs.conj(), np.dot(ddm, eigs.T)))
+    rot_eigvecs = np.dot(eigvecs.T, eigs)
+    
+    return rot_eigvecs
 
 class ThermalConductivity:
 
@@ -2349,8 +2355,9 @@ class ThermalConductivity:
         for ikpt, kpt in enumerate(self.k_points):
             self.freqs[ikpt], self.eigvecs[ikpt] = self.get_frequency_at_q(kpt)
             self.gvels[ikpt] = self.get_group_velocity(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
+            #self.gvels[ikpt] = self.get_group_velocity_finite_difference(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
 
-        self.symmetrize_group_velocities_over_star()
+        #self.symmetrize_group_velocities_over_star()
         #self.check_group_velocities()
         #self.check_frequencies()
         self.setup_smearings(smearing_value)
@@ -2437,6 +2444,7 @@ class ThermalConductivity:
         """
 
         uc_positions = self.dyn.structure.coords.copy()
+
         is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, q)
         if(self.off_diag):
             tmp_gvel = np.zeros((self.nband, self.nband, 3))
@@ -2444,45 +2452,121 @@ class ThermalConductivity:
         else:
             tmp_gvel = np.zeros((self.nband, 3))
             gvel = np.zeros((self.nband, 3))
-        #rq = np.dot(q, self.reciprocal_lattice)
-        phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
-        exponents = np.exp(1j*phases)
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1.0 / mm_mat
 
+        degs = check_degeneracy(freqs, np.amax(freqs)*1.0e-8)
+
         for icart in range(3):
-            auxfc = np.einsum('ijk,i->ijk', self.force_constants, self.ruc[:,icart])*complex(0.0, 1.0)
-            ddynmat = np.einsum('ijk,i->jk', auxfc, exponents) * mm_inv_mat
-            #for iat in range(len(uc_positions)):
-            #    for jat in range(len(uc_positions)):
-            #        if(iat != jat):
-            #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
-            #            ddynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
+            auxfc = np.zeros_like(self.force_constants[0], dtype = complex)
+            for iuc in range(len(self.force_constants)):
+                for iat in range(len(uc_positions)):
+                    for jat in range(len(uc_positions)):
+                        ruc = -self.ruc[iuc] + uc_positions[iat] - uc_positions[jat]
+                        phase = np.dot(ruc, q)*2.0*np.pi
+                        auxfc[3*iat:3*(iat+1),3*jat:3*(jat+1)] += complex(0.0,1.0)*ruc[icart]*self.force_constants[iuc,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
+            ddynmat = auxfc * mm_inv_mat
+            if(icart == 0):
+                dirdynmat = ddynmat.copy()
+            rot_eigvecs = np.zeros_like(eigvecs)
+            for ideg, deg in enumerate(degs):
+                rot_eigvecs[deg, :] = rotate_eigenvectors(dirdynmat, eigvecs[deg, :])
             if(is_q_gamma):
                 if(self.off_diag):
                     for iband in range(self.nband):
                         if(freqs[iband] != 0.0):
                             for jband in range(self.nband):
                                 if(freqs[jband] != 0.0):
-                                    gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                                    #tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                                    tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
                 else:
                     for iband in range(self.nband):
                         if(freqs[iband] != 0.0):
-                            tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                            #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                            tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
             else:
                 if(self.off_diag):
                     for iband in range(self.nband):
                         for jband in range(self.nband):
-                            tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                            #tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                            tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
                 else:
                     for iband in range(self.nband):
-                        tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                        #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                        tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
 
+        if(np.any(np.isnan(tmp_gvel))):
+            raise RuntimeError('NaN is group velocity matrix!')
         gvel = self.symmetrize_group_velocity(tmp_gvel, q) 
     
         return gvel
 
+
+    ##################################################################################################################################
+
+    def get_group_velocity_finite_difference(self, q, freqs, eigvecs):
+
+        """
+        Calculate group velocity. Using analytical formula.
+
+        q       : wave vector in real space (without 2pi factor)
+        freqs   : frequencies for this wave vector
+        eigvecs : eigenvectors for this wave vector
+
+        """
+
+        is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, q)
+        if(self.off_diag):
+            tmp_gvel = np.zeros((self.nband, self.nband, 3))
+            gvel = np.zeros((self.nband, self.nband, 3))
+        else:
+            tmp_gvel = np.zeros((self.nband, 3))
+            gvel = np.zeros((self.nband, 3))
+
+        degs = check_degeneracy(freqs, np.amax(freqs)*1.0e-8)
+
+        for icart in range(3):
+            dynmat0 = self.get_dynamical_matrix(q)
+            dq = np.zeros_like(q)
+            dq[icart] = np.sum(np.linalg.norm(self.reciprocal_lattice[:,icart]))/1000.0
+            q1 = q + dq
+            dynmat1 = self.get_dynamical_matrix(q1)
+            q2 = q - dq
+            dynmat2 = self.get_dynamical_matrix(q2)
+            ddynmat = (dynmat1 - dynmat2)/np.linalg.norm(dq)/2.0/2.0/np.pi
+            if(icart == 0):
+                dirdynmat = ddynmat.copy()
+            rot_eigvecs = np.zeros_like(eigvecs)
+            for ideg, deg in enumerate(degs):
+                rot_eigvecs[deg, :] = rotate_eigenvectors(dirdynmat, eigvecs[deg, :])
+            if(is_q_gamma):
+                if(self.off_diag):
+                    for iband in range(self.nband):
+                        if(freqs[iband] != 0.0):
+                            for jband in range(self.nband):
+                                if(freqs[jband] != 0.0):
+                                    #gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                                    gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                else:
+                    for iband in range(self.nband):
+                        if(freqs[iband] != 0.0):
+                           # tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                            tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+            else:
+                if(self.off_diag):
+                    for iband in range(self.nband):
+                        for jband in range(self.nband):
+                            #tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                            tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
+                else:
+                    for iband in range(self.nband):
+                        #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+                        tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
+
+        gvel = self.symmetrize_group_velocity(tmp_gvel, q) 
+    
+        return gvel
 
     ##################################################################################################################################
 
@@ -2588,24 +2672,7 @@ class ThermalConductivity:
 
         """
 
-        uc_positions = self.dyn.structure.coords.copy()
-        #uc_positions = np.dot(uc_positions, np.linalg.inv(self.dyn.structure.unit_cell))
-        #uc_positions -= np.rint(uc_positions)
-        #uc_positions = np.dot(uc_positions, self.dyn.structure.unit_cell)
-
-        m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
-        mm_mat = np.sqrt(np.outer(m, m))
-        mm_inv_mat = 1.0 / mm_mat
-        #rq = np.dot(q, self.reciprocal_lattice)
-        phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
-        exponents = np.exp(1j*phases)
-        dynmat = np.einsum('ijk,i->jk', self.force_constants, exponents) * mm_inv_mat
-        #for iat in range(len(uc_positions)):
-        #    for jat in range(len(uc_positions)):
-        #        if(iat != jat):
-        #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
-        #            dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
-        dynmat = (dynmat + dynmat.conj().T)/2.0
+        dynmat = self.get_dynamical_matrix(q)
         w2_q, pols_q = np.linalg.eigh(dynmat)
         is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, q)
         if(is_q_gamma):
@@ -2638,9 +2705,23 @@ class ThermalConductivity:
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1.0 / mm_mat
-        phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
-        exponents = np.exp(1j*phases)
-        dynmat = np.einsum('ijk,i->jk', self.force_constants, exponents) * mm_inv_mat
+        dynmat = np.zeros_like(self.force_constants[0], dtype = complex)
+        #phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
+        #exponents = np.exp(1j*phases)
+        #dynmat = np.einsum('ijk,i->jk', self.force_constants, exponents) * mm_inv_mat
+        #for iat in range(len(uc_positions)):
+        #    for jat in range(len(uc_positions)):
+        #        if(iat != jat):
+        #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
+        #            dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
+        for ir in range(len(self.ruc)):
+            for iat in range(len(uc_positions)):
+                for jat in range(len(uc_positions)):
+                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat]
+                    phase = np.dot(r, q)*2.0*np.pi
+                    dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
+        dynmat = dynmat*mm_inv_mat
+        dynmat = (dynmat + dynmat.conj().T)/2.0
         
         return dynmat
 
