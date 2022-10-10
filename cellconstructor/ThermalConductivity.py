@@ -148,6 +148,8 @@ def check_if_rotation(rot, thr):
             print('Transpose and inverse of rotation matrix are not the same! Should not happen!')
             print(np.linalg.inv(rot))
             print(rot.T)
+            print(rot)
+            raise RuntimeError('Not a rotation!')
     except:
         print('Something wrong when trying to calculate inverse of rotation matrix. Possibly singular!')
         print(rot)
@@ -307,16 +309,13 @@ def get_kpoints_in_path(path, nkpts, kprim):
 
 
 def stupid_centering_fc3_v3(tensor3, check_for_symmetries = True, Far = 1):
-    #print(psutil.virtual_memory().percent)
     rprim = tensor3.unitcell_structure.unit_cell.copy()
     irprim = np.linalg.inv(rprim)
     rsup = tensor3.supercell_structure.unit_cell.copy()
     irsup = np.linalg.inv(rsup)
-    #print(rprim)
     positions = tensor3.unitcell_structure.coords.copy()
     xpos = np.dot(positions, np.linalg.inv(rprim))
     natom = len(xpos)
-    #print(xpos)
     symbols = tensor3.unitcell_structure.atoms
     unique_symbols = np.unique(symbols)
     unique_numbers = np.arange(len(unique_symbols), dtype=int) + 1
@@ -325,7 +324,6 @@ def stupid_centering_fc3_v3(tensor3, check_for_symmetries = True, Far = 1):
         for jat in range(len(unique_symbols)):
             if(symbols[iat] == unique_symbols[jat]):
                 numbers[iat] = unique_numbers[jat]
-    #print(numbers)
     cell = (rprim, xpos, numbers)
     if(tensor3.n_R == tensor3.n_sup**2):
         print('ForceTensor most likely not previously centered! ')
@@ -345,19 +343,8 @@ def stupid_centering_fc3_v3(tensor3, check_for_symmetries = True, Far = 1):
             hfc3 = np.asfortranarray(hfc3)
             hr_vector3 = np.asfortranarray(hr_vector3)
             hr_vector2 = np.asfortranarray(hr_vector2)
-            #print(np.shape(hfc3), np.shape(hr_vector3), np.shape(hr_vector2), tensor3.n_R, natom)
-            #print(tot_trip)
             maxtrip = thermal_conductivity.third_order_cond_centering.number_of_triplets(hfc3, hr_vector2, hr_vector3, tot_trip, natom, tensor3.n_R)
-           # print(maxtrip, tensor3.n_R, natom)
-           # print(psutil.virtual_memory().percent)
-           # print(np.shape(hfc3), np.shape(hr_vector2), np.shape(hr_vector3))
-           # print('This should occupy: ' + format((np.prod(np.shape(hfc3)) + np.prod(np.shape(hr_vector2)) + np.prod(np.shape(hr_vector3)))*8.0/1024.0**3, '.3f') + ' GB of memory!')
             fc3, r_vector2, r_vector3, ntrip = thermal_conductivity.third_order_cond_centering.distribute_fc3(hfc3, hr_vector2, hr_vector3, tot_trip, maxtrip, natom, tensor3.n_R)
-            #ntrip = 0
-            #for i in range(len(r_vector2)):
-            #    if(i != 0 and np.linalg.norm(r_vector2[i]) < 1.0e-6 and np.linalg.norm(r_vector3[i]) < 1.0e-6):
-            #        ntrip = i
-            #        break
             print('Final number of triplets: ', ntrip)
             tensor3.n_R = ntrip
             tensor3.r_vector2 = r_vector2[0:ntrip,:].T
@@ -572,26 +559,6 @@ def stupid_centering_fc3_v2(tensor3, Far = 1):
             index0 = 0
         else:
             index0 = np.argsort(n_R)[-1]
-            print(n_R)
-            for ir in range(natom**3):
-                print(len(multiplicity[ir]))
-            #for ir in range(tensor3.n_R):
-            #    print(multiplicity[:][ir])
-            #print('Largest number of triplets for: ', index0)
-            #for itrip in range(len(new_r_vector2)):
-            #    if(itrip != index0):
-            #        print('Checking triplet: ', itrip)
-            #        for i in range(len(new_r_vector2[index0])):
-            #            found = False
-            #            for j in range(len(new_r_vector2[itrip])):
-            #                if(np.linalg.norm(new_r_vector2[itrip][j] - new_r_vector2[index0][i]) < 1.0e-6):
-            #                    found = True
-            #                    break
-            #            if(not found):
-            #                print('For triplet: ', itrip)
-            #                print('Could not find: ', np.dot(new_r_vector2[index0][i], irprim))
-            #raise RuntimeError('Number of lattice vectors for all triplets is not the same! ')
-        print(n_R)
         r_vector2 = new_r_vector2[index0].copy()
         r_vector3 = new_r_vector3[index0].copy()
         extra = 0
@@ -623,43 +590,6 @@ def stupid_centering_fc3_v2(tensor3, Far = 1):
                                 fc3[iuc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat] = new_tensor[index][juc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat]#*multiplicity[index][juc]/multiplicity[index][iuc]
                                 found = True
                                 break
-                        #if(not found):
-                            #print('Still can not find! Very weird')
-                        #    match1 = False
-                        #    match2 = False
-                        #    for ir in range(tensor3.n_R):
-                        #        rvec2 = tensor3.r_vector2[:,ir].copy() 
-                        #        xvec2 = np.dot(rvec2, irsup)
-                        #        rvec3 = tensor3.r_vector3[:,ir].copy() 
-                        #        xvec3 = np.dot(rvec3, irsup)
-                        #        for i1 in range(-1,2):
-                        #            if(not match1):
-                        #                for j1 in range(-1,2):
-                        #                    if(not match1):
-                        #                        for k1 in range(-1,2):
-                        #                            xvec21 = xvec2 + np.array([i1,j1,k1])
-                        #                            rvec21 = np.dot(xvec21, rsup)
-                        #                            if(np.linalg.norm(rvec21 - r_vector2[iuc]) < 1.0e-6):
-                        #                                match1 = True
-                        #                                break
-                        #        for i1 in range(-1,2):
-                        #            if(not match2):
-                        #                for j1 in range(-1,2):
-                        #                    if(not match2):
-                        #                        for k1 in range(-1,2):
-                        #                            xvec31 = xvec3 + np.array([i1,j1,k1])
-                        #                            rvec31 = np.dot(xvec31, rsup)
-                        #                            if(np.linalg.norm(rvec31 - r_vector3[iuc]) < 1.0e-6):
-                        #                                match2 = True
-                        #                                break
-                        #        if(match1 and match2):
-                        #            print('Matched!', ir, index, float(iuc)/float(len(r_vector2)))
-                        #            break
-                        #    if(match1 and match2):
-                        #        fc3[iuc][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat] = tensor3.tensor[ir][3*iat:3+3*iat,3*jat:3+3*jat,3*kat:3+3*kat]/float(multiplicity[index][ir])                                    
-                         #   else:
-                         #       print(match1, match2)
-                         #       raise RuntimeError('Could not find triplet!')
         print('Final number of triplets: ', len(r_vector2))
         tensor3.n_R = len(r_vector2)
         tensor3.r_vector2 = np.array(r_vector2).T
@@ -718,6 +648,23 @@ def stupid_centering_fc3_v2(tensor3, Far = 1):
 
     return tensor3
 
+def find_q_mq_pairs(kpoints):
+
+    pairs = []
+    found = [False for x in range(len(kpoints))]
+    for iqpt in range(len(kpoints)):
+        if(not found[iqpt]):
+            kpt = kpoints[iqpt]
+            for jqpt in range(len(kpoints)):
+                if(not found[jqpt] and not found[iqpt] and iqpt != jqpt):
+                    kpt1 = kpoints[jqpt]
+                    if(np.linalg.norm(kpt + kpt1) < 1.0e-6):
+                        found[iqpt] = True
+                        found[jqpt] = True
+                        pairs.append([iqpt, jqpt])
+                        break
+    return pairs
+
 def apply_permutation_symmetry(tensor3, pairs):
         for ipair in range(len(pairs)):
             if(pairs[ipair][0] != pairs[ipair][1]):
@@ -726,20 +673,24 @@ def apply_permutation_symmetry(tensor3, pairs):
                 for i in range(3*tensor3.nat):
                     for iat in range(tensor3.nat):
                         for jat in range(tensor3.nat):
-                            #if(np.any(np.abs(tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] - tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T) > 1.0e-10*np.amax(np.abs(tensor3.tensor)))):
                             tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] = (tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)] + tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)].T)/2.0
                             tensor3.tensor[jp,i,3*jat:3*(jat + 1), 3*iat:3*(iat+1)] = tensor3.tensor[ip,i,3*iat:3*(iat + 1), 3*jat:3*(jat+1)].T
 
+def find_minimum_vector(v1, m):
+    rv1 = np.dot(v1, np.linalg.inv(m))
+    rv2 = rv1 - np.rint(rv1)
+    return np.dot(rv2, m)
+
 def rotate_eigenvectors(ddm, eigs):
 
-    _, eigvecs = np.linalg.eigh(np.dot(eigs.conj(), np.dot(ddm, eigs.T)))
-    rot_eigvecs = np.dot(eigvecs.T, eigs)
+    _, eigvecs = np.linalg.eigh(np.dot(eigs.conj().T, np.dot(ddm, eigs)))
+    rot_eigvecs = np.dot(eigvecs, eigs)
     
     return rot_eigvecs
 
 class ThermalConductivity:
 
-    def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', off_diag = False):
+    def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', group_velocity_mode = 'analytical', off_diag = False):
 
         """
 
@@ -749,15 +700,17 @@ class ThermalConductivity:
 
         Necesary:
 
-            dyn            : SSCHA dynamical matrix object 
-            tensor3        : SSCHA 3rd order force constants
+            dyn                 : SSCHA dynamical matrix object 
+            tensor3             : SSCHA 3rd order force constants
 
-            kpoint_grid    : Initializes the grid for Brillouin zone integration. It is used in the calculation of lattice thermal conductivity and
+            kpoint_grid         : Initializes the grid for Brillouin zone integration. It is used in the calculation of lattice thermal conductivity and
             the calculation of the phonon lifetimes. Default is 2.
-            smearing_scale : Scale for the smearing constant if adaptive smearing is used. Default value is 2.0
-            smearing_type  : Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
-            cp_mode        : Flag determining how phonon occupation factors are calculated (quantum/classical), default is quantum
-            off_diag       : Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
+            scattering_grid     : Grid size for the Brilouin integration in determining the phonon lifetimes. Default is to be the same as kpoint_grid
+            smearing_scale      : Scale for the smearing constant if adaptive smearing is used. Default value is 2.0
+            smearing_type       : Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
+            cp_mode             : Flag determining how phonon occupation factors are calculated (quantum/classical), default is quantum
+            group_velocity_mode : How to calculate group velocities. 'analytical', 'finite_difference', 'wigner'
+            off_diag            : Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
 
         """
 
@@ -776,11 +729,11 @@ class ThermalConductivity:
             self.scattering_grid = self.kpoint_grid.copy()
         self.smearing_scale = smearing_scale
         self.unitcell = self.dyn.structure.unit_cell
-        print('Primitive cell: ')
-        print(self.unitcell)
+        #print('Primitive cell: ')
+        #print(self.unitcell)
         self.supercell = self.dyn.structure.generate_supercell(dyn.GetSupercell()).unit_cell
-        print('Supercell: ')
-        print(self.supercell)
+        #print('Supercell: ')
+        #print(self.supercell)
         self.smearing_type = smearing_type
         self.cp_mode = cp_mode
         self.off_diag = off_diag
@@ -789,22 +742,27 @@ class ThermalConductivity:
         self.reciprocal_lattice = np.linalg.inv(self.unitcell).T
         self.force_constants = []
         self.ruc = []
-        self.set_force_constants(dyn) # uncentered force constants !
+        self.set_force_constants(dyn) 
         self.nuc = len(self.ruc)
 
         self.symmetry = symmetries.QE_Symmetry(self.dyn.structure)
+        self.symmetry.SetupQPoint()
+        self.nsyms = self.symmetry.QE_nsym
+        syms = np.array(self.symmetry.QE_s.copy()).transpose(2,0,1)
 
-        self.set_kpoints_alternative()
+        self.set_kpoints_spglib()
         self.nband = 3*self.dyn.structure.N_atoms
         self.delta_omega = 0.0
 
+        self.group_velocity_mode = group_velocity_mode
         self.freqs = np.zeros((self.nkpt, self.nband))
         self.gruneisen = np.zeros((self.nkpt, self.nband))
         self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
         if(self.off_diag):
             self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3), dtype = complex)
         else:
-            self.gvels = np.zeros((self.nkpt, self.nband, 3), dtype = complex)
+            self.gvels = np.zeros((self.nkpt, self.nband, 3))
+        self.ddms = np.zeros((self.nkpt, self.nband, self.nband, 3), dtype = complex)
         self.sigmas = np.zeros_like(self.freqs)
         # Lifetimes, frequency shifts, lineshapes, heat_capacities and thermal conductivities are stored in dictionaries
         # Dictionary key is the temperature at which property is calculated on
@@ -851,13 +809,13 @@ class ThermalConductivity:
         irrqpts = [hf.create_group('irreducible_kpoint' + str(i + 1)) for i in range(self.nirrkpt)]
         for ikpt in range(self.nirrkpt):
             irrqpts[ikpt].create_dataset('k_point', data = self.irr_k_points[ikpt])
-            irrqpts[ikpt].create_dataset('star', data = self.qstar_list[ikpt])
-            irrqpts[ikpt].create_dataset('frequency', data = self.freqs[self.qstar_list[ikpt][0]])
+            irrqpts[ikpt].create_dataset('star', data = self.qstar[ikpt])
+            irrqpts[ikpt].create_dataset('frequency', data = self.freqs[self.qstar[ikpt][0]])
             eigvecs = []
             gvels = []
             sigmas = []
             for istar in range(len(self.qstar[ikpt])):
-                jkpt = self.qstar_list[ikpt][istar]
+                jkpt = self.qstar[ikpt][istar]
                 eigvecs.append(self.eigvecs[jkpt])
                 gvels.append(self.gvels[jkpt])
                 sigmas.append(self.sigmas[jkpt])
@@ -872,13 +830,13 @@ class ThermalConductivity:
                 keys.append(key)
             if(len(keys) > 0):
                 for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('lifetimes_' + keys[ik], data = self.lifetimes[keys[ik]][self.qstar_list[ikpt][0]])
+                    irrqpts[ikpt].create_dataset('lifetimes_' + keys[ik], data = self.lifetimes[keys[ik]][self.qstar[ikpt][0]])
             keys = []
             for key in self.freqs_shifts.keys():
                 keys.append(key)
             if(len(keys) > 0):
                 for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('freqs_shifts_' + keys[ik], data = self.freqs_shifts[keys[ik]][self.qstar_list[ikpt][0]])
+                    irrqpts[ikpt].create_dataset('freqs_shifts_' + keys[ik], data = self.freqs_shifts[keys[ik]][self.qstar[ikpt][0]])
             keys = []
             for key in self.lineshapes.keys():
                 keys.append(key)
@@ -890,13 +848,13 @@ class ThermalConductivity:
                     else:
                         if(ne != np.shape(self.lineshapes[keys[ik]])[-1]):
                             raise RuntimeError('Number of energy/frequency points not same for all temperatures!')
-                    irrqpts[ikpt].create_dataset('lineshapes_' + keys[ik], data = self.lineshapes[keys[ik]][self.qstar_list[ikpt][0]])
+                    irrqpts[ikpt].create_dataset('lineshapes_' + keys[ik], data = self.lineshapes[keys[ik]][self.qstar[ikpt][0]])
             keys = []
             for key in self.cp.keys():
                 keys.append(key)
             if(len(keys) > 0):
                 for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('cp_' + keys[ik], data = self.cp[keys[ik]][self.qstar_list[ikpt][0]])
+                    irrqpts[ikpt].create_dataset('cp_' + keys[ik], data = self.cp[keys[ik]][self.qstar[ikpt][0]])
         keys = []
         for key in self.kappa.keys():
             keys.append(key)
@@ -937,22 +895,22 @@ class ThermalConductivity:
         self.gruneisen = np.zeros((self.nkpt, self.nband))
         self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
         if(self.off_diag):
-            self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3), dtype = complex)
+            self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3))
         else:
-            self.gvels = np.zeros((self.nkpt, self.nband, 3), dtype = complex)
+            self.gvels = np.zeros((self.nkpt, self.nband, 3))
         self.sigmas = np.zeros_like(self.freqs)
 
         self.irr_k_points = []
-        self.qstar_list = []
+        self.qstar = []
         for i in range(self.nirrkpt):
             self.irr_k_points.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('k_point')))
-            self.qstar_list.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('star')))
+            self.qstar.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('star')))
             eigvecs = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('eigenvectors'))
             gvels = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('group_velocities'))
             sigmas = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('sigmas'))
 
-            for istar in range(len(self.qstar_list[-1])):
-                jkpt = self.qstar_list[-1][istar]
+            for istar in range(len(self.qstar[-1])):
+                jkpt = self.qstar[-1][istar]
                 self.freqs[jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('frequency'))
                 self.eigvecs[jkpt] = eigvecs[istar]
                 self.gvels[jkpt] = gvels[istar]
@@ -988,107 +946,52 @@ class ThermalConductivity:
                 temp = key.split('_')[-1]
                 self.kappa[temp] = np.array(hf.get(key))
 
-############################################################################################################################################
+    ###################################################################################################################################
 
-    def set_kpoints(self):
+    def set_kpoints_spglib(self):
 
-        """
-        Sets up the k point grid. Finds irreducible points and their map to the full Brillouin zone.
+        cell = get_spglib_cell(self.dyn) 
+        mapping, grid = spglib.get_ir_reciprocal_mesh(self.kpoint_grid, cell, is_shift=[0, 0, 0])
+        rotations = spglib.get_symmetry_dataset(cell)['rotations']
 
-        """
+        self.irr_k_points = np.array(grid[np.unique(mapping)] / np.array(self.kpoint_grid, dtype=float))
+        self.irr_k_points = np.dot(self.irr_k_points, self.reciprocal_lattice)
+        self.qpoints = grid / np.array(self.kpoint_grid, dtype=float)
+        self.k_points = np.dot(self.qpoints, self.reciprocal_lattice)
+        self.rotations = np.array(rotations).copy()
 
-        time0 = time.time()
-        time_init = time.time()
-        self.k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.kpoint_grid)
-        self.qpoints = np.dot(np.array(self.k_points), self.unitcell.T)
-        self.scattering_k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.scattering_grid)
-        self.scattering_qpoints = np.dot(np.array(self.scattering_k_points), self.unitcell.T)
-        print('Generated grid in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        self.irr_k_points = self.symmetry.SelectIrreducibleQ(self.k_points) 
-        print('Generated irreducible grid in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
         self.qstar = []
-        for iqpt in range(len(self.irr_k_points)):
-            self.qstar.append(self.symmetry.GetQStar(self.irr_k_points[iqpt]))
-        print('Generated q stars in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        self.qstar_list = []
-        for iqstar in range(len(self.qstar)):
-            curr_qstar_list = []
-            for iqpt in range(len(self.qstar[iqstar])):
-                found = False
-                for jqpt in range(len(self.k_points)):
-                    if(same_vector(np.array(self.qstar[iqstar][iqpt]), np.array(self.k_points[jqpt]), self.reciprocal_lattice)):
-                        found = True
-                        curr_qstar_list.append(jqpt)
-                        break
-                if(not found):
-                    print('Could not find this q point in self.k_points!')
-            self.qstar_list.append(curr_qstar_list)
-        print('Generated g star list in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        #print(self.qstar_list)
+        for i in np.unique(mapping):
+            curr_star = []
+            for j, j_map in enumerate(mapping):
+                if(i == j_map):
+                    curr_star.append(j)
+            self.qstar.append(curr_star)
 
+        self.little_group = [[] for x in range(len(self.k_points))]
+        for istar in self.qstar:
+            for iqpt in istar:
+                curr_little_group = []
+                for irot, rot in enumerate(rotations):
+                    qpt1 = np.dot(rot.T, self.qpoints[iqpt])
+                    diffq = qpt1 - self.qpoints[iqpt]
+                    diffq -= np.rint(diffq)
+                    if(np.linalg.norm(diffq) < 1.0e-6):
+                        curr_little_group.append(irot)
+                self.little_group[iqpt].extend(curr_little_group)
+                if(len(istar) * len(self.little_group[iqpt]) != len(rotations)):
+                    raise RuntimeError('Number of symmetry operation wrong!', len(istar), len(self.little_group[iqpt]), len(rotations))
+
+        mapping1, grid1 = spglib.get_ir_reciprocal_mesh(self.scattering_grid, cell, is_shift=[0, 0, 0])
+        self.scattering_qpoints = np.array(grid1 / np.array(self.scattering_grid, dtype=float))
+        self.scattering_k_points = np.dot(self.scattering_qpoints, self.reciprocal_lattice)
         self.nkpt = np.shape(self.k_points)[0]
         self.scattering_nkpt = np.shape(self.scattering_k_points)[0]
         self.nirrkpt = np.shape(self.irr_k_points)[0]
         self.weights = np.zeros(self.nirrkpt, dtype = int)
         for iqpt in range(self.nirrkpt):
-            self.weights[iqpt] = len(self.qstar_list[iqpt])
-        print('Found ' + str(self.nkpt) + ' q points in the grid!')
-        print('Found ' + str(self.nirrkpt) + ' q points in irreducible grid!')
-        print('Setting up q points took ' + format(time.time() - time_init, '.2e') + ' seconds!')
-
-    ##################################################################################################################################
-    
-    def set_kpoints_alternative(self):
-
-        """
-        Faster version of setting up of k points. Still too slow. Should try fortran version.
-
-        """
-
-        time0 = time.time()
-        time_init = time.time()
-
-        aux_kgrid = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.kpoint_grid)
-        print('Generated grid in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        self.irr_k_points = self.symmetry.SelectIrreducibleQ(aux_kgrid) #self.symmetry.SetupQStar(self.k_points)
-        print('Generated irreducible grid in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        self.qstar = []
-        for iqpt in range(len(self.irr_k_points)):
-            self.qstar.append(self.symmetry.GetQStar(self.irr_k_points[iqpt]))
-        print('Generated q star in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        k_points = []
-        self.qstar_list = []
-        qpt_index = 0
-        for iqpt in range(len(self.qstar)):
-            curr_qstar_list = []
-            for jqpt in range(len(self.qstar[iqpt])):
-                curr_qstar_list.append(qpt_index)
-                qpt_index += 1
-                k_points.append(self.qstar[iqpt][jqpt])
-            self.qstar_list.append(curr_qstar_list)
-        print('Generated q star list in ' + format(time.time() - time0, '.2e') + ' seconds.')
-        time0 = time.time()
-        self.k_points = np.array(k_points)
-        self.qpoints = np.dot(np.array(self.k_points), self.unitcell.T)
-        self.scattering_k_points = CC.symmetries.GetQGrid(self.dyn.structure.unit_cell, self.scattering_grid)
-        self.scattering_qpoints = np.dot(np.array(self.scattering_k_points), self.unitcell.T)
-        self.nkpt = np.shape(self.k_points)[0]
-        self.scattering_nkpt = np.shape(self.scattering_k_points)[0]
-        self.nirrkpt = np.shape(self.irr_k_points)[0]
-        self.weights = np.zeros(self.nirrkpt, dtype = int)
-        for iqpt in range(self.nirrkpt):
-            self.weights[iqpt] = len(self.qstar_list[iqpt])
+            self.weights[iqpt] = len(self.qstar[iqpt])
         self.set_up_scattering_grids = False
-        print('Found ' + str(self.nkpt) + ' q points in the grid!')
-        print('Found ' + str(self.nirrkpt) + ' q points in irreducible grid!')
-        print('Setting up q points took ' + format(time.time() - time_init, '.2e') + ' seconds!')
 
     ###################################################################################################################################
 
@@ -1111,7 +1014,7 @@ class ThermalConductivity:
             curr_grid = []
             curr_w = []
             rot_q = []
-            q1 = self.qpoints[self.qstar_list[iqpt][0]]
+            q1 = self.qpoints[self.qstar[iqpt][0]]
             for isym in range(nsym):
                 if(same_vector(q1, np.dot(tot_r[isym], q1), np.eye(3))):
                     rot_q.append(tot_r[isym])
@@ -1123,15 +1026,12 @@ class ThermalConductivity:
                 pair_found = False
                 for i in range(len(curr_grid)):
                     if(not pair_found):
-                        #if(same_vector(q3, curr_grid[i][0], self.reciprocal_lattice) and same_vector(q2, curr_grid[i][1], self.reciprocal_lattice)):
                         if(same_vector(q3, curr_grid[i][0], np.eye(3)) and same_vector(q2, curr_grid[i][1], np.eye(3))):
                                 pair_found = True
                                 curr_w[i] += 1
                                 break
                         else:
                             for isym in range(curr_nsym):
-                                #if(same_vector(q3, np.dot(rot_q[isym], curr_grid[i][0]), self.reciprocal_lattice) and\
-                                #    same_vector(q2, np.dot(rot_q[isym], curr_grid[i][1]), self.reciprocal_lattice)):
                                 if(same_vector(q3, np.dot(rot_q[isym], curr_grid[i][0]), np.eye(3)) and\
                                     same_vector(q2, np.dot(rot_q[isym], curr_grid[i][1]), np.eye(3))):
                                         pair_found = True
@@ -1176,16 +1076,14 @@ class ThermalConductivity:
         tot_t = spglib.get_symmetry_dataset(cell)['translations']
         rotations = []
         for i in range(len(tot_r)):
-        #    print(tot_t[i])
             if(np.all(tot_t[i] < 1.0e-6)):
                 rotations.append(tot_r[i])
         rotations = np.asfortranarray(rotations)
         nsym = len(rotations)
-       # print(nsym)
        
         irrgrid = []
         for iqpt in range(self.nirrkpt):
-            irrgrid.append(self.qpoints[self.qstar_list[iqpt][0]])
+            irrgrid.append(self.qpoints[self.qstar[iqpt][0]])
         irrgrid = np.asfortranarray(irrgrid)
         (scattering_grid, scattering_weight) = thermal_conductivity.scattering_grids.get_scattering_q_grid(rotations, irrgrid, self.qpoints, \
                 self.scattering_qpoints, self.nirrkpt, self.nkpt, self.scattering_nkpt, nsym)
@@ -1223,9 +1121,9 @@ class ThermalConductivity:
         self.scattering_weights = []
         start_time = time.time()
         for iqpt in range(self.nirrkpt):
-            self.scattering_grids.append(self.k_points)
-            self.scattering_weights.append(np.ones(self.nkpt))
-            if(sum(self.scattering_weights[-1]) != self.nkpt):
+            self.scattering_grids.append(self.scattering_k_points)
+            self.scattering_weights.append(np.ones(self.scattering_nkpt))
+            if(sum(self.scattering_weights[-1]) != self.scattering_nkpt):
                 print('WARNING! Sum of weights for ' + str(iqpt + 1) + '. q point does not match total number of q points!')
                 print(sum(self.scattering_weights[-1]), self.nkpt)
             print('Number of scattering events for ' + str(iqpt + 1) + '. q point in irr zone is ' + str(len(self.scattering_grids[iqpt])) + '!')
@@ -1270,9 +1168,12 @@ class ThermalConductivity:
         """
 
         if(self.smearing_type == 'adaptive'):
-            if(np.all(self.freqs == 0.0) or np.all(self.gvels.real == 0.0)):
+            if(np.all(self.freqs == 0.0) or np.all(self.gvels == 0.0)):
                 print('Harmonic properties are all zero! Try reruning the harmonic calculation! ')
-                return 1
+                if(np.all(self.freqs == 0.0)):
+                    print('It is frequencies!')
+                if(np.all(self.gvels == 0.0)):
+                    print('It is group velocities!')
             delta_q = 0.0
             for i in range(len(self.reciprocal_lattice)):
                 if(np.linalg.norm(self.reciprocal_lattice[i]/float(self.kpoint_grid[i])) > delta_q):
@@ -1285,11 +1186,10 @@ class ThermalConductivity:
                         self.sigmas[ikpt][iband] = delta_v*delta_q*self.smearing_scale
                     else:
                         self.sigmas[ikpt][iband] = 0.0
-            min_smear = np.amax(self.sigmas)/100.0 #np.amin(self.sigmas[self.sigmas > 1.0e-6])
-            #print(min_smear)
+            min_smear = np.amax(self.sigmas)/100.0 # We can't have scattering zero for modes with 0 group velocity, so we set it to this number!
             self.sigmas[self.sigmas < min_smear] = min_smear
             #self.sigmas[self.freqs <= np.amin(self.freqs)*10] = min_smear/10.0
-        if(self.smearing_type == 'constant'):
+        elif(self.smearing_type == 'constant'):
             self.sigmas[:,:] = smearing_value
 
     ##################################################################################################################################
@@ -1360,9 +1260,9 @@ class ThermalConductivity:
         integrands = (integrands_plus + integrands_minus)
         
         if(self.off_diag):
-            spec_kappa = np.einsum('ijjk,ijjl,ijm->klm', self.gvels.conj(), self.gvels,integrands).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+            spec_kappa = np.einsum('ijjk,ijjl,ijm->klm', self.gvels, self.gvels,integrands)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         else:
-            spec_kappa = np.einsum('ijk,ijl,ijm->klm', self.gvels.conj(), self.gvels,integrands).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+            spec_kappa = np.einsum('ijk,ijl,ijm->klm', self.gvels, self.gvels,integrands)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         spec_kappa = spec_kappa*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         tot_kappa = np.sum(spec_kappa, axis = len(spec_kappa) - 1)*self.delta_omega
         print('Total kappa is: ', np.diag(tot_kappa))
@@ -1390,9 +1290,9 @@ class ThermalConductivity:
                 for iband in range(self.nband):
                     weight = gaussian(energies[ien], self.freqs[iqpt, iband], self.sigmas[iqpt, iband])
                     if(self.off_diag):
-                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband,iband].conj(), self.gvels[iqpt,iband, iband]).real
+                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband,iband], self.gvels[iqpt,iband, iband])
                     else:
-                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband].conj(), self.gvels[iqpt,iband]).real
+                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband], self.gvels[iqpt,iband])
         spec_kappa = spec_kappa*SSCHA_TO_MS**2/self.volume/float(self.nkpt)*1.0e30#*(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         tot_kappa = np.sum(spec_kappa, axis = len(spec_kappa) - 1)*delta_en
         print('Total kappa is: ', np.diag(tot_kappa))
@@ -1401,7 +1301,7 @@ class ThermalConductivity:
 
    ####################################################################################################################################
 
-    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
+    def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', offdiag_mode = 'wigner',  gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
             write_lineshapes=False, ne = 2000, kappa_filename = 'Thermal_conductivity'):
 
         """
@@ -1412,6 +1312,7 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
+        offdiag_mode     : How to treat the off diagonal terms. 'gk' - Isaeva et al. Nat. Comm., 'wigner' - Simoncelli et al. Nature
         gauss_smearing   : If true will use the Gaussian function to satisfy energy conservation insted of Lorentzian
         lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
@@ -1469,8 +1370,10 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    #kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag_isaeva(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
+                    if(offdiag_mode == 'isaeva'):
+                        kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag_isaeva(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
+                    elif(offdiag_mode == 'wigner'):
+                        kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
                     kappa_diag = kappa_diag/self.volume/float(self.nkpt)*1.0e30
                     kappa_nondiag = kappa_nondiag/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
@@ -1553,7 +1456,7 @@ class ThermalConductivity:
         #integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         #integrals = (integrate.simps(integrands_plus, axis = len(integrands_plus.shape) - 1) + integrate.simps(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1585,7 +1488,7 @@ class ThermalConductivity:
         #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
         integrands_minus = self.lineshapes[ls_key]**2*exponents_minus/(exponents_minus - 1.0)**2
         integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
-        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1595,11 +1498,15 @@ class ThermalConductivity:
                 if(self.freqs[iqpt, iband] != 0.0):
                     for jband in range(iband, self.nband):
                         if(iband != jband and self.freqs[iqpt, jband] != 0.0):
+                            if(self.group_velocity_mode == 'wigner'):
+                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            else:
+                                vel_fact = 1.0
                             integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
                             integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
                             integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/4.0
                             kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*\
-                                    np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real\
+                                    np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband])/vel_fact**2\
                                     *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag += kappa_nondiag.T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
@@ -1629,7 +1536,7 @@ class ThermalConductivity:
 
             lineshapes = np.zeros((self.nkpt, self.nband, len(energies)))
             for ikpt in range(self.nirrkpt):
-                jkpt = self.qstar_list[ikpt][0]
+                jkpt = self.qstar[ikpt][0]
                 print('Calculating lineshapes: ' + format(float(ikpt)/float(self.nirrkpt)*100.0, '.2f') + ' %')
                 curr_ls = self.get_diag_dynamic_bubble(self.kpoint_grid, self.k_points[jkpt], self.sigmas[jkpt], energies, temperature)
                 print('Normalization of lineshapes (should be 0.5): ')
@@ -1643,8 +1550,8 @@ class ThermalConductivity:
                     filename = 'Lineshape_irrkpt_' + str(jkpt) + '_T_' + format(temperature, '.1f')
                     self.write_lineshape(filename, curr_ls, jkpt, energies)
 
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lineshapes[jqpt,:] = curr_ls*2.0
             print('Shape of lineshapes', lineshapes.shape)
             self.lineshapes[ls_key] = lineshapes
@@ -1653,18 +1560,15 @@ class ThermalConductivity:
 
             lineshapes = np.zeros((self.nkpt, self.nband, len(energies)))
             if(not self.set_up_scattering_grids):
-                #if(gauss_smearing):
-                #    self.set_scattering_grids_simple()
-                #else:
                 self.set_scattering_grids_fortran()
 
             irrqgrid = np.zeros((3, self.nirrkpt))
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
             sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
-                irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
+                irrqgrid[:,ikpt] = self.k_points[self.qstar[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
-                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
+                sigmas[ikpt] = self.sigmas[self.qstar[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
 
             scattering_grids = []
@@ -1692,9 +1596,7 @@ class ThermalConductivity:
                     self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
-                jkpt = self.qstar_list[ikpt][0]
-                #print('Normalization of lineshapes (should be 0.5): ')
-                #print(np.sum(curr_ls[ikpt], axis=1)*energies[0])
+                jkpt = self.qstar[ikpt][0]
                 if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, self.k_points[jkpt])):
                     for iband in range(self.nband):
                         if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
@@ -1703,8 +1605,8 @@ class ThermalConductivity:
                     filename = 'Lineshape_irrkpt_' + str(jkpt) + '_T_' + format(temperature, '.1f')
                     self.write_lineshape(filename, curr_ls[ikpt], jkpt, energies)
 
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
             print('Shape of lineshapes', lineshapes.shape)
             self.lineshapes[ls_key] = lineshapes
@@ -1737,18 +1639,15 @@ class ThermalConductivity:
         lifetimes = np.zeros((self.nkpt, self.nband))
         shifts = np.zeros_like(lifetimes)
         if(not self.set_up_scattering_grids):
-            #if(gauss_smearing):
-            #    self.set_scattering_grids_simple()
-            #else:
             self.set_scattering_grids_fortran()
 
         irrqgrid = np.zeros((3, self.nirrkpt))
         scattering_events = np.zeros(self.nirrkpt, dtype=int)
         sigmas = np.zeros((self.nirrkpt, self.nband))
         for ikpt in range(self.nirrkpt):
-            irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
+            irrqgrid[:,ikpt] = self.k_points[self.qstar[ikpt][0]].copy()
             scattering_events[ikpt] = len(self.scattering_grids[ikpt])
-            sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
+            sigmas[ikpt] = self.sigmas[self.qstar[ikpt][0]]
         irrqgrid = np.asfortranarray(irrqgrid)
 
         scattering_grids = []
@@ -1776,8 +1675,8 @@ class ThermalConductivity:
                 self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
         for ikpt in range(self.nirrkpt):
-            for iqpt in range(len(self.qstar_list[ikpt])):
-                jqpt = self.qstar_list[ikpt][iqpt]
+            for iqpt in range(len(self.qstar[ikpt])):
+                jqpt = self.qstar[ikpt][iqpt]
                 lifetimes[jqpt,:] = -1.0*np.divide(np.ones_like(selfengs[ikpt].imag, dtype=float), selfengs[ikpt].imag, out=np.zeros_like(selfengs[ikpt].imag), where=selfengs[ikpt].imag!=0.0)/2.0
                 shifts[jqpt,:] = selfengs[ikpt].real
 
@@ -1971,7 +1870,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_srta_diag(self, temperature, ne, write_lifetimes, gauss_smearing = False, isotope_scattering = True, isotopes = None, lf_method = 'fortran-LA'):
+    def calculate_kappa_srta_diag(self, temperature, ne, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
 
         """
         Calculate lattice thermal conductivity using single relaxation time approximation at temperature. Calculates only including diagonal term.
@@ -1994,7 +1893,7 @@ class ThermalConductivity:
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
             
-        kappa = np.einsum('ij,ijk,ijl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
+        kappa = np.einsum('ij,ijk,ijl,ij->kl',self.cp[cp_key],self.gvels.real,self.gvels.real,self.lifetimes[lf_key])
         kappa += kappa.T
         kappa = kappa/2.0*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
 
@@ -2020,19 +1919,21 @@ class ThermalConductivity:
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             self.get_heat_capacity(temperature)
-        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
-#        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
+        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*1.0e12*2.0*np.pi)/2.0
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
         kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
 
         kappa_nondiag = np.zeros_like(kappa_diag)
         for iqpt in range(self.nkpt):
-            for iband in range(self.nband - 1):
+            for iband in range(self.nband):
                 if(self.freqs[iqpt, iband] != 0.0):
-                    for jband in range(iband + 1, self.nband):
-                        if(self.freqs[iqpt, jband] != 0.0):
-                            vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                    for jband in range(self.nband):
+                        if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] != self.freqs[iqpt, iband] and iband != jband):
+                            if(self.group_velocity_mode == 'wigner'):
+                                vel_fact = 1.0
+                            else:
+                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
                             a1 = (self.freqs[iqpt, jband] + self.freqs[iqpt, iband])/4.0
                             a2 = self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
                             a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
@@ -2069,7 +1970,6 @@ class ThermalConductivity:
         else:
             self.get_heat_capacity(temperature)
         scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
-#        scatt_rates = 1.0/(self.lifetimes[lf_key]*SSCHA_TO_THZ*2.0*np.pi*1.0e12)
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
         kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
@@ -2081,15 +1981,19 @@ class ThermalConductivity:
 
         kappa_nondiag = np.zeros_like(kappa_diag)
         for iqpt in range(self.nkpt):
-            for iband in range(self.nband - 1):
+            for iband in range(self.nband):
                 if(self.freqs[iqpt, iband] != 0.0):
-                    for jband in range(iband + 1, self.nband):
-                        if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] - self.freqs[iqpt, iband] != 0.0):
+                    for jband in range(self.nband):
+                        if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] - self.freqs[iqpt, iband] != 0.0 and iband != jband):
+                            if(self.group_velocity_mode == 'wigner'):
+                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            else:
+                                vel_fact = 1.0
                             kappa_nondiag += self.freqs[iqpt, iband]*self.freqs[iqpt, jband]*(pops[iqpt, iband] - pops[iqpt, jband])/(self.freqs[iqpt, jband] - self.freqs[iqpt, iband])*\
-                                np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
+                                np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real/vel_fact**2*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
                                 ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
 
-        kappa_nondiag = 2.0*kappa_nondiag*HPLANCK/temperature
+        kappa_nondiag = kappa_nondiag*HPLANCK/temperature
 
         kappa_diag += kappa_diag.T
         kappa_nondiag += kappa_nondiag.T
@@ -2113,6 +2017,11 @@ class ThermalConductivity:
 
     def get_scattering_rates_isotope(self, isotopes = None):
 
+        """
+
+        Still not implemented!
+
+        """
 
         start_time = time.time()
         self.scattering_rates_isotope = np.zeros((self.nkpt, self.nband))
@@ -2140,10 +2049,10 @@ class ThermalConductivity:
             print('G factor of ' + self.dyn.structure.atoms[i] + ' is ' + format(g_factor[i], '.4f') + '.') 
 
         for ikpt in range(self.nirrkpt):
-            jkpt = self.qstar_list[ikpt][0]
+            jkpt = self.qstar[ikpt][0]
             curr_scatt_rate = self.get_scattering_rates_isotope_at_q(jkpt, g_factor, av_mass)
-            for iqpt in range(len(self.qstar_list[ikpt])):
-                jqpt = self.qstar_list[ikpt][iqpt]
+            for iqpt in range(len(self.qstar[ikpt])):
+                jqpt = self.qstar[ikpt][iqpt]
                 self.scattering_rates_isotope[jqpt,:] = curr_scatt_rate
 
         self.got_scattering_rates_isotopes = True
@@ -2159,7 +2068,7 @@ class ThermalConductivity:
                 for jband in range(self.nband):
                     factor = 0.0
                     for iat in range(len(self.dyn.structure.atoms)):
-                        factor += g_factor[iat]*np.dot(self.eigvecs[iqpt,iband,3*iat:3*(iat+1)].conj(), self.eigvecs[jqpt,jband,3*iat:3*(iat+1)])**2
+                        factor += g_factor[iat]*np.dot(self.eigvecs[iqpt,3*iat:3*(iat+1),iband].conj(), self.eigvecs[jqpt,3*iat:3*(iat+1),jband])**2
                     scatt_rate[iband] += gaussian(self.freqs[iqpt,iband], self.freqs[jqpt,jband], self.sigmas[iqpt, iband])*factor
                     if(np.isnan(scatt_rate[iband])):
                         print(gaussian(self.freqs[iqpt,iband], self.freqs[jqpt,jband], self.sigmas[iqpt, iband]), factor)
@@ -2205,7 +2114,7 @@ class ThermalConductivity:
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
             for ikpt in range(self.nirrkpt):
-                jkpt = self.qstar_list[ikpt][0]
+                jkpt = self.qstar[ikpt][0]
                 print('Calculating lifetimes: ' + format(float(ikpt)/float(self.nirrkpt)*100.0, '.2f') + ' %')
                 curr_freq, curr_shift, curr_lw = self.get_lifetimes_at_q(self.kpoint_grid, self.k_points[jkpt], self.sigmas[jkpt], temperature)
                 curr_lf = np.divide(np.ones_like(curr_lw, dtype=float), curr_lw, out=np.zeros_like(curr_lw), where=curr_lw!=0.0)/2.0
@@ -2214,8 +2123,8 @@ class ThermalConductivity:
                         if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
                             curr_lf[iband] = 0.0
                             curr_shift[iband] = 0.0
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lifetimes[jqpt,:] = curr_lf
                     shifts[jqpt,:] = curr_shift
             print('Shape of lifetimes', lifetimes.shape)
@@ -2227,7 +2136,7 @@ class ThermalConductivity:
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
             for ikpt in range(self.nirrkpt):
-                jkpt = self.qstar_list[ikpt][0]
+                jkpt = self.qstar[ikpt][0]
                 print('Calculating lifetimes: ' + format(float(ikpt)/float(self.nirrkpt)*100.0, '.2f') + ' %')
                 selfnrg = np.diag(self.get_just_diag_dynamic_bubble(self.kpoint_grid, self.k_points[jkpt], self.sigmas[jkpt], self.freqs[jkpt], temperature))
                 curr_lf = -1.0*np.divide(selfnrg.imag, self.freqs[jkpt], out=np.zeros_like(self.freqs[jkpt]), where=self.freqs[jkpt]!=0.0)/2.0
@@ -2237,8 +2146,8 @@ class ThermalConductivity:
                         if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
                             curr_lf[iband] = 0.0
                             curr_shifts[iband] = 0.0
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lifetimes[jqpt,:] = np.divide(np.ones_like(curr_lf, dtype=float), curr_lf, out=np.zeros_like(curr_lf), where=curr_lf!=0.0)/2.0
                     shifts[jqpt,:] = curr_shifts
             print('Shape of lifetimes', lifetimes.shape)
@@ -2252,9 +2161,9 @@ class ThermalConductivity:
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
             sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
-                irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
+                irrqgrid[:,ikpt] = self.k_points[self.qstar[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
-                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
+                sigmas[ikpt] = self.sigmas[self.qstar[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
@@ -2284,8 +2193,8 @@ class ThermalConductivity:
                     num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lifetimes[jqpt,:] = -1.0*np.divide(np.ones_like(selfengs[ikpt].imag, dtype=float), selfengs[ikpt].imag, out=np.zeros_like(selfengs[ikpt].imag), where=selfengs[ikpt].imag!=0.0)/2.0
                     shifts[jqpt, :] = selfengs[ikpt].real
             self.lifetimes[lf_key] = lifetimes/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
@@ -2298,9 +2207,9 @@ class ThermalConductivity:
             scattering_events = np.zeros(self.nirrkpt, dtype=int)
             sigmas = np.zeros((self.nirrkpt, self.nband))
             for ikpt in range(self.nirrkpt):
-                irrqgrid[:,ikpt] = self.k_points[self.qstar_list[ikpt][0]].copy()
+                irrqgrid[:,ikpt] = self.k_points[self.qstar[ikpt][0]].copy()
                 scattering_events[ikpt] = len(self.scattering_grids[ikpt])
-                sigmas[ikpt] = self.sigmas[self.qstar_list[ikpt][0]]
+                sigmas[ikpt] = self.sigmas[self.qstar[ikpt][0]]
             irrqgrid = np.asfortranarray(irrqgrid)
             lifetimes = np.zeros((self.nkpt, self.nband))
             shifts = np.zeros((self.nkpt, self.nband))
@@ -2329,8 +2238,8 @@ class ThermalConductivity:
                     gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
             for ikpt in range(self.nirrkpt):
-                for iqpt in range(len(self.qstar_list[ikpt])):
-                    jqpt = self.qstar_list[ikpt][iqpt]
+                for iqpt in range(len(self.qstar[ikpt])):
+                    jqpt = self.qstar[ikpt][iqpt]
                     lifetimes[jqpt,:] = -1.0*np.divide(np.ones_like(selfengs[ikpt].imag, dtype=float), selfengs[ikpt].imag, out=np.zeros_like(selfengs[ikpt].imag), where=selfengs[ikpt].imag!=0.0)/2.0
                     shifts[jqpt,:] = selfengs[ikpt].real
 
@@ -2359,15 +2268,34 @@ class ThermalConductivity:
 
         for ikpt, kpt in enumerate(self.k_points):
             self.freqs[ikpt], self.eigvecs[ikpt] = self.get_frequency_at_q(kpt)
-            #self.gvels[ikpt] = self.get_group_velocity_wigner(kpt)
-            self.gvels[ikpt] = self.get_group_velocity(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
-            #self.gvels[ikpt] = self.get_group_velocity_finite_difference(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
+            if(self.group_velocity_mode == 'wigner'):
+                self.gvels[ikpt], self.ddms[ikpt] = self.get_group_velocity_wigner(kpt)
+            elif(self.group_velocity_mode == 'analytical'):
+                self.gvels[ikpt], self.ddms[ikpt] = self.get_group_velocity(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
+            elif(self.group_velocity_mode == 'finite_difference'):
+                self.gvels[ikpt], self.ddms[ikpt] = self.get_group_velocity_finite_difference(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
+            else:
+                raise RuntimeError('Can not recognize the group_velocity_mode!')
+            self.gvels[ikpt] = self.symmetrize_group_velocity_by_index(self.gvels[ikpt], ikpt)
 
         self.symmetrize_group_velocities_over_star()
-        #self.check_group_velocities()
-        #self.check_frequencies()
+        self.check_group_velocities()
+        self.check_frequencies()
         self.setup_smearings(smearing_value)
         print('Harmonic properties are set up!')
+
+    #################################################################################################################################
+
+    def symmetrize_eigenvectors(self):
+
+        pairs = find_q_mq_pairs(self.k_points)
+        print('Found ' + str(len(pairs)) + ' q, -q pairs!')
+        for ipair in range(len(pairs)):
+            if(np.any(np.abs(self.eigvecs[pairs[0]] - self.eigvecs[pairs[1]].conj()) > 1.0e-6)):
+                print('Eigenvector symmetry not satisfied!')
+                self.eigvecs[pairs[0]] = (self.eigvecs[pairs[0]] + self.eigvecs[pairs[1]].conj())/2.0
+                self.eigvecs[pairs[1]] = self.eigvecs[pairs[0]].conj()
+
 
     #################################################################################################################################
 
@@ -2380,9 +2308,9 @@ class ThermalConductivity:
         """
 
         for istar in range(self.nirrkpt):
-            freqs0 = self.freqs[self.qstar_list[istar][0]]
-            for jqpt in range(1, len(self.qstar_list[istar])):
-                freqs1 = self.freqs[self.qstar_list[istar][jqpt]]
+            freqs0 = self.freqs[self.qstar[istar][0]]
+            for jqpt in range(1, len(self.qstar[istar])):
+                freqs1 = self.freqs[self.qstar[istar][jqpt]]
                 if(np.any(np.abs(freqs0 - freqs1) > 1.0e-6*np.amax(freqs0))):
                     print('WARNING! Frequencies in star not the same. ', istar, jqpt)
                     print(freqs0)
@@ -2394,45 +2322,36 @@ class ThermalConductivity:
 
         """
 
-        Check whether the group velocities for wave vectors in q star are all the same. 
+        Check if group velocities in q star are all related by symmetry operation !
 
         """
 
-        cell = get_spglib_cell(self.dyn)
-        tot_r = spglib.get_symmetry_dataset(cell)['rotations']
-        nsym = len(tot_r)
-        for i in range(nsym):
-            tot_r[i] = tot_r[i]
-        nsym = len(tot_r)
-        print('Total number of symmetry operations: ', nsym)
-
-
-        for istar in range(self.nirrkpt):
-            q0 = np.dot(self.k_points[self.qstar_list[istar][0]], np.linalg.inv(self.reciprocal_lattice))
-            vel0 = self.gvels[self.qstar_list[istar][0]].copy()
-            for jqpt in range(1, len(self.qstar_list[istar])):
-                q1 = np.dot(self.k_points[self.qstar_list[istar][jqpt]], np.linalg.inv(self.reciprocal_lattice))
-                rotation = np.zeros((3,3))
+        for istar in self.qstar:
+            q0 = self.qpoints[istar[0]]
+            vel0 = self.gvels[istar[0]].copy()
+            for iqpt in istar:
                 found_rot = False
-                for ir in range(0, nsym):
-                    q2 = np.dot(tot_r[ir,:,:], q0)
-                    if(same_vector(q2, q1, np.eye(3))):
-                        #print('Pure rotation')
-                        rotation = np.dot(self.reciprocal_lattice.T, np.dot(tot_r[ir,:,:], np.linalg.inv(self.reciprocal_lattice.T)))
+                q1 =  self.qpoints[iqpt]
+                for irot in range(len(self.rotations)):
+                    q2 = np.dot(self.rotations[irot].T, q1)
+                    diffq = q2 - q0
+                    diffq -= np.rint(diffq)
+                    if(np.linalg.norm(diffq) < 1.0e-6):
+                        #rotation = np.dot(self.reciprocal_lattice.T, np.dot(np.linalg.inv(self.rotations[irot].T), np.linalg.inv(self.reciprocal_lattice.T)))
+                        rotation = np.dot(self.reciprocal_lattice.T, np.dot(self.rotations[irot].T, np.linalg.inv(self.reciprocal_lattice.T)))
                         found_rot = True
                         break
                 if(found_rot):
-                    check_if_rotation(rotation, self.symmetry.threshold)
                     if(self.off_diag):
-                        vel1 = np.einsum('ij,klj->kli', np.linalg.inv(rotation), self.gvels[self.qstar_list[istar][jqpt]])
+                        vel1 = np.einsum('ij,klj->kli', rotation, self.gvels[iqpt])
                     else:
-                        vel1 = np.einsum('ij,kj->ki', np.linalg.inv(rotation), self.gvels[self.qstar_list[istar][jqpt]])
+                        vel1 = np.einsum('ij,kj->ki', rotation, self.gvels[iqpt])
                     if(np.any(np.abs(vel0 - vel1) > 1.0e-4)):
-                        print('Velocities in star not agreeing!', istar, jqpt)
+                        print('Velocities in star not agreeing!', istar, iqpt)
                         print(vel0[np.where(vel0 - vel1 > 1.0e-4)])
                         print(vel1[np.where(vel0 - vel1 > 1.0e-4)])
                 else:
-                    print('Could not find rotation between vectors in star! ', istar, jqpt, self.qstar_list[istar][0], self.qstar_list[istar][jqpt])
+                    print('Could not find rotation between vectors in star! ', self.qpoints[iqpt], self.qpoints[istar[0]])
 
     #################################################################################################################################
 
@@ -2451,10 +2370,8 @@ class ThermalConductivity:
 
         is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, q)
         if(self.off_diag):
-            tmp_gvel = np.zeros((self.nband, self.nband, 3), dtype = complex)
             gvel = np.zeros((self.nband, self.nband, 3), dtype = complex)
         else:
-            tmp_gvel = np.zeros((self.nband, 3), dtype = complex)
             gvel = np.zeros((self.nband, 3), dtype = complex)
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
@@ -2479,47 +2396,19 @@ class ThermalConductivity:
         freqs_matrix = np.einsum('i,j->ij', freqs, freqs)
         freqs_matrix = np.divide(np.ones_like(freqs_matrix), freqs_matrix, out=np.zeros_like(freqs_matrix), where=freqs_matrix!=0.0)
         for icart in range(3):
-            tmp_gvel.append(np.dot(eigvecs.conj(), np.dot(ddynmat[icart], eigvecs.T)).real/2.0*np.sqrt(freqs_matrix))
+            tmp_gvel.append(np.dot(eigvecs.T.conj(), np.dot(ddynmat[icart], eigvecs))/2.0*np.sqrt(freqs_matrix))
         tmp_gvel = np.array(tmp_gvel).transpose((1,2,0))
-            #rot_eigvecs = np.zeros_like(eigvecs)
-            #for ideg, deg in enumerate(degs):
-            #    rot_eigvecs[deg, :] = rotate_eigenvectors(dirdynmat, eigvecs[deg, :])
-            #if(is_q_gamma):
-            #    if(self.off_diag):
-            #        for iband in range(self.nband):
-            #            if(freqs[iband] != 0.0):
-            #                for jband in range(self.nband):
-            #                    if(freqs[jband] != 0.0):
-            #                        tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #                        #tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #    else:
-            #        for iband in range(self.nband):
-            #            if(freqs[iband] != 0.0):
-            #                #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #                tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #else:
-            #    if(self.off_diag):
-            #        for iband in range(self.nband):
-            #            for jband in range(self.nband):
-            #                tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #                #tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #    else:
-            #        for iband in range(self.nband):
-            #            #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #            tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
 
         if(not self.off_diag):
-            tmp_gvel = np.einsum('iij->ij', tmp_gvel)
+            gvel = np.einsum('iij->ij', tmp_gvel)
         else:
             for i in range(3):
                 gvel[:,:,i] = (tmp_gvel[:,:,i].conj().T + tmp_gvel[:,:,i])/2.0
 
         if(np.any(np.isnan(tmp_gvel))):
             raise RuntimeError('NaN is group velocity matrix!')
-        gvel = self.symmetrize_group_velocity(tmp_gvel, q) 
 
-
-        return gvel
+        return gvel, ddynmat.transpose((1,2,0))
 
     #################################################################################################################################
 
@@ -2547,7 +2436,7 @@ class ThermalConductivity:
         ddynmat = []
         for icart in range(3):
             dq = np.zeros_like(q)
-            dq[icart] = np.sum(np.linalg.norm(self.reciprocal_lattice[:,icart]))/1000.0
+            dq[icart] = np.sum(np.amax(np.linalg.norm(self.reciprocal_lattice[:,:], axis = 1)))/100000.0
             q1 = q + dq
             dynmat1 = self.get_dynamical_matrix(q1)
             sqrt_dynmat1 = self.sqrt_dynamical_matrix(is_q_gamma, dynmat1)
@@ -2558,37 +2447,32 @@ class ThermalConductivity:
             if(icart == 0):
                 dirdynmat = ddynmat[0].copy()
 
+        #rot_eigvecs = np.zeros_like(eigvecs)
+        #for ideg, deg in enumerate(degs):
+        #    rot_eigvecs[deg, :] = rotate_eigenvectors(dirdynmat, eigvecs[deg, :])
         tmp_gvel = []
         for icart in range(3):
-            tmp_gvel.append(np.dot(eigvecs.conj().T, np.dot(ddynmat[icart], eigvecs)))
+            tmp_gvel.append(np.dot(eigvecs.T.conj(), np.dot(ddynmat[icart], eigvecs)))
         tmp_gvel = np.array(tmp_gvel).transpose((1,2,0))
 
         if(not self.off_diag):
-            tmp_gvel = np.einsum('iij->ij', tmp_gvel).real
+            gvel = np.einsum('iij->ij', tmp_gvel).real
         else:
             gvel = np.zeros_like(tmp_gvel)
             for i in range(3):
                 gvel[:,:,i] = (tmp_gvel[:,:,i].conj().T + tmp_gvel[:,:,i])/2.0
-        gvel = self.symmetrize_group_velocity(tmp_gvel, q)
     
-        return gvel
+        return gvel, np.array(ddynmat).transpose((1,2,0))
 
     ##################################################################################################################################
 
-    def sqrt_dynamical_matrix(self, is_q_gamma, dm):
-
-        """
-        
-        Taken from the Phono3py code!
-
-        """
-
+    def sqrt_dynamical_matrix(self, flag_gamma, dm):
 
         eigvals, eigvecs = np.linalg.eigh(dm)
         eigvals = eigvals.real
         freqs = np.sign(eigvals) * np.sqrt(abs(eigvals))
 
-        if is_q_gamma:
+        if flag_gamma:
             freqs[0] = 0.0
             eigvecs[:, 0] = 0.0
             freqs[1] = 0.0
@@ -2604,7 +2488,7 @@ class ThermalConductivity:
 
         return sqrt_dm
 
-    ###################################################################################################################
+    ##################################################################################################################################
 
     def get_group_velocity_finite_difference(self, q, freqs, eigvecs):
 
@@ -2644,41 +2528,17 @@ class ThermalConductivity:
         freqs_matrix = np.einsum('i,j->ij', freqs, freqs)
         freqs_matrix = np.divide(np.ones_like(freqs_matrix), freqs_matrix, out=np.zeros_like(freqs_matrix), where=freqs_matrix!=0.0)
         for icart in range(3):
-            tmp_gvel.append(np.dot(eigvecs.conj(), np.dot(ddynmat[icart], eigvecs.T))/2.0*np.sqrt(freqs_matrix))
+            tmp_gvel.append(np.dot(eigvecs.T.conj(), np.dot(ddynmat[icart], eigvecs))/2.0*np.sqrt(freqs_matrix))
         tmp_gvel = np.array(tmp_gvel).transpose((1,2,0))
-            #rot_eigvecs = np.zeros_like(eigvecs)
-            #for ideg, deg in enumerate(degs):
-            #    rot_eigvecs[deg, :] = rotate_eigenvectors(dirdynmat, eigvecs[deg, :])
-            #if(is_q_gamma):
-            #    if(self.off_diag):
-            #        for iband in range(self.nband):
-            #            if(freqs[iband] != 0.0):
-            #                for jband in range(self.nband):
-            #                    if(freqs[jband] != 0.0):
-            #                        #gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #                        gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #    else:
-            #        for iband in range(self.nband):
-            #            if(freqs[iband] != 0.0):
-            #               # tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #                tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #else:
-            #    if(self.off_diag):
-            #        for iband in range(self.nband):
-            #            for jband in range(self.nband):
-            #                #tmp_gvel[iband,jband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #                tmp_gvel[iband,jband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[jband])).real/2.0/np.sqrt(freqs[jband]*freqs[iband])#*np.sqrt(EV_TO_J/AU)
-            #    else:
-            #        for iband in range(self.nband):
-            #            #tmp_gvel[iband][icart] = np.dot(eigvecs[iband].conj(), np.dot(ddynmat, eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
-            #            tmp_gvel[iband][icart] = np.dot(rot_eigvecs[iband].conj(), np.dot(ddynmat, rot_eigvecs[iband])).real/2.0/freqs[iband]#*np.sqrt(EV_TO_J/AU)
 
         if(not self.off_diag):
-            tmp_gvel = np.einsum('iij->ij', tmp_gvel).real
+            gvel = np.einsum('iij->ij', tmp_gvel).real
+        else:
+            gvel = np.zeros_like(tmp_gvel)
+            for i in range(3):
+                gvel[:,:,i] = (tmp_gvel[:,:,i].conj().T + tmp_gvel[:,:,i])/2.0
 
-        gvel = self.symmetrize_group_velocity(tmp_gvel, q)
-    
-        return gvel
+        return gvel, np.array(ddynmat).transpose((1,2,0))
 
     ##################################################################################################################################
 
@@ -2702,19 +2562,21 @@ class ThermalConductivity:
         cell = get_spglib_cell(self.dyn)
         tot_r = spglib.get_symmetry_dataset(cell)['rotations']
         nsym = len(tot_r)
-        for i in range(nsym):
-            tot_r[i] = tot_r[i]
+        for i in range(self.nsyms):
+            tot_r[i] = tot_r[i].T
 
         rot_q = []
         for i in range(nsym):
             diff = qred- np.dot(tot_r[i,:,:], qred)
-            if (np.all(np.abs(diff) < self.symmetry.threshold)):
+            diff -= np.rint(diff)
+            if (np.all(np.abs(diff) < 1.0e-6)):
                 rot_q.append(tot_r[i,:,:])
         if(len(rot_q) > 0):
+            print('Size of the small group is: ', len(rot_q))
             rot_vels = np.zeros_like(vels)
             for i in range(len(rot_q)):
+                #rot_q[i] = np.dot(self.reciprocal_lattice.T, np.dot(np.linalg.inv(rot_q[i]), np.linalg.inv(self.reciprocal_lattice.T)))
                 rot_q[i] = np.dot(self.reciprocal_lattice.T, np.dot(rot_q[i], np.linalg.inv(self.reciprocal_lattice.T)))
-                check_if_rotation(rot_q[i], self.symmetry.threshold)
                 if(self.off_diag):
                     rot_vels += np.einsum('ij,klj->kli', rot_q[i], vels)
                 else:
@@ -2729,56 +2591,81 @@ class ThermalConductivity:
 
         return rot_vels
 
+    ################################################################################################################################
+
+    def symmetrize_group_velocity_by_index(self, vels, iqpt):
+
+        """
+
+        Symmetrize group velocites according to the little group of wave vector.
+
+        vels : group velocities at this wave vector
+        iqpt    : index of the wave vector in question!
+
+        """
+
+        rot_q = self.rotations[self.little_group[iqpt]].copy()
+
+        if(self.off_diag):
+            for i in range(3):
+                vels[:,:,i] = (vels[:,:,i] + vels[:,:,i].T)/2.0
+
+        rot_vels = np.zeros_like(vels)
+        for rot in rot_q:
+            #rot_c = np.dot(self.reciprocal_lattice.T, np.dot(np.linalg.inv(rot.T), np.linalg.inv(self.reciprocal_lattice.T)))
+            rot_c = np.dot(self.reciprocal_lattice.T, np.dot(rot.T, np.linalg.inv(self.reciprocal_lattice.T)))
+            if(self.off_diag):
+                rot_vels += np.einsum('ij,klj->kli', rot_c, vels)
+            else:
+                rot_vels += np.einsum('ij,kj->ki', rot_c, vels)
+        rot_vels /= float(len(rot_q))
+
+        if(self.off_diag):
+            for i in range(3):
+                rot_vels[:,:,i] = (rot_vels[:,:,i] + rot_vels[:,:,i].T)/2.0
+
+        return rot_vels
+
     #################################################################################################################################
 
     def symmetrize_group_velocities_over_star(self):
 
-        """
-
-        Symmetrize group velocities over q star.
-
-        """
-
-        cell = get_spglib_cell(self.dyn)
-        tot_r = spglib.get_symmetry_dataset(cell)['rotations']
-        nsym = len(tot_r)
-        for i in range(nsym):
-            tot_r[i] = tot_r[i]
-
-
-        for istar in range(self.nirrkpt):
-            q0 = np.dot(self.k_points[self.qstar_list[istar][0]], np.linalg.inv(self.reciprocal_lattice))
-            vel0 = self.gvels[self.qstar_list[istar][0]].copy()
+        for istar in self.qstar:
+            q0 = self.qpoints[istar[0]]
+            vel0 = np.zeros_like(self.gvels[istar[0]])
             rotations = []
-            rotations.append(np.eye(3))
-            for jqpt in range(1, len(self.qstar_list[istar])):
-                q1 = np.dot(self.k_points[self.qstar_list[istar][jqpt]], np.linalg.inv(self.reciprocal_lattice))
-                rotation = np.zeros((3,3))
+            for iqpt in istar:
                 found_rot = False
-                for ir in range(0, nsym):
-                    q2 = np.dot(tot_r[ir,:,:], q1)
-                    if(same_vector(q2, q0, np.eye(3))):
-                        rotation = np.dot(self.reciprocal_lattice.T, np.dot(tot_r[ir,:,:], np.linalg.inv(self.reciprocal_lattice.T)))
+                q1 =  self.qpoints[iqpt]
+                for irot in range(len(self.rotations)):
+                    q2 = np.dot(self.rotations[irot].T, q1)
+                    diffq = q2 - q0
+                    diffq -= np.rint(diffq)
+                    if(np.linalg.norm(diffq) < 1.0e-6):
+                        #rotation = np.dot(self.reciprocal_lattice.T, np.dot(np.linalg.inv(self.rotations[irot].T), np.linalg.inv(self.reciprocal_lattice.T)))
+                        rotation = np.dot(self.reciprocal_lattice.T, np.dot(self.rotations[irot].T, np.linalg.inv(self.reciprocal_lattice.T)))
                         found_rot = True
                         break
                 if(found_rot):
-                    check_if_rotation(rotation, self.symmetry.threshold)
                     rotations.append(rotation)
                     if(self.off_diag):
-                        vel1 = np.einsum('ij,klj->kli', rotation, self.gvels[self.qstar_list[istar][jqpt]])
+                        vel1 = np.einsum('ij,klj->kli', rotation, self.gvels[iqpt])
                     else:
-                        vel1 = np.einsum('ij,kj->ki', rotation, self.gvels[self.qstar_list[istar][jqpt]])
+                        vel1 = np.einsum('ij,kj->ki', rotation, self.gvels[iqpt])
                     vel0 += vel1
                 else:
-                    print('Could not find rotation between vectors in star! ', istar, jqpt, self.qstar_list[istar][0], self.qstar_list[istar][jqpt])
-            if(len(rotations) != len(self.qstar_list[istar])):
-                print('Number of rotations does not match number of q points in the star: ', len(rotations), len(self.qstar_list[istar]))
+                    print('Could not find rotation between vectors in star! ')
+                    print(q0)
+                    print(q1)
+            if(len(rotations) != len(istar)):
+                print('Number of rotations does not match number of q points in the star: ', len(rotations), len(istar))
             vel0 = vel0/float(len(rotations))
-            for jqpt in range(len(self.qstar_list[istar])):
+            for irot, jqpt in enumerate(istar):
                 if(self.off_diag):
-                    self.gvels[self.qstar_list[istar][jqpt]] = np.einsum('ij,klj->kli', np.linalg.inv(rotations[jqpt]), vel0)
+                    self.gvels[jqpt] = np.einsum('ij,klj->kli', np.linalg.inv(rotations[irot]), vel0)
                 else:
-                    self.gvels[self.qstar_list[istar][jqpt]] = np.einsum('ij,kj->ki', np.linalg.inv(rotations[jqpt]), vel0)
+                    self.gvels[jqpt] = np.einsum('ij,kj->ki', np.linalg.inv(rotations[irot]), vel0)
+
 
     #################################################################################################################################
 
@@ -2807,7 +2694,7 @@ class ThermalConductivity:
         else:
             w_q = np.sqrt(w2_q)
 
-        return w_q, pols_q.T
+        return w_q, pols_q
     
     ###################################################################################################################################
 
@@ -2822,22 +2709,16 @@ class ThermalConductivity:
         """
 
         uc_positions = self.dyn.structure.coords.copy()
+        for ruc in uc_positions:
+            ruc = find_minimum_vector(ruc, self.unitcell)
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1.0 / mm_mat
         dynmat = np.zeros_like(self.force_constants[0], dtype = complex)
-        #phases = np.einsum('ij,j->i', self.ruc, q)*2.0*np.pi
-        #exponents = np.exp(1j*phases)
-        #dynmat = np.einsum('ijk,i->jk', self.force_constants, exponents) * mm_inv_mat
-        #for iat in range(len(uc_positions)):
-        #    for jat in range(len(uc_positions)):
-        #        if(iat != jat):
-        #            extra_phase = np.dot(uc_positions[iat] - uc_positions[jat], q)*2.0*np.pi
-        #            dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] *= np.exp(1j*extra_phase)
         for ir in range(len(self.ruc)):
             for iat in range(len(uc_positions)):
                 for jat in range(len(uc_positions)):
-                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat]
+                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat] 
                     phase = np.dot(r, q)*2.0*np.pi
                     dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
         dynmat = dynmat*mm_inv_mat
@@ -2955,6 +2836,10 @@ class ThermalConductivity:
 
         """
 
+        if(self.group_velocity_mode == 'wigner'):
+            vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+        else:
+            vel_fact = 1.0
         with open(filename, 'w+') as outfile:
             outfile.write('#   ' + format('Frequencies (THz)', STR_FMT))
             outfile.write('    ' + format('Group velocity x (m/s)', STR_FMT))
@@ -2967,9 +2852,9 @@ class ThermalConductivity:
                     outfile.write(3*' ' + format(self.freqs[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
                     for icart in range(3):
                         if(self.off_diag):
-                            outfile.write(3*' ' + format(self.gvels[ikpt][iband,iband][icart].real*SSCHA_TO_MS, '.12e'))
+                            outfile.write(3*' ' + format(self.gvels[ikpt][iband,iband][icart]*SSCHA_TO_MS/vel_fact, '.12e'))
                         else:
-                            outfile.write(3*' ' + format(self.gvels[ikpt][iband][icart].real*SSCHA_TO_MS, '.12e'))
+                            outfile.write(3*' ' + format(self.gvels[ikpt][iband][icart]*SSCHA_TO_MS, '.12e'))
                     outfile.write(3*' ' + format(self.sigmas[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
                     outfile.write('\n')
 
@@ -3484,6 +3369,12 @@ class ThermalConductivity:
     ######################################################################################################################################
 
     def calculate_mode_gruneisen(self):
+
+        """
+
+        Does not work!
+
+        """
 
         uc_positions = self.dyn.structure.coords.copy()
         natom = len(uc_positions)
