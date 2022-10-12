@@ -1456,7 +1456,7 @@ class ThermalConductivity:
         #integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         #integrals = (integrate.simps(integrands_plus, axis = len(integrands_plus.shape) - 1) + integrate.simps(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1488,7 +1488,7 @@ class ThermalConductivity:
         #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
         integrands_minus = self.lineshapes[ls_key]**2*exponents_minus/(exponents_minus - 1.0)**2
         integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
-        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels, self.gvels, integrals, self.freqs, self.freqs)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1506,7 +1506,7 @@ class ThermalConductivity:
                             integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
                             integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/4.0
                             kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*\
-                                    np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband])/vel_fact**2\
+                                    np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real/vel_fact**2\
                                     *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag += kappa_nondiag.T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
