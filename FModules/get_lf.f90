@@ -108,7 +108,8 @@ module get_lf
                         endif
                 endif
 
-                call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
+                !call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
+                call calculate_spectral_function(energies, w_q, self_energy, nat, ne, lineshape)
                 !call calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
 
                 do i = 1, 3*nat
@@ -128,6 +129,141 @@ module get_lf
 
 
     end subroutine calculate_lineshapes
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine calculate_lineshapes_nomode_mixing(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
+                    fc3, r3_2, r3_3, rprim, pos, masses, smear, smear_id, T, gaussian, &
+                    classical, energies, ne, nirrqpt, nat, nfc2, nfc3, n_events, lineshapes)
+
+        use omp_lib
+        use third_order_cond
+
+        implicit none
+
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, ne, n_events
+        integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
+        real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
+        real(kind=DP), intent(in) :: qgrid(3, n_events)
+        real(kind=DP), intent(in) :: fc2(nfc2, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: fc3(nfc3, 3*nat, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: r2_2(3, nfc2)
+        real(kind=DP), intent(in) :: r3_2(3, nfc3), r3_3(3, nfc3)
+        real(kind=DP), intent(in) :: rprim(3, 3)
+        real(kind=DP), intent(in) :: pos(3, nat)
+        real(kind=DP), intent(in) :: masses(nat), energies(ne)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt), smear_id(3*nat, nirrqpt)
+        real(kind=DP), intent(in) :: T
+        logical, intent(in) :: gaussian, classical
+        real(kind=DP), dimension(nirrqpt, 3*nat, 3*nat, ne), intent(out) :: lineshapes
+
+        integer :: iqpt, i, ie, jqpt, tot_qpt, prev_events, nthreads, iband, jband
+        integer :: iband1, jband1
+        real(kind=DP), dimension(3) :: qpt
+        real(kind=DP), dimension(3,3) :: kprim
+        real(kind=DP), dimension(3*nat) :: w2_q, w_q
+!        real(kind=DP), dimension(ne, 3*nat) :: lineshape
+        real(kind=DP), allocatable, dimension(:,:,:) :: lineshape
+        complex(kind=DP), allocatable, dimension(:, :, :) :: self_energy, self_energy_cart
+!        complex(kind=DP), dimension(ne, 3*nat) :: self_energy
+        complex(kind=DP), dimension(3*nat,3*nat) :: pols_q, d2_q
+        real(kind=DP), allocatable, dimension(:,:) :: curr_grid
+        integer, allocatable, dimension(:) :: curr_w
+        logical :: is_q_gamma, w_neg_freqs, parallelize
+
+
+        lineshapes(:,:,:,:) = 0.0_DP
+        kprim = transpose(inv(rprim))
+        nthreads = omp_get_max_threads()
+        print*, 'Maximum number of threads available: ', nthreads
+
+        parallelize = .True.
+        if(nirrqpt <= nthreads) then
+                parallelize = .False.
+        endif
+!        print*, 'Got parallelize'
+
+        !$OMP PARALLEL DO IF(parallelize) DEFAULT(NONE) &
+        !$OMP PRIVATE(iqpt, w_neg_freqs, qpt, w2_q, pols_q, is_q_gamma, self_energy, &
+        !$OMP curr_grid, w_q, curr_w, prev_events, tot_qpt, self_energy_cart, d2_q, lineshape) &
+        !$OMP SHARED(nirrqpt, nfc2, nat, fc2, r2_2, masses, kprim, scatt_events, &
+        !$OMP nfc3, ne, fc3, r3_2, r3_3, pos, smear, T, energies, parallelize, smear_id, lineshapes, &
+        !$OMP irrqgrid, qgrid, weights, gaussian, classical)
+        do iqpt = 1, nirrqpt
+            allocate(lineshape(3*nat, 3*nat, ne), self_energy(ne, 3*nat, 3*nat), self_energy_cart(ne, 3*nat, 3*nat))
+!            print*, iqpt
+            w_neg_freqs = .False.
+            print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
+            lineshape(:,:,:) = 0.0_DP 
+            qpt = irrqgrid(:, iqpt) 
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q)
+            d2_q = cmplx(0.0_DP, 0.0_DP, kind=DP)
+            do iband = 1, 3*nat
+                d2_q(iband, iband) = cmplx(w2_q(iband), 0.0_DP, kind=DP)
+            enddo
+            d2_q = matmul(pols_q, matmul(d2_q, cinv(pols_q))) 
+            call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
+
+            if(any(w2_q < 0.0_DP)) then
+                print*, 'Negative eigenvalue of dynamical matrix!'
+                w_neg_freqs = .True.
+            endif
+!            print*, 'Interpolate frequency'
+            if(.not. w_neg_freqs) then
+                w_q = sqrt(w2_q)
+                self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)
+                allocate(curr_grid(3, scatt_events(iqpt)))
+                allocate(curr_w(scatt_events(iqpt)))
+                if(iqpt > 1) then
+                    prev_events = sum(scatt_events(1:iqpt-1))
+                else
+                    prev_events = 0
+                endif
+                do jqpt = 1, scatt_events(iqpt)
+                    curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
+                    curr_w(jqpt) = weights(prev_events + jqpt)
+                enddo
+!                print*, 'Got grids'
+                call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
+                    nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
+                    energies, .not. parallelize, gaussian, classical, self_energy) 
+                deallocate(curr_grid)
+                tot_qpt = sum(curr_w)
+                deallocate(curr_w)
+                self_energy = self_energy/dble(tot_qpt)
+                if(any(self_energy .ne. self_energy)) then
+                        print*, 'NaN in self_energy'
+                endif
+
+                do iband = 1, 3*nat
+                        do jband = 1, 3*nat
+                                do iband1 = 1, 3*nat
+                                do jband1 = 1, 3*nat
+                                        self_energy_cart(:, jband, iband) = &
+                                        self_energy(:,jband1,iband1)*pols_q(jband1,jband)*conjg(pols_q(iband1,iband))
+                                enddo
+                                enddo
+                        enddo
+                enddo
+
+                call calculate_spectral_function_nomode_mixing(energies,d2_q,self_energy_cart,.true.,lineshape,masses,nat,ne)
+
+                lineshapes(iqpt, :, :, :) = lineshape
+            else
+                lineshapes(iqpt,:,:,:) = 0.0_DP
+            endif
+            deallocate(lineshape, self_energy, self_energy_cart)
+
+        enddo
+        !$OMP END PARALLEL DO
+
+
+    end subroutine calculate_lineshapes_nomode_mixing
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -244,7 +380,7 @@ module get_lf
                     endif
                 enddo
             else
-                selfengs(iqpt, i) = complex(0.0_DP, 0.0_DP)
+                selfengs(iqpt, :) = complex(0.0_DP, 0.0_DP)
             endif
             deallocate(self_energy)
 
@@ -285,19 +421,34 @@ module get_lf
                                 enddo
                                 rew = dble(self_energy(ie0-1, iband)) + (curr_freq - energies(ie-1))*&
                                         (dble(self_energy(ie0,iband)) - dble(self_energy(ie0-1, iband)))/den
-                                curr_freq = sqrt(w_q(iband)**2 + rew)
-                                d_freq = curr_freq - prev_freq
-                        enddo
-                        omega(iband) = curr_freq
-                        do ie = 2, ne
-                                if(omega(iband) - energies(ie) < 0.0_DP .and. omega(iband) - energies(ie-1) > 0.0_DP) then
-                                        ie0 = ie
+                                if(w_q(iband)**2 + rew > 0.0_DP) then 
+                                        curr_freq = sqrt(w_q(iband)**2 + rew)
+                                else
+                                        curr_freq = 0.0_DP
                                         EXIT
                                 endif
+                                d_freq = curr_freq - prev_freq
+                                if(curr_freq .ne. curr_freq) then
+                                        print*, 'NaN in selfconsistent procedure!'
+                                        print*, ie0, self_energy(ie0-1, iband), self_energy(ie0, iband), rew, w_q(iband)**2
+                                        STOP
+                                endif
                         enddo
-                        imw = aimag(self_energy(ie0-1, iband)) + (omega(iband) - energies(ie-1))*&
-                                (aimag(self_energy(ie0,iband)) - aimag(self_energy(ie0-1, iband)))/den
-                        tau(iband) = imw/2.0_DP/w_q(iband)
+                        omega(iband) = curr_freq
+                        if(curr_freq > 0.0_DP) then
+                                do ie = 2, ne
+                                        if(omega(iband) - energies(ie) < 0.0_DP .and. omega(iband) - energies(ie-1) > 0.0_DP) then
+                                                ie0 = ie
+                                                EXIT
+                                        endif
+                                enddo
+                                imw = aimag(self_energy(ie0-1, iband)) + (omega(iband) - energies(ie-1))*&
+                                        (aimag(self_energy(ie0,iband)) - aimag(self_energy(ie0-1, iband)))/den
+                                tau(iband) = imw/2.0_DP/w_q(iband)
+                        else
+                                omega(iband) = 0.0_DP
+                                tau(iband) = 0.0_DP
+                        endif
                 else
                         omega(iband) = 0.0_DP
                         tau(iband) = 0.0_DP
@@ -901,6 +1052,172 @@ module get_lf
         !$OMP END PARALLEL DO
 !        print*, 'Finished with self energy!'
     end subroutine calculate_self_energy_P
+ 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, nqpt, nat, nfc2, nfc3, ne, qgrid, &
+                    weights, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear, T, energies, &
+                    parallelize, gaussian, classical, self_energy)
+
+        use omp_lib
+        use third_order_cond
+
+        implicit none
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nqpt, nat, nfc2, nfc3, ne
+        integer, intent(in) :: weights(nqpt)
+        real(kind=DP), intent(in) :: w_q(3*nat), qpt(3), qgrid(3,nqpt)
+        real(kind=DP), intent(in) :: fc2(nfc2, 3*nat, 3*nat), kprim(3,3)
+        real(kind=DP), intent(in) :: fc3(nfc3, 3*nat, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: r2_2(3, nfc2), pos(3, nat)
+        real(kind=DP), intent(in) :: r3_2(3, nfc3), r3_3(3, nfc3)
+        real(kind=DP), intent(in) :: masses(nat)
+        real(kind=DP), intent(in) :: smear(3*nat), energies(ne)
+        real(kind=DP), intent(in) :: T
+        complex(kind=DP), intent(in) :: pols_q(3*nat,3*nat)
+        logical, intent(in) :: is_q_gamma, parallelize, gaussian, classical
+        complex(kind=DP), intent(out) :: self_energy(ne, 3*nat, 3*nat)
+
+        integer :: jqpt, iat, jat, kat, i, j, k, i1, j1, k1
+        real(kind=DP), allocatable, dimension(:) :: kpt, mkpt, w2_k, w2_mk_mq, w_k, w_mk_mq
+        real(kind=DP), allocatable, dimension(:, :) :: freqs_array
+        real(kind=DP), allocatable, dimension(:, :, :) :: mass_array
+        complex(kind=DP), allocatable, dimension(:, :, :) :: selfnrg
+        complex(kind=DP), allocatable,dimension(:,:) :: pols_k, pols_mk_mq
+        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols
+        logical :: is_k_gamma, is_mk_mq_gamma, is_k_neg, is_mk_mq_neg
+        logical, dimension(3) :: if_gammas
+
+
+        self_energy = complex(0.0_DP, 0.0_DP)
+        !$OMP PARALLEL DO IF(parallelize) &
+        !$OMP DEFAULT(NONE) &
+        !$OMP PRIVATE(jqpt, ifc3, d3, d3_pols, kpt, mkpt, w2_k, pols_k, w2_mk_mq, pols_mk_mq, is_k_gamma, is_mk_mq_gamma, &
+        !$OMP is_k_neg, is_mk_mq_neg, w_k, w_mk_mq, i,j,k,i1,j1,k1,iat,jat,kat, freqs_array, if_gammas, selfnrg) &
+        !$OMP SHARED(nqpt, qgrid, fc3, r3_2, r3_3, pos, qpt, nfc3, nat, nfc2, fc2, r2_2, masses, is_q_gamma, smear, &
+        !$OMP T, energies, ne, w_q, pols_q,weights, kprim, gaussian, classical) &
+        !$OMP REDUCTION(+:self_energy)
+        do jqpt = 1, nqpt
+!            print*, jqpt
+            allocate(ifc3(3*nat, 3*nat, 3*nat), d3(3*nat, 3*nat, 3*nat), d3_pols(3*nat, 3*nat, 3*nat))
+            allocate(selfnrg(ne, 3*nat, 3*nat))
+            allocate(pols_k(3*nat,3*nat), pols_mk_mq(3*nat,3*nat))
+            allocate(kpt(3), mkpt(3))
+            allocate(w2_k(3*nat), w2_mk_mq(3*nat), w_k(3*nat), w_mk_mq(3*nat))
+            allocate(freqs_array(3*nat, 3))
+            is_k_neg = .False.
+            is_mk_mq_neg = .False.
+            ifc3(:,:,:) = complex(0.0_DP, 0.0_DP) 
+            d3(:,:,:) = complex(0.0_DP, 0.0_DP) 
+            d3_pols(:,:,:) = complex(0.0_DP, 0.0_DP) 
+
+            kpt = qgrid(:, jqpt)
+            mkpt = -1.0_DP*qpt - kpt
+            call interpol_v2(fc3, r3_2, r3_3, pos, kpt, mkpt, ifc3, nfc3, nat)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, kpt, w2_k, pols_k)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, mkpt, w2_mk_mq, pols_mk_mq)
+    
+            call check_if_gamma(nat, kpt, kprim, w2_k, is_k_gamma)
+            call check_if_gamma(nat, mkpt, kprim, w2_mk_mq, is_mk_mq_gamma)
+            if(any(w2_k < 0.0_DP) .and. .not. is_k_gamma) then
+                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_k_gamma
+                print*, kpt
+                print*, vec_dot_mat(qpt, inv(kprim))
+                print*, vec_dot_mat(kpt, inv(kprim))
+                print*, vec_dot_mat(mkpt, inv(kprim))
+                print*, kprim
+                print*, w2_k
+                is_k_neg = .True.
+            endif
+            if(any(w2_mk_mq < 0.0_DP) .and. .not. is_mk_mq_gamma) then
+                print*, 'Negative eigenvalue of dynamical matrix! Exit!', is_mk_mq_gamma, 'mk_mq_gamma'
+                print*, mkpt
+                print*, vec_dot_mat(qpt, inv(kprim))
+                print*, vec_dot_mat(kpt, inv(kprim))
+                print*, vec_dot_mat(mkpt, inv(kprim))
+                print*, kprim
+                print*, w2_mk_mq
+                is_mk_mq_neg = .True.
+            endif
+!            print*, 'Calculated frequencies! '
+            if(.not. is_k_neg .and. .not. is_mk_mq_neg) then
+            w_k = sqrt(w2_k)
+            w_mk_mq = sqrt(w2_mk_mq)
+
+            do iat = 1, nat
+            do i = 1, 3
+                do jat = 1, nat
+                do j = 1, 3
+                    do kat = 1, nat
+                    do k = 1, 3
+                        d3(k + 3*(kat - 1), j + 3*(jat - 1), i + 3*(iat - 1)) = &
+                                       ifc3(k + 3*(kat - 1), j + 3*(jat - 1), i + 3*(iat - 1))&
+                                        /sqrt(masses(iat)*masses(jat)*masses(kat))
+                    enddo
+                    enddo
+                enddo
+                enddo
+            enddo
+            enddo
+!            d3 = ifc3*mass_array
+
+!            do i = 1, 3*nat
+!                do j = 1, 3*nat
+!                    do k = 1, 3*nat
+!                        do i1 = 1, 3*nat
+!                        do j1 = 1, 3*nat
+!                        do k1 = 1, 3*nat
+!                            d3_pols(k,j,i) = d3_pols(k,j,i) + &
+!                            d3(k1,j1,i1)*pols_q(k1,k)*pols_k(j1,j)*pols_mk_mq(i1,i) 
+!                        enddo
+!                        enddo
+!                        enddo
+!                    enddo
+!                enddo
+!            enddo
+
+            do i = 1, 3*nat
+            do i1 = 1, 3*nat
+                d3_pols(:,:,i) = d3_pols(:,:,i) + &
+                    matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            enddo
+            enddo
+!            print*, 'Got d3pols'
+
+            freqs_array(:, 1) = w_q
+            freqs_array(:, 2) = w_k
+            freqs_array(:, 3) = w_mk_mq
+
+            if_gammas(1) = is_q_gamma
+            if_gammas(2) = is_k_gamma
+            if_gammas(3) = is_mk_mq_gamma
+      
+            selfnrg = complex(0.0_DP,0.0_DP)
+            call compute_full_dynamic_bubble_single(energies, smear, T, freqs_array, if_gammas, &
+                    d3_pols, ne, 3*nat, gaussian, classical, selfnrg)
+!            print*, 'Got selfnrg!'
+            self_energy = self_energy + selfnrg*dble(weights(jqpt))
+            if(any(self_energy .ne. self_energy)) then
+                    print*, 'NaN for jqpt', jqpt
+            endif
+            deallocate(ifc3, d3, d3_pols, selfnrg)
+            deallocate(pols_k, pols_mk_mq)
+            deallocate(kpt, mkpt)
+            deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
+            deallocate(freqs_array)
+            else
+            deallocate(ifc3, d3, d3_pols, selfnrg)
+            deallocate(pols_k, pols_mk_mq)
+            deallocate(kpt, mkpt)
+            deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
+            deallocate(freqs_array)
+            endif
+        enddo
+        !$OMP END PARALLEL DO
+!        print*, 'Finished with self energy!'
+    end subroutine calculate_self_energy_full
 
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

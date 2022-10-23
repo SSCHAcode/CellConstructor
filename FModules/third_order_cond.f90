@@ -17,13 +17,13 @@ module third_order_cond
         COMPLEX(DP) :: phase, phase1
         INTEGER :: i_block, a,b,c
     !
-        fc_interp = cmplx(0._dp, 0._dp)
+        fc_interp = cmplx(0._dp, 0._dp, kind=DP)
     !
 
         DO i_block = 1, n_blocks
             !arg = tpi * SUM(q2(:)*R2(:,i_block) + q3(:)*R3(:,i_block))
             arg = tpi*(dot_product(q2, R2(:,i_block)) + dot_product(q3, R3(:,i_block)))
-            phase = exp(cmplx(0.0_DP, arg))!CMPLX(Cos(arg),Sin(arg), kind=DP)
+            phase = exp(cmplx(0.0_DP, arg,kind=DP))!CMPLX(Cos(arg),Sin(arg), kind=DP)
 
              fc_interp = fc_interp + phase*fc(i_block,:,:,:)
       ! 
@@ -69,6 +69,70 @@ module third_order_cond
 
     end subroutine interpol_v3
 
+    subroutine compute_full_dynamic_bubble_single(energies,sigma,T,freq,is_gamma,D3,ne,n_mod, gaussian, &
+                    classical, bubble)
+
+            implicit none
+            INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+            !
+            complex(kind=DP), dimension(ne,n_mod,n_mod),intent(OUT) :: bubble
+            !
+            integer, intent(IN)       :: ne
+            real(kind=DP), intent(IN) :: energies(ne)    
+            real(kind=DP), intent(IN) :: sigma(n_mod)
+            real(kind=DP), intent(IN) :: T
+            real(kind=DP), intent(IN) :: freq(n_mod,3)
+            logical      , intent(IN) :: gaussian
+            logical      , intent(IN) :: is_gamma(3)
+            logical      , intent(IN) :: classical
+            complex(kind=DP), dimension(n_mod,n_mod,n_mod), intent(IN) :: D3
+            integer, intent(IN) :: n_mod
+            !
+            real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3), curr_sigma
+            complex(kind=DP) :: Lambda_23(ne)    
+            integer :: i, rho2, rho3, nu,mu
+            logical, parameter :: static_limit = .false.
+
+            q2(:,1)=freq(:,2)
+            q3(:,1)=freq(:,3) 
+         
+            q2(:,2)=0.0_dp
+            q3(:,2)=0.0_dp
+            do i = 1, n_mod
+              if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
+              if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
+            end do    
+
+            if(classical) then
+                call eq_freq(T, n_mod, freq(:,2), q2(:,3))
+                call eq_freq(T, n_mod, freq(:,3), q3(:,3))
+            else
+                call bose_freq(T, n_mod, freq(:,2), q2(:,3))
+                call bose_freq(T, n_mod, freq(:,3), q3(:,3))
+            endif
+            !
+            bubble=cmplx(0.0_dp,0.0_dp,kind=DP)
+            !
+            DO rho3=1,n_mod
+            DO rho2=1,n_mod
+                    !
+                    curr_sigma = (sigma(rho2) + sigma(rho3))/2.0_DP
+                    call Lambda_dynamic_single(ne,energies,curr_sigma,T,static_limit,q2(rho2,:),q3(rho3,:), gaussian, Lambda_23)           
+                    !
+                    DO nu = 1,n_mod
+                    DO mu = 1,n_mod
+                            bubble(:,mu,nu) = bubble(:,mu,nu) +  & 
+                                                CONJG(D3(mu,rho2,rho3))*Lambda_23*D3(nu,rho2,rho3)
+                    END DO
+                    END DO
+                    !
+            END DO
+            END DO    
+            !
+        end subroutine compute_full_dynamic_bubble_single
+
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     subroutine compute_diag_dynamic_bubble_single(energies,sigma,T,freq,is_gamma,D3,ne,n_mod, gaussian, &
                    classical, bubble)
         implicit none
@@ -107,7 +171,7 @@ module third_order_cond
                 call bose_freq(T, n_mod, freq(:,3), q3(:,3))
         endif
     
-        bubble=CMPLX(0.0_dp,0.0_dp)
+        bubble=CMPLX(0.0_dp,0.0_dp, kind=DP)
     
         DO rho3=1,n_mod
         DO rho2=1,n_mod
@@ -122,6 +186,14 @@ module third_order_cond
                    bubble(:,mu) = bubble(:,mu) +  & 
                                      CONJG(D3(mu,rho2,rho3))*Lambda_23*D3(mu,rho2,rho3)
                    !
+                   if(any(bubble(:,mu) .ne. bubble(:,mu))) then
+                           if(any(D3 .ne. D3)) then
+                                   print*, 'Its D3'
+                            else
+                                    print*, 'Its Lambda_23'
+                            endif
+                           STOP
+                   endif
             END DO            
             !
         END DO
@@ -166,7 +238,7 @@ module third_order_cond
         endif
 
     
-        selfnrg=CMPLX(0.0_dp,0.0_dp)
+        selfnrg=CMPLX(0.0_dp,0.0_dp,kind=DP)
     
         DO mu = 1,n_mod
         DO rho3=1,n_mod
@@ -283,7 +355,13 @@ module third_order_cond
                                 re_p = 0.0_DP
                         endif
                         ctm_P = CMPLX(re_p, im_p, kind=DP)
-
+                        if(ctm_P .ne. ctm_P) then
+                                print*, re_p, im_p
+                                print*, bose_P, gaussian_function(energies(ie) - omega_P, sigma)
+                                print*, energies(ie), omega_P, sigma
+                                print*, '361'
+                                STOP
+                        endif
                         im_p = bose_M *gaussian_function(energies(ie) + omega_M, sigma)
                         im_p1 = bose_M *gaussian_function(energies(ie) - omega_M, sigma)
                         if(energies(ie) + omega_M .ne. 0.0_DP) then
@@ -297,6 +375,13 @@ module third_order_cond
                                 re_p1 = 0.0_DP 
                         endif
                         ctm_M = CMPLX(re_p, im_p, kind=DP) - CMPLX(re_p1, im_p1, kind=DP)
+                        if(ctm_M .ne. ctm_M) then
+                                print*, '376'
+                                print*, re_p, im_p, re_p1, im_p1
+                                print*, bose_M, gaussian_function(energies(ie) + omega_M, sigma), &
+                                        gaussian_function(energies(ie) - omega_M, sigma)
+                                STOP
+                        endif
                         ctm(ie) =  ctm_P + ctm_M
                 ENDDO
             ELSE
@@ -385,6 +470,80 @@ module third_order_cond
         ENDIF
             !
     end subroutine Lambda_dynamic_value_single
+
+    subroutine calculate_spectral_function(ener, d2_freq, selfnrg, nat, ne, spectralf)
+
+        implicit none
+        INTEGER, PARAMETER           :: DP = selected_real_kind(14,200)
+        real(kind=dp),parameter      :: pi = 3.141592653589793_dp
+    !
+        real(kind=dp), intent(in)    :: ener(ne)
+        integer, intent(in)          :: ne,nat
+        real(kind=dp), intent(in)    :: d2_freq(3*nat)
+        complex(kind=dp), intent(in) :: selfnrg(ne,3*nat)
+    !
+        real(kind=dp), intent(out)   :: spectralf(ne,3*nat)
+    !
+        integer                      :: nat3,mu,ie, iband
+        real(kind=dp)                :: a,b
+        complex(kind=dp), dimension(ne, 3*nat) :: zq
+
+        do iband = 1, 3*nat
+                zq(:,iband) = sqrt(d2_freq(iband)**2 + selfnrg(:,iband))
+                do ie = 1, ne
+                        a = 0.0_DP
+                        b = 0.0_DP
+                        if(((ener(ie) - dble(zq(ie, iband)))**2 + aimag(zq(ie,iband))**2) .ne. 0.0_DP) then
+                                a = -1.0_DP*aimag(zq(ie,iband))/((ener(ie) - dble(zq(ie, iband)))**2 + aimag(zq(ie,iband))**2)
+                        endif
+                        if(((ener(ie) + dble(zq(ie, iband)))**2 + aimag(zq(ie,iband))**2) .ne. 0.0_DP) then
+                                b = aimag(zq(ie,iband))/((ener(ie) + dble(zq(ie, iband)))**2 + aimag(zq(ie,iband))**2)
+                        endif
+                        spectralf(ie, iband) = (a + b)/2.0_DP/pi
+                enddo
+        enddo
+
+    end subroutine calculate_spectral_function
+
+    subroutine calculate_spectral_function_nomode_mixing(ener,d2,Pi,notransl,spectralf,mass,nat,ne)
+            implicit none
+            INTEGER, PARAMETER           :: DP = selected_real_kind(14,200)
+            real(kind=dp),parameter      :: twopi = 6.283185307179586_dp
+            !
+            real(kind=dp), intent(in)    :: mass(nat), ener(ne)
+            integer, intent(in)          :: ne,nat
+            complex(kind=dp), intent(in) :: d2(3*nat,3*nat)
+            complex(kind=dp), intent(in) :: Pi(ne,3*nat,3*nat)
+            logical, intent(in)          :: notransl
+            !
+            real(kind=dp), intent(out)   :: spectralf(3*nat, 3*nat, ne)
+            !
+            integer                      :: nat3,n,m,ie
+            complex(kind=dp)             :: G(3*nat,3*nat) 
+            complex(kind=dp)             :: fact
+            
+            nat3=3*nat
+                
+            spectralf=0.0_dp
+            !    
+            DO ie = 1,ne
+                 G=cmplx(0.0_dp,0.0_dp,kind=DP)
+                 FORALL (m=1:nat3, n=1:nat3)
+                     G(n,m) = -Pi(ie,n,m)
+                 END FORALL
+                 G=G-d2
+                 DO n=1,nat3
+                   G(n,n)=G(n,n)+(ener(ie))**2
+                 ENDDO
+                 G = cinv(G) 
+                 IF ( notransl ) THEN
+                   CALL eliminate_transl(G,mass,nat)      
+                 END IF        
+                 spectralf(:,:,ie)=spectralf(:,:,ie)-2.0_DP*DIMAG(G)*ener(ie)/twopi
+            ENDDO
+    !
+
+    end subroutine calculate_spectral_function_nomode_mixing
 !
 ! ======================== accessory routines ========================================
 !
@@ -479,5 +638,77 @@ module third_order_cond
         gaussian_function = exp(-0.5_DP*(x/sigma)**2)/sqrt(2.0_DP/PI)/sigma  ! multiplied with pi
 
     END FUNCTION
+  
+    SUBROUTINE eliminate_transl(A,mass,nat)
+     !
+     IMPLICIT NONE
+     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)         
+     INTEGER,     intent(in)     :: nat
+     COMPLEX(DP), intent(inout)  :: A(3*nat,3*nat)
+     real(kind=dp), intent(in)   :: mass(nat)
+
+     COMPLEX(DP)                 :: QAUX(3,3,nat,nat)
+     COMPLEX(DP)                 :: Q(nat*3,nat*3)
+     REAL(DP)                    :: Mtot,mi,mj
+     INTEGER                     :: i,j,alpha,beta
+     !
+     ! DEFINE Q=1-P, P is TRANSLATION PROJECTOR
+     QAUX=(0.0_DP,0.0_DP)
+     ! build -P
+     Mtot=SUM(mass) 
+     DO i=1,nat
+     DO j=1,nat
+       mj=mass(j)
+       mi=mass(i)
+        DO alpha=1,3
+          QAUX(alpha,alpha,i,j)=-(1.0_dp,0.0_dp)*SQRT(mi*mj)/Mtot
+        END DO
+     END DO
+     END DO
+     ! build Q
+     DO i=1,nat
+      DO alpha=1,3
+        QAUX(alpha,alpha,i,i)=1.0_dp+QAUX(alpha,alpha,i,i)
+      END DO
+     END DO  
+     !
+     DO j=1, nat
+     DO i=1, nat
+        DO alpha=1,3
+        DO beta=1,3
+          Q(3*(i-1)+alpha,3*(j-1)+beta)=QAUX(alpha,beta,i,j)
+        END DO
+        END DO
+     END DO      
+     END DO 
+     ! PROJECT   
+     A=matmul(A,Q)
+     !
+  END SUBROUTINE eliminate_transl
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
+    function cinv(A) result(Ainv)
+ 
+        implicit none
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        complex(kind=DP),intent(in) :: A(:,:)
+        complex(kind=DP)            :: Ainv(size(A,1),size(A,2))
+        complex(kind=DP)            :: work(size(A,1))            ! work array for LAPACK
+        integer         :: n,info,ipiv(size(A,1))     ! pivot indices
+ 
+        ! Store A in Ainv to prevent it from being overwritten by LAPACK
+        Ainv = A
+        n = size(A,1)
+        ! ZGETRF computes an LU factorization of a general M-by-N matrix A
+        ! using partial pivoting with row interchanges.
+        call ZGETRF(n,n,Ainv,n,ipiv,info)
+        if (info.ne.0) stop 'Matrix is numerically singular!'
+        ! ZGETRI computes the inverse of a matrix using the LU factorization
+        ! computed by zGETRF.
+        call ZGETRI(n,Ainv,n,ipiv,work,n,info)
+        if (info.ne.0) stop 'Matrix inversion failed!'
+    end function cinv
 
 end module
