@@ -569,7 +569,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     lengthT = x_length_exp.T
     result = []
     parameters = zip(iq_list, q_list,itertools.repeat(tensor2),itertools.repeat(tensor3),
-                    itertools.repeat(k_grid),itertools.repeat(T),
+                    itertools.repeat(k_grid),itertools.repeat(T),itertools.repeat(dyn),
                     itertools.repeat(mm_mat),itertools.repeat(name_dyn),
                     itertools.repeat(frequencies),itertools.repeat(v2_wq),
                     itertools.repeat(print_dyn),itertools.repeat(lengthT))
@@ -601,7 +601,7 @@ def get_static_correction_along_path_multiprocessing(dyn,
     # ==================================================================================
 
 def multiprocessing_work_static_correction_along_path(iq,q,tensor2,tensor3,k_grid,T,
-                                                mm_mat,name_dyn,frequencies,v2_wq,print_dyn,lengthT):
+                                                dyn,mm_mat,name_dyn,frequencies,v2_wq,print_dyn,lengthT):
     print("iq=",iq)
     dynq, v2_wq[iq,:] = get_static_bubble(tensor2=tensor2, tensor3=tensor3,
                                           k_grid=k_grid, q=np.array(q),
@@ -2268,7 +2268,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
         tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
         tensor2.SetupFromPhonons(dyn)
         tensor2.Center()
-    structure = tensor2.unitcell_structure
+    # structure = tensor2.unitcell_structure
 
 
 
@@ -2493,6 +2493,7 @@ def multiprocessing_work_diag_dynamic_correction_along_path(iq,q,tensor2,tensor3
                 res_os=np.zeros((n_mod,2),dtype=np.float64)   #   one-shot     shifted freq and  linewidth
                 res_pert=np.zeros((n_mod,2),dtype=np.float64) #   perturbative shifted freq and  linewidth
 
+                structure = tensor2.unitcell_structure
                 is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q_path[iq])
                 for ifreq in range(n_mod):
                     done=False
