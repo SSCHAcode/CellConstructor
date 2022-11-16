@@ -344,7 +344,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
         self.n_R = Settings.broadcast(self.n_R)       
         
         
-    def Center(self, nneigh=None, Far=1,tol=1.0e-5):
+    def Center(self, nneigh=None, Far=2,tol=1.0e-5):
         """
         CENTERING 
         =========
@@ -726,7 +726,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None, lo_to_splitting = True):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -749,6 +749,9 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
                 to pick the direction of the nonanalitical correction to apply.
                 If it is not initialized, a random versor will be chosen.
                 If it is the 0 vector, the nonanalitic correction at gamma will be avoided.
+            lo_to_splitting : bool
+                If True and the point is gamma, add the nonanalytic correction in a direction
+                given by q_direct
 
         Results
         -------
@@ -778,7 +781,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
             # Check if the vector is gamma
             if np.max(np.abs(q2)) < 1e-12:
                 q_vect = np.zeros(3, dtype = np.double)
-                compute_nonanal = True
+                compute_nonanal = lo_to_splitting
                 if q_direct is not None:
                     # the - to take into account the difference between QE convension and our
                     if np.linalg.norm(q_direct) < 1e-8:
@@ -966,7 +969,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
     #     return new_tensor
 
-    def GeneratePhonons(self, supercell, asr = False):
+    def GeneratePhonons(self, supercell, asr = False, lo_to_splitting = False):
         """
         GENERATE PHONONS
         ================
@@ -988,6 +991,10 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
             - asr : bool
                 If true, the ASR is imposed during the interpolation.
                 This is the best way to correct the modes even close to gamma
+            - lo_to_splitting : bool
+                If true, the phonons at gamma will have the LO-TO splitting
+                from a random direction.
+                Note, this will break symmetrization.
         
         Results
         -------
@@ -1007,7 +1014,12 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = self.Interpolate(-q_vector, asr = asr)
+            q_direction = None
+            if lo_to_splitting:
+                q_direction = np.random.normal(size = 3) 
+                q_direction /= np.linalg.norm(q_direction)
+
+            dynq = self.Interpolate(-q_vector, asr = asr, q_direct= q_direction, lo_to_splitting=lo_to_splitting)
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
@@ -1428,7 +1440,7 @@ class Tensor3():
                                             f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
                                             
 
-    def Center(self, nneigh=None, Far=1,tol=1.0e-5):
+    def Center(self, nneigh=None, Far=2,tol=1.0e-5):
         """
         CENTERING 
         =========

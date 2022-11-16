@@ -7,6 +7,8 @@ Created on Wed Jun  6 10:45:50 2018
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from hashlib import new
+from importlib.resources import path
 
 from numpy import *
 import numpy as np
@@ -856,6 +858,24 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0,:] = np.array( [a/2., 0, -c/2.])
         unit_cell[1,:] = np.array( [b * cos_ab, b*sin_ab, 0])
         unit_cell[2,:] = np.array( [a/2., 0, c/2.])
+
+    elif ibrav == 14:
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = a * celldm[1]
+        c = a * celldm[2]
+        cos_alpha = celldm[3]
+        cos_beta = celldm[4]
+        cos_gamma = celldm[5]
+
+        sin_alpha = np.sqrt(1 - cos_alpha**2)
+        sin_beta = np.sqrt(1 - cos_beta**2)
+        sin_gamma = np.sqrt(1 - cos_gamma**2)
+
+        unit_cell[0, :] = np.array([a, 0, 0], dtype = np.double)
+        unit_cell[1, :] = np.array([b * cos_gamma, b * sin_gamma, 0], dtype = np.double)
+        unit_cell[2, :] = np.array([c * cos_beta, c * (cos_alpha - cos_beta * cos_gamma) / sin_gamma, 
+            c * np.sqrt( 1 + 2*cos_alpha*cos_beta*cos_gamma - cos_alpha**2 - cos_beta**2 - cos_gamma**2) / sin_gamma])
+        
     else:
         raise ValueError("Error, the specified ibrav %d is not supported." % ibrav)
 
@@ -1102,7 +1122,7 @@ def write_namelist(total_dict):
                 elif isinstance(value, str):
                     valuestr = "\"%s\"" % value
                 elif isinstance(value, bool):
-                    valuestr = f".{str(value).lower()}."
+                    valuestr = ".{}.".format(str(value).lower())
                 else:
                     valuestr = str(value)
             
@@ -1709,3 +1729,92 @@ def transform_voigt(tensor, voigt_to_mat = False):
     return new_tensor
     
 
+def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
+    """
+    GET THE BANDPATH
+    ================
+
+    Given the structure, get the kpoints in cartesian coordinates that reproduce the bandpath.
+
+    This method is usefull to plot the phonon dispersion.
+
+    Parameters
+    ----------
+        unit_cell :: ndarray(size = (3,3))
+            The primitive cell on which to simulate the bandpath
+        path_string :: str
+            The string of the path (for example GXWKG)
+        special_points : dict
+            A dictionary containing all the special points in the path and the respective coordinates in crystalline axis (relative to the reciprocal vectors).
+        n_points : int
+            The total number of points in which the path is divided.
+
+
+    Results
+    -------
+        qpath : ndarray(sizeof=(n_points, 3))
+            The q path in cartesian coordinates
+        (xaxis, xticks, xlabels) : 
+            The xaxis that represent the lenght of the qpath from the first point.
+            xlabels is the labels of each ticks and xticks 
+
+    """
+
+    # Get the reciprocal lattice
+    bg = get_reciprocal_vectors(unit_cell) 
+
+
+    new_special_points = {x : np.array(special_points[x], dtype = np.double).dot(bg) for x in special_points}
+    print(new_special_points)
+
+    if len(path_string) < 2:
+        raise ValueError("Error, at least 2 q points needs to be processed")
+
+    path_points = np.zeros((len(path_string), 3), dtype = np.double)
+    for i, c in enumerate(path_string):
+        path_points[i, :] = new_special_points[c]
+
+    #print('BG:', bg * 2 * np.pi)
+    #print('UC:', unit_cell)
+    #print('SPECIAL POINTS:', {x : new_special_points[x] * 2 * np.pi for x  in new_special_points})
+
+    single_lenghts = np.linalg.norm(np.diff(path_points, axis = 0), axis = 1)
+    total_lenght = np.sum(single_lenghts)
+
+    xaxis = np.linspace(0, total_lenght, n_points)
+    xticks = np.zeros(len(path_string))
+    for i, ll in enumerate(single_lenghts):
+        xticks[i+1] = xticks[i] + ll
+
+    xlabels = [x.replace('G', r'$\Gamma$') for x in path_string]
+
+
+    q_path = np.zeros((n_points, 3), dtype = np.double)
+    q_path[-1, :] = path_points[-1,:]  # Set the starting point in the path
+    dq = total_lenght / n_points
+    counter = 0
+    visited = []
+    for i in range(1, n_points):
+        
+        # Identify in which line it is
+        xval = xaxis[i]
+        index = 0
+        while xval >= single_lenghts[index] + __EPSILON__:
+
+            print(xval, index, single_lenghts)
+            xval -= single_lenghts[index]
+            index += 1
+
+
+        # If the line is changed, add a counter
+        if not index in visited:
+            visited.append(index)
+            counter = 0
+        else:
+            counter += 1
+
+        q_versor = (path_points[index+1,:] - path_points[index,:]) / single_lenghts[index]
+
+        q_path[i-1, :] =  path_points[index, :] + counter * dq * q_versor
+
+    return q_path, (xaxis, xticks, xlabels)

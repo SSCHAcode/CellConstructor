@@ -2454,14 +2454,14 @@ def multiprocessing_work_diag_dynamic_correction_along_path(iq,q,tensor2,tensor3
                     f.write("# len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1), spectral function mode components (1/cm-1)\n")
                     f.write("# ---------------------------------------------------------------------------------------------------------\n")
                     for ie, ene in enumerate(energies_cm):
-            	        out=spectralf[ie,:,ism]
-            	        f.write(fmt.format(x_length[iq],ene,np.sum(out),*out))
+                        out=spectralf[ie,:,ism]
+                        f.write(fmt.format(x_length[iq],ene,np.sum(out),*out))
                     f.write("\n")
             else:
                 with open(filename_new,'a') as f:
                     for ie, ene in enumerate(energies_cm):
-            	        out=spectralf[ie,:,ism]
-            	        f.write(fmt.format(x_length[iq],ene,np.sum(out),*out))
+                        out=spectralf[ie,:,ism]
+                        f.write(fmt.format(x_length[iq],ene,np.sum(out),*out))
                     f.write("\n")
             # =======
             # z func
@@ -2476,8 +2476,8 @@ def multiprocessing_work_diag_dynamic_correction_along_path(iq,q,tensor2,tensor3
                         f.write("# len (2pi/Angstrom), energy (cm-1), z function (cm-1) \n")
                         f.write("# ---------------------------------------------------- \n")
                         for ie, ene in enumerate(energies_cm):
-            	            out=z[ie,ism,:]
-            	            f.write(fmt.format(x_length[iq],ene,*out))
+                            out=z[ie,ism,:]
+                            f.write(fmt.format(x_length[iq],ene,*out))
                 else:
                     with open(filename_new,'a') as f:
                         for ie, ene in enumerate(energies_cm):

@@ -52,7 +52,10 @@ def get_energy_forces(calculator, structure):
     if isinstance(calculator, ase.calculators.calculator.Calculator):
         atm = structure.get_ase_atoms()
         atm.set_calculator(calculator)
-        return atm.get_total_energy(), atm.get_forces()
+        energy = atm.get_total_energy()
+        if isinstance(energy, np.ndarray):
+            energy = energy[0]
+        return energy, atm.get_forces()
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         return calculator.results["energy"], calculator.results["forces"]
@@ -151,6 +154,10 @@ class Espresso(FileIOCalculator):
                 Dictionary of the file names of the pseudopotentials
             masses : dict
                 Dictionary of the masses (in UMA) of the specified atomic species
+            kpts : list
+                A list of the k points grid to sample the space.
+                If the calculation is given at gamma, use the gamma string.
+                Note gamma is incompatible with a koffset
         """
         FileIOCalculator.__init__(self)
 
@@ -215,18 +222,34 @@ class Espresso(FileIOCalculator):
 
         print("TOTAL INPUT:")
         print(total_input)
-
         scf_text += """
 ATOMIC_SPECIES
 """
         for atm in typs:
             scf_text += "{}  {}   {}\n".format(atm, self.masses[atm], self.pseudopotentials[atm])
         
-        scf_text += """
+        if isinstance(self.kpts, str):
+            if self.kpts.lower() == 'gamma':
+                scf_text += '''
+K_POINTS gamma
+'''
+            else:
+                raise ValueError('Error, kpts msut be either list or gamma, {} not recognized'.format(self.kpts))
+        elif len(np.shape(self.kpts)) == 2:
+            nkpts, _ = np.shape(self.kpts)
+            scf_text += '''
+K_POINTS crystal
+{}
+'''.format(nkpts)
+            for i in range(nkpts):
+                scf_text += '{:.16f} {:.16f} {:.16f} 1\n'.format(*list(self.kpts[i, :]))
+        elif len(self.kpts) == 3:
+            scf_text += """
 K_POINTS automatic
 {} {} {} {} {} {}
 """.format(self.kpts[0], self.kpts[1], self.kpts[2],
-            self.koffset[0], self.koffset[1], self.koffset[2])
+           self.koffset[0], self.koffset[1], self.koffset[2])
+            
         
         scf_text += structure.save_scf(None, get_text = True)
 
@@ -444,12 +467,16 @@ class Relax:
             self.last_energy = energy
             self.last_force[:] = -forces.ravel().copy()
 
+
             return energy, -forces.ravel()
 
         def callback(xk):
             
             if self.verbose:
                 energy, force = func(xk)
+                #print('it:', self.iterations)
+                #print('energy:', energy)
+                #print('force:', force)
                 print("{:5d}) {:16.8f} eV   {:16.8f} eV/A".format(self.iterations, energy, np.linalg.norm(force)))
                 self.iterations += 1
             
