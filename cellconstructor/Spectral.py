@@ -3159,6 +3159,8 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleto
      e() =
      omega_nu = resonant frequency
      Big_omega =
+    Output:
+     epsilon = Dielectric function (SI) 
     """
     #electric_charge = 4.803e-10 #Fr (CGS)
     electric_charge = 1.602176462e-19 #C (SI)
