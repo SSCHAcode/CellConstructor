@@ -4357,7 +4357,15 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     """
 
 
-    super_structure = structure.generate_supercell(supercell)
+    if np.prod(supercell) > 1:
+        super_structure = structure.generate_supercell(supercell)
+    else:
+        super_structure = structure.copy()
+
+        if not super_structure.has_unit_cell:
+            super_structure.unit_cell = np.eye(3) * 200
+            super_structure.has_unit_cell = True
+
     final_dyn = Phonons(super_structure)
 
     nat3 = 3 * super_structure.N_atoms
