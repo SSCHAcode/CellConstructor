@@ -122,7 +122,7 @@ module third_order_cond
                     DO nu = 1,n_mod
                     DO mu = 1,n_mod
                             bubble(:,mu,nu) = bubble(:,mu,nu) +  & 
-                                                CONJG(D3(mu,rho2,rho3))*Lambda_23*D3(nu,rho2,rho3)
+                                                CONJG(D3(mu,rho2,rho3))*Lambda_23(:)*D3(nu,rho2,rho3)
                     END DO
                     END DO
                     !
@@ -538,8 +538,12 @@ module third_order_cond
                  G = cinv(G) 
                  IF ( notransl ) THEN
                    CALL eliminate_transl(G,mass,nat)      
-                 END IF        
-                 spectralf(:,:,ie)=spectralf(:,:,ie)-2.0_DP*DIMAG(G)*ener(ie)/twopi
+                 END IF
+                 do n = 1, nat3
+                 do m = 1, nat3       
+                 spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
+                 enddo
+                 enddo
             ENDDO
     !
 
@@ -695,20 +699,34 @@ module third_order_cond
 
         complex(kind=DP),intent(in) :: A(:,:)
         complex(kind=DP)            :: Ainv(size(A,1),size(A,2))
-        complex(kind=DP)            :: work(size(A,1))            ! work array for LAPACK
-        integer         :: n,info,ipiv(size(A,1))     ! pivot indices
+        complex(kind=DP), allocatable            :: work(:)            ! work array for LAPACK
+        integer         :: n,info,ipiv(size(A,1)), lda, lwork, nb     ! pivot indices
+        INTEGER,EXTERNAL :: ILAENV
  
         ! Store A in Ainv to prevent it from being overwritten by LAPACK
         Ainv = A
         n = size(A,1)
+        lda = n
+    !
+        nb = ILAENV( 1, 'ZHEEV', 'U', n, -1, -1, -1 )
+        lwork=n*nb
+        ALLOCATE(work(lwork))
+    !
         ! ZGETRF computes an LU factorization of a general M-by-N matrix A
         ! using partial pivoting with row interchanges.
-        call ZGETRF(n,n,Ainv,n,ipiv,info)
+        CALL ZGETRF(n, n, Ainv, lda, ipiv, info)
         if (info.ne.0) stop 'Matrix is numerically singular!'
         ! ZGETRI computes the inverse of a matrix using the LU factorization
         ! computed by zGETRF.
-        call ZGETRI(n,Ainv,n,ipiv,work,n,info)
+        CALL ZGETRI(n, Ainv, lda, ipiv, work, lwork, info)
         if (info.ne.0) stop 'Matrix inversion failed!'
+
+        !call ZGETRF(n,n,Ainv,n,ipiv,info)
+        !if (info.ne.0) stop 'Matrix is numerically singular!'
+        ! ZGETRI computes the inverse of a matrix using the LU factorization
+        ! computed by zGETRF.
+        !call ZGETRI(n,Ainv,n,ipiv,work,n,info)
+        !if (info.ne.0) stop 'Matrix inversion failed!'
     end function cinv
 
 end module

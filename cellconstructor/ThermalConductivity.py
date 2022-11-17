@@ -1186,9 +1186,8 @@ class ThermalConductivity:
                         self.sigmas[ikpt][iband] = delta_v*delta_q*self.smearing_scale
                     else:
                         self.sigmas[ikpt][iband] = 0.0
-            min_smear = np.amax(self.sigmas)/100.0 # We can't have scattering zero for modes with 0 group velocity, so we set it to this number!
+            min_smear = np.amax(self.sigmas)/10.0 # We can't have scattering zero for modes with 0 group velocity, so we set it to this number!
             self.sigmas[self.sigmas < min_smear] = min_smear
-            #self.sigmas[self.freqs <= np.amin(self.freqs)*10] = min_smear/10.0
             if(np.all(self.sigmas == 0.0)):
                 raise RuntimeError('All smearing values are zero!')
         elif(self.smearing_type == 'constant'):
@@ -1256,15 +1255,33 @@ class ThermalConductivity:
         spec_kappa = np.zeros((3,3,self.lineshapes[ls_key].shape[-1]))
         energies = np.arange(spec_kappa.shape[-1], dtype=float)*self.delta_omega + self.delta_omega
         exponents = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        integrands_plus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
         exponents = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
-        integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
+        integrands_minus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
         integrands = (integrands_plus + integrands_minus)
-        
-        if(self.off_diag):
-            spec_kappa = np.einsum('ijjk,ijjl,ijm->klm', self.gvels, self.gvels,integrands)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
-        else:
-            spec_kappa = np.einsum('ijk,ijl,ijm->klm', self.gvels, self.gvels,integrands)*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        if(self.off_diag):
+                            gvel = np.zeros_like(self.gvels[iqpt, iband, iband])
+                            gvel_sum = np.zeros((3,3), dtype=complex)
+                            for r in self.rotations:
+                                rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                gvel = np.dot(rot_q, self.gvels[iqpt, iband, iband])
+                                gvel_sum += np.outer(gvel.conj(), gvel)
+                            gvel_sum = gvel_sum.real*SSCHA_TO_MS**2/float(len(self.rotations))
+                            spec_kappa += np.einsum('ij,k->ijk',gvel_sum,integrands[iqpt, iband])*self.freqs[iqpt, iband]**2
+                        else:
+                            gvel = np.zeros_like(self.gvels[iqpt, iband])
+                            gvel_sum = np.zeros((3,3), dtype=complex)
+                            for r in self.rotations:
+                                rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                gvel = np.dot(rot_q, self.gvels[iqpt, iband])
+                                gvel_sum += np.outer(gvel.conj(), gvel)
+                            gvel_sum = gvel_sum.real*SSCHA_TO_MS**2/float(len(self.rotations))
+                            spec_kappa += np.einsum('ij,k->ijk',gvel_sum,integrands[iqpt, iband])*self.freqs[iqpt, iband]**2
         spec_kappa = spec_kappa*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         tot_kappa = np.sum(spec_kappa, axis = len(spec_kappa) - 1)*self.delta_omega
         print('Total kappa is: ', np.diag(tot_kappa))
@@ -1292,9 +1309,23 @@ class ThermalConductivity:
                 for iband in range(self.nband):
                     weight = gaussian(energies[ien], self.freqs[iqpt, iband], self.sigmas[iqpt, iband])
                     if(self.off_diag):
-                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband,iband], self.gvels[iqpt,iband, iband])
+                        gvel = np.zeros_like(self.gvels[iqpt, iband, iband])
+                        gvel_sum = np.zeros((3,3), dtype=complex)
+                        for r in self.rotations:
+                            rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                            gvel = np.dot(rot_q, self.gvels[iqpt, iband, iband])
+                            gvel_sum += np.outer(gvel.conj(), gvel)
+                        gvel_sum = gvel_sum.real/float(len(self.rotations))
+                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*gvel_sum*self.lifetimes[key][iqpt][iband]*weight
                     else:
-                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*self.lifetimes[key][iqpt,iband]*weight*np.outer(self.gvels[iqpt,iband], self.gvels[iqpt,iband])
+                        gvel = np.zeros_like(self.gvels[iqpt, iband])
+                        gvel_sum = np.zeros((3,3), dtype=complex)
+                        for r in self.rotations:
+                            rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                            gvel = np.dot(rot_q, self.gvels[iqpt, iband])
+                            gvel_sum += np.outer(gvel.conj(), gvel)
+                        gvel_sum = gvel_sum.real/float(len(self.rotations))
+                        spec_kappa[:,:,ien] += self.cp[key][iqpt,iband]*gvel_sum*self.lifetimes[key][iqpt][iband]*weight
         spec_kappa = spec_kappa*SSCHA_TO_MS**2/self.volume/float(self.nkpt)*1.0e30#*(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         tot_kappa = np.sum(spec_kappa, axis = len(spec_kappa) - 1)*delta_en
         print('Total kappa is: ', np.diag(tot_kappa))
@@ -1447,7 +1478,6 @@ class ThermalConductivity:
             print('Lineshapes for this temperature have already been calculated. Continuing ...')
         else:
             self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
-        kappa = 0.0
         exponents = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
         integrands_plus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
@@ -1458,7 +1488,21 @@ class ThermalConductivity:
         #integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         integrals = (np.trapz(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.trapz(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         #integrals = (integrate.simps(integrands_plus, axis = len(integrands_plus.shape) - 1) + integrate.simps(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
-        kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        #kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa = np.zeros((3,3))
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        gvel = np.zeros_like(self.gvels[iqpt, iband])
+                        gvel_sum = np.zeros_like(kappa, dtype=complex)
+                        for r in self.rotations:
+                            rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                            gvel = np.dot(rot_q, self.gvels[iqpt, iband])
+                            gvel_sum += np.outer(gvel.conj(), gvel)
+                        gvel_sum = gvel_sum.real*SSCHA_TO_MS**2/float(len(self.rotations))
+                        kappa += gvel_sum*integrals[iqpt][iband]*self.freqs[iqpt][iband]**2
+        
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1482,34 +1526,77 @@ class ThermalConductivity:
             print('Lineshapes for this temperature have already been calculated. Continuing ...')
         else:
             self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
-        kappa_diag = np.zeros((3,3))
+        #kappa_diag = np.zeros((3,3))
         exponents_plus = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents_plus/(exponents_plus - 1.0)**2
-        integrands_plus = self.lineshapes[ls_key]**2*exponents_plus/(exponents_plus - 1.0)**2
+        #integrands_plus = self.lineshapes[ls_key]**2*exponents_plus/(exponents_plus - 1.0)**2
         exponents_minus = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         #integrands_minus = self.lineshapes[ls_key]**2*energies**2*exponents_minus/(exponents_minus - 1.0)**2
-        integrands_minus = self.lineshapes[ls_key]**2*exponents_minus/(exponents_minus - 1.0)**2
-        integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
-        kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        #integrands_minus = self.lineshapes[ls_key]**2*exponents_minus/(exponents_minus - 1.0)**2
+        #integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ)*1.0e12/2.0*2.0*np.pi
+        #kappa_diag = np.einsum('ijjk,ijjl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        #kappa_diag += kappa_diag.T
+        #kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
+
+        #kappa_nondiag = np.zeros_like(kappa_diag)
+        #for iqpt in range(self.nkpt):
+        #    for iband in range(self.nband-1):
+        #        if(self.freqs[iqpt, iband] != 0.0):
+        #            for jband in range(iband, self.nband):
+        #                if(iband != jband and self.freqs[iqpt, jband] != 0.0):
+        #                    if(self.group_velocity_mode == 'wigner'):
+        #                        vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+        #                    else:
+        #                        vel_fact = 1.0
+        #                    integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
+        #                    integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
+        #                    integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/4.0
+        #                    kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*\
+        #                            np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real/vel_fact**2\
+        #                            *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+
+        kappa_diag = np.zeros((3,3))
+        kappa_nondiag = np.zeros_like(kappa_diag)
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        for jband in range(self.nband):
+                            if(self.group_velocity_mode == 'wigner'):
+                                vel_fact = 1.0
+                            else:
+                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            if(self.freqs[iqpt, jband] != 0.0 and iband != jband):
+                                integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
+                                integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
+                                integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2/float(len(self.rotations))
+                                kappa_nondiag += integrals*self.freqs[iqpt,iband]**2*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*\
+                                        gvel_sum*SSCHA_TO_MS**2*(SSCHA_TO_THZ)*1.0e12*2.0*np.pi/4.0
+                            elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, iband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2/float(len(self.rotations))
+                                integrands_plus = self.lineshapes[ls_key][iqpt, iband]**2*exponents_plus/(exponents_plus - 1.0)**2
+                                integrands_minus = self.lineshapes[ls_key][iqpt, iband]**2*exponents_minus/(exponents_minus - 1.0)**2
+                                integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega
+                                kappa_diag += gvel_sum*integrals*self.freqs[iqpt][iband]**2*SSCHA_TO_MS**2*(SSCHA_TO_THZ)*1.0e12*2.0*np.pi/2.0
+                                # Here freqs[iqpt,iband] is squared instead of power of 4 because imag self-energy in SSCHA is defined as 2*freqs[iqpt,iband]*Gamma[iqpt, iband]
+                                # Factor of 1/2 comes from the fact that we multiplied the lineshapes with 2.0 after we calculated them!
+
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
-        kappa_nondiag = np.zeros_like(kappa_diag)
-        for iqpt in range(self.nkpt):
-            for iband in range(self.nband-1):
-                if(self.freqs[iqpt, iband] != 0.0):
-                    for jband in range(iband, self.nband):
-                        if(iband != jband and self.freqs[iqpt, jband] != 0.0):
-                            if(self.group_velocity_mode == 'wigner'):
-                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
-                            else:
-                                vel_fact = 1.0
-                            integrands_plus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0)**2
-                            integrands_minus = self.lineshapes[ls_key][iqpt, iband]*self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)**2
-                            integrals = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/4.0
-                            kappa_nondiag += integrals*(self.freqs[iqpt, iband]**2 + self.freqs[iqpt, jband]**2)**2/self.freqs[iqpt][jband]/self.freqs[iqpt][iband]*\
-                                    np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real/vel_fact**2\
-                                    *SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag += kappa_nondiag.T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1709,7 +1796,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = True, no_mode_mixing = False, kpoints = None, start_nkpts = 100):
+    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = True, no_mode_mixing = False, kpoints = None, start_nkpts = 100, smear = None):
 
         """
         Calculate phonon lineshapes in full Brillouin zone.
@@ -1771,8 +1858,21 @@ class ThermalConductivity:
 
         irrqgrid = kpoints.T
         scattering_events = np.zeros(nkpts, dtype=int)
-        sigmas = np.zeros((nkpts, self.nband))
-        sigmas[:,:] = np.amax(self.sigmas)
+        if(smear is None):
+            sigmas = np.zeros((nkpts, self.nband))
+            sigmas[:,:] = np.amax(self.sigmas)
+        else:
+            if(nkpts > 1):
+                if(np.shape(smear) == np.shape(freqs)):
+                    sigmas = smear
+                else:
+                    print(np.shape(smear), np.shape(freqs))
+                    raise RuntimeError('Smearing array does not match shape of the kpoints!')
+            else:
+                if(len(smear) == len(freqs[0])):
+                    sigmas = smear
+                else:
+                    raise RuntimeError('Smearing array does not match shape of the kpoints!')
         for ikpt in range(nkpts):
             scattering_events[ikpt] = len(self.scattering_qpoints)
         irrqgrid = np.asfortranarray(irrqgrid)
@@ -1818,8 +1918,19 @@ class ThermalConductivity:
                             curr_ls[ikpt, iband] = 0.0
             if(no_mode_mixing):
                 lineshapes[ikpt,:,:,:] = curr_ls[ikpt,:,:,:]
+                tot_const_diag = 0.0
+                tot_const_nondiag = 0.0
+                for iband in range(len(lineshapes[ikpt])):
+                    tot_const_diag += np.sum(lineshapes[ikpt][iband][iband])*(energies[2] - energies[1])
+                    for jband in range(len(lineshapes[ikpt][iband])):
+                        print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[ikpt][iband][jband])*(energies[2] - energies[1]))
+                        tot_const_nondiag += np.sum(lineshapes[ikpt][iband][jband])*(energies[2] - energies[1])
+                print('Normalization constant diagonal: ', tot_const_diag)
+                print('Normalization constant all elements: ', tot_const_diag)
             else:
                 lineshapes[ikpt,:,:] = curr_ls[ikpt,:,:]*2.0
+                for iband in range(len(lineshapes[ikpt])):
+                    print('Normalization constant: ', np.sum(lineshapes[ikpt][iband])*(energies[2] - energies[1]))
 
         with open('Qpoints_along_line', 'w+') as outfile:
             for ikpt in range(nkpts):
@@ -1954,10 +2065,22 @@ class ThermalConductivity:
 
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
-            
-        kappa = np.einsum('ij,ijk,ijl,ij->kl',self.cp[cp_key],self.gvels.real,self.gvels.real,self.lifetimes[lf_key])
+           
+        kappa = np.zeros((3,3))
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        gvel = np.zeros_like(self.gvels[iqpt, iband])
+                        gvel_sum = np.zeros_like(kappa, dtype=complex)
+                        for r in self.rotations:
+                            rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                            gvel = np.dot(rot_q, self.gvels[iqpt, iband])
+                            gvel_sum += np.outer(gvel.conj(), gvel)
+                        gvel_sum = gvel_sum.real/float(len(self.rotations))
+                        kappa += self.cp[cp_key][iqpt][iband]*gvel_sum*self.lifetimes[lf_key][iqpt][iband]
         kappa += kappa.T
-        kappa = kappa/2.0*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa = kappa/2.0*SSCHA_TO_MS**2
 
         return kappa
 
@@ -1981,33 +2104,61 @@ class ThermalConductivity:
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             self.get_heat_capacity(temperature)
-        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*1.0e12*2.0*np.pi)/2.0
+        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*1.0e12*2.0*np.pi)
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
-        kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
 
+        kappa_diag = np.zeros((3,3))
         kappa_nondiag = np.zeros_like(kappa_diag)
-        for iqpt in range(self.nkpt):
-            for iband in range(self.nband):
-                if(self.freqs[iqpt, iband] != 0.0):
-                    for jband in range(self.nband):
-                        if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] != self.freqs[iqpt, iband] and iband != jband):
-                            if(self.group_velocity_mode == 'wigner'):
-                                vel_fact = 1.0
-                            else:
-                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
-                            a1 = (self.freqs[iqpt, jband] + self.freqs[iqpt, iband])/4.0
-                            a2 = self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
-                            a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
-                            a4 = (self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
-                            kappa_nondiag += a1*a2*a3/a4*np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real*vel_fact**2
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        for jband in range(self.nband):
+                            #if(self.freqs[iqpt, jband] != 0.0 and np.abs(self.freqs[iqpt, jband] - self.freqs[iqpt, iband]) > 1.0e-4/SSCHA_TO_THZ and iband != jband):
+                            if(self.freqs[iqpt, jband] != 0.0 and iband != jband):
+                                if(self.group_velocity_mode == 'wigner'):
+                                    vel_fact = 1.0
+                                else:
+                                    vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2
+                                a1 = (self.freqs[iqpt, jband] + self.freqs[iqpt, iband])/4.0
+                                a2 = self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
+                                a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
+                                a4 = ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
+                                kappa_nondiag += a1*a2*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
+                            elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
+                                if(self.group_velocity_mode == 'wigner'):
+                                    vel_fact = 1.0
+                                else:
+                                    vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2
+                                a1 = (self.freqs[iqpt, jband] + self.freqs[iqpt, iband])/4.0
+                                a2 = self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
+                                a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
+                                a4 = (self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
+                                kappa_diag += a1*a2*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
 
-        kappa_nondiag = 2.0*kappa_nondiag/SSCHA_TO_THZ/1.0e12
+        kappa_diag = kappa_diag/SSCHA_TO_THZ/1.0e12
+        kappa_nondiag = kappa_nondiag/SSCHA_TO_THZ/1.0e12
 
         kappa_diag += kappa_diag.T
         kappa_nondiag += kappa_nondiag.T
         kappa_diag = kappa_diag/2.0*SSCHA_TO_MS**2#*(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa_nondiag = kappa_nondiag/2.0*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+
 
         return kappa_diag, kappa_nondiag
 
@@ -2031,31 +2182,48 @@ class ThermalConductivity:
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             self.get_heat_capacity(temperature)
-        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
+        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*2.0*np.pi*1.0e12)/2.0
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
-        kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
+        #kappa_diag = np.einsum('ij,ijjk,ijjl,ij->kl',self.cp[cp_key],self.gvels.conj(),self.gvels,self.lifetimes[lf_key]).real
 
         pops = np.zeros_like(self.freqs)
         for iqpt in range(self.nkpt):
             for iband in range(self.nband):
                 pops[iqpt, iband] = bose_einstein(self.freqs[iqpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = self.cp_mode)
 
+        kappa_diag = np.zeros((3,3))
         kappa_nondiag = np.zeros_like(kappa_diag)
         for iqpt in range(self.nkpt):
             for iband in range(self.nband):
                 if(self.freqs[iqpt, iband] != 0.0):
                     for jband in range(self.nband):
+                        if(self.group_velocity_mode == 'wigner'):
+                            vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                        else:
+                            vel_fact = 1.0
                         if(self.freqs[iqpt, jband] != 0.0 and self.freqs[iqpt, jband] - self.freqs[iqpt, iband] != 0.0 and iband != jband):
-                            if(self.group_velocity_mode == 'wigner'):
-                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
-                            else:
-                                vel_fact = 1.0
+                            gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                            gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                            for r in self.rotations:
+                                rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                gvel_sum += np.outer(gvel.conj(), gvel)
+                            gvel_sum = gvel_sum.real/vel_fact**2/float(len(self.rotations))
                             kappa_nondiag += self.freqs[iqpt, iband]*self.freqs[iqpt, jband]*(pops[iqpt, iband] - pops[iqpt, jband])/(self.freqs[iqpt, jband] - self.freqs[iqpt, iband])*\
-                                np.outer(self.gvels[iqpt, iband, jband].conj(), self.gvels[iqpt, jband, iband]).real/vel_fact**2*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
+                                gvel_sum*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])/\
                                 ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2)
+                        elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
+                            gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                            gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                            for r in self.rotations:
+                                rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                gvel_sum += np.outer(gvel.conj(), gvel)
+                            gvel_sum = gvel_sum.real/vel_fact**2/float(len(self.rotations))
+                            kappa_diag += self.cp[cp_key][iqpt][iband]*gvel_sum*self.lifetimes[lf_key][iqpt][iband]
 
-        kappa_nondiag = kappa_nondiag*HPLANCK/temperature
+        kappa_nondiag = kappa_nondiag*HPLANCK/temperature/2.0/np.pi
 
         kappa_diag += kappa_diag.T
         kappa_nondiag += kappa_nondiag.T
@@ -2317,9 +2485,21 @@ class ThermalConductivity:
 
         print('Calculated SSCHA lifetimes in: ', time.time() - start_time)
 
+    ###################################################################################################################################
+
+    def set_lifetimes(self, temperatures, lifetimes, freqs_shifts):
+
+        for temperature in temperatures:
+            lf_key = format(temperature, '.1f')
+            if(lf_key in self.lifetimes.keys()):
+                print('WARNING! This will overwrite the previously set lifetimes!')
+            self.lifetimes[lf_key] = lifetimes
+            self.freqs_shifts[lf_key] = freqs_shifts
+
+
    ####################################################################################################################################
 
-    def setup_harmonic_properties(self, smearing_value = 0.00005):
+    def setup_harmonic_properties(self, smearing_value = 0.00005, symmetrize = False):
 
         """
 
@@ -2338,11 +2518,13 @@ class ThermalConductivity:
                 self.gvels[ikpt], self.ddms[ikpt] = self.get_group_velocity_finite_difference(kpt, self.freqs[ikpt], self.eigvecs[ikpt])
             else:
                 raise RuntimeError('Can not recognize the group_velocity_mode!')
-            self.gvels[ikpt] = self.symmetrize_group_velocity_by_index(self.gvels[ikpt], ikpt)
+            if(symmetrize):
+                self.gvels[ikpt] = self.symmetrize_group_velocity_by_index(self.gvels[ikpt], ikpt)
 
-        self.symmetrize_group_velocities_over_star()
-        self.check_group_velocities()
-        self.check_frequencies()
+        if(symmetrize):
+            self.symmetrize_group_velocities_over_star()
+        #self.check_group_velocities()
+        #self.check_frequencies()
         self.setup_smearings(smearing_value)
         print('Harmonic properties are set up!')
 
@@ -2771,8 +2953,8 @@ class ThermalConductivity:
         """
 
         uc_positions = self.dyn.structure.coords.copy()
-        for ruc in uc_positions:
-            ruc = find_minimum_vector(ruc, self.unitcell)
+        #for ruc in uc_positions:
+        #    ruc = find_minimum_vector(ruc, self.unitcell)
         m = np.tile(self.dyn.structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1.0 / mm_mat
