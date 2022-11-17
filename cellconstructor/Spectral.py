@@ -3143,3 +3143,32 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
     print(" ")
+
+def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleton function for TESTING...
+    """
+    Input data:
+     omega = Frequency
+     epsilon_inf = dielctric constant of vacuum
+     N =
+     a = atom a -> M(a) mass of atom a
+     b = atom b -> Z(b) atomic number of atom b
+     nu = damping constant
+     ---------
+     Z() = Born effective charge
+     M() = Atomic masses
+     e() =
+     omega_nu = resonant frequency
+     Big_omega =
+    """
+    #electric_charge = 4.803e-10 #Fr (CGS)
+    electric_charge = 1.602176462e-19 #C (SI)
+
+    response1 = -(N/Big_omega) * electric_charge**2
+    for a in range(atom_a):
+        for b in range(atom_b):
+            temp = ((Z(a)*Z(b))/np.sqrt(M(a)*M(b)))*G(a,b,omega,nu,mu)
+            response2 += temp
+    response_function = response1*response2
+
+    epsilon=epsilon_inf+4*np.pi*response_function
+    return 0
