@@ -1618,9 +1618,8 @@ class Phonons:
             matrix = np.einsum("i, ji, ki", fr**2, v, np.conj(v)) * np.sqrt(_m1_ * _m2_)
             self.dynmats[iq] = matrix
 
-
-
-    def GetRamanResponce(self, pol_in, pol_out, T = 0):
+                        
+    def GetRamanResponce(self, pol_in, pol_out, T = 0, w_pols = None):
         r"""
         RAMAN RESPONSE
         ==============
@@ -1657,8 +1656,11 @@ class Phonons:
         if self.raman_tensor is None:
             raise ValueError("Error, to get the raman responce the raman tensor must be defined")
 
-        w, pol_vects = self.DyagDinQ(0)
-
+        if w_pols is None:
+            w, pol_vects = self.DyagDinQ(0)
+        else:
+            w, pol_vects = w_pols
+        
         # Get the mass array
         _m_ = np.zeros( 3*self.structure.N_atoms)
         for i in range(self.structure.N_atoms):
@@ -2810,6 +2812,8 @@ class Phonons:
             supercell : list of 3 int
                 The supercell in each direction.
         """
+        if len(self.dynmats) == 1:
+            return [1,1,1]
         return symmetries.GetSupercellFromQlist(self.q_tot, self.structure.unit_cell)
 
     def InterpolateMesh(self, mesh_dim, lo_to_splitting = False):
@@ -3111,9 +3115,7 @@ WARNING: Effective charges are not accounted by this method
 
 
 
-
-
-    def SymmetrizeSupercell(self, supercell_size = None):
+    def SymmetrizeSupercell(self, sym_mat = None, supercell_size = None):
         """
         Testing function, it applies symmetries in the supercell.
         """
@@ -3121,17 +3123,34 @@ WARNING: Effective charges are not accounted by this method
         if supercell_size == None:
             supercell_size = self.GetSupercell()
 
+        print("SUPERCELL:", supercell_size)
+        isgamma = np.prod(supercell_size) == 1
 
-        if not __SPGLIB__:
+        if sym_mat is not None:
+            self.ForceSymmetries(sym_mat)
+            return
+
+        
+        if not __SPGLIB__ and sym_mat is None:
             raise ImportError("Error, the SymmetrizeSupercell method of the Phonon class requires spglib")
-
-        superdyn = self.GenerateSupercellDyn(supercell_size)
+        
+        if not isgamma:
+            superdyn = self.GenerateSupercellDyn(supercell_size)
+            super_dynmat = superdyn.dynmats[0]
+            ss_struct = superdyn.structure
+        else:
+            super_dynmat = self.dynmats[0]
+            ss_struct = self.structure
 
         # Apply the sum rule
-        symmetries.CustomASR(superdyn.dynmats[0])
+        symmetries.CustomASR(super_dynmat)
 
-        qe_sym = symmetries.QE_Symmetry(superdyn.structure)
+
+        qe_sym = symmetries.QE_Symmetry(ss_struct)
+
         qe_sym.SetupFromSPGLIB()
+        qe_sym.ApplySymmetriesToV2(super_dynmat)
+            
         #qe_sym.SetupQPoint()
         qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
 
@@ -3140,15 +3159,14 @@ WARNING: Effective charges are not accounted by this method
         #superdyn.ForceSymmetries(syms)
 
         # Get the dynamical matrix back
-        fcq = GetDynQFromFCSupercell_parallel(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
-
-        for iq, q in enumerate(self.q_tot):
-            self.dynmats[iq] = fcq[iq, :, :]
+        if not isgamma:
+            fcq = GetDynQFromFCSupercell(superdyn.dynmats[0], np.array(self.q_tot), self.structure, superdyn.structure)
+        
+            for iq, q in enumerate(self.q_tot):
+                self.dynmats[iq] = fcq[iq, :, :]
 
         # Symmetrize also the effective charges and the Raman Tensor if any
         # To do this, the symmetries must be initialized once again in the unit cell
-        qe_sym = symmetries.QE_Symmetry(self.structure)
-        qe_sym.SetupFromSPGLIB()
         if not self.effective_charges is None:
             qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
         if not self.raman_tensor is None:
@@ -3229,12 +3247,12 @@ WARNING: Effective charges are not accounted by this method
 
 
         # Apply the sum rule on the effective charge
-        if self.effective_charges is not None:
-            total_charge = np.sum(self.effective_charges, axis = 0)
+        #if self.effective_charges is not None:
+        #    total_charge = np.sum(self.effective_charges, axis = 0)
 
-            # Subtract to each atom an average of the total charges
-            self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
-
+        #    # Subtract to each atom an average of the total charges
+        #    self.effective_charges = np.einsum("aij, ij -> aij", self.effective_charges,  - total_charge / self.structure.N_atoms)
+    
 
     def GetIRActive(self, use_spglib = False):
         """
@@ -3331,11 +3349,13 @@ WARNING: Effective charges are not accounted by this method
         if irt is None:
             aux_struct = self.structure.copy()
             aux_struct.apply_symmetry(symmat, delete_original = True)
-            aux_struct.fix_coords_in_unit_cell()
+            #aux_struct.fix_coords_in_unit_cell()
 
             eq_atoms = self.structure.get_equivalent_atoms(aux_struct)
         else:
             eq_atoms = irt
+
+        #print(" IRT AP sym: ", eq_atoms)
         #print eq_atoms
 
         # Get the number of atoms
@@ -3358,8 +3378,10 @@ WARNING: Effective charges are not accounted by this method
                 current_m = in_fc[3 * na : 3*na + 3, 3*nb : 3*nb + 3]
 
                 # Conver the matrix in crystalline
-                new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
-
+                new_m = current_m
+                if self.structure.has_unit_cell:
+                    new_m = Methods.convert_matrix_cart_cryst(current_m, self.structure.unit_cell * A_TO_BOHR)
+                
                 # Apply the symmetry
                 #new_m_sym = new_s_mat.dot(new_m.dot( new_s_mat.transpose()))
                 new_m_sym = new_s_mat.transpose().dot(new_m.dot( new_s_mat))
@@ -3367,8 +3389,10 @@ WARNING: Effective charges are not accounted by this method
                 #new_m_sym =new_m.copy()
 
                 # Convert back to cartesian coordinates
-                new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell * A_TO_BOHR, cryst_to_cart=True)
-
+                new_m = new_m_sym
+                if self.structure.has_unit_cell:
+                    new_m = Methods.convert_matrix_cart_cryst(new_m_sym, self.structure.unit_cell * A_TO_BOHR, cryst_to_cart=True)
+      
                 #print "%d -> %d , %d -> %d)" % (na, s_na, nb, s_nb)#, "d = %.5f" % np.real(np.sqrt(np.sum( (new_m - current_m)**2)))
 
                 # Write the matrix into the output
@@ -3381,10 +3405,10 @@ WARNING: Effective charges are not accounted by this method
         # Return the symmetrized result
         #print "Total distance:", np.sqrt(np.sum( (out_fc - np.real(in_fc))**2))
         return out_fc
-
-
-
-    def ForceSymmetries(self, symmetries, irt = None, apply_sum_rule = True):
+        
+    
+        
+    def ForceSymmetries(self, syms, irt = None, apply_sum_rule = True):
         """
         FORCE THE PHONON TO RESPECT THE SYMMETRIES
         ==========================================
@@ -3412,9 +3436,9 @@ WARNING: Effective charges are not accounted by this method
         # Apply the symmetries
         new_fc = np.zeros( np.shape(self.dynmats[0]), dtype = np.complex128 )
 
-
-        self.structure.fix_coords_in_unit_cell()
-        for i, sym in enumerate(symmetries):
+        print("EF CH HERE:", self.effective_charges)
+        #self.structure.fix_coords_in_unit_cell()
+        for i, sym in enumerate(syms):
             # Check if the structure satisfy the symmetry
             if not self.structure.check_symmetry(sym):
                 print (sym)
@@ -3427,10 +3451,8 @@ WARNING: Effective charges are not accounted by this method
             current_irt = None
             if not irt is None:
                 current_irt = irt[i, :]
+            #print("I: ", i, end = "")
             current_fc = self.ApplySymmetry(sym, irt = current_irt)
-
-            print (i)
-
             # Try to add the sum rule here
             #newP = self.Copy()
             #newP.dynmats[0] = current_fc
@@ -3444,10 +3466,12 @@ WARNING: Effective charges are not accounted by this method
             new_fc += current_fc
 
         # Average all the symmetrized structures
-        new_fc /= len(symmetries)
-
-
-        print ("DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2)))
+        new_fc /= len(syms)
+        
+        
+        #print ("DIST_SYM_FORC:", np.sqrt(np.sum( (new_fc - self.dynmats[0])**2)))
+        if apply_sum_rule:
+            symmetries.CustomASR(new_fc)
         self.dynmats[0] = new_fc.copy()
 
 
@@ -3455,8 +3479,15 @@ WARNING: Effective charges are not accounted by this method
         #print "\n".join( ["\t".join("%.4e" % (xval - freqs[0,j]) for xval in freqs[:, j]) for j in range(3 * self.structure.N_atoms)])
 
         # Apply the acustic sum rule
-        if apply_sum_rule:
-            self.ApplySumRule()
+
+        qe_sym = symmetries.QE_Symmetry(self.structure)
+        qe_sym.InitFromSymmetries(syms)
+
+        print("EF CH HERE2:", self.effective_charges)
+        if not self.effective_charges is None:
+            qe_sym.ApplySymmetryToEffCharge(self.effective_charges)
+        if not self.raman_tensor is None:
+            qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
     def DiagonalizeSupercell(self, verbose = False, lo_to_split = None):
         r"""
@@ -3495,6 +3526,9 @@ WARNING: Effective charges are not accounted by this method
         supercell_size = len(self.q_tot)
         nat = self.structure.N_atoms
 
+        if not self.structure.has_unit_cell and supercell_size > 1:
+            raise ValueError("Error, the structure must have a defined supercell")
+
         nmodes = 3*nat*supercell_size
         nat_sc = nat*supercell_size
 
@@ -3516,7 +3550,13 @@ WARNING: Effective charges are not accounted by this method
             R_vec[3*i : 3*i+3, :] = np.tile(super_structure.coords[i, :] - self.structure.coords[itau[i], :], (3,1))
 
         i_mu = 0
-        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+
+        if self.structure.has_unit_cell:
+            bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+        else:
+            bg = np.eye(3)
+        
+        
         for iq, q in enumerate(self.q_tot):
             # Check if the current q point has been seen (we do not distinguish between q and -q)
             skip_this_q = False
@@ -4421,7 +4461,15 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     """
 
 
-    super_structure = structure.generate_supercell(supercell)
+    if np.prod(supercell) > 1:
+        super_structure = structure.generate_supercell(supercell)
+    else:
+        super_structure = structure.copy()
+
+        if not super_structure.has_unit_cell:
+            super_structure.unit_cell = np.eye(3) * 200
+            super_structure.has_unit_cell = True
+
     final_dyn = Phonons(super_structure)
 
     nat3 = 3 * super_structure.N_atoms
