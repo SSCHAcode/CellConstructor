@@ -137,7 +137,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         mass = ase_struct.get_masses()
         for i, ma in enumerate(mass):
             if not self.atoms[i] in self.masses:
-                self.masses[self.atoms[i]] = ma * ELECTRON_MASS_UMA
+                self.masses[self.atoms[i]] = ma  / MASS_RY_TO_UMA
         
 
     def copy(self):

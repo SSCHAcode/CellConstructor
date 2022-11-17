@@ -19,6 +19,7 @@ import scipy.linalg
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 import cellconstructor.Timer as Timer
+from cellconstructor.Settings import ParallelPrint as print
 
 # Load the fortran symmetry QE module
 import symph
@@ -2389,7 +2390,7 @@ def _GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
 
-def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug = False):
+def GetSymmetriesOnModes(symmetries, structure, pol_vects, irts = [], timer = None, debug = False):
         """
         GET SYMMETRIES ON MODES
         =======================
@@ -2406,6 +2407,8 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug =
                in each other.
             pol_vects : ndarray(size = (n_dim, n_modes))
                The array of the polarization vectors (must be real)
+            irts : list
+                The list of equivalent atoms for each symmetry
 
 
         Results
@@ -2428,11 +2431,10 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug =
         # For each symmetry operation apply the
         pol_symmetries = np.zeros((n_sym, n_modes, n_modes), dtype = np.float64)
 
-        # Get the irt for all the symmetries
-        irts = []
-
-        for i, sym_mat in enumerate(symmetries):
-            irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
+        # Get the irt for all the symmetries (if needed)
+        if len(irts) == 0:
+            for i, sym_mat in enumerate(symmetries):
+                irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
             
         
             
@@ -2506,6 +2508,11 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
 
         threshold = 1e-8
 
+        # Compute irts once for all
+        irts = []
+        for i, sym_mat in enumerate(symmetries):
+            irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
+
         for i in range(1, len(w)):
             if np.abs(w[i-1] - w[i]) < threshold :
                 N_deg[i] = N_deg[i-1] + 1
@@ -2533,7 +2540,7 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
         # Now compute the symmetries only in the correct blocks
         i_mode = 0
         result_list = []
-        for i in range(n_blocks):
+        for i in range(n_blocks): # TODO ADD MPI PARALLELIZATION
             mode_mask = np.zeros(n_modes, dtype = bool)
 
             for k in final_space[i]:
@@ -2544,7 +2551,7 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
             #assert np.sum(mode_mask.astype(int)) == N_deg[i_mode], "Error, something went wrong while computing the degeneracies."
 
             select_pols = pols[:, mode_mask]
-            pol_syms = GetSymmetriesOnModes(symmetries, structure, select_pols, timer, debug)
+            pol_syms = GetSymmetriesOnModes(symmetries, structure, select_pols, irts, timer, debug)
 
             i_mode += len(deg_space[i_mode])
 

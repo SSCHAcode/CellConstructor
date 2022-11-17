@@ -52,7 +52,10 @@ def get_energy_forces(calculator, structure):
     if isinstance(calculator, ase.calculators.calculator.Calculator):
         atm = structure.get_ase_atoms()
         atm.set_calculator(calculator)
-        return atm.get_total_energy(), atm.get_forces()
+        energy = atm.get_total_energy()
+        if isinstance(energy, np.ndarray):
+            energy = energy[0]
+        return energy, atm.get_forces()
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         return calculator.results["energy"], calculator.results["forces"]
@@ -464,12 +467,16 @@ class Relax:
             self.last_energy = energy
             self.last_force[:] = -forces.ravel().copy()
 
+
             return energy, -forces.ravel()
 
         def callback(xk):
             
             if self.verbose:
                 energy, force = func(xk)
+                #print('it:', self.iterations)
+                #print('energy:', energy)
+                #print('force:', force)
                 print("{:5d}) {:16.8f} eV   {:16.8f} eV/A".format(self.iterations, energy, np.linalg.norm(force)))
                 self.iterations += 1
             
