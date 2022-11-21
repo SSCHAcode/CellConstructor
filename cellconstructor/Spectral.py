@@ -3148,13 +3148,13 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #     """
 #     Input data:
 #      omega = Frequency
-#      epsilon_inf = dielctric constant of vacuum
+#      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor()
 #      N =
-#      a = atom a -> M(a) mass of atom a
+#      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.gert_masses_array()
 #      b = atom b -> Z(b) atomic number of atom b
 #      nu = damping constant
 #      ---------
-#      Z() = Born effective charge
+#      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
 #      M() = Atomic masses
 #      e() =
 #      omega_nu = resonant frequency
