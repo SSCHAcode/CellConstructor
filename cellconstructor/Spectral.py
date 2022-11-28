@@ -3145,11 +3145,11 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 # def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleton function for TESTING...
-#                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N)
+#                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 #     """
 #     Input data:
 #      omega = Frequency
-#      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor()
+#      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
 #      N =
 #      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.gert_masses_array()
 #      b = atom b -> Z(b) atomic number of atom b
@@ -3174,4 +3174,5 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #     response_function = response1*response2
 #
 #     epsilon=epsilon_inf+4*np.pi*response_function
+#     refractive_index = np.sqrt(epsilon)
 #     return 0
