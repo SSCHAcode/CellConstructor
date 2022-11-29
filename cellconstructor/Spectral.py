@@ -3151,7 +3151,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #      omega = Frequency
 #      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
 #      N =
-#      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.gert_masses_array()
+#      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
 #      b = atom b -> Z(b) atomic number of atom b
 #      nu = damping constant
 #      ---------
@@ -3165,14 +3165,25 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #     """
 #     #electric_charge = 4.803e-10 #Fr (CGS)
 #     electric_charge = 1.602176462e-19 #C (SI)
+#     epsilon = np.zeros((3,3))
+#    # Prepare the tensor2 and obtain masses
+#    tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
+#    tensor2.SetupFromPhonons(dyn)
+#    tensor2.Center()
+#    structure = tensor2.unitcell_structure
+#    M()=structure.get_masses_array()
+#    #prepare the dielctric tensor of vacuum
+#    epsilon_inf = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
+#    #epsilon_inf.dielectric_tensor()
 #
 #     response1 = -(N/Big_omega) * electric_charge**2
 #     for a in range(atom_a):
 #         for b in range(atom_b):
-#             temp = ((Z(a)*Z(b))/np.sqrt(M(a)*M(b)))*G(a,b,omega,nu,mu)
+#             temp = ((Z(a)*Z(b))/np.sqrt(M(a)*M(b)))*G(a,b,omega,nu,mu)   #<-- spectralf(ie,:,ism); spectralf(ie,ism)
 #             response2 += temp
 #     response_function = response1*response2
 #
-#     epsilon=epsilon_inf+4*np.pi*response_function
+#     #epsilon=epsilon_inf+4*np.pi*response_function
+#     epsilon=epsilon_inf.dielectric_tensor+4*np.pi*response_function
 #     refractive_index = np.sqrt(epsilon)
 #     return 0
