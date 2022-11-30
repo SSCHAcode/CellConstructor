@@ -3172,9 +3172,10 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #    tensor2.Center()
 #    structure = tensor2.unitcell_structure
 #    M()=structure.get_masses_array()
-#    #prepare the dielctric tensor of vacuum
-#    epsilon_inf = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
-#    #epsilon_inf.dielectric_tensor()
+#    #prepare the dielctric tensor of vacuum and effective charges
+#    Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
+#    epsilon_inf() = Fonon.dielectric_tensor()
+#    Z() = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 #
 #     response1 = -(N/Big_omega) * electric_charge**2
 #     for a in range(atom_a):
@@ -3183,7 +3184,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #             response2 += temp
 #     response_function = response1*response2
 #
-#     #epsilon=epsilon_inf+4*np.pi*response_function
-#     epsilon=epsilon_inf.dielectric_tensor+4*np.pi*response_function
+#     epsilon=epsilon_inf+4*np.pi*response_function
+#
 #     refractive_index = np.sqrt(epsilon)
 #     return 0
