@@ -541,7 +541,8 @@ module third_order_cond
                  END IF
                  do n = 1, nat3
                  do m = 1, nat3       
-                 spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
+                 !spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
+                 spectralf(m,n,ie)=spectralf(m,n,ie)-DIMAG(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
                  enddo
                  enddo
             ENDDO
