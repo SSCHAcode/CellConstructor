@@ -3178,9 +3178,9 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #    Z() = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 #
 #     response1 = -(N/Big_omega) * electric_charge**2
-#     for a in range(atom_a):
-#         for b in range(atom_b):
-#             temp = ((Z(a)*Z(b))/np.sqrt(M(a)*M(b)))*G(a,b,omega,nu,mu)   #<-- spectralf(ie,:,ism); spectralf(ie,ism)
+#     for a in range(dyn.structure.N_atoms):
+#         for b in range(dyn.structure.N_atoms):
+#             temp = ((Z(a,:,:)*Z(b,:,:))/np.sqrt(M(a)*M(b)))*G(a,b,omega,nu,mu)   #<-- spectralf(ie,:,ism); spectralf(ie,ism)
 #             response2 += temp
 #     response_function = response1*response2
 #
