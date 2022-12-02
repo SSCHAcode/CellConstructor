@@ -170,7 +170,7 @@ module get_lf
         real(kind=DP), intent(in) :: smear(3*nat, nirrqpt), smear_id(3*nat, nirrqpt)
         real(kind=DP), intent(in) :: T
         logical, intent(in) :: gaussian, classical
-        real(kind=DP), dimension(nirrqpt, 3*nat, 3*nat, ne), intent(out) :: lineshapes
+        complex(kind=DP), dimension(nirrqpt, 3*nat, 3*nat, ne), intent(out) :: lineshapes
 
         integer :: iqpt, i, ie, jqpt, tot_qpt, prev_events, nthreads, iband, jband
         integer :: iband1, jband1
@@ -178,7 +178,7 @@ module get_lf
         real(kind=DP), dimension(3,3) :: kprim
         real(kind=DP), dimension(3*nat) :: w2_q, w_q
 !        real(kind=DP), dimension(ne, 3*nat) :: lineshape
-        real(kind=DP), allocatable, dimension(:,:,:) :: lineshape
+        complex(kind=DP), allocatable, dimension(:,:,:) :: lineshape
         complex(kind=DP), allocatable, dimension(:, :, :) :: self_energy, self_energy_cart
 !        complex(kind=DP), dimension(ne, 3*nat) :: self_energy
         complex(kind=DP), dimension(3*nat,3*nat) :: pols_q, d2_q
@@ -239,7 +239,7 @@ module get_lf
                     curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
                     curr_w(jqpt) = weights(prev_events + jqpt)
                 enddo
-                print*, 'Got grids'
+                !print*, 'Got grids'
                 call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
                     nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
                     energies, .not. parallelize, gaussian, classical, self_energy) 
@@ -257,6 +257,14 @@ module get_lf
                 if(any(self_energy .ne. self_energy)) then
                         print*, 'NaN in self_energy'
                 endif
+                !do iband = 1, 3*nat - 1
+                !        do jband = iband + 1, 3*nat
+                !                if(any(abs(self_energy(:,jband,iband) - conjg(self_energy(:,iband,jband))) > &
+                !                maxval(abs(self_energy(:,jband,iband)))*1.0e-6)) then
+                !                        print*, 'Self - energy is non-Hermitian in mode basis!'
+                !                endif
+                !        enddo
+                !enddo
                 do iband = 1, 3*nat
                         do jband = 1, 3*nat
                                 do iband1 = 1, 3*nat
@@ -267,6 +275,14 @@ module get_lf
                                 enddo
                         enddo
                 enddo
+                !do iband = 1, 3*nat - 1
+                !        do jband = iband + 1, 3*nat
+                !                if(any(abs(self_energy_cart(:,jband,iband) - conjg(self_energy_cart(:,iband,jband))) > &
+                !                maxval(abs(self_energy_cart(:,jband,iband)))*1.0e-6)) then
+                !                        print*, 'Self - energy is non-Hermitian in cartesian basis!'
+                !                endif
+                !        enddo
+                !enddo
 
                 !open(file = 'Self_energy_nmm', unit = 1)
                 !do i = 1, ne
@@ -1124,11 +1140,10 @@ module get_lf
         complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols
         logical :: is_k_gamma, is_mk_mq_gamma, is_k_neg, is_mk_mq_neg
         logical, dimension(3) :: if_gammas
-
-
-        print*, 'Initialize self energy!'
+        
+        !print*, 'Initialize self energy!'
         self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)
-        print*, 'Initialized self energy!'
+        !print*, 'Initialized self energy!'
         !$OMP PARALLEL DO IF(parallelize) &
         !$OMP DEFAULT(NONE) &
         !$OMP PRIVATE(jqpt, ifc3, d3, d3_pols, kpt, mkpt, w2_k, pols_k, pols_k2, w2_mk_mq, pols_mk_mq, pols_mk_mq2,&

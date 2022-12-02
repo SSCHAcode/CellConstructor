@@ -127,7 +127,14 @@ module third_order_cond
                     END DO
                     !
             END DO
-            END DO    
+            END DO   
+            !DO nu = 1, n_mod - 1
+            !DO mu = nu + 1,n_mod
+            !    if(any(abs(bubble(:,mu,nu) - conjg(bubble(:,nu,mu))) > maxval(abs(bubble(:,mu,nu)))*1.0e-8)) then
+            !            print*, 'Bubble somehow not hermitian'
+            !    endif
+            !END DO
+            !END DO
             !
         end subroutine compute_full_dynamic_bubble_single
 
@@ -516,7 +523,7 @@ module third_order_cond
             complex(kind=dp), intent(in) :: Pi(ne,3*nat,3*nat)
             logical, intent(in)          :: notransl
             !
-            real(kind=dp), intent(out)   :: spectralf(3*nat, 3*nat, ne)
+            complex(kind=dp), intent(out)   :: spectralf(3*nat, 3*nat, ne)
             !
             integer                      :: nat3,n,m,ie
             complex(kind=dp)             :: G(3*nat,3*nat) 
@@ -525,8 +532,17 @@ module third_order_cond
             nat3=3*nat
                 
             spectralf=0.0_dp
-            !    
+            !   
+            
             DO ie = 1,ne
+                 !do n = 1, nat3 - 1
+                 !do m = n + 1, nat3       
+                 !        if(abs(Pi(ie,n,m) - conjg(Pi(ie,m,n))) > abs(Pi(ie,n,m))*1.0e-8) then
+                 !                print*, 'Self energy is not Hermitian!'
+                 !                print*, Pi(ie,n,m), Pi(ie,m,n)
+                 !        endif
+                 !enddo
+                 !enddo
                  G=cmplx(0.0_dp,0.0_dp,kind=DP)
                  FORALL (m=1:nat3, n=1:nat3)
                      G(n,m) = -Pi(ie,n,m)
@@ -535,17 +551,51 @@ module third_order_cond
                  DO n=1,nat3
                    G(n,n)=G(n,n)+(ener(ie))**2
                  ENDDO
+                ! do n = 1, nat3 - 1
+                ! do m = n + 1, nat3       
+                !         if(abs(G(n,m) - conjg(G(m,n))) > abs(G(n,m))*1.0e-8) then
+                !                 print*, 'G before is not Hermitian!'
+                !         endif
+                ! enddo
+                ! enddo
                  G = cinv(G) 
+                ! do n = 1, nat3 - 1
+                ! do m = n + 1, nat3       
+                !         if(abs(G(n,m) - conjg(G(m,n))) > abs(G(n,m))*1.0e-8) then
+                !                 print*, 'G before is not Hermitian!'
+                !         endif
+                ! enddo
+                ! enddo
                  IF ( notransl ) THEN
                    CALL eliminate_transl(G,mass,nat)      
                  END IF
                  do n = 1, nat3
                  do m = 1, nat3       
                  !spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
-                 spectralf(m,n,ie)=spectralf(m,n,ie)-DIMAG(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
+                 !spectralf(m,n,ie)=spectralf(m,n,ie)-DIMAG(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
+                 spectralf(m,n,ie)=spectralf(m,n,ie)+complex(0.0_DP, 1.0_DP)*(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
                  enddo
                  enddo
+                ! do n = 1, nat3 - 1
+                ! do m = n + 1, nat3       
+                !         if(abs(spectralf(n,m,ie) + spectralf(m,n,ie)) > abs(spectralf(n,m,ie))*1.0e-8) then
+                !                 print*, 'spectrlaf before is not Hermitian!'
+                !         endif
+                ! enddo
+                ! enddo
             ENDDO
+            
+            !open(unit = 1, file = 'Spectral_function_from_fortran')
+            !do ie = 1, ne
+            !     write(1, '(E24.17)', advance="no") ener(ie)
+            !     do n = 1, nat3
+            !     do m = 1, nat3
+            !             write(1, '(E24.17)', advance="no") spectralf(m,n,ie)
+            !     enddo
+            !     enddo
+            !     write(1,*) ' '
+            !enddo
+            !close(1)
     !
 
     end subroutine calculate_spectral_function_nomode_mixing

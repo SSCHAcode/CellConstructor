@@ -1651,7 +1651,7 @@ class ThermalConductivity:
         elif(method == 'fortran'):
 
             if(no_mode_mixing):
-                lineshapes = np.zeros((self.nkpt, self.nband, self.nband, len(energies)))
+                lineshapes = np.zeros((self.nkpt, self.nband, self.nband, len(energies)), dtype=complex)
             else:
                 lineshapes = np.zeros((self.nkpt, self.nband, len(energies)))
             if(not self.set_up_scattering_grids):
@@ -1712,6 +1712,15 @@ class ThermalConductivity:
                         #    for jband in range(self.nband):
                         #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
                         lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
+                        tot_const_diag = 0.0
+                        tot_const_nondiag = 0.0
+                        for iband in range(len(lineshapes[jqpt])):
+                            tot_const_diag += np.sum(lineshapes[jqpt][iband][iband]).real*(energies[2] - energies[1])
+                            for jband in range(len(lineshapes[jqpt][iband])):
+                                print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1]))
+                                tot_const_nondiag += np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1])
+                        print('Normalization constant diagonal: ', tot_const_diag)
+                        print('Normalization constant all elements: ', tot_const_diag)
                     else:
                         lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
                 if(write_lineshapes):
@@ -1852,7 +1861,7 @@ class ThermalConductivity:
         energies = (np.arange(ne, dtype=float) + 1.0)/float(ne)*maxfreq
 
         if(no_mode_mixing):
-            lineshapes = np.zeros((nkpts, self.nband, self.nband, ne))
+            lineshapes = np.zeros((nkpts, self.nband, self.nband, ne), dtype = complex)
         else:
             lineshapes = np.zeros((nkpts, self.nband, ne))
 
@@ -1921,10 +1930,10 @@ class ThermalConductivity:
                 tot_const_diag = 0.0
                 tot_const_nondiag = 0.0
                 for iband in range(len(lineshapes[ikpt])):
-                    tot_const_diag += np.sum(lineshapes[ikpt][iband][iband])*(energies[2] - energies[1])
+                    tot_const_diag += np.sum(lineshapes[ikpt][iband][iband]).real*(energies[2] - energies[1])
                     for jband in range(len(lineshapes[ikpt][iband])):
-                        print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[ikpt][iband][jband])*(energies[2] - energies[1]))
-                        tot_const_nondiag += np.sum(lineshapes[ikpt][iband][jband])*(energies[2] - energies[1])
+                        #print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[ikpt][iband][jband])*(energies[2] - energies[1]))
+                        tot_const_nondiag += np.sum(lineshapes[ikpt][iband][jband]).real*(energies[2] - energies[1])
                 print('Normalization constant diagonal: ', tot_const_diag)
                 print('Normalization constant all elements: ', tot_const_diag)
             else:
@@ -1956,14 +1965,23 @@ class ThermalConductivity:
                 for ie in range(ne):
                     outfile.write('  ' + format(distances[ikpt], '.12e'))
                     outfile.write('  ' + format(energies[ie]*SSCHA_TO_THZ, '.12e'))
+                    diag = complex(0.0,0.0)
                     for iband in range(self.nband):
                         if(no_mode_mixing):
                             for jband in range(self.nband):
-                                outfile.write('  ' + format(lineshapes[ikpt,iband, jband, ie]/SSCHA_TO_THZ, '.12e'))
+                                outfile.write('  ' + format(lineshapes[ikpt,iband, jband, ie].real/SSCHA_TO_THZ, '.12e'))
+                                outfile.write('  ' + format(lineshapes[ikpt,iband, jband, ie].imag/SSCHA_TO_THZ, '.12e'))
+                                if(iband == jband):
+                                    diag += lineshapes[ikpt,iband, jband, ie]
                         else:
                             outfile.write('  ' + format(lineshapes[ikpt,iband,ie]/SSCHA_TO_THZ, '.12e'))
                     if(no_mode_mixing):
-                        outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, :, ie])/SSCHA_TO_THZ, '.12e'))
+                        outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, :, ie]).real/SSCHA_TO_THZ, '.12e'))
+                        outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, :, ie]).imag/SSCHA_TO_THZ, '.12e'))
+                        outfile.write(3*' ' + format(diag.real/SSCHA_TO_THZ, '.12e'))
+                        outfile.write(3*' ' + format(diag.imag/SSCHA_TO_THZ, '.12e'))
+                    else:
+                        outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, ie])/SSCHA_TO_THZ, '.12e'))
                     outfile.write('\n')
                 outfile.write('\n')
 
@@ -2013,15 +2031,22 @@ class ThermalConductivity:
             outfile.write('   ' + format('Spectral function (1/THz)', STR_FMT))
             outfile.write('\n')
             for ien in range(len(energies)):
+                diag_lineshape = complex(0.0, 0.0)
                 outfile.write(3*' ' + format(energies[ien]*SSCHA_TO_THZ, '.12e'))
                 for iband in range(self.nband):
                     if(no_mode_mixing):
                         for jband in range(self.nband):
-                            outfile.write(3*' ' + format(curr_ls[iband, jband, ien]/SSCHA_TO_THZ, '.12e'))
+                            outfile.write(3*' ' + format(curr_ls[iband, jband, ien].real/SSCHA_TO_THZ, '.12e'))
+                            outfile.write(3*' ' + format(curr_ls[iband, jband, ien].imag/SSCHA_TO_THZ, '.12e'))
+                            if(iband == jband):
+                                diag_lineshape += curr_ls[iband, iband, ien]
                     else:
                         outfile.write(3*' ' + format(curr_ls[iband, ien]/SSCHA_TO_THZ, '.12e'))
                 if(no_mode_mixing):
-                    outfile.write(3*' ' + format(np.sum(curr_ls[:, :, ien])/SSCHA_TO_THZ, '.12e'))
+                    outfile.write(3*' ' + format(np.sum(curr_ls[:, :, ien]).real/SSCHA_TO_THZ, '.12e'))
+                    outfile.write(3*' ' + format(np.sum(curr_ls[:, :, ien]).imag/SSCHA_TO_THZ, '.12e'))
+                    outfile.write(3*' ' + format(diag_lineshape.real/SSCHA_TO_THZ, '.12e'))
+                    outfile.write(3*' ' + format(diag_lineshape.imag/SSCHA_TO_THZ, '.12e'))
                 outfile.write('\n')
 
     ##################################################################################################################################
