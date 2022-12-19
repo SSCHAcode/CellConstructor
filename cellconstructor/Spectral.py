@@ -3180,7 +3180,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #     response1 = -(N/Big_omega) * electric_charge**2
 #     for a in range(dyn.structure.N_atoms):
 #         for b in range(dyn.structure.N_atoms):
-#             temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- spectralf(ie,:,ism); spectralf(ie,ism) ; ie == number of energies ;ism == Number of smearings to consider
+#             temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
 #             response2 += temp
 #     response_function = response1*response2
 #
