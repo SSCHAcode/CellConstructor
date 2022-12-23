@@ -1604,7 +1604,7 @@ class ThermalConductivity:
 
     #################################################################################################################################
 
-    def get_lineshapes(self, temperature, write_lineshapes, energies, method = 'fortran', no_mode_mixing = False, gauss_smearing = False):
+    def get_lineshapes(self, temperature, write_lineshapes, energies, method = 'fortran', mode_mixing = 'no', gauss_smearing = False):
 
         """
         Calculate phonon lineshapes in full Brillouin zone.
@@ -1621,8 +1621,8 @@ class ThermalConductivity:
             self.delta_omega = energies[1] - energies[0]
         ls_key = format(temperature, '.1f')
 
-        if(no_mode_mixing):
-            print('WARNING! no_mode_mixing approach has been selected. Calculation of kappa in GK will not be possible!')
+        if(mode_mixing != 'no'):
+            print('WARNING! mode_mixing approach has been selected. Calculation of kappa in GK will not be possible!')
 
         if(method == 'python'):
 
@@ -1650,7 +1650,7 @@ class ThermalConductivity:
 
         elif(method == 'fortran'):
 
-            if(no_mode_mixing):
+            if(mode_mixing != 'no'):
                 lineshapes = np.zeros((self.nkpt, self.nband, self.nband, len(energies)), dtype=complex)
             else:
                 lineshapes = np.zeros((self.nkpt, self.nband, len(energies)))
@@ -1684,22 +1684,31 @@ class ThermalConductivity:
             if(self.cp_mode == 'classical'):
                 classical = True
 
-            if(no_mode_mixing):
-                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_nomode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
+            if(mode_mixing == 'mode_mixing'):
+                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
+                        self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                        self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                        sigmas.T, np.zeros_like(sigmas.T, dtype=float) + energies[0], temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                        self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+            elif(mode_mixing == 'cartesian'):
+                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_cartesian(irrqgrid, scattering_grids, weights, scattering_events,\
                         self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                         self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
                         sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
                         self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
-            else:
+            elif(mode_mixing == 'no'):
                 curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
                         self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                         self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                        sigmas.T, np.zeros_like(sigmas.T, dtype=float) + energies[0], temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
                         self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+            else:
+                print('Selected mode_mixing approach: ', mode_mixing)
+                raise RuntimeError('Do not recognize the selected mode_mixing approach!')
 
             for ikpt in range(self.nirrkpt):
                 jkpt = self.qstar[ikpt][0]
-                if(not no_mode_mixing):
+                if(mode_mixing == 'no'):
                     if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, self.k_points[jkpt])):
                         for iband in range(self.nband):
                             if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
@@ -1707,7 +1716,7 @@ class ThermalConductivity:
 
                 for iqpt in range(len(self.qstar[ikpt])):
                     jqpt = self.qstar[ikpt][iqpt]
-                    if(no_mode_mixing):
+                    if(mode_mixing != 'no'):
                         #for iband in range(self.nband):
                         #    for jband in range(self.nband):
                         #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
@@ -1725,7 +1734,7 @@ class ThermalConductivity:
                         lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
                 if(write_lineshapes):
                     filename = 'Lineshape_irrkpt_' + str(jkpt) + '_T_' + format(temperature, '.1f')
-                    self.write_lineshape(filename, lineshapes[ikpt], jkpt, energies, no_mode_mixing)
+                    self.write_lineshape(filename, lineshapes[jkpt], jkpt, energies, mode_mixing)
             print('Shape of lineshapes', lineshapes.shape)
             self.lineshapes[ls_key] = lineshapes
 
@@ -1805,7 +1814,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = True, no_mode_mixing = False, kpoints = None, start_nkpts = 100, smear = None):
+    def get_lineshapes_along_the_line(self, temperature, ne = 1000, filename = 'spectral_function_along_path', gauss_smearing = True, mode_mixing = 'no', kpoints = None, start_nkpts = 100, smear = None):
 
         """
         Calculate phonon lineshapes in full Brillouin zone.
@@ -1860,7 +1869,7 @@ class ThermalConductivity:
         maxfreq = np.amax(freqs)*2.1
         energies = (np.arange(ne, dtype=float) + 1.0)/float(ne)*maxfreq
 
-        if(no_mode_mixing):
+        if(mode_mixing != 'no'):
             lineshapes = np.zeros((nkpts, self.nband, self.nband, ne), dtype = complex)
         else:
             lineshapes = np.zeros((nkpts, self.nband, ne))
@@ -1906,13 +1915,19 @@ class ThermalConductivity:
         if(self.cp_mode == 'classical'):
             classical = True
 
-        if(no_mode_mixing):
-            curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_nomode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
+        if(mode_mixing == 'mode_mixing'):
+            curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                     self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
                     sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), nkpts, \
                     self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
-        else:
+        elif(mode_mixing == 'cartesian'):
+            curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_cartesian(irrqgrid, scattering_grids, weights, scattering_events,\
+                    self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                    self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                    sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), nkpts, \
+                    self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+        elif(mode_mixing == 'no'):
             curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                     self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
@@ -1920,12 +1935,12 @@ class ThermalConductivity:
                     self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
 
         for ikpt in range(nkpts):
-            if(not no_mode_mixing):
+            if(mode_mixing == 'no'):
                 if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, kpoints[ikpt])):
                     for iband in range(self.nband):
                         if(freqs[ikpt, iband] < np.amax(freqs[ikpt])*1.0e-6):
                             curr_ls[ikpt, iband] = 0.0
-            if(no_mode_mixing):
+            if(mode_mixing != 'no'):
                 lineshapes[ikpt,:,:,:] = curr_ls[ikpt,:,:,:]
                 tot_const_diag = 0.0
                 tot_const_nondiag = 0.0
@@ -1967,7 +1982,7 @@ class ThermalConductivity:
                     outfile.write('  ' + format(energies[ie]*SSCHA_TO_THZ, '.12e'))
                     diag = complex(0.0,0.0)
                     for iband in range(self.nband):
-                        if(no_mode_mixing):
+                        if(mode_mixing != 'no'):
                             for jband in range(self.nband):
                                 outfile.write('  ' + format(lineshapes[ikpt,iband, jband, ie].real/SSCHA_TO_THZ, '.12e'))
                                 outfile.write('  ' + format(lineshapes[ikpt,iband, jband, ie].imag/SSCHA_TO_THZ, '.12e'))
@@ -1975,7 +1990,7 @@ class ThermalConductivity:
                                     diag += lineshapes[ikpt,iband, jband, ie]
                         else:
                             outfile.write('  ' + format(lineshapes[ikpt,iband,ie]/SSCHA_TO_THZ, '.12e'))
-                    if(no_mode_mixing):
+                    if(mode_mixing != 'no'):
                         outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, :, ie]).real/SSCHA_TO_THZ, '.12e'))
                         outfile.write(3*' ' + format(np.sum(lineshapes[ikpt, :, :, ie]).imag/SSCHA_TO_THZ, '.12e'))
                         outfile.write(3*' ' + format(diag.real/SSCHA_TO_THZ, '.12e'))
@@ -2007,7 +2022,7 @@ class ThermalConductivity:
         print('Calculated SSCHA lineshapes in: ', time.time() - start_time)
 
     ##################################################################################################################################
-    def write_lineshape(self, filename, curr_ls, jkpt, energies, no_mode_mixing):
+    def write_lineshape(self, filename, curr_ls, jkpt, energies, mode_mixing):
 
         """
 
@@ -2017,7 +2032,7 @@ class ThermalConductivity:
         curr_ls        : lineshape to be written
         jkpt           : the index of the k point for which lineshapes are to be written
         energies       : frequencies at which lineshapes have been calculated 
-        no_mode_mixing : Defines the shape of input curr_ls. if true curr_ls = (nband, nband, ne)
+        mode_mixing    : Defines the shape of input curr_ls. if true curr_ls = (nband, nband, ne)
 
         """
 
@@ -2034,7 +2049,7 @@ class ThermalConductivity:
                 diag_lineshape = complex(0.0, 0.0)
                 outfile.write(3*' ' + format(energies[ien]*SSCHA_TO_THZ, '.12e'))
                 for iband in range(self.nband):
-                    if(no_mode_mixing):
+                    if(mode_mixing != 'no'):
                         for jband in range(self.nband):
                             outfile.write(3*' ' + format(curr_ls[iband, jband, ien].real/SSCHA_TO_THZ, '.12e'))
                             outfile.write(3*' ' + format(curr_ls[iband, jband, ien].imag/SSCHA_TO_THZ, '.12e'))
@@ -2042,11 +2057,13 @@ class ThermalConductivity:
                                 diag_lineshape += curr_ls[iband, iband, ien]
                     else:
                         outfile.write(3*' ' + format(curr_ls[iband, ien]/SSCHA_TO_THZ, '.12e'))
-                if(no_mode_mixing):
+                if(mode_mixing != 'no'):
                     outfile.write(3*' ' + format(np.sum(curr_ls[:, :, ien]).real/SSCHA_TO_THZ, '.12e'))
                     outfile.write(3*' ' + format(np.sum(curr_ls[:, :, ien]).imag/SSCHA_TO_THZ, '.12e'))
                     outfile.write(3*' ' + format(diag_lineshape.real/SSCHA_TO_THZ, '.12e'))
                     outfile.write(3*' ' + format(diag_lineshape.imag/SSCHA_TO_THZ, '.12e'))
+                else:
+                    outfile.write(3*' ' + format(np.sum(curr_ls[:, ien])/SSCHA_TO_THZ, '.12e'))
                 outfile.write('\n')
 
     ##################################################################################################################################

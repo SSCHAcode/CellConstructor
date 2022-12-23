@@ -68,7 +68,7 @@ module get_lf
             print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
             lineshape(:,:) = 0.0_DP 
             qpt = irrqgrid(:, iqpt) 
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q, d2_q)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
 
             if(any(w2_q < 0.0_DP)) then
@@ -144,7 +144,148 @@ module get_lf
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine calculate_lineshapes_nomode_mixing(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
+    subroutine calculate_lineshapes_mode_mixing(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
+                    fc3, r3_2, r3_3, rprim, pos, masses, smear, smear_id, T, gaussian, &
+                    classical, energies, ne, nirrqpt, nat, nfc2, nfc3, n_events, lineshapes)
+
+        use omp_lib
+        use third_order_cond
+
+        implicit none
+
+        integer, parameter :: DP = selected_real_kind(14,200)
+        real(kind=DP), parameter :: PI = 3.141592653589793115997963468544185161590576171875
+
+        integer, intent(in) :: nirrqpt, nat, nfc2, nfc3, ne, n_events
+        integer, intent(in) :: weights(n_events), scatt_events(nirrqpt)
+        real(kind=DP), intent(in) :: irrqgrid(3, nirrqpt)
+        real(kind=DP), intent(in) :: qgrid(3, n_events)
+        real(kind=DP), intent(in) :: fc2(nfc2, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: fc3(nfc3, 3*nat, 3*nat, 3*nat)
+        real(kind=DP), intent(in) :: r2_2(3, nfc2)
+        real(kind=DP), intent(in) :: r3_2(3, nfc3), r3_3(3, nfc3)
+        real(kind=DP), intent(in) :: rprim(3, 3)
+        real(kind=DP), intent(in) :: pos(3, nat)
+        real(kind=DP), intent(in) :: masses(nat), energies(ne)
+        real(kind=DP), intent(in) :: smear(3*nat, nirrqpt), smear_id(3*nat, nirrqpt)
+        real(kind=DP), intent(in) :: T
+        logical, intent(in) :: gaussian, classical
+        complex(kind=DP), dimension(nirrqpt, 3*nat, 3*nat, ne), intent(out) :: lineshapes
+
+        integer :: iqpt, i, ie, jqpt, tot_qpt, prev_events, nthreads, iband, jband
+        integer :: iband1, jband1
+        real(kind=DP), dimension(3) :: qpt
+        real(kind=DP), dimension(3,3) :: kprim
+        real(kind=DP), dimension(3*nat) :: w2_q, w_q
+!        real(kind=DP), dimension(ne, 3*nat) :: lineshape
+        complex(kind=DP), allocatable, dimension(:,:,:) :: lineshape
+        complex(kind=DP), allocatable, dimension(:, :, :) :: self_energy
+!        complex(kind=DP), dimension(ne, 3*nat) :: self_energy
+        complex(kind=DP), dimension(3*nat,3*nat) :: pols_q, d2_q
+        real(kind=DP), allocatable, dimension(:,:) :: curr_grid
+        integer, allocatable, dimension(:) :: curr_w
+        logical :: is_q_gamma, w_neg_freqs, parallelize
+
+
+        lineshapes(:,:,:,:) = complex(0.0_DP, 0.0_DP)
+        kprim = transpose(inv(rprim))
+        nthreads = omp_get_max_threads()
+        print*, 'Maximum number of threads available: ', nthreads
+
+        parallelize = .True.
+        if(nirrqpt <= nthreads) then
+                parallelize = .False.
+        endif
+!        print*, 'Got parallelize'
+
+        !$OMP PARALLEL DO IF(parallelize) DEFAULT(NONE) &
+        !$OMP PRIVATE(iqpt, w_neg_freqs, qpt, w2_q, pols_q, is_q_gamma, self_energy, &
+        !$OMP curr_grid, w_q, curr_w, prev_events, tot_qpt, d2_q, lineshape) &
+        !$OMP SHARED(nirrqpt, nfc2, nat, fc2, r2_2, masses, kprim, scatt_events, &
+        !$OMP nfc3, ne, fc3, r3_2, r3_3, pos, smear, T, energies, parallelize, smear_id, lineshapes, &
+        !$OMP irrqgrid, qgrid, weights, gaussian, classical)
+        do iqpt = 1, nirrqpt
+            allocate(lineshape(3*nat, 3*nat, ne), self_energy(ne, 3*nat, 3*nat))
+!            print*, iqpt
+            w_neg_freqs = .False.
+            print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
+            lineshape(:,:,:) = 0.0_DP 
+            qpt = irrqgrid(:, iqpt) 
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
+            !d2_q = cmplx(0.0_DP, 0.0_DP, kind=DP)
+            !do iband = 1, 3*nat
+            !    d2_q(iband, iband) = cmplx(w2_q(iband), 0.0_DP, kind=DP)
+            !enddo
+            !d2_q = matmul(pols_q, matmul(d2_q, cinv(pols_q)))
+            call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
+
+            if(any(w2_q < 0.0_DP)) then
+                print*, 'Negative eigenvalue of dynamical matrix!'
+                w_neg_freqs = .True.
+            endif
+!            print*, 'Interpolate frequency'
+            if(.not. w_neg_freqs) then
+                w_q = sqrt(w2_q)
+                self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)
+                allocate(curr_grid(3, scatt_events(iqpt)))
+                allocate(curr_w(scatt_events(iqpt)))
+                if(iqpt > 1) then
+                    prev_events = sum(scatt_events(1:iqpt-1))
+                else
+                    prev_events = 0
+                endif
+                do jqpt = 1, scatt_events(iqpt)
+                    curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
+                    curr_w(jqpt) = weights(prev_events + jqpt)
+                enddo
+                !print*, 'Got grids'
+                call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
+                    nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
+                    energies, .not. parallelize, gaussian, classical, self_energy) 
+                deallocate(curr_grid)
+                tot_qpt = sum(curr_w)
+                deallocate(curr_w)
+                self_energy = self_energy/dble(tot_qpt)
+                if(gaussian) then
+                        call calculate_real_part_via_Kramers_Kronig_2d(ne, 3*nat, self_energy, energies, w_q)
+                        !call hilbert_transform_via_FFT(ne, 3*nat, self_energy)
+                        if(any(self_energy .ne. self_energy)) then
+                                print*, 'NaN in Kramers Kronig'
+                        endif
+                endif
+                if(any(self_energy .ne. self_energy)) then
+                        print*, 'NaN in self_energy'
+                endif
+
+                call calculate_spectral_function_mode_mixing(energies, smear_id(:, iqpt), &
+                        w_q,self_energy,is_q_gamma,lineshape,masses,nat,ne)
+
+                lineshape = lineshape*2.0_DP
+                !lineshapes(iqpt, :, :, :) = lineshape
+                do iband = 1, 3*nat
+                        do jband = 1, 3*nat
+                                do iband1 = 1, 3*nat
+                                do jband1 = 1, 3*nat
+                                        lineshapes(iqpt, jband, iband, :) = lineshapes(iqpt, jband, iband, :) + &
+                                        lineshape(jband1,iband1,:)*pols_q(jband,jband1)*conjg(pols_q(iband,iband1))
+                                enddo
+                                enddo
+                        enddo
+                enddo
+            else
+                lineshapes(iqpt,:,:,:) = complex(0.0_DP, 0.0_DP)
+            endif
+            deallocate(lineshape, self_energy)
+
+        enddo
+        !$OMP END PARALLEL DO
+
+
+    end subroutine calculate_lineshapes_mode_mixing
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine calculate_lineshapes_cartesian(irrqgrid, qgrid, weights, scatt_events, fc2, r2_2, &
                     fc3, r3_2, r3_3, rprim, pos, masses, smear, smear_id, T, gaussian, &
                     classical, energies, ne, nirrqpt, nat, nfc2, nfc3, n_events, lineshapes)
 
@@ -211,7 +352,7 @@ module get_lf
             print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
             lineshape(:,:,:) = 0.0_DP 
             qpt = irrqgrid(:, iqpt) 
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q, d2_q)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
             !d2_q = cmplx(0.0_DP, 0.0_DP, kind=DP)
             !do iband = 1, 3*nat
             !    d2_q(iband, iband) = cmplx(w2_q(iband), 0.0_DP, kind=DP)
@@ -275,6 +416,7 @@ module get_lf
                                 enddo
                         enddo
                 enddo
+
                 !do iband = 1, 3*nat - 1
                 !        do jband = iband + 1, 3*nat
                 !                if(any(abs(self_energy_cart(:,jband,iband) - conjg(self_energy_cart(:,iband,jband))) > &
@@ -297,7 +439,8 @@ module get_lf
                 !enddo
                 !close(1)
 
-                call calculate_spectral_function_nomode_mixing(energies,d2_q,self_energy_cart,is_q_gamma,lineshape,masses,nat,ne)
+                call calculate_spectral_function_cartesian(energies, smear_id(:, iqpt), &
+                        d2_q,self_energy_cart,is_q_gamma,lineshape,masses,nat,ne)
 
                 lineshapes(iqpt, :, :, :) = lineshape*2.0_DP
             else
@@ -309,7 +452,7 @@ module get_lf
         !$OMP END PARALLEL DO
 
 
-    end subroutine calculate_lineshapes_nomode_mixing
+    end subroutine calculate_lineshapes_cartesian
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -376,7 +519,7 @@ module get_lf
             w_neg_freqs = .False.
             print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
             qpt = irrqgrid(:, iqpt) 
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q, d2_q)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
 
             if(any(w2_q < 0.0_DP)) then
@@ -597,7 +740,7 @@ module get_lf
             w_neg_freqs = .False.
             print*, 'Calculating ', iqpt, ' point in the irreducible zone out of ', nirrqpt, '!'
             qpt = irrqgrid(:, iqpt) 
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q, d2_q)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
             if(any(w2_q < 0.0_DP)) then
                 print*, 'Negative eigenvalue of dynamical matrix! Exit!'
@@ -707,7 +850,7 @@ module get_lf
             !call cpu_time(curr_time)
             !print*, 'Since start: ', curr_time - start_time, ' seconds!'
             qpt = irrqgrid(:, iqpt) 
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, qpt, w2_q, pols_q, d2_q)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
  !           print*, 'Got frequencies'
             if(any(w2_q < 0.0_DP)) then
@@ -840,8 +983,8 @@ module get_lf
             enddo
             call interpol_v2(fc3, r3_2, r3_3,pos, kpt, mkpt, ifc3, nfc3, nat)
            ! call interpol_v3(fc3, pos, r3_2, r3_3, qpt, kpt, mkpt, ifc3, nfc3, nat)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, kpt, w2_k, pols_k, pols_k2)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, kpt, w2_k, pols_k, pols_k2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
     
             call check_if_gamma(nat, kpt, kprim, w2_k, is_k_gamma)
             call check_if_gamma(nat, mkpt, kprim, w2_mk_mq, is_mk_mq_gamma)
@@ -999,8 +1142,8 @@ module get_lf
             kpt = qgrid(:, jqpt)
             mkpt = -1.0_DP*qpt - kpt
             call interpol_v2(fc3, r3_2, r3_3, pos, kpt, mkpt, ifc3, nfc3, nat)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, kpt, w2_k, pols_k, pols_k2)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, kpt, w2_k, pols_k, pols_k2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
     
             call check_if_gamma(nat, kpt, kprim, w2_k, is_k_gamma)
             call check_if_gamma(nat, mkpt, kprim, w2_mk_mq, is_mk_mq_gamma)
@@ -1170,8 +1313,8 @@ module get_lf
             kpt = qgrid(:, jqpt)
             mkpt = -1.0_DP*qpt - kpt
             call interpol_v2(fc3, r3_2, r3_3, pos, kpt, mkpt, ifc3, nfc3, nat)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, kpt, w2_k, pols_k, pols_k2)
-            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, kpt, w2_k, pols_k, pols_k2)
+            call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, mkpt, w2_mk_mq, pols_mk_mq, pols_mk_mq2)
     
             call check_if_gamma(nat, kpt, kprim, w2_k, is_k_gamma)
             call check_if_gamma(nat, mkpt, kprim, w2_mk_mq, is_mk_mq_gamma)
@@ -1554,7 +1697,7 @@ module get_lf
  
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine interpolate_fc2(nfc2, nat, fc2, r2_2, masses, q, w2_q, pols_q, pols_q1)
+    subroutine interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, q, w2_q, pols_q, pols_q1)
 
         implicit none        
         integer, parameter :: DP = selected_real_kind(14,200)
@@ -1563,6 +1706,7 @@ module get_lf
         integer, intent(in) :: nfc2, nat
         real(kind=DP), dimension(nfc2, 3*nat, 3*nat), intent(in) :: fc2 
         real(kind=DP), dimension(3, nfc2), intent(in) :: r2_2
+        real(kind=DP), dimension(3, nat), intent(in) :: pos
         real(kind=DP), dimension(nat), intent(in) :: masses
         real(kind=DP), dimension(3), intent(in) :: q
 
@@ -1570,6 +1714,7 @@ module get_lf
         complex(kind=DP), dimension(3*nat, 3*nat), intent(out) :: pols_q, pols_q1
 
         integer :: ir, iat, jat, INFO, LWORK, i, j
+        real(kind=DP), dimension(3) :: ruc
         complex(kind=DP), dimension(6*nat + 1) :: WORK
         real(kind=DP), dimension(9*nat - 2) :: RWORK
         real(kind=DP) :: phase 
@@ -1578,8 +1723,14 @@ module get_lf
         pols_q1 = complex(0.0_DP,0.0_DP)
 
         do ir = 1, nfc2
-            phase = dot_product(r2_2(:,ir), q)*2.0_DP*PI
-            pols_q1 = pols_q1 + fc2(ir,:,:)*exp(complex(0.0_DP, phase))
+            do iat = 1, nat
+            do jat = 1, nat
+                    ruc = pos(:,jat) - pos(:,iat) - r2_2(:,ir)
+                    phase = dot_product(ruc, q)*2.0_DP*PI
+                    pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) = pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) &
+                            + fc2(ir,3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat)*exp(complex(0.0_DP, phase))
+            enddo
+            enddo
         enddo
 
         do iat = 1, nat

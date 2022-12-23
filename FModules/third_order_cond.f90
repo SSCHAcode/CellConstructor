@@ -120,22 +120,14 @@ module third_order_cond
                     call Lambda_dynamic_single(ne,energies,curr_sigma,T,static_limit,q2(rho2,:),q3(rho3,:), gaussian, Lambda_23)           
                     !
                     DO nu = 1,n_mod
-                    DO mu = 1,n_mod
-                            bubble(:,mu,nu) = bubble(:,mu,nu) +  & 
-                                                CONJG(D3(mu,rho2,rho3))*Lambda_23(:)*D3(nu,rho2,rho3)
-                    END DO
+                    !DO mu = 1,n_mod
+                            bubble(:,nu,nu) = bubble(:,nu,nu) +  & 
+                                                CONJG(D3(nu,rho2,rho3))*Lambda_23(:)*D3(nu,rho2,rho3)
+                    !END DO
                     END DO
                     !
             END DO
             END DO   
-            !DO nu = 1, n_mod - 1
-            !DO mu = nu + 1,n_mod
-            !    if(any(abs(bubble(:,mu,nu) - conjg(bubble(:,nu,mu))) > maxval(abs(bubble(:,mu,nu)))*1.0e-8)) then
-            !            print*, 'Bubble somehow not hermitian'
-            !    endif
-            !END DO
-            !END DO
-            !
         end subroutine compute_full_dynamic_bubble_single
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -512,12 +504,61 @@ module third_order_cond
 
     end subroutine calculate_spectral_function
 
-    subroutine calculate_spectral_function_nomode_mixing(ener,d2,Pi,notransl,spectralf,mass,nat,ne)
+    subroutine calculate_spectral_function_mode_mixing(ener,smear,wq,Pi,notransl,spectralf,mass,nat,ne)
             implicit none
             INTEGER, PARAMETER           :: DP = selected_real_kind(14,200)
             real(kind=dp),parameter      :: twopi = 6.283185307179586_dp
             !
-            real(kind=dp), intent(in)    :: mass(nat), ener(ne)
+            real(kind=dp), intent(in)    :: mass(nat), ener(ne), smear(3*nat)
+            integer, intent(in)          :: ne,nat
+            real(kind=dp), intent(in)    :: wq(3*nat)
+            complex(kind=dp), intent(in) :: Pi(ne,3*nat,3*nat)
+            logical, intent(in)          :: notransl
+            !
+            complex(kind=dp), intent(out)   :: spectralf(3*nat, 3*nat, ne)
+            !
+            integer                      :: nat3,n,m,ie
+            complex(kind=dp)             :: G(3*nat,3*nat) 
+            complex(kind=dp)             :: fact
+            
+            nat3=3*nat
+                
+            spectralf=complex(0.0_DP, 0.0_DP)
+            !   
+            
+            DO ie = 1,ne
+                 G=cmplx(0.0_dp,0.0_dp,kind=DP)
+                 FORALL (m=1:nat3, n=1:nat3)
+                     G(n,m) = -Pi(ie,n,m)
+                 END FORALL
+                 DO n=1,nat3
+                   G(n,n)=G(n,n)+(ener(ie) + complex(0.0_DP,smear(n)))**2 - wq(n)**2
+                 ENDDO
+                 G = cinv(G) 
+                 IF ( notransl ) THEN
+                   CALL eliminate_transl(G,mass,nat)      
+                 END IF
+                 do n = 1, nat3
+                 do m = 1, nat3       
+                 !spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
+                 !spectralf(m,n,ie)=spectralf(m,n,ie)-DIMAG(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
+                 spectralf(m,n,ie)=spectralf(m,n,ie)+complex(0.0_DP, 1.0_DP)*(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
+                 enddo
+                 enddo
+            ENDDO
+            if(all(spectralf == complex(0.0_DP, 0.0_DP))) then
+                   print*, 'All of the spectralf is 0!' 
+            endif
+    end subroutine calculate_spectral_function_mode_mixing
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine calculate_spectral_function_cartesian(ener,smear,d2,Pi,notransl,spectralf,mass,nat,ne)
+            implicit none
+            INTEGER, PARAMETER           :: DP = selected_real_kind(14,200)
+            real(kind=dp),parameter      :: twopi = 6.283185307179586_dp
+            !
+            real(kind=dp), intent(in)    :: mass(nat), ener(ne), smear(3*nat)
             integer, intent(in)          :: ne,nat
             complex(kind=dp), intent(in) :: d2(3*nat,3*nat)
             complex(kind=dp), intent(in) :: Pi(ne,3*nat,3*nat)
@@ -549,7 +590,7 @@ module third_order_cond
                  END FORALL
                  G=G-d2
                  DO n=1,nat3
-                   G(n,n)=G(n,n)+(ener(ie))**2
+                   G(n,n)=G(n,n)+(ener(ie) + complex(0.0_DP,smear(n)))**2
                  ENDDO
                 ! do n = 1, nat3 - 1
                 ! do m = n + 1, nat3       
@@ -598,7 +639,7 @@ module third_order_cond
             !close(1)
     !
 
-    end subroutine calculate_spectral_function_nomode_mixing
+    end subroutine calculate_spectral_function_cartesian
 !
 ! ======================== accessory routines ========================================
 !
