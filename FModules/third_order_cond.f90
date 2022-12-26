@@ -120,10 +120,10 @@ module third_order_cond
                     call Lambda_dynamic_single(ne,energies,curr_sigma,T,static_limit,q2(rho2,:),q3(rho3,:), gaussian, Lambda_23)           
                     !
                     DO nu = 1,n_mod
-                    !DO mu = 1,n_mod
-                            bubble(:,nu,nu) = bubble(:,nu,nu) +  & 
-                                                CONJG(D3(nu,rho2,rho3))*Lambda_23(:)*D3(nu,rho2,rho3)
-                    !END DO
+                    DO mu = 1,n_mod
+                            bubble(:,mu,nu) = bubble(:,mu,nu) +  & 
+                                                CONJG(D3(mu,rho2,rho3))*Lambda_23(:)*D3(nu,rho2,rho3)
+                    END DO
                     END DO
                     !
             END DO
