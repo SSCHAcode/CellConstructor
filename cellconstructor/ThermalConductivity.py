@@ -1688,7 +1688,7 @@ class ThermalConductivity:
                 curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
                         self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                         self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float) + energies[0], temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
                         self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
             elif(mode_mixing == 'cartesian'):
                 curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_cartesian(irrqgrid, scattering_grids, weights, scattering_events,\
@@ -1700,7 +1700,7 @@ class ThermalConductivity:
                 curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
                         self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
                         self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float) + energies[0], temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
                         self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
             else:
                 print('Selected mode_mixing approach: ', mode_mixing)
