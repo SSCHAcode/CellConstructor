@@ -1725,7 +1725,8 @@ module get_lf
         do ir = 1, nfc2
             do iat = 1, nat
             do jat = 1, nat
-                    ruc = pos(:,jat) - pos(:,iat) - r2_2(:,ir)
+                    !ruc = pos(:,jat) - pos(:,iat) - r2_2(:,ir)
+                    ruc = r2_2(:,ir)
                     phase = dot_product(ruc, q)*2.0_DP*PI
                     pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) = pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) &
                             + fc2(ir,3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat)*exp(complex(0.0_DP, phase))
