@@ -4223,8 +4223,10 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     natsc = np.shape(starting_fc)[0]  // 3
     nat = natsc // supercell_size
 
-    #print "nat:", nat
-    #print "natsc:", natsc
+    print('shape',starting_fc.shape)
+    print('sc',natsc)
+    print('uc',nat)
+    
 
 
     # Get the force constant in an appropriate supercell

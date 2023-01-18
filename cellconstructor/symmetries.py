@@ -530,12 +530,8 @@ class QE_Symmetry:
         assert cart == 3
 
         nat = int(nat3 / 3)
-        
-        # Apply hermitianity
-        #print("Original:")
-        #print(dM_drdr[:,:,0])
 
-        dM_drdr += np.einsum("abc->bac", dM_drdr)
+        dM_drdr += np.einsum("abc -> bac", dM_drdr)
         dM_drdr /= 2
 
         # Apply the Sum Rule
@@ -543,17 +539,10 @@ class QE_Symmetry:
             for pol in range(3):
                 CustomASR(dM_drdr[:,:,pol])
 
-        #print("After the sum rule:")
-        #print(dM_drdr[:,:,0])
-
-        # Convert in crystal coordinates
+        # Convert in crystal coordinates MAKE SURE THAT THIS IS CONVERTED BACK IN CARTESIAN COORDINATES
         for i in range(nat):
             for j in range(nat):
                 dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T)
-
-
-        #print("Crystal:")
-        #print(dM_drdr[:,:,0])
 
 
         # Apply translations
@@ -568,22 +557,13 @@ class QE_Symmetry:
 
             dM_drdr[:,:,:] = new_dM / self.QE_translation_nr
             new_dM[:,:,:] = 0
-
         
-        #print("After transl:")
-        #print(dM_drdr[:,:,0])
-
-        #self.PrintSymmetries()
+        # # DEBUG VARIABLE
+        # debug = np.zeros(np.shape(new_dM)) 
 
         # Apply rotations
         for i in range(self.QE_nsym):
             irt = self.QE_irt[i, :] - 1
-
-            #print("")
-            #print("--------------------")
-            #print("symmetry: {:d}, irt: {}".format(i+1, irt +1))
-            #prova = np.zeros(np.shape(new_dM))
-
             for jat in range(nat):
                 for kat in range(nat):
                     new_mat = dM_drdr[3*irt[jat]: 3*irt[jat]+3, 3*irt[kat]:3*irt[kat] + 3,:]
@@ -592,14 +572,19 @@ class QE_Symmetry:
                     new_mat = np.einsum("ck, ijk -> ijc", self.QE_s[:,:,i], new_mat)
                     new_mat = np.einsum("bj, ijc -> ibc", self.QE_s[:,:,i], new_mat)
                     new_mat = np.einsum("ai, ibc -> abc", self.QE_s[:,:,i], new_mat)
-                    #prova[3*jat:3*jat+3, 3*kat:3*kat+3,:] = new_mat
                     new_dM[3*jat:3*jat+3, 3*kat:3*kat+3,:] += new_mat
         
-            #print(np.einsum("abc->cab", prova))
-            #print("--------------------")
         dM_drdr[:,:,:] = new_dM / self.QE_nsym
+        
+        # # CONVERT IN CARTESIAN COORDINATES TO DEBUG
+        # for _i_ in range(nat):
+        #     for _j_ in range(nat):
+        #         debug[3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3, :] = Methods.convert_3tensor_to_cryst(new_dM[3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3, :],\
+        #                                                                                           self.QE_at.T, cryst_to_cart = True)
+        # np.save('CC_new_{}'.format(i),  debug)
 
-        # Convert in crystal coordinates
+
+        # Convert in cartesian coordinates
         for i in range(nat):
             for j in range(nat):
                 dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T, True)
