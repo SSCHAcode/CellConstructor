@@ -12,7 +12,7 @@ function repair_wheel {
 
 
 # Install a system package required by our library
-yum install -y atlas-devel lapack-devel blas-devel
+yum install -y atlas-devel lapack-devel blas-devel libjpeg-devel
 
 # Compile wheels (only python >= 3.5)
 for PYBIN in /opt/python/cp3*/bin; do

@@ -2,6 +2,6 @@
 
 docker run --rm \
     -v $(pwd):/io \
-    -e PLAT=manylinux1_x86_64 \
-    quay.io/pypa/manylinux1_x86_64 \
+    -e PLAT=manylinux2014_x86_64 \
+    quay.io/pypa/manylinux2014_x86_64 \
     /io/build-wheels.sh
