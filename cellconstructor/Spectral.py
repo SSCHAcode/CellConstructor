@@ -3144,8 +3144,9 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
     print(" ")
 
-def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleton function for TESTING...
-                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega): #skeleton function for TESTING...
+#                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+
     """
     Input data:
      omega = Frequency
