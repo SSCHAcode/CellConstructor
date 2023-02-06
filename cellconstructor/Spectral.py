@@ -3144,7 +3144,8 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
     print(" ")
 
-def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega, dyn): #skeleton function for TESTING...
+def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega, dyn
+                            , d_bubble_cart, ie, ismear, ener): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
@@ -3167,6 +3168,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega
     #electric_charge = 4.803e-10 #Fr (CGS)
     electric_charge = 1.602176462e-19 #C (SI)
     epsilon = np.zeros((3,3))
+    twopi = 2*np.pi
     # Prepare the tensor2 and obtain masses
     tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
     tensor2.SetupFromPhonons(dyn)
@@ -3179,6 +3181,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 
     response1 = -(N/Big_omega) * electric_charge**2
+    response2 = 0
     for a in range(dyn.structure.N_atoms):
         for b in range(dyn.structure.N_atoms):
             #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
