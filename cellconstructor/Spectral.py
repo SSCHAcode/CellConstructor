@@ -3146,26 +3146,26 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 
 def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleton function for TESTING...
                   (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
-     """
-     Input data:
-      omega = Frequency
-      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
-      N = nº atoms
-      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
-      b = atom b -> Z(b) atomic number of atom b
-      nu = damping constant
-      ---------
-      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
-      M() = Atomic masses
-      e() =
-      omega_nu = resonant frequency
-      Big_omega = Vol.
-     Output:
-      epsilon = Dielectric function (SI)
-     """
-     #electric_charge = 4.803e-10 #Fr (CGS)
-     electric_charge = 1.602176462e-19 #C (SI)
-     epsilon = np.zeros((3,3))
+    """
+    Input data:
+     omega = Frequency
+     epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
+     N = nº atoms
+     a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
+     b = atom b -> Z(b) atomic number of atom b
+     nu = damping constant
+     ---------
+     Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
+     M() = Atomic masses
+     e() =
+     omega_nu = resonant frequency
+     Big_omega = Vol.
+    Output:
+     epsilon = Dielectric function (SI)
+    """
+    #electric_charge = 4.803e-10 #Fr (CGS)
+    electric_charge = 1.602176462e-19 #C (SI)
+    epsilon = np.zeros((3,3))
     # Prepare the tensor2 and obtain masses
     tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
     tensor2.SetupFromPhonons(dyn)
@@ -3177,15 +3177,15 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu): #skeleto
     epsilon_inf() = Fonon.dielectric_tensor()
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 
-     response1 = -(N/Big_omega) * electric_charge**2
-     for a in range(dyn.structure.N_atoms):
-         for b in range(dyn.structure.N_atoms):
-             #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
-             temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-             response2 += temp
-     response_function = response1*response2
+    response1 = -(N/Big_omega) * electric_charge**2
+    for a in range(dyn.structure.N_atoms):
+        for b in range(dyn.structure.N_atoms):
+            #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
+            temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+            response2 += temp
+    response_function = response1*response2
 
-     epsilon=epsilon_inf+4*np.pi*response_function
+    epsilon=epsilon_inf+4*np.pi*response_function
 
-     refractive_index = np.sqrt(epsilon)
-     return 0
+    refractive_index = np.sqrt(epsilon)
+    return 0
