@@ -3175,7 +3175,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega
     M =structure.get_masses_array()
     #prepare the dielctric tensor of vacuum and effective charges
     Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
-    epsilon_inf() = Fonon.dielectric_tensor()
+    epsilon_inf = Fonon.dielectric_tensor()
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 
     response1 = -(N/Big_omega) * electric_charge**2
