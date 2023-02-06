@@ -3144,7 +3144,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
     print(" ")
 
-def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega, dyn
+def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, dyn
                             , d_bubble_cart, ie, ismear, ener): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
@@ -3159,9 +3159,9 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega
      ---------
      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
      M() = Atomic masses
-     e() =
+     e() = polarization vector
      omega_nu = resonant frequency
-     Big_omega = Vol.
+     Big_omega = Unit cell Volume
     Output:
      epsilon = Dielectric function (SI)
     """
@@ -3174,6 +3174,12 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, Big_omega
     tensor2.SetupFromPhonons(dyn)
     tensor2.Center()
     structure = tensor2.unitcell_structure
+    alat=tensor2.unitcell_structure.unit_cell
+    # a,b,c volume calculation
+    # d = np.cross(b,c)
+    # proj_a = (np.dot(a,d)/np.sqrt(sum(d**2))**2)*d
+    # Volume = np.linalg.norm(a)*np.linalg.norm(d)
+    Big_omega = np.abs(np.linalg.det(alat))    # The unit cell volume is the determinant of the matrix defined by the unit cell vectors
     M =structure.get_masses_array()
     #prepare the dielctric tensor of vacuum and effective charges
     Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
