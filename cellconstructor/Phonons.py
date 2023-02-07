@@ -4498,7 +4498,6 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
         fc_tmp = np.zeros((nat3, nat3), dtype = np.double)
         fc_tmp[3*i+j,:]  -= forces.ravel()
 
-        #print("FORCE ({}) = ".format(3*i+j), forces)
         return fc_tmp
         #atm = s.get_ase_atoms()
         #atm.set_calculator(ase_calculator)
