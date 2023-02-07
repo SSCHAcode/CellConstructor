@@ -45,6 +45,12 @@ try:
 except:
     __SPGLIB__ = False
 
+try:
+    import ase, ase.io
+    __ASE__ = True
+except:
+    __ASE__ = False
+
 __EPSILON__ = 1e-5
 __EPSILON_W__ = 3e-9
 
@@ -1248,14 +1254,16 @@ class Phonons:
         warnings.warn("[DEPRECATION WARNING] save_phononpy is deprecated: use save_phonopy instead.")
         self.save_phonopy(*args, **kwargs)
 
-    def save_phonopy(self, path = ".", supercell_size = None):
+    def save_phonopy(self, path = ".", supercell_size = None, units_ev_ang2 = True, 
+        write_poscar = True, write_unitcell = False):
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
         =====================================
 
         This tool export the dynamical matrix into the PHONONPY plain text format.
-        We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
-        this when using Phononpy for the conversion factors.
+        If units_ev_ang2 is True (default) the dynamical matrix is written in eV/A^2
+        Otherwise we use the Ry/bohr^2, as the quantum espresso format. 
+        Please, remember this when using Phononpy for the conversion factors.
 
         It will create a file called FORCE_CONSTANTS, one called unitcell.in
         with the info on the structure
@@ -1267,6 +1275,14 @@ class Phonons:
             supercell_size : list of 3
                 The supercell that defines the dynamical matrix, note phononpy
                 works in the supercell. If none, it is inferred from the q points
+            units_ev_ang2 : bool
+                If True (default) convert the units in eV / A^2 
+            write_poscar : bool
+                If True produce also the POSCAR file with the structure
+                for phonopy.
+                It requires ASE to be installed.
+            write_unitcell : bool
+                If true, produce a unitcell.in for phonopy. 
 
 
         """
@@ -1285,8 +1301,12 @@ class Phonons:
         lines.append("%d   %d\n" % (nat_sc, nat_sc))
         for i in range(nat_sc):
             for j in range(nat_sc):
-                lines.append("%4d\t%4d\n" % (i, j))
-                mat = np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3])
+                lines.append("%4d\t%4d\n" % (i+1, j+1))
+                mat = np.copy(np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3]))
+
+                if units_ev_ang2:
+                    mat *= RY_TO_EV / BOHR_TO_ANGSTROM**2
+
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[0,0], mat[0,1], mat[0,2]))
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[1,0], mat[1,1], mat[1,2]))
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[2,0], mat[2,1], mat[2,2]))
@@ -1297,38 +1317,46 @@ class Phonons:
         f.close()
 
         # Produce the unit cell
-        lines = []
-        lines.append("&system\n")
-        lines.append("ibrav = 0\n")
-        lines.append("celldm(1) = 1.889726125836928\n")
-        lines.append("nat = %d\n" % self.structure.N_atoms)
+        if write_unitcell:
+            lines = []
+            lines.append("&system\n")
+            lines.append("ibrav = 0\n")
+            lines.append("celldm(1) = 1.889726125836928\n")
+            lines.append("nat = %d\n" % self.structure.N_atoms)
 
-        typs = self.structure.masses.keys()
-        lines.append("ntyp = %d\n" % len(typs))
-        lines.append("&end\n")
+            typs = self.structure.masses.keys()
+            lines.append("ntyp = %d\n" % len(typs))
+            lines.append("&end\n")
 
-        # Write the atomic species
-        lines.append("ATOMIC_SPECIES\n")
-        for i in typs:
-            m = self.structure.masses[i]
-            lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
+            # Write the atomic species
+            lines.append("ATOMIC_SPECIES\n")
+            for i in typs:
+                m = self.structure.masses[i]
+                lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
 
-        # Write the unit cell
-        lines.append("CELL_PARAMETERS alat\n")
-        for i in range(3):
-            uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
-            lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
+            # Write the unit cell
+            lines.append("CELL_PARAMETERS alat\n")
+            for i in range(3):
+                uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
+                lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
 
-        lines.append("ATOMIC_POSITIONS crystal\n")
-        for i in range(nat):
-            atm = self.structure.atoms[i]
-            cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
-            lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
+            lines.append("ATOMIC_POSITIONS crystal\n")
+            for i in range(nat):
+                atm = self.structure.atoms[i]
+                cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
+                lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
 
 
-        f = open(os.path.join(path, "unitcell.in"), "w")
-        f.writelines(lines)
-        f.close()
+            f = open(os.path.join(path, "unitcell.in"), "w")
+            f.writelines(lines)
+            f.close()
+
+        # Write also the POSCAR file
+        if write_poscar:
+            if __ASE__:
+                ase.io.write("POSCAR", self.structure.get_ase_atoms(), direct=True)
+            else:
+                raise ImportError("Error, you must have ase installed to save the POSCAR file.")
 
     def load_phonopy(self, yaml_filename = "phonopy.yaml", fc_filename = None):
         """
