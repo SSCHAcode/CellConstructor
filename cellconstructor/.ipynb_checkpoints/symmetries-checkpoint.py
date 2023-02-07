@@ -665,7 +665,8 @@ class QE_Symmetry:
         
         # ROTATIONS
         for i in range(self.QE_nsym):
-            irt = self.QE_irt[i, :] - 1 # the symmetry applied on irt[at] gives the atom at
+            # the symmetry applied on irt[at] gives the atom at
+            irt = self.QE_irt[i, :] - 1
 
             for at1 in range(nat):
                 for at2 in range(nat):
