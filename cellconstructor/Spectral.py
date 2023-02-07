@@ -3187,7 +3187,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, dyn
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
 
     response1 = -(N/Big_omega) * electric_charge**2
-    response2 = 0
+    response2 = 0 #init the response2 value
     for a in range(dyn.structure.N_atoms):
         for b in range(dyn.structure.N_atoms):
             #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
