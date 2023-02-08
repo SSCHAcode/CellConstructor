@@ -1416,7 +1416,6 @@ class Tensor3():
                                     y = (xyz %9)//3
                                     x = xyz // 9
                                     f.write("{:>2d} {:>2d} {:>2d} {:>20.10f}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
-                                f.write("\n")
         
         
         elif file_format.upper() == 'D3Q':
