@@ -1406,8 +1406,8 @@ class Tensor3():
                         for nat2 in range(self.nat):
                             for nat3 in range(self.nat):
                                 f.write("{:d}\n".format(i_block))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector2[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector3[:, r_block])))
                                 f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
                                 i_block += 1
                                 #
@@ -1415,7 +1415,7 @@ class Tensor3():
                                     z = xyz % 3
                                     y = (xyz %9)//3
                                     x = xyz // 9
-                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
+                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10f}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
         
         
         elif file_format.upper() == 'D3Q':
