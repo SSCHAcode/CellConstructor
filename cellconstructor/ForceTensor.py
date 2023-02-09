@@ -1405,6 +1405,7 @@ class Tensor3():
                     for nat1 in range(self.nat):
                         for nat2 in range(self.nat):
                             for nat3 in range(self.nat):
+                                f.write("\n")
                                 f.write("{:d}\n".format(i_block))
                                 f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
                                 f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
