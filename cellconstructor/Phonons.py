@@ -4444,7 +4444,8 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
             If True, overwrite the progress line each structure
         use_symmetries : bool
             If True, use the symmetries to reduce the number of calculations.
-            More details in the method 'compute_phonons_finite_displacements_sym'
+            More details in the method 'compute_phonons_finite_displacements_sym'.
+            It requires the SPGLIB library.
 
     Results
     -------
@@ -4452,6 +4453,8 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
             The dynamical matrix
     """
     if use_symmetries:
+        if not __SPGLIB__:
+            raise ImportError("SPGLIB is not installed. Cannot use symmetries. Rerun this subroutine with use_symmetries = False")
         return compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon,
             supercell, progress, progress_bar)
 
