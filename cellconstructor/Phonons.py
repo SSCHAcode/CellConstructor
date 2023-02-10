@@ -4421,7 +4421,9 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
 
-def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, supercell = (1,1,1), progress = -1, progress_bar = False):
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, 
+    supercell = (1,1,1), progress = -1, progress_bar = False,
+    use_symmetries = True):
     """
     COMPUTE THE FORCE CONSTANT MATRIX
     =================================
@@ -4440,13 +4442,18 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
             If positive, prints the status each tot structures
         progress_bar : bool
             If True, overwrite the progress line each structure
+        use_symmetries : bool
+            If True, use the symmetries to reduce the number of calculations.
+            More details in the method 'compute_phonons_finite_displacements_sym'
 
     Results
     -------
         phonons : CC.Phonons.Phonons()
             The dynamical matrix
     """
-
+    if use_symmetries:
+        return compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon,
+            supercell, progress, progress_bar)
 
     super_structure = structure.generate_supercell(supercell)
     final_dyn = Phonons(super_structure)
