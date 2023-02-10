@@ -14,6 +14,7 @@ from numpy import *
 import numpy as np
 import sys, os
 import symph
+import scipy, scipy.optimize
 
 import warnings
 
@@ -1818,3 +1819,56 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
         q_path[i-1, :] =  path_points[index, :] + counter * dq * q_versor
 
     return q_path, (xaxis, xticks, xlabels)
+
+
+
+# A function to check whether a vector is part of a space vector
+# Identified by a span of non orthogonal vectors
+def get_generic_covariant_coefficients(v, space, thr = 0.05):
+    """
+    Check whether a vector is part of a space spanned by a set of vectors.
+    Even if the space is a contains less element than the total dimension
+
+    Parameters
+    ----------
+        v : ndarray(size = (d,))
+            The vector to check
+        space : ndarray(size = (n_vectors, d))
+            The space spanned by the vectors
+        thr : float
+            The threshold to consider a vector as part of the space
+
+    Results
+    -------
+        Return the coefficients of the space that minimize the distance
+        between the vector and the space spanned by the vectors.
+        Returns None if the solution is not found.
+    """
+    if len(space) == 0:
+        return None
+
+    space = np.array(space, dtype = np.double)
+    
+    # Solve the minimization problem
+    def function_to_minimize(x):
+        res = v - x.dot(space)
+        return res.dot(res)
+
+    def gradient(x):
+        return -2*(v - x.dot(space)).dot(space.T)
+    # Solve the minimization problem
+    res = scipy.optimize.minimize(function_to_minimize, 
+        np.zeros(space.shape[0]), 
+        jac = gradient, 
+        method = 'BFGS',
+        options = {'disp' : False})
+    
+    # Check if the solution is correct
+    if res.success:
+        if np.linalg.norm(res.x.dot(space) - v) > thr:
+            return None
+        return res.x
+    else:
+        print("NO SUCCESS")
+        raise ValueError("Error, the minimization problem was not solved correctly")
+        return None

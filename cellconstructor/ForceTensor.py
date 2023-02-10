@@ -1144,7 +1144,7 @@ class Tensor3():
         self.supercell_size = supercell_size
         
         
-        # Cartesian lattice vectors
+        # Cartesian lattice vectors (in Angstrom)
         self.r_vector2 = np.zeros((3, n_R), dtype = np.double, order = "F")
         self.r_vector3 = np.zeros((3, n_R), dtype = np.double, order = "F")
         
@@ -1376,7 +1376,16 @@ class Tensor3():
 
         Save the tensor on a file.
 
-        The file format is the same as phono3py or D3Q       
+        The file format is the same as phono3py or D3Q.
+        The unit of measures are those in which the tensor is stored.
+        If readed from the result of get_free_energy_hessian, they are in Ry/Bohr^3.
+
+        To convert the units to eV/A^3 (used in phono3py, for example), you need to change them as:
+        >>> my_tensor3.tensor *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM**3
+        >>> my_tensor3.WriteOnFile("FORCE_CONSTANTS_3RD", file_format="phonopy")
+
+        However, remember to change back in Ry/Bohr^3 if you want to further process this tensor within Cellconstructor
+        (For example to compute )
 
         Parameters
         ----------
