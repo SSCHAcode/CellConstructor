@@ -12,7 +12,7 @@ import pytest
 
 
 @pytest.mark.parametrize("supercell", [(2,2,2), (3,3,3)])
-def test_phonons_finite_displacements(supercell=(3,3,3), debug=False):
+def test_phonons_finite_displacements(supercell, debug=False):
     """Test the phonons using finite displacements"""
 
     # Build a MgO structure using ASE
@@ -60,4 +60,4 @@ def test_phonons_finite_displacements(supercell=(3,3,3), debug=False):
 
 
 if __name__ == "__main__":
-    test_phonons_finite_displacements()
+    test_phonons_finite_displacements((2,2,2))
