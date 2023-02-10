@@ -1952,6 +1952,9 @@ def GetQGrid(unit_cell, supercell_size, enforce_gamma_first = True):
     
     This method gives back a list of q points given the
     reciprocal lattice vectors and the supercell size.
+
+    The q points are returned in 2pi / a units.
+    Where a is the unit of measure of the unit_cell (usually Angstrom).
     
     Parameters
     ----------

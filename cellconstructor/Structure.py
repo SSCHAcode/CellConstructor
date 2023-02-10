@@ -343,6 +343,18 @@ Error, to compute the volume the structure must have a unit cell initialized:
         read_atoms = True
         if read_espresso:
             read_atoms = False
+
+            # Get the alat from the input file
+            espresso_dict = Methods.read_namelist(lines)
+            if "system" in espresso_dict:
+                if "alat" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["alat"]*BOHR_TO_ANGSTROM
+                elif "celldm(1)" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["celldm(1)"]*BOHR_TO_ANGSTROM
+
+                if "ibrav" in espresso_dict["system"]:
+                    assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
+            
         cell_present = False
         
         read_crystal = False

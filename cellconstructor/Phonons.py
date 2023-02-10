@@ -4636,6 +4636,8 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
     n_syms = len(symm)
 
     # Get irt from the symmetries (atomic corruispondance after the application of symmetry)
+    if debug:
+        print("Getting symmetry equivalent atoms")
     irts = []
     for i, s in enumerate(symm):
         irt = symmetries.GetIRT(super_structure, s)
@@ -4649,8 +4651,8 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
             disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
             disp[i, j] += 1
 
-            #if debug:
-            #    print("Simulating displacement", i, j)
+            if debug:
+                print("Simulating displacement", i, j)
 
             # Check if the displacement can be decomposed in those already computed
             coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
