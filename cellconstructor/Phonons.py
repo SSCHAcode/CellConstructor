@@ -4559,9 +4559,12 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
 
 
 
-def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon = 0.05, 
-    supercell = (1,1,1), progress = -1, progress_bar = False,
-    debug = False):
+def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=0.05, 
+                                             supercell=(1,1,1),
+                                             progress=-1,
+                                             progress_bar=False,
+                                             debug=False, 
+                                             timer=None):
     """
     COMPUTE THE FORCE CONSTANT MATRIX EXPLOITING SYMMETRIES
     =======================================================
@@ -4582,6 +4585,10 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
             and the independent ones + their symmetry equivalents
     8. Compute the force constant matrix as the matrix product of the inverse change of basis
             and the matrix of forces.
+
+    TODO: This algorithm neglects the ASR, therefore, sometimes, there are 3 more independent
+        displacements whose computation could be avoided.
+
 
     Parameters
     ----------
@@ -4640,7 +4647,10 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
         print("Getting symmetry equivalent atoms")
     irts = []
     for i, s in enumerate(symm):
-        irt = symmetries.GetIRT(super_structure, s)
+        if timer is not None:
+            irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
+        else:
+            irt = symmetries.GetIRT(super_structure, s, timer=timer)
         irts.append(irt)
 
     # Build the symmetry inequivalent displacements
@@ -4655,7 +4665,11 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
                 print("Simulating displacement", i, j)
 
             # Check if the displacement can be decomposed in those already computed
-            coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
+            if timer is not None:
+                coefficients = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, disp.ravel(), displacements)
+            else:
+                coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
+            
             #if debug:
             #    print("The decomposition is:", coefficients)
             if coefficients is None:
@@ -4663,14 +4677,21 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
                 list_of_calculations.append((i,j))
 
                 # Generate the symmetry equivalent displacements
-                disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
+                if timer is not None:
+                    disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector, symm, disp, super_structure.unit_cell, irts)
+                else:
+                    disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
+
 
                 # Check wether to add or not the newly generated displacements to the space
                 for i_sym in range(n_syms):
                     v = disp_sym[i_sym, :, :]
                     #if debug:
                     #    print("The symmetry {} gives a vector v = {}".format(i_sym, v))
-                    coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), displacements)
+                    if timer is not None:
+                        coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), displacements)
+                    else:
+                        coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), displacements)
                     #if debug:
                     #    print("Is new?", coeffs is None)
                     if coeffs is None:
@@ -4712,7 +4733,10 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
         #atm.set_calculator(ase_calculator)
         fc[3*i + j, :] -= forces.ravel()
 
-    fc = Settings.GoParallel(compute_force, list_of_calculations, reduce_op='+')
+    if timer is not None:
+        fc = timer.execute_timed_function(Settings.GoParallel, compute_force, list_of_calculations, reduce_op='+')
+    else:
+        fc = Settings.GoParallel(compute_force, list_of_calculations, reduce_op='+')
 
     #if Settings.am_i_the_master():
     #    np.savetxt("FC_before_subtraction.dat", fc)
@@ -4741,13 +4765,21 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon 
                 force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
 
                 # Generate the symmetry equivalent displacements
-                disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
-                force_sym = symmetries.ApplySymmetriesToVector(symm, force, super_structure.unit_cell, irts)
+                if timer is not None:
+                    disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, disp, super_structure.unit_cell, irts)
+                    force_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, force, super_structure.unit_cell, irts)
+                else:
+                    disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
+                    force_sym = symmetries.ApplySymmetriesToVector(symm, force, super_structure.unit_cell, irts)
 
                 # Check wether to add or not the newly generated displacements to the space
                 for i_sym in range(n_syms):
                     v = disp_sym[i_sym, :, :]
-                    coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), disp_basis)
+                    if timer is not None:
+                        coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), disp_basis)
+                    else:
+                        coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), disp_basis)
+
                     if coeffs is None:
                         disp_basis.append(v.ravel())
                         counter_index += 1                

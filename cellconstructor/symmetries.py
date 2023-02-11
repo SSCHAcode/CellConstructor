@@ -88,7 +88,7 @@ class QE_Symmetry:
         self.QE_ft = np.zeros( (3, 48), dtype = np.float64, order = "F")
         
         
-        self.QE_minus_q = np.bool( False )
+        self.QE_minus_q = False
         self.QE_irotmq = np.intc(0)
         self.QE_nsymq = np.intc( 0 )
         self.QE_nsym = np.intc(0)

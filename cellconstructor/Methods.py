@@ -1850,6 +1850,14 @@ def get_generic_covariant_coefficients(v, space, thr = 0.05):
         return None
 
     space = np.array(space, dtype = np.double)
+    x_start = space.dot(v)
+
+    if np.linalg.norm(v - x_start.dot(space)) < thr:
+        return x_start
+
+    if space.shape[0] == space.shape[1]:
+        x = np.linalg.solve(space, v)
+        return x
     
     # Solve the minimization problem
     def function_to_minimize(x):
@@ -1858,11 +1866,12 @@ def get_generic_covariant_coefficients(v, space, thr = 0.05):
 
     def gradient(x):
         return -2*(v - x.dot(space)).dot(space.T)
+    
     # Solve the minimization problem
     res = scipy.optimize.minimize(function_to_minimize, 
-        np.zeros(space.shape[0]), 
+        x_start, 
         jac = gradient, 
-        method = 'BFGS',
+        method = "BFGS",
         options = {'disp' : False})
     
     # Check if the solution is correct

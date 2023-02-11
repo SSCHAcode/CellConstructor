@@ -14,6 +14,9 @@ import pytest
 @pytest.mark.parametrize("supercell", [(2,2,2), (3,3,3)])
 def test_phonons_finite_displacements(supercell, debug=False):
     """Test the phonons using finite displacements"""
+    timer=None
+    if debug:
+        timer = CC.Timer.Timer(active=True)
 
     # Build a MgO structure using ASE
     atoms = ase.build.bulk('Cu', 'fcc', a=3.6)
@@ -40,7 +43,8 @@ def test_phonons_finite_displacements(supercell, debug=False):
     # Compute the dynamical matrix using the symmetrized
     dyn2 = CC.Phonons.compute_phonons_finite_displacements_sym(struct, calc,
                                                                supercell=supercell,
-                                                               debug=True)
+                                                               debug=True,
+                                                               timer=timer)
 
     w_good, pol_good = dyn.DiagonalizeSupercell()
     w_bad, pol_bad = dyn2.DiagonalizeSupercell()
@@ -54,10 +58,13 @@ def test_phonons_finite_displacements(supercell, debug=False):
                                                                w_bad[i] * CC.Units.RY_TO_CM)
                          for i in range(len(w_good))]))
 
+    if timer is not None:
+        timer.print_report()
+
     # Check that the two are equal
     for iq, dyn in enumerate(dyn.dynmats):
         assert np.allclose(dyn, dyn2.dynmats[iq], atol=1e-3)
 
 
 if __name__ == "__main__":
-    test_phonons_finite_displacements((2,2,2))
+    test_phonons_finite_displacements((6,6,6), debug=True)
