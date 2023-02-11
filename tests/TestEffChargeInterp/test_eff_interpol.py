@@ -8,7 +8,7 @@ import time
 import numpy as np 
 import pytest
 
-def test_eff_charge_signle_q():
+def test_eff_charge_single_q():
     total_path = os.path.dirname(os.path.abspath(__file__))
     os.chdir(total_path)
     
