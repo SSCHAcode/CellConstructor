@@ -976,7 +976,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
             
             #print "Max distance:", np.max(effective_distances)
 
-            assert all(eq_atm == equiv_atoms)  
+            assert all(np.array(eq_atm) == np.array(equiv_atoms))  
+            eq_atm = equiv_atoms
 
             if return_distances:
                 return equiv_atoms, effective_distances

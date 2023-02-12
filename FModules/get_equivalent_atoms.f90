@@ -68,7 +68,7 @@ subroutine get_equivalent_atoms(coords1, coords2, unit_cell, ityp1, ityp2, eq_at
                         end if
 
                         ! Jump if the atom is already found
-                        if (total_dist(j) .lt. 1.d-6) cycle
+                        if (total_dist(j) .lt. 1.d-6) continue
 
 
                         ! Exclude different type of atoms
@@ -90,14 +90,14 @@ subroutine get_equivalent_atoms(coords1, coords2, unit_cell, ityp1, ityp2, eq_at
                         tmp_dist = sum(aux_vect**2)
 
                         !print *, "Checking atom ", j, " of ", nat, "old_dist: ", &
-                        !    total_dist(j), " new_dist: ", tmp_dist
+                        !    total_dist(j), " new_dist: ", tmp_dist, "current: ", eq_atoms(i)
                         
                         if (tmp_dist .lt. total_dist(j)) then
                             total_dist(j) = tmp_dist 
-                            eq_atoms(i) = j - 1 ! - 1 is for Fortan to python correspondance
                         end if
                         if (tmp_dist .lt. 1.d-6) then
                             eq_found = eq_found + 1
+                            eq_atoms(i) = j - 1 ! - 1 is for Fortan to python correspondance
                             
                             ! Early exit if all the atoms are found
                             if (eq_found .eq. nat) then
@@ -115,6 +115,12 @@ subroutine get_equivalent_atoms(coords1, coords2, unit_cell, ityp1, ityp2, eq_at
             enddo
             if (found) exit
         enddo
+
+        ! Check if the atom is not found
+        if (.not. found .or. eq_atoms(i) .eq. -1) then
+            ! Pick the index of the minimum value of total_dist
+            eq_atoms(i) = minloc(total_dist, dim=1) - 1
+        end if
     enddo
 
 end subroutine get_equivalent_atoms
