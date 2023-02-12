@@ -831,7 +831,6 @@ class QE_Symmetry:
                 The list of q points divided by stars, the fcq must follow the order
                 of the q points in the q_stars array
         """
-        
         nqirr = len(q_stars)
         nq = np.sum([len(x) for x in q_stars])
         

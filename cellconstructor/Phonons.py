@@ -4661,8 +4661,8 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
             disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
             disp[i, j] += 1
 
-            if debug:
-                print("Simulating displacement", i, j)
+            #if debug:
+            #    print("Simulating displacement", i, j)
 
             # Check if the displacement can be decomposed in those already computed
             if timer is not None:
@@ -4697,6 +4697,16 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
                     if coeffs is None:
                         displacements.append(v.ravel())
                         assert len(displacements) <= nat3, "The number of displacements is not correct. Something went wrong."
+                        if len(displacements) == nat3:
+                            break 
+
+            # Early exit    
+            if len(displacements) == nat3:
+                break
+
+        # Early exit
+        if len(displacements) == nat3:
+            break
     
     print("Number of symmetry inequivalent displacements:", len(list_of_calculations))
 
@@ -4757,7 +4767,11 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     counter_index = -1
 
     for i in range(super_structure.N_atoms):
+        if counter_index +1 == nat3:
+            break
         for j in range(3):
+            if counter_index +1 == nat3:
+                break
             disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
             disp[i, j] += 1
             if (i, j) in list_of_calculations:
@@ -4814,7 +4828,11 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     if np.prod(supercell) > 1:
         correct_dyn = Phonons(structure, nqirr = np.prod(supercell))
         q_tot = symmetries.GetQGrid(structure.unit_cell, supercell)
-        dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        if timer is not None:
+            dynq = timer.execute_timed_function(GetDynQFromFCSupercell, 
+                final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        else:
+            dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
         for iq, q in enumerate(q_tot):
             correct_dyn.dynmats[iq] = dynq[iq, :,:]
             correct_dyn.q_tot[iq] = q

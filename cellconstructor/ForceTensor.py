@@ -769,7 +769,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
         # If effective charges are present, then add the nonanalitic part
         if self.effective_charges is not None:
-            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex128, order = "F")
             for i in range(self.nat):
                 for j in range(self.nat):
                     dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
