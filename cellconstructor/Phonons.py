@@ -1367,6 +1367,8 @@ class Phonons:
         It needs two files: the file with the structure information,
         and the file with the force constant matrix.
 
+        TODO: Test properly, possible bugs.
+
         Parameters
         ----------
             yaml_filename : string
@@ -1375,6 +1377,7 @@ class Phonons:
                 Path to the FORCE_CONSTANTS file. If None, a file called FORCE_CONSTANTS in the same directory
                 as phonopy.yaml will be looked for.
         """
+        warnings.warn("This subroutine is not tested yet, use it with care.")
 
         unit_cell = np.zeros((3,3), dtype = np.double)
         supercell = np.zeros(3, dtype = np.intc)
