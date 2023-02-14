@@ -88,7 +88,7 @@ class QE_Symmetry:
         self.QE_ft = np.zeros( (3, 48), dtype = np.float64, order = "F")
         
         
-        self.QE_minus_q = np.bool( False )
+        self.QE_minus_q = False
         self.QE_irotmq = np.intc(0)
         self.QE_nsymq = np.intc( 0 )
         self.QE_nsym = np.intc(0)
@@ -831,7 +831,6 @@ class QE_Symmetry:
                 The list of q points divided by stars, the fcq must follow the order
                 of the q points in the q_stars array
         """
-        
         nqirr = len(q_stars)
         nq = np.sum([len(x) for x in q_stars])
         
@@ -1952,6 +1951,9 @@ def GetQGrid(unit_cell, supercell_size, enforce_gamma_first = True):
     
     This method gives back a list of q points given the
     reciprocal lattice vectors and the supercell size.
+
+    The q points are returned in 2pi / a units.
+    Where a is the unit of measure of the unit_cell (usually Angstrom).
     
     Parameters
     ----------

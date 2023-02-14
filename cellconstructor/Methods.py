@@ -14,6 +14,7 @@ from numpy import *
 import numpy as np
 import sys, os
 import symph
+import scipy, scipy.optimize
 
 import warnings
 
@@ -1017,56 +1018,58 @@ def read_namelist(line_list):
                 inside_namespace = False
                 namespace.clear()
                 continue
-            
-            # First of all split for quotes
-            value = None
-            new_list_trial = line.split('"')
-            if len(new_list_trial) == 3:
-                value = '"' + new_list_trial[1] + '"'
-            else:                
-                new_list_trial = line.split("'")
+
+            if inside_namespace:
+                
+                # First of all split for quotes
+                value = None
+                new_list_trial = line.split('"')
                 if len(new_list_trial) == 3:
                     value = '"' + new_list_trial[1] + '"'
-            
-            # Get the name of the variable
-            new_list = line.split("=")
-            
-            if len(new_list) != 2 and value is None:
-                raise IOError("Error, I do not understand the line %s" % line)
-            elif len(new_list) < 2:
-                raise IOError("Error, I do not understand the line %s" % line)
+                else:                
+                    new_list_trial = line.split("'")
+                    if len(new_list_trial) == 3:
+                        value = '"' + new_list_trial[1] + '"'
                 
-            variable = new_list[0].strip().lower()
-            if value is None:
-                value = new_list[1].strip()
-            
-            # Remove ending comma and otehr tailoring space
-            if value[-1] == ",":
-                value = value[:-1].strip()
-            
-            
-            # Convert fortran bool
-            if value.lower() == ".true.":
-                value = True
-            elif value.lower() == ".false.":
-                value = False
-            elif '"' == value[0]: # Get a string content
-                # If it is a string cancel the " or ' or ,
-                value = value.replace("\"", "")
-            elif "'" == value[0]:
-                value = value.replace("'", "")
-            elif value.count(" ") >= 1:
-                value = [float(item) for item in value.split()]
-            else:
-                # Check if it is a number
-                try:
-                    value = float(value.lower().replace("d", "e"))
-                except:
-                    pass
-            if inside_namespace:
-                namespace[variable] = value
-            else:
-                total_dict[variable] = value
+                # Get the name of the variable
+                new_list = line.split("=")
+                
+                if len(new_list) != 2 and value is None:
+                    raise IOError("Error, I do not understand the line %s" % line)
+                elif len(new_list) < 2:
+                    raise IOError("Error, I do not understand the line %s" % line)
+                    
+                variable = new_list[0].strip().lower()
+                if value is None:
+                    value = new_list[1].strip()
+                
+                # Remove ending comma and otehr tailoring space
+                if value[-1] == ",":
+                    value = value[:-1].strip()
+                
+                
+                # Convert fortran bool
+                if value.lower() == ".true.":
+                    value = True
+                elif value.lower() == ".false.":
+                    value = False
+                elif '"' == value[0]: # Get a string content
+                    # If it is a string cancel the " or ' or ,
+                    value = value.replace("\"", "")
+                elif "'" == value[0]:
+                    value = value.replace("'", "")
+                elif value.count(" ") >= 1:
+                    value = [float(item) for item in value.split()]
+                else:
+                    # Check if it is a number
+                    try:
+                        value = float(value.lower().replace("d", "e"))
+                    except:
+                        pass
+                if inside_namespace:
+                    namespace[variable] = value
+                else:
+                    total_dict[variable] = value
 
     # The file has been analyzed
     if inside_namespace:
@@ -1818,3 +1821,65 @@ def get_bandpath(unit_cell, path_string, special_points, n_points = 1000):
         q_path[i-1, :] =  path_points[index, :] + counter * dq * q_versor
 
     return q_path, (xaxis, xticks, xlabels)
+
+
+
+# A function to check whether a vector is part of a space vector
+# Identified by a span of non orthogonal vectors
+def get_generic_covariant_coefficients(v, space, thr = 0.05):
+    """
+    Check whether a vector is part of a space spanned by a set of vectors.
+    Even if the space is a contains less element than the total dimension
+
+    Parameters
+    ----------
+        v : ndarray(size = (d,))
+            The vector to check
+        space : ndarray(size = (n_vectors, d))
+            The space spanned by the vectors
+        thr : float
+            The threshold to consider a vector as part of the space
+
+    Results
+    -------
+        Return the coefficients of the space that minimize the distance
+        between the vector and the space spanned by the vectors.
+        Returns None if the solution is not found.
+    """
+    if len(space) == 0:
+        return None
+
+    space = np.array(space, dtype = np.double)
+    x_start = space.dot(v)
+
+    if np.linalg.norm(v - x_start.dot(space)) < thr:
+        return x_start
+
+    if space.shape[0] == space.shape[1]:
+        x = np.linalg.solve(space, v)
+        return x
+    
+    # Solve the minimization problem
+    def function_to_minimize(x):
+        res = v - x.dot(space)
+        return res.dot(res)
+
+    def gradient(x):
+        return -2*(v - x.dot(space)).dot(space.T)
+    
+    # Solve the minimization problem
+    res = scipy.optimize.minimize(function_to_minimize, 
+        x_start, 
+        jac = gradient, 
+        method = "BFGS",
+        options = {'disp' : False})
+    
+    # Check if the solution is correct
+    if res.success:
+        if np.linalg.norm(res.x.dot(space) - v) > thr:
+            return None
+        return res.x
+    else:
+        print("NO SUCCESS")
+        raise ValueError("Error, the minimization problem was not solved correctly")
+        return None

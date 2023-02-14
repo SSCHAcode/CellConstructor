@@ -62,13 +62,7 @@ class Timer:
         """
         Print the report on timing for each function.
         """
-
-        print("")
-        print("")
-        print(" /----------------\ ")
-        print(" |  TIMER REPORT  | ")
-        print(" \----------------/  ")
-        print()
+        print("\n\n" + "="*24 + "\n" + " "*8 + "TIMER REPORT" + " "*8 + "\n" + "="*24 + "\n")
 
         for name in self.timed_subroutines:
             tt = self.timed_subroutines[name]["time"]
@@ -84,7 +78,7 @@ class Timer:
         
         print()
         print(" END OF TIMER REPORT ")
-        print("---------------------")
+        print("=====================")
         print()
 
 

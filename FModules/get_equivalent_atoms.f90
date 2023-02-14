@@ -7,24 +7,121 @@ subroutine get_equivalent_atoms(coords1, coords2, unit_cell, ityp1, ityp2, eq_at
     integer, dimension(nat), intent(out) :: eq_atoms
     integer :: nat
 
-    integer :: i, j
+    integer :: i, j, eq_found, j_aux
     double precision :: min_dist, tmp_dist
-    double precision, dimension(3) :: dist
+    double precision, dimension(3) :: aux_vect
+    double precision, dimension(nat) :: total_dist
+
+    ! Variables for get_closest_atoms
+    integer :: nx, ny, nz, mynx, myny, mynz
+    integer, parameter :: far = 2
+    logical :: found
+
+    ! Set all the atoms as not equivalent
+    eq_atoms(:) = -1
+
+    ! This subroutine could use get_closest_vector
+    ! However, we mix it here to invert the loops
+    ! And exploit a most likely scenario that the
+    ! Replica of the atoms is on the same cell
+    ! This is a huge speedup
+
+    eq_found = 0
 
     do i = 1, nat 
-        min_dist = 1000000.d0
-        do j = 1, nat 
-            ! Exclude different type of atoms
-            if ( ityp1(i) .ne. ityp2(j) ) continue
-            call get_closest_vector(unit_cell, coords1(i, :) - coords2(j, :), dist)
-            tmp_dist = sum(dist**2)
-            
-            if (tmp_dist .lt. min_dist) then
-                min_dist = tmp_dist 
-                eq_atoms(i) = j - 1 ! - 1 is for Fortan to python correspondance
-            end if
+        total_dist(:) = 100000.d0
+
+        !print *, "ATOM: ", i, " of ", nat
+        found = .false.
+
+        ! Decide what cell to probe the distance
+        do mynx = -far, far
+            ! Reorder the loop to start with 0
+            ! which is the most probable value (exit early if found)
+            if (mynx .le. 0) then   
+                nx = mynx + far
+            else 
+                nx = -mynx 
+            endif
+            do myny = -far, far
+                if (myny .le. 0) then 
+                    ny = myny + far
+                else 
+                    ny = -myny
+                endif
+                do mynz = -far, far
+                    if (mynz .le. 0) then 
+                        nz = mynz + far
+                    else 
+                        nz = -mynz
+                    endif
+
+                    !print *, "Checking cell: ", nx, ny, nz
+
+                    ! Now we have the cell, we can loop over the atoms
+                    do j_aux = i, nat + i -1
+                        ! Warp the loop over j to start with i
+                        ! Which is the most probable value (and the most efficient loop)
+                        j = j_aux
+                        if (j .gt. nat) then
+                            j = j - nat
+                        end if
+
+                        ! Jump if the atom is already found
+                        if (total_dist(j) .lt. 1.d-6) continue
+
+
+                        ! Exclude different type of atoms
+                        if ( ityp1(i) .ne. ityp2(j) ) continue
+                        !call get_closest_vector(unit_cell, coords1(i, :) - coords2(j, :), dist)
+
+                        ! Unwrap the get_closest_vector subroutine here
+                        aux_vect(:) = coords1(i, :) - coords2(j, :)
+                        if (nx .ne. 0) then
+                            aux_vect(:) = aux_vect(:) + nx * unit_cell(1, :)
+                        end if 
+                        if (ny .ne. 0) then
+                            aux_vect(:) = aux_vect(:) + ny * unit_cell(2, :)
+                        end if
+                        if (nz .ne. 0) then
+                            aux_vect(:) = aux_vect(:) + nz * unit_cell(3, :)
+                        end if
+
+                        tmp_dist = sum(aux_vect**2)
+
+                        !print *, "Checking atom ", j, " of ", nat, "old_dist: ", &
+                        !    total_dist(j), " new_dist: ", tmp_dist, "current: ", eq_atoms(i)
+                        
+                        if (tmp_dist .lt. total_dist(j)) then
+                            total_dist(j) = tmp_dist 
+                        end if
+                        if (tmp_dist .lt. 1.d-6) then
+                            eq_found = eq_found + 1
+                            eq_atoms(i) = j - 1 ! - 1 is for Fortan to python correspondance
+                            
+                            ! Early exit if all the atoms are found
+                            if (eq_found .eq. nat) then
+                                !print *, "Everything found"
+                                !print *, eq_atoms
+                                return
+                            end if   
+                            found = .true.
+                            exit
+                        end if
+                    enddo
+                    if (found) exit
+                enddo
+                if (found) exit
+            enddo
+            if (found) exit
         enddo
-    enddo   
+
+        ! Check if the atom is not found
+        if (.not. found .or. eq_atoms(i) .eq. -1) then
+            ! Pick the index of the minimum value of total_dist
+            eq_atoms(i) = minloc(total_dist, dim=1) - 1
+        end if
+    enddo
 
 end subroutine get_equivalent_atoms
 
@@ -36,16 +133,34 @@ subroutine get_closest_vector(unit_cell, v_dist, new_v_dist)
     double precision, dimension(3), intent(in) :: v_dist
     double precision, dimension(3), intent(out) :: new_v_dist
 
-    integer :: nx, ny, nz
+    integer :: nx, ny, nz, mynx, myny, mynz
     integer, parameter :: far = 2
     double precision, dimension(3) :: aux_vect
     double precision :: min_dist, dist
     
     min_dist = sum(v_dist(:) ** 2)
     new_v_dist(:) = v_dist(:)
-    do nx = -far, far
-        do ny = -far, far
-            do nz = -far, far
+    do mynx = -far, far
+        ! Reorder the loop to start with 0
+        ! which is the most probable value (exit early if found)
+        if (mynx .le. 0) then   
+            nx = mynx + far
+        else 
+            nx = -mynx 
+        endif
+
+        do myny = -far, far
+            if (myny .le. 0) then 
+                ny = myny + far
+            else 
+                ny = -myny
+            endif
+            do mynz = -far, far
+                if (mynz .le. 0) then 
+                    nz = mynz + far
+                else 
+                    nz = -mynz
+                endif
                 ! Define the new vector
                 aux_vect(:) = v_dist(:)
                 aux_vect(:) = aux_vect(:) + nx * unit_cell(1, :)
@@ -57,6 +172,10 @@ subroutine get_closest_vector(unit_cell, v_dist, new_v_dist)
                     min_dist = dist 
                     new_v_dist(:) = aux_vect(:)
                 end if  
+
+                if (dist .lt. 1.d-6) then
+                    return
+                end if
             enddo
         enddo
     enddo
