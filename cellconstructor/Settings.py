@@ -160,7 +160,14 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
     ===========
     
     Perform a parallel evaluation of the provided function with the spawned
-    list of inputs, and returns a list of output
+    list of inputs, and returns a list of output.
+
+    Note, this subroutine will not speedup the reduction, 
+    the good speedup is obtained not with a large number of inputs, 
+    but with a large execution time of the function on each element.
+
+    Therefore, the cost to apply the function on a element of list_of_inputs 
+    must be greather than the cost of the reduction (otherwise no gain is obtained).
     
     Parameters
     ----------
@@ -190,10 +197,25 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
         list_of_inputs = broadcast(list_of_inputs)
 
         # Prepare the work for the current processor
-        # TODO: Use a generator
-        computing_list = []
-        for i in range(rank, len(list_of_inputs), n_proc):
-            computing_list.append(list_of_inputs[i])
+        # Define the range of the list to be computed by the current processor
+        n_elements = len(list_of_inputs)
+        n_per_proc = int(n_elements / n_proc)
+        n_left = n_elements - n_per_proc * n_proc
+        if rank < n_left:
+            start = rank * (n_per_proc + 1)
+            end = start + n_per_proc + 1
+        else:
+            start = rank * n_per_proc + n_left
+            end = start + n_per_proc
+        
+        computing_list = list_of_inputs[start:end]
+
+        # old version
+        #computing_list = []
+        #for i in range(rank, len(list_of_inputs), n_proc):
+        #    computing_list.append(list_of_inputs[i])
+
+
 
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
         #all_print("Computing:", computing_list)
@@ -204,14 +226,17 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             result = 0
             for x in computing_list:
                 result += function(x) 
-
         elif reduce_op == "*":
             result = 1
             for x in computing_list:
                 result *= function(x)
+        else:
+            result = []
+            for x in computing_list:
+                result.append(function(x))
 
         # If a reduction must be done, return
-        if not reduce_op is None:
+        if reduce_op is not None:
             if __PARALLEL_TYPE__ == "mpi4py":
                 comm = mpi4py.MPI.COMM_WORLD
                 results = comm.allgather(result) 
@@ -234,10 +259,24 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             #np.savetxt("result_{}_total.dat".format(rank), result)
 
             return result 
-        else:
-            raise NotImplementedError("Error, for now parallelization with MPI implemented only with reduction")
+        else: 
+            # Gather the results
+            if __PARALLEL_TYPE__ == "mpi4py":
+                comm = mpi4py.MPI.COMM_WORLD
+                results = comm.allgather(result)
+
+                # Flatten the list
+                result = [item for sublist in results for item in sublist]
+
+            return result
     else:
-        raise NotImplementedError("Something went wrong: {}".format(__PARALLEL_TYPE__))
+        raise ValueError("Something wrong with the MPI initialization, parallel type is {}".format(__PARALLEL_TYPE__))
+
+
+
+            
+
+        #raise NotImplementedError("Something went wrong: {}".format(__PARALLEL_TYPE__))
 
     #elif __PARALLEL_TYPE__ == "mp":
         #p = mp.Pool(__NPROC__)
