@@ -20,6 +20,7 @@ import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 import cellconstructor.Timer as Timer
 from cellconstructor.Settings import ParallelPrint as print
+import cellconstructor.Settings as Settings
 
 # Load the fortran symmetry QE module
 import symph
@@ -2911,3 +2912,50 @@ def GetSymmetryMatrix(sym, structure, crystal = False):
         sym_mat[3 * i_irt : 3*i_irt+3, 3*i : 3*i+ 3] = sym_cryst
 
     return sym_mat
+
+
+def get_symmetry_equivalent_atoms(symmetries, structure, parallel=True, timer=None):
+    """
+    GET THE SYMMETRY EQUIVALENT ATOMS
+    =================================
+
+    This subroutine returns the list of the 'irt' variable, 
+    which is the index of the atom in the original structure 
+    equivalent to that of the structure after the symmetry operation is applied.
+
+       new_coords[irt[i], :] =  S coords[i, :]
+
+    This subroutine exploits MPI parallelization.
+
+    Parameters
+    ----------
+        symmetries : list of ndarray(size = (3, 4))
+            The array of the symmetries
+        structure : CC.Structure.Structure()
+            The structure on which the symmetries are applied
+
+    Results
+    -------
+        irts : list of ndarray(size = (structure.N_atoms, ), dtype = np.intc)
+            The list of the irt array for each symmetry
+    """
+
+    if not parallel:
+        irts = []
+        for i, s in enumerate(symmetries):
+            if timer is not None:
+                irt = timer.execute_timed_function(GetIRT, structure, s, timer=timer)
+            else:
+                irt = GetIRT(structure, s, timer=timer)
+            irts.append(irt)
+    else:
+        def function(s):
+            return GetIRT(structure, s, timer=timer)
+
+        if timer is not None:
+            irts = timer.execute_timed_function(Settings.GoParallel, function, symmetries)
+        else:
+            irts = Settings.GoParallel(function, symmetries)
+
+
+    return irts

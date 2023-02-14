@@ -4645,16 +4645,19 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     symm = symmetries.GetSymmetriesFromSPGLIB(symm)
     n_syms = len(symm)
 
-    # Get irt from the symmetries (atomic corruispondance after the application of symmetry)
+    # Get irt from the symmetries (atomic corrispondance after the application of symmetry)
     if debug:
         print("Getting symmetry equivalent atoms")
-    irts = []
-    for i, s in enumerate(symm):
-        if timer is not None:
-            irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
-        else:
-            irt = symmetries.GetIRT(super_structure, s, timer=timer)
-        irts.append(irt)
+    
+
+    irts = symmetries.get_symmetry_equivalent_atoms(symm, super_structure, timer=timer)
+    #irts = []
+    #for i, s in enumerate(symm):
+    #    if timer is not None:
+    #        irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
+    #    else:
+    #        irt = symmetries.GetIRT(super_structure, s, timer=timer)
+    #    irts.append(irt)
 
     # Build the symmetry inequivalent displacements
     # This is the basis that we will use to compute the force constant matrix

@@ -1,5 +1,7 @@
 import time
 import numpy as np
+import cellconstructor as CC, cellconstructor.Settings
+from cellconstructor.Settings import ParallelPrint as print
 
 
 class Timer:
