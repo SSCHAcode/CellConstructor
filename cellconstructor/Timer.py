@@ -48,6 +48,9 @@ class Timer:
                     self.timed_subroutines[name]["time"] = 0
                     self.timed_subroutines[name]["counts"] = 0
 
+    def spawn_child(self):
+        """Spawn a child timer."""
+        return Timer(active=self.active, print_each=self.print_each, level=self.level+1)
 
     def execute_timed_function(self, function, *args, **kwargs):
         """
@@ -63,7 +66,7 @@ class Timer:
                 if function.__name__ in self.timed_subroutines:
                     new_timer = self.timed_subroutines[function.__name__]["timer"]
                 else:
-                    new_timer = Timer(active=True, print_each=self.print_each, level=self.level+1)
+                    new_timer = self.spawn_child()
                 ret = function(*args, timer=new_timer,**kwargs)
             else:
                 ret = function(*args, **kwargs)
@@ -76,14 +79,26 @@ class Timer:
 
 
 
-    def print_report(self):
+    def print_report(self, master_level=0, is_master=False):
         """
-        Print the report on timing for each function.
+        Print the report on timing for each timer and subtimer contained.
+
+        Parameters
+        ----------
+            master_level: int
+                The level of the master timer. This is used to print the correct indentation.
+            is_master: bool
+                If True, ignore the master_level keyword and assume this timer is the master.
+                This is equivalent to setting master_level = self.level
         """
+        if is_master:
+            master_level = self.level
 
-        prefix = " "*4*self.level
+        level = self.level - master_level
 
-        if self.level == 0:
+        prefix = " "*4*level
+
+        if level == 0:
             print("\n\n" + "="*24 + "\n" + " "*8 + "TIMER REPORT" + " "*8 + "\n" + "="*24 + "\n")
 
         for name in self.timed_subroutines:
@@ -98,11 +113,11 @@ class Timer:
             print("{}Average of {} s per call".format(prefix, self.timed_subroutines[name]["time"] / self.timed_subroutines[name]["counts"]))
             if self.timed_subroutines[name]["timer"] is not None:
                 print("{}Subroutine report:".format(prefix))
-                self.timed_subroutines[name]["timer"].print_report()
+                self.timed_subroutines[name]["timer"].print_report(master_level=master_level)
 
             print()
         
-        if self.level == 0:
+        if level == 0:
             print()
             print(" END OF TIMER REPORT ")
             print("=====================")

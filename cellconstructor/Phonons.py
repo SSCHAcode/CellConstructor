@@ -4721,6 +4721,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     fc_aux_basis = np.zeros((nat3, nat3), dtype = np.double)
     
     # Compute the auxiliary force basis
+    # This could exploit parallelization to speedup the calculation
     for index, gen in enumerate(generators):
         # Get the symmetry operation
         current_sym = symm[gen["sym_index"]]

@@ -3,6 +3,8 @@ from __future__ import print_function
 This file keeps in mind common settings that needs to be initialized once.
 """
 import numpy as np
+import time
+import inspect
 
 # The parallelization setup
 __PARALLEL_TYPE__ = "serial"
@@ -154,7 +156,7 @@ def GetNProc():
     
     return __NPROC__
     
-def GoParallel(function, list_of_inputs, reduce_op = None):
+def GoParallel(function, list_of_inputs, reduce_op = None, timer=None):
     """
     GO PARALLEL
     ===========
@@ -190,6 +192,7 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
                 raise NotImplementedError("Error, reduction '{}' not implemented.".format(reduce_op))
 
         # Here we create the poll manually
+        t1 = time.time()
         n_proc = GetNProc()
         rank = get_rank()
 
@@ -209,6 +212,10 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             end = start + n_per_proc
         
         computing_list = list_of_inputs[start:end]
+        t2 = time.time()
+
+        if timer is not None:
+            timer.add_timer("broadcast", t2 - t1)
 
         # old version
         #computing_list = []
@@ -219,21 +226,33 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
 
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
         #all_print("Computing:", computing_list)
+
+        kwargs = {}
+        # Check if function accepts a timer
+        cmp_timer = None
+        if "timer" in inspect.getargspec(function).args and timer is not None:
+            cmp_timer = timer.spawn_child()
+            kwargs["timer"] = cmp_timer
         
 
         # Perform the reduction
         if reduce_op == "+":
             result = 0
             for x in computing_list:
-                result += function(x) 
+                result += function(x, **kwargs) 
         elif reduce_op == "*":
             result = 1
             for x in computing_list:
-                result *= function(x)
+                result *= function(x, **kwargs)
         else:
             result = []
             for x in computing_list:
-                result.append(function(x))
+                result.append(function(x, **kwargs))
+
+        t3 = time.time()
+
+        if timer is not None:
+            timer.add_timer("compute", t3 - t2, timer=cmp_timer)
 
         # If a reduction must be done, return
         if reduce_op is not None:
@@ -255,6 +274,10 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
             elif reduce_op == "*":
                 for i in range(1,len(results)):
                     result*= results[i]
+
+            t4 = time.time()
+            if timer is not None:
+                timer.add_timer("reduce", t4 - t3)
             
             #np.savetxt("result_{}_total.dat".format(rank), result)
 
@@ -265,6 +288,9 @@ def GoParallel(function, list_of_inputs, reduce_op = None):
                 comm = mpi4py.MPI.COMM_WORLD
                 results = comm.allgather(result)
 
+                t4 = time.time()
+                if timer is not None:
+                    timer.add_timer("collect", t4 - t3)
                 # Flatten the list
                 result = [item for sublist in results for item in sublist]
 

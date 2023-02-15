@@ -1821,15 +1821,13 @@ def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     nat, dumb = np.shape(vector)
     work = np.zeros( (nat, 3))
     sym = symmetry[:, :3]
-    
-    for i in range(nat):
-        # Pass to crystalline coordinates
-        v1 = Methods.covariant_coordinates(unit_cell, vector[i, :])
-        # Apply the symmetry
-        w1 = sym.dot(v1)
-        # Return in cartesian coordinates
-        work[irt[i], :] = np.einsum("ab,a", unit_cell, w1)
-    
+
+    v1 = Methods.covariant_coordinates(unit_cell, vector)
+    w1 = sym.dot(v1.T).T
+
+    # Return in cartesian coordinates
+    work[irt[:], :] = w1.dot(unit_cell)# unit_cell.T.dot(w1) #np.einsum("ab,a", unit_cell, w1)
+
     return work
 
 def ApplySymmetriesToVector(symmetries, vector, unit_cell, irts):
@@ -2949,7 +2947,7 @@ def get_symmetry_equivalent_atoms(symmetries, structure, parallel=True, timer=No
                 irt = GetIRT(structure, s, timer=timer)
             irts.append(irt)
     else:
-        def function(s):
+        def function(s, timer=None):
             return GetIRT(structure, s, timer=timer)
 
         if timer is not None:
