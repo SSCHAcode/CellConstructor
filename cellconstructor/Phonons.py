@@ -4643,8 +4643,10 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     if debug:
         print("Getting symmetry equivalent atoms")
     
-
-    irts = symmetries.get_symmetry_equivalent_atoms(symm, super_structure, timer=timer)
+    if timer is not None:
+        irts = timer.execute_timed_function(symmetries.get_symmetry_equivalent_atoms, symm, super_structure)
+    else:
+        irts = symmetries.get_symmetry_equivalent_atoms(symm, super_structure, timer=timer)
     #irts = []
     #for i, s in enumerate(symm):
     #    if timer is not None:
