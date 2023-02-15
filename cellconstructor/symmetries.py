@@ -1785,7 +1785,7 @@ def GetIRT(structure, symmetry, timer = Timer.Timer(), debug = False):
         new_struct.apply_symmetry(symmetry, True)
         irt = np.array(new_struct.get_equivalent_atoms(n_struct_2), dtype =np.intc)
     else:
-        timer.execute_timed_function(new_struct.apply_symmetry, symmetry, True, timer = timer)
+        timer.execute_timed_function(new_struct.apply_symmetry, symmetry, True)
         irt = np.array( timer.execute_timed_function(new_struct.get_equivalent_atoms, n_struct_2), dtype =np.intc)
 
     return irt
@@ -2944,7 +2944,7 @@ def get_symmetry_equivalent_atoms(symmetries, structure, parallel=True, timer=No
         irts = []
         for i, s in enumerate(symmetries):
             if timer is not None:
-                irt = timer.execute_timed_function(GetIRT, structure, s, timer=timer)
+                irt = timer.execute_timed_function(GetIRT, structure, s)
             else:
                 irt = GetIRT(structure, s, timer=timer)
             irts.append(irt)

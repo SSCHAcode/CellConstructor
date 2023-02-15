@@ -4658,7 +4658,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     # Doing this in parallel is not possible, because the displacements are not independent
     # Therefore, we need to compute all the displacements in a single process
     if timer is not None:
-        generators, list_of_calculations, displacements = timer.execute_timed_function(symmetries.get_force_constants_generators, symm, irts, super_structure, timer=timer)
+        generators, list_of_calculations, displacements = timer.execute_timed_function(symmetries.get_force_constants_generators, symm, irts, super_structure)
     else:
         generators, list_of_calculations, displacements = symmetries.get_force_constants_generators(symm, irts, super_structure)
 
