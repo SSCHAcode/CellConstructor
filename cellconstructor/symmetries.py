@@ -2959,3 +2959,118 @@ def get_symmetry_equivalent_atoms(symmetries, structure, parallel=True, timer=No
 
 
     return irts
+
+
+def get_force_constants_generators(symmetries, irts, structure, timer=None):
+    """
+    GET FORCE CONSTANTS GENERATORS
+    ==============================
+
+    Compute a minimal basis for the force constants matrix.
+    It is very useful for the compression of the force constants matrix,
+    and to reduce the number of independent displacements that need to be calculated.
+
+    If it is for a supercell dynamical matrix, symmetries and structure must match the supercell.
+    Note, the basis of the generators is not orthonormal by default.
+
+    It returns both generators and the basis. 
+    Each generator contain the atom index, the cartesian direction and the symmetry index.
+    The corresponding row of the basis is transformed displacement vector according to the symmetry.
+    This allow to transform the force constants from the original basis to a more compact one.
+
+    This function is not parallelized and runs only on the master core.
+
+
+    Parameters
+    ----------
+        symmetries : list of ndarray(size = (3, 4))
+            The array of the symmetries
+        irts : list of ndarray(size = (structure.N_atoms, ), dtype = np.intc)
+            The list of the irt array for each symmetry
+        structure : CC.Structure.Structure()
+            The structure on which the symmetries are applied
+
+    Results
+    -------
+        generators : list of dict (size = 3*structure.N_atoms)
+            List of generators. 
+            Each generator is a dictionary with the following keys:
+                'sym_index' : int
+                    The index of the symmtry associated to the generator
+                'atom_index' : int
+                    The index of the atom associated to the generator
+                'direction' : int (0, 1, 2)
+                    The cartesian direction associated to the generator
+        independent_displacements : list
+            List of the independent displacements that identify the generators.
+        basis : ndarray(size = (3*structure.N_atoms, 3*structure.N_atoms), dtype = np.double)
+            The basis matrix of the generators.
+    """
+    displacements = []
+    generators = []
+    list_of_calculations = []
+    n_syms = len(symmetries)
+    nat3 = structure.N_atoms * 3
+
+    if Settings.am_i_the_master():
+        for i in range(structure.N_atoms):
+            for j in range(3):
+                # Generate the displacement
+                disp = np.zeros((structure.N_atoms, 3), dtype=np.double)
+                disp[i, j] += 1
+
+                #if debug:
+                #    print("Simulating displacement", i, j)
+
+                # Check if the displacement can be decomposed in those already computed
+                if timer is not None:
+                    coefficients = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, disp.ravel(), displacements)
+                else:
+                    coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
+                
+                #if debug:
+                #    print("The decomposition is:", coefficients)
+                if coefficients is None:
+                    # The displacement needs to be computed
+                    list_of_calculations.append((i,j))
+
+
+                    # Generate the symmetry equivalent displacements
+                    if timer is not None:
+                        disp_sym = timer.execute_timed_function(ApplySymmetriesToVector, symmetries, disp, structure.unit_cell, irts)
+                    else:
+                        disp_sym = ApplySymmetriesToVector(symmetries, disp, structure.unit_cell, irts)
+
+
+                    # Check wether to add or not the newly generated displacements to the space
+                    for i_sym in range(n_syms):
+                        v = disp_sym[i_sym, :, :]
+                        #if debug:
+                        #    print("The symmetry {} gives a vector v = {}".format(i_sym, v))
+                        if timer is not None:
+                            coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), displacements)
+                        else:
+                            coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), displacements)
+                        #if debug:
+                        #    print("Is new?", coeffs is None)
+                        if coeffs is None:
+                            displacements.append(v.ravel())
+                            generators.append({"sym_index": i_sym, "atom_index": i, "direction": j})
+                            assert len(displacements) <= nat3, "The number of displacements is not correct. Something went wrong."
+                            if len(displacements) == nat3:
+                                break 
+
+                # Early exit    
+                if len(displacements) == nat3:
+                    break
+
+            # Early exit
+            if len(displacements) == nat3:
+                break
+    
+    # Broadcast the displacements to all the processes
+    displacements = Settings.broadcast(displacements)
+    list_of_calculations = Settings.broadcast(list_of_calculations)
+    generators = Settings.broadcast(generators)
+
+    return generators, list_of_calculations, displacements
