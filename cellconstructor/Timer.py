@@ -101,7 +101,10 @@ class Timer:
             if isfunction:
                 if not func_name:
                     func_name = function.__name__
-                if "timer" in inspect.getargspec(function).args and not "timer" in kwargs:
+
+                sig = inspect.signature(function)
+                tparam = sig.parameters.get("timer")
+                if tparam is not None and not "timer" in kwargs:
                     if func_name in self.timed_subroutines:
                         new_timer = self.timed_subroutines[func_name]["timer"]
                     else:
