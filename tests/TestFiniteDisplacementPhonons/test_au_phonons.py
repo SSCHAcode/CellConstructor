@@ -38,7 +38,7 @@ def test_phonons_finite_displacements(supercell, debug=False):
 
     # Get the dynamical matrix using finite displacements
     dyn = CC.Phonons.compute_phonons_finite_displacements(struct, calc,
-                                                          supercell=supercell)
+                                                          supercell=supercell, use_symmetries=False)
 
     # Compute the dynamical matrix using the symmetrized
     dyn2 = CC.Phonons.compute_phonons_finite_displacements_sym(struct, calc,

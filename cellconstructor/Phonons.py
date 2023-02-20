@@ -4634,83 +4634,36 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
         print("Computing phonons with finite differences.")
 
     #print("DEBUG:", debug)
-
-    list_of_calculations = []
-
-    # Create a list of displacements including the symmetries
-    displacements = []
-
     # Use spglib to get all the symmetry operations
     symm = spglib.get_symmetry(super_structure.get_ase_atoms())
     symm = symmetries.GetSymmetriesFromSPGLIB(symm)
     n_syms = len(symm)
 
-    # Get irt from the symmetries (atomic corruispondance after the application of symmetry)
+    # Get irt from the symmetries (atomic corrispondance after the application of symmetry)
     if debug:
         print("Getting symmetry equivalent atoms")
-    irts = []
-    for i, s in enumerate(symm):
-        if timer is not None:
-            irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
-        else:
-            irt = symmetries.GetIRT(super_structure, s, timer=timer)
-        irts.append(irt)
+    
+    if timer is not None:
+        irts = timer.execute_timed_function(symmetries.get_symmetry_equivalent_atoms, symm, super_structure)
+    else:
+        irts = symmetries.get_symmetry_equivalent_atoms(symm, super_structure, timer=timer)
+    #irts = []
+    #for i, s in enumerate(symm):
+    #    if timer is not None:
+    #        irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
+    #    else:
+    #        irt = symmetries.GetIRT(super_structure, s, timer=timer)
+    #    irts.append(irt)
 
     # Build the symmetry inequivalent displacements
     # This is the basis that we will use to compute the force constant matrix
-    for i in range(super_structure.N_atoms):
-        for j in range(3):
-            # Generate the displacement
-            disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
-            disp[i, j] += 1
+    # Doing this in parallel is not possible, because the displacements are not independent
+    # Therefore, we need to compute all the displacements in a single process
+    if timer is not None:
+        generators, list_of_calculations, displacements = timer.execute_timed_function(symmetries.get_force_constants_generators, symm, irts, super_structure)
+    else:
+        generators, list_of_calculations, displacements = symmetries.get_force_constants_generators(symm, irts, super_structure)
 
-            #if debug:
-            #    print("Simulating displacement", i, j)
-
-            # Check if the displacement can be decomposed in those already computed
-            if timer is not None:
-                coefficients = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, disp.ravel(), displacements)
-            else:
-                coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
-            
-            #if debug:
-            #    print("The decomposition is:", coefficients)
-            if coefficients is None:
-                # The displacement needs to be computed
-                list_of_calculations.append((i,j))
-
-                # Generate the symmetry equivalent displacements
-                if timer is not None:
-                    disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector, symm, disp, super_structure.unit_cell, irts)
-                else:
-                    disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
-
-
-                # Check wether to add or not the newly generated displacements to the space
-                for i_sym in range(n_syms):
-                    v = disp_sym[i_sym, :, :]
-                    #if debug:
-                    #    print("The symmetry {} gives a vector v = {}".format(i_sym, v))
-                    if timer is not None:
-                        coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), displacements)
-                    else:
-                        coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), displacements)
-                    #if debug:
-                    #    print("Is new?", coeffs is None)
-                    if coeffs is None:
-                        displacements.append(v.ravel())
-                        assert len(displacements) <= nat3, "The number of displacements is not correct. Something went wrong."
-                        if len(displacements) == nat3:
-                            break 
-
-            # Early exit    
-            if len(displacements) == nat3:
-                break
-
-        # Early exit
-        if len(displacements) == nat3:
-            break
-    
     print("Number of symmetry inequivalent displacements:", len(list_of_calculations))
 
     assert len(displacements) == nat3, "The number of displacements is not correct. Something went wrong."
@@ -4763,50 +4716,70 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     fc = Settings.broadcast(fc)
 
     # Now we can generate all the symmetry equivalent forces
-    disp_basis = []
 
     # Define the force constant matrix in the basis of the auxiliary vectors
     fc_aux_basis = np.zeros((nat3, nat3), dtype = np.double)
-    counter_index = -1
+    
+    # Compute the auxiliary force basis
+    # This could exploit parallelization to speedup the calculation
+    for index, gen in enumerate(generators):
+        # Get the symmetry operation
+        current_sym = symm[gen["sym_index"]]
+        current_irt = irts[gen["sym_index"]]
 
-    for i in range(super_structure.N_atoms):
-        if counter_index +1 == nat3:
-            break
-        for j in range(3):
-            if counter_index +1 == nat3:
-                break
-            disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
-            disp[i, j] += 1
-            if (i, j) in list_of_calculations:
-                # Generate the basis
-                force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
+        i = gen["atom_index"]
+        j = gen["direction"]
+        force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
 
-                # Generate the symmetry equivalent displacements
-                if timer is not None:
-                    disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, disp, super_structure.unit_cell, irts)
-                    force_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, force, super_structure.unit_cell, irts)
-                else:
-                    disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
-                    force_sym = symmetries.ApplySymmetriesToVector(symm, force, super_structure.unit_cell, irts)
+        # Apply the symmetry to the force
+        if timer is not None:
+            force_sym = timer.execute_timed_function(symmetries.ApplySymmetryToVector,current_sym, force, super_structure.unit_cell, current_irt)
+        else:
+            force_sym = symmetries.ApplySymmetryToVector(current_sym, force, super_structure.unit_cell, current_irt)
+        
+        fc_aux_basis[index, :] = force_sym.ravel()
 
-                # Check wether to add or not the newly generated displacements to the space
-                for i_sym in range(n_syms):
-                    v = disp_sym[i_sym, :, :]
-                    if timer is not None:
-                        coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), disp_basis)
-                    else:
-                        coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), disp_basis)
 
-                    if coeffs is None:
-                        disp_basis.append(v.ravel())
-                        counter_index += 1                
-                        fc_aux_basis[counter_index, :] = force_sym[i_sym, :, :].ravel()
+    # We can now compute the force constants in the basis of the displacements
+    # counter_index = -1
+    # for i in range(super_structure.N_atoms):
+    #     if counter_index +1 == nat3:
+    #         break
+    #     for j in range(3):
+    #         if counter_index +1 == nat3:
+    #             break
+    #         disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
+    #         disp[i, j] += 1
+    #         if (i, j) in list_of_calculations:
+    #             # Generate the basis
+    #             force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
+
+    #             # Generate the symmetry equivalent displacements
+    #             if timer is not None:
+    #                 disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, disp, super_structure.unit_cell, irts)
+    #                 force_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, force, super_structure.unit_cell, irts)
+    #             else:
+    #                 disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
+    #                 force_sym = symmetries.ApplySymmetriesToVector(symm, force, super_structure.unit_cell, irts)
+
+    #             # Check wether to add or not the newly generated displacements to the space
+    #             for i_sym in range(n_syms):
+    #                 v = disp_sym[i_sym, :, :]
+    #                 if timer is not None:
+    #                     coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), disp_basis)
+    #                 else:
+    #                     coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), disp_basis)
+
+    #                 if coeffs is None:
+    #                     disp_basis.append(v.ravel())
+    #                     counter_index += 1                
+    #                     fc_aux_basis[counter_index, :] = force_sym[i_sym, :, :].ravel()
 
     #np.savetxt("OriginalFC.dat", fc, fmt="%10.6f")
     #np.savetxt("FC_aux_basis.dat", fc_aux_basis, fmt="%10.6f")
 
     # Transform back the force constant in the real space
-    metric_tensor = np.array(disp_basis)
+    metric_tensor = np.array(displacements)
     inv_metric_tensor = np.linalg.inv(metric_tensor)
     fc = inv_metric_tensor.dot(fc_aux_basis)#.dot(inv_metric_tensor.T)
     #np.savetxt("NewFC.dat", fc, fmt="%10.6f")
