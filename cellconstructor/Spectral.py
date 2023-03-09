@@ -3145,8 +3145,8 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q, dyn
-                            , d_bubble_cart, ie, ismear, ener): #skeleton function for TESTING...
+def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
+                            , tensor3, dyn, d_bubble_cart, ie, ismear, ener): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
@@ -3158,6 +3158,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q, dyn
      b = atom b -> Z(b) atomic number of atom b
      nu = damping constant
      q : ndarray(size = 3) = The q point at which compute the bubble.
+     tensor3 : Tensor3() = The third order force constant matrix
      ---------
      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
      M() = Atomic masses
