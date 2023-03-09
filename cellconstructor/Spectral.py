@@ -3231,7 +3231,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
                 print('Cannot continue with SSCHA negative frequencies')
                 exit()
             w_mq_mk=np.sqrt(w2_mq_mk)
-
+            w_q=np.sqrt(w2_q)
             # Dividing the phi3 by the sqare root of masses
             d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
 
@@ -3244,7 +3244,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
             t4 = time.time()
 
             # Fortran duty ====
-            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(energies,smear,static_limit,T,
+            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(ener,smear,static_limit,T,
                                                                 np.array([w_q,w_k,w_mq_mk]).T,
                                                                 np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                                 d3_pols,diag_approx,ne,nsm,n_mod=3*structure.N_atoms)
@@ -3261,7 +3261,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
 
 
     CC.Settings.SetupParallel()
-    d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
+
     # Get the integration points
     k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
     # dynamical matrix in q
@@ -3273,6 +3273,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
     d2_q = phi2_q * mm_inv_mat
     # Diagonalize the dynamical matrix in q
     w2_q, pols_q = np.linalg.eigh(d2_q)
+    d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
     # divide by the N_k factor
     d_bubble_mod /= len(k_points) # (ne,nsmear,3nat,3nat)
     # the self-energy bubble in cartesian coord, divided by the sqare root of masses
