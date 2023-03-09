@@ -3189,7 +3189,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q, dyn
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
         #----------------------------------------------------------------
 
-        def compute_k(k):
+    def compute_k(k):
             # phi3 in q, k, -q - k
             t1 = time.time()
             phi3=tensor3.Interpolate(k,-q-k, asr = False)
