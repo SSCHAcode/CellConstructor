@@ -3146,9 +3146,9 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 
 #-------------------------------------------------------------------------------
 def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
-                            , tensor3, k_grid, nsm=1, static_limit=False, T, ne
-                            , dyn, d_bubble_cart, ie, ismear, smear, diag_approx=False
-                            , ener): #skeleton function for TESTING...
+                            , tensor3, k_grid, T, ne, ener
+                            , dyn, d_bubble_cart, ie, ismear, smear
+                            , diag_approx=False,, nsm=1, static_limit=False): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
