@@ -3188,7 +3188,6 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q, dyn
     epsilon_inf = Fonon.dielectric_tensor()
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
         #----------------------------------------------------------------
-
     def compute_k(k):
             # phi3 in q, k, -q - k
             t1 = time.time()
@@ -3260,23 +3259,23 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q, dyn
             return tmp_bubble
 
 
-        CC.Settings.SetupParallel()
-        d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
-        # Get the integration points
-        k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
-        # dynamical matrix in q
-        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
-        mm_mat = np.sqrt(np.outer(m, m))
-        mm_inv_mat = 1 / mm_mat
-        # Get the phi2 in q
-        phi2_q = tensor2.Interpolate(q, asr = False)
-        d2_q = phi2_q * mm_inv_mat
-        # Diagonalize the dynamical matrix in q
-        w2_q, pols_q = np.linalg.eigh(d2_q)
-        # divide by the N_k factor
-        d_bubble_mod /= len(k_points) # (ne,nsmear,3nat,3nat)
-        # the self-energy bubble in cartesian coord, divided by the sqare root of masses
-        d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
+    CC.Settings.SetupParallel()
+    d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
+    # Get the integration points
+    k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
+    # dynamical matrix in q
+    m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
+    mm_mat = np.sqrt(np.outer(m, m))
+    mm_inv_mat = 1 / mm_mat
+    # Get the phi2 in q
+    phi2_q = tensor2.Interpolate(q, asr = False)
+    d2_q = phi2_q * mm_inv_mat
+    # Diagonalize the dynamical matrix in q
+    w2_q, pols_q = np.linalg.eigh(d2_q)
+    # divide by the N_k factor
+    d_bubble_mod /= len(k_points) # (ne,nsmear,3nat,3nat)
+    # the self-energy bubble in cartesian coord, divided by the sqare root of masses
+    d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
         #----------------------------------------------------------------
     response1 = -(N/Big_omega) * electric_charge**2
     response2 = 0 #init the response2 value
