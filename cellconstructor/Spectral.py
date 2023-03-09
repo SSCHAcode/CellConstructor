@@ -3146,8 +3146,8 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 
 #-------------------------------------------------------------------------------
 def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
-                            , tensor3, k_grid, nsm
-                            , dyn, d_bubble_cart, ie, ismear, smear
+                            , tensor3, k_grid, nsm=1, static_limit=False, T, ne
+                            , dyn, d_bubble_cart, ie, ismear, smear, diag_approx=False
                             , ener): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
@@ -3248,6 +3248,8 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
             t4 = time.time()
 
             # Fortran duty ====
+            # Check if the q point is gamma
+            is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
             tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(ener,smear,static_limit,T,
                                                                 np.array([w_q,w_k,w_mq_mk]).T,
                                                                 np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
