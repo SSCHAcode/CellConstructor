@@ -3146,7 +3146,9 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 
 #-------------------------------------------------------------------------------
 def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
-                            , tensor3, dyn, d_bubble_cart, ie, ismear, ener): #skeleton function for TESTING...
+                            , tensor3, k_grid, nsm
+                            , dyn, d_bubble_cart, ie, ismear, smear
+                            , ener): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
@@ -3159,6 +3161,8 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
      nu = damping constant
      q : ndarray(size = 3) = The q point at which compute the bubble.
      tensor3 : Tensor3() = The third order force constant matrix
+     k_grid : list(len = 3) = The integration grid on the Brillouin zone
+     nsm : integer = Number of smearings to consider     (default = 1)
      ---------
      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
      M() = Atomic masses
@@ -3251,11 +3255,11 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
 
             t5 = time.time()
 
-            if verbose:
-                print("Time to interpolate the third order: {} s".format(t2 - t1))
-                print("Time to interpolate the second order: {} s".format(t3 - t2))
-                print("Time to transform the tensors: {} s".format(t4 - t3))
-                print("Time to compute the bubble: {} s".format(t5 - t4))
+            # if verbose:
+            #     print("Time to interpolate the third order: {} s".format(t2 - t1))
+            #     print("Time to interpolate the second order: {} s".format(t3 - t2))
+            #     print("Time to transform the tensors: {} s".format(t4 - t3))
+            #     print("Time to compute the bubble: {} s".format(t5 - t4))
 
             return tmp_bubble
 
