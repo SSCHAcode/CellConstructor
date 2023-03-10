@@ -3147,7 +3147,7 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
 #-------------------------------------------------------------------------------
 def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
                             , tensor3, k_grid, T, ne, ener
-                            , dyn, d_bubble_cart, ie, ismear, smear
+                            , dyn, d_bubble_cart, ie, ismear
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
 #                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
@@ -3192,6 +3192,21 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
     Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
     epsilon_inf = Fonon.dielectric_tensor()
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
+    #  ======================= Energy & Smearing ==========================================
+    # energy   in input is in cm-1
+    # smearing in input is in cm-1
+    # converto to Ry
+
+    # list of energies
+    energies=np.arange(e0,e1,de)/CC.Units.RY_TO_CM
+    ne=energies.shape[0]
+    # list of smearing
+    if nsm == 1 :
+        sm1=sm0
+        sm1_id=sm0_id
+    smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
+    smear_id=np.linspace(sm0_id,sm1_id,nsm)/CC.Units.RY_TO_CM
+    # ==========================================================================================
         #----------------------------------------------------------------
     def compute_k(k):
             # phi3 in q, k, -q - k
@@ -3250,7 +3265,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
             # Fortran duty ====
             # Check if the q point is gamma
             is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
-            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(ener,smear,static_limit,T,
+            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(energies,smear,static_limit,T,
                                                                 np.array([w_q,w_k,w_mq_mk]).T,
                                                                 np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                                 d3_pols,diag_approx,ne,nsm,n_mod=3*structure.N_atoms)
@@ -3294,7 +3309,7 @@ def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
             response2 += temp
     response_function = response1*response2
 
-    epsilon=epsilon_inf+4*np.pi*response_function
+    epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3nat,3nat) ??
 
     refractive_index = np.sqrt(epsilon)
     return 0
