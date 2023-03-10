@@ -3145,11 +3145,11 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(omega, N, atom_a, atom_b, nu, q
+def get_dielectric_function(omega, N,  nu, q
                             , tensor3, k_grid, T, ne, ener, e0 ,e1, de
                             , dyn, d_bubble_cart, ie, ismear, sm0, sm0_id
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  (epsilon_inf,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+#                  (epsilon_inf,atom_a, atom_b,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
     Input data:
@@ -3163,6 +3163,8 @@ def get_dielectric_function(omega, N, atom_a, atom_b, nu, q
      tensor3 : Tensor3() = The third order force constant matrix
      k_grid : list(len = 3) = The integration grid on the Brillouin zone
      nsm : integer = Number of smearings to consider     (default = 1)
+     e1, de ,e0: float = The list of energies considered (cm-1), from e0 to e1, with interval de
+     sm0_id, sm1_id : float = Minimum and maximum value of the smearing (cm-1) for the term of the Green function proportional to the identity
      ---------
      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
      M() = Atomic masses
