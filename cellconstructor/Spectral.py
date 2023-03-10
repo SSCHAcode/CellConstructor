@@ -3145,11 +3145,11 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(omega, epsilon_inf, N, atom_a, atom_b, nu, q
+def get_dielectric_function(omega, N, atom_a, atom_b, nu, q
                             , tensor3, k_grid, T, ne, ener, e0 ,e1, de
                             , dyn, d_bubble_cart, ie, ismear, sm0, sm0_id
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  (frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+#                  (epsilon_inf,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
     Input data:
