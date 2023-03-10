@@ -3145,11 +3145,10 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(omega, N,  nu, q
-                            , tensor3, k_grid, T, ne, ener, e0 ,e1, de
+def get_dielectric_function(tensor3, k_grid, T, ener, e0 ,e1, de
                             , dyn, d_bubble_cart, ie, ismear, sm0, sm0_id
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  (epsilon_inf,atom_a, atom_b,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+#                  (omega,N,nu,q,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
     Input data:
@@ -3159,7 +3158,7 @@ def get_dielectric_function(omega, N,  nu, q
      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
      b = atom b -> Z(b) atomic number of atom b
      nu = damping constant
-     q : ndarray(size = 3) = The q point at which compute the bubble.
+     q : ndarray(size = 3) = The q point at which compute the bubble. <-- this id Gamma so (0,0,0) or np.zeros(3)
      tensor3 : Tensor3() = The third order force constant matrix
      k_grid : list(len = 3) = The integration grid on the Brillouin zone
      nsm : integer = Number of smearings to consider     (default = 1)
@@ -3177,6 +3176,7 @@ def get_dielectric_function(omega, N,  nu, q
     #electric_charge = 4.803e-10 #Fr (CGS)
     electric_charge = 1.602176462e-19 #C (SI)
     epsilon = np.zeros((3,3))
+    q = np.zeros(3)
     twopi = 2*np.pi
     # Prepare the tensor2 and obtain masses
     tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
@@ -3302,7 +3302,7 @@ def get_dielectric_function(omega, N,  nu, q
     # the self-energy bubble in cartesian coord, divided by the sqare root of masses
     d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
         #----------------------------------------------------------------
-    response1 = -(N/Big_omega) * electric_charge**2
+    response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
     response2 = 0 #init the response2 value
     for a in range(dyn.structure.N_atoms):
         for b in range(dyn.structure.N_atoms):
