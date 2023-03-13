@@ -3145,22 +3145,21 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(dyn, tensor3, k_grid, T, ener, e0 ,e1, de
-                            , ie, ismear, sm0, sm0_id
+def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
+                            , sm0, sm0_id
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  (omega,N,nu,q, d_bubble_cart,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+#                  (omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
     Input data:
-     omega = Frequency
      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
-     N = nº atoms
      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
      b = atom b -> Z(b) atomic number of atom b
-     nu = damping constant
      q : ndarray(size = 3) = The q point at which compute the bubble. <-- this id Gamma so (0,0,0) or np.zeros(3)
      tensor3 : Tensor3() = The third order force constant matrix
      k_grid : list(len = 3) = The integration grid on the Brillouin zone
+     T : Temperature
+     ener : energies
      nsm : integer = Number of smearings to consider     (default = 1)
      e1, de ,e0: float = The list of energies considered (cm-1), from e0 to e1, with interval de
      sm0_id, sm1_id : float = Minimum and maximum value of the smearing (cm-1) for the term of the Green function proportional to the identity
@@ -3274,12 +3273,6 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, ener, e0 ,e1, de
 
             t5 = time.time()
 
-            # if verbose:
-            #     print("Time to interpolate the third order: {} s".format(t2 - t1))
-            #     print("Time to interpolate the second order: {} s".format(t3 - t2))
-            #     print("Time to transform the tensors: {} s".format(t4 - t3))
-            #     print("Time to compute the bubble: {} s".format(t5 - t4))
-
             return tmp_bubble
 
 
@@ -3304,10 +3297,12 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, ener, e0 ,e1, de
         #----------------------------------------------------------------
     response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
     response2 = 0 #init the response2 value
+    #for ie in range(len(ne)):
     for a in range(dyn.structure.N_atoms):
         for b in range(dyn.structure.N_atoms):
             #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
-            temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+            # temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+            temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
             response2 += temp
     response_function = response1*response2
 
