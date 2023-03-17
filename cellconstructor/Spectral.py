@@ -3300,8 +3300,10 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     for ie in range(ne):
         for a in range(dyn.structure.N_atoms):
             for b in range(dyn.structure.N_atoms):
+                # for i in range(3):
+                #  for j in range(3):
                 #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
-                # temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+                #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
                 temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
                 response2 += temp
     response_function = response1*response2
