@@ -3297,6 +3297,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
         #----------------------------------------------------------------
     response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
     response2 = 0 #init the response2 value
+    temp = 0
     #for ie in range(ne):  #<-- The dispersion function is now in energies instead of frequencies.
     for dielectric_read in range(3):
         for a in range(dyn.structure.N_atoms):
