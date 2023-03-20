@@ -3304,12 +3304,12 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
             #  for j in range(3):
             #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
             #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-            temp = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+            temp[ie,ismear,dielectric_read,:] = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
             response2 += temp
     response_function = response1*response2
 
-#    epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3nat,3nat) ??
-    epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3nat,3nat) ??
+    epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[ie,ismear,dielectric_read,:]  #<-- epsilon(ne,nsmear,3nat,3nat) ??
+#    epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,dielectric_read,(x,y,z)) ??
 
     refractive_index = np.sqrt(epsilon)
     return 0
