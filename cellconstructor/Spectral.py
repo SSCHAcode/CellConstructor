@@ -3191,7 +3191,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     M =structure.get_masses_array()
     #prepare the dielctric tensor of vacuum and effective charges
     Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
-    epsilon_inf = Fonon.dielectric_tensor() #(3,3)
+    epsilon_inf = Fonon.dielectric_tensor #(3,3)
     Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
     #  ======================= Energy & Smearing ==========================================
     # energy   in input is in cm-1
@@ -3308,7 +3308,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
             response2 += temp
     response_function = response1*response2
 
-    epsilon=epsilon_inf(dielectric_read,:)+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3nat,3nat) ??
+    epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3nat,3nat) ??
 
     refractive_index = np.sqrt(epsilon)
     return 0
