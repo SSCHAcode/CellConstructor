@@ -3192,7 +3192,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     #prepare the dielctric tensor of vacuum and effective charges
     Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
     epsilon_inf = Fonon.dielectric_tensor #(3,3)
-    Z = Fonon.effective_charges() #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
+    Z = Fonon.effective_charges #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
     #  ======================= Energy & Smearing ==========================================
     # energy   in input is in cm-1
     # smearing in input is in cm-1
@@ -3298,17 +3298,18 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
     response2 = 0 #init the response2 value
     #for ie in range(ne):  #<-- The dispersion function is now in energies instead of frequencies.
-    for a in range(dyn.structure.N_atoms):
-        for b in range(dyn.structure.N_atoms):
-            # for i in range(3):
-            #  for j in range(3):
-            #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
-            #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-            temp[ie,ismear,dielectric_read,:] = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-            response2 += temp
-    response_function = response1*response2
+    for dielectric_read in range(3):
+        for a in range(dyn.structure.N_atoms):
+            for b in range(dyn.structure.N_atoms):
+                # for i in range(3):
+                #  for j in range(3):
+                #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
+                #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+                temp[ie,ismear,dielectric_read,:] = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+                response2 += temp
+        response_function = response1*response2
 
-    epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[ie,ismear,dielectric_read,:]  #<-- epsilon(ne,nsmear,3nat,3nat) ??
+        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[ie,ismear,dielectric_read,:]  #<-- epsilon(ne,nsmear,3nat,3nat) ??
 #    epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,dielectric_read,(x,y,z)) ??
 
     refractive_index = np.sqrt(epsilon)
