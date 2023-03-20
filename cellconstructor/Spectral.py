@@ -3174,7 +3174,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     """
     #electric_charge = 4.803e-10 #Fr (CGS)
     electric_charge = 1.602176462e-19 #C (SI)
-    epsilon = np.zeros((3,3))
+    epsilon = np.zeros((ne,3,3), dtype = np.double) #np.zeros((3,3))
     q = np.zeros(3)
     twopi = 2*np.pi
     # Prepare the tensor2 and obtain masses
@@ -3311,8 +3311,8 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
                 response2 += temp
         response_function = response1*response2
 
-#        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3nat,3nat) ??
-        epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,dielectric_read,(x,y,z)) ??
+#        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3,3) ??
+        epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3,3) ; epsilon_inf(3,3)??
 
     refractive_index = np.sqrt(epsilon)
     return 0
