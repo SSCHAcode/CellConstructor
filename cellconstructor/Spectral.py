@@ -3296,6 +3296,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     # the self-energy bubble in cartesian coord, divided by the sqare root of masses
     d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
         #----------------------------------------------------------------
+    ne = energies.shape[0]    
     response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
     response2 = np.zeros((ne,3,3), dtype = np.double) #init the response2 value
     response_function = np.zeros((ne,3,3), dtype = np.double) #init the response_function value
