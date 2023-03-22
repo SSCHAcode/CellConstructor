@@ -3175,7 +3175,6 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     """
     #electric_charge = 4.803e-10 #Fr (CGS)
     electric_charge = 1.602176462e-19 #C (SI)
-    epsilon = np.zeros((ne,3,3), dtype = np.double) #np.zeros((3,3))
     q = np.zeros(3)
     twopi = 2*np.pi
     # Prepare the tensor2 and obtain masses
@@ -3296,9 +3295,9 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     # the self-energy bubble in cartesian coord, divided by the sqare root of masses
     d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
         #----------------------------------------------------------------
-    ne = energies.shape[0]
+    epsilon = np.zeros((ne,3,3), dtype = np.double) #np.zeros((3,3))        
     response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
-    response2 = np.zeros((int(ne),3,3), dtype = np.double) #init the response2 value
+    response2 = np.zeros((ne,3,3), dtype = np.double) #init the response2 value
     response_function = np.zeros((ne,3,3), dtype = np.double) #init the response_function value
     temp = np.zeros((ne,3,3), dtype = np.double)
     #for ie in range(ne):  #<-- The dispersion function is now in energies instead of frequencies.
