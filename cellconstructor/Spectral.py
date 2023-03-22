@@ -3163,6 +3163,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
      nsm : integer = Number of smearings to consider     (default = 1)
      e1, de ,e0: float = The list of energies considered (cm-1), from e0 to e1, with interval de
      sm0_id, sm1_id : float = Minimum and maximum value of the smearing (cm-1) for the term of the Green function proportional to the identity
+     ie, ismear = index of energies and smear, not needed? for ie in range(np.arange(e0,e1,de).shape[0]); for ismear in range(np.arange(sm0_id,sm1_id).shape[0])
      ---------
      Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
      M() = Atomic masses
