@@ -3316,4 +3316,4 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
             epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3,3) ; epsilon_inf(3,3)??
 
     refractive_index = np.sqrt(epsilon)
-    return 0
+    return epsilon  #, refractive_index
