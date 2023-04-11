@@ -3315,5 +3315,5 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     #        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3,3) ??
             epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3,3) ; epsilon_inf(3,3)??
 
-    refractive_index = np.sqrt(epsilon)
+    refractive_index = np.sqrt(epsilon) #Cauchy Dispersion formula
     return epsilon  #, refractive_index
