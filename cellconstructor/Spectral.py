@@ -3145,10 +3145,10 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
 
 #-------------------------------------------------------------------------------
-def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
+def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
                             , sm0, sm0_id
                             , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  (omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+#                  ( tensor3,omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
     Input data:
@@ -3182,7 +3182,7 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     tensor2.SetupFromPhonons(dyn)
     tensor2.Center()
 
-    self.tensor3 =  CC.ForceTensor.Tensor3(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
+    tensor3 =  CC.ForceTensor.Tensor3(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
 
     structure = tensor2.unitcell_structure
     alat=tensor2.unitcell_structure.unit_cell
