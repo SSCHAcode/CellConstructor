@@ -3181,6 +3181,9 @@ def get_dielectric_function(dyn, tensor3, k_grid, T, e0 ,e1, de, ie, ismear
     tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
     tensor2.SetupFromPhonons(dyn)
     tensor2.Center()
+
+    self.tensor3 =  CC.ForceTensor.Tensor3(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
+
     structure = tensor2.unitcell_structure
     alat=tensor2.unitcell_structure.unit_cell
     # a,b,c volume calculation
