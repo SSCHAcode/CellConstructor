@@ -165,12 +165,12 @@ module third_order_cond_centering
                         ipair = pairs(i, 1)
                         jpair = pairs(i, 2)
                         do j = 1, 3*natom
-                                if(norma2(tensor(ipair, j,:,:) - transpose(tensor(jpair, j,:,:))) > &
-                                        tol*tol*tscale) then
-                                        new_tensor(ipair, j,:,:) = &
-                                        (tensor(ipair, j,:,:) + transpose(tensor(jpair, j,:,:)))/2.0_DP
-                                        new_tensor(jpair, j,:,:) = transpose(new_tensor(ipair, j,:,:))
-                                 endif
+                                !if(norma2(tensor(ipair, j,:,:) - transpose(tensor(jpair, j,:,:))) > &
+                                !        tol*tol*tscale) then
+                                new_tensor(ipair, j,:,:) = &
+                                (tensor(ipair, j,:,:) + transpose(tensor(jpair, j,:,:)))/2.0_DP
+                                new_tensor(jpair, j,:,:) = transpose(new_tensor(ipair, j,:,:))
+                                ! endif
                         enddo
                 enddo
         endif
@@ -247,12 +247,12 @@ module third_order_cond_centering
                         ipair = pairs(i, 1)
                         jpair = pairs(i, 2)
                         do j = 1, 3*natom
-                                if(norma2(tensor(ipair, j,:,:) - transpose(tensor(jpair, j,:,:))) > &
-                                        tol*tol*tscale) then
-                                        tensor(ipair, j,:,:) = &
-                                        (tensor(ipair, j,:,:) + transpose(tensor(jpair, j,:,:)))/2.0_DP
-                                        tensor(jpair, j,:,:) = transpose(tensor(ipair, j,:,:))
-                                 endif
+                                !if(norma2(tensor(ipair, j,:,:) - transpose(tensor(jpair, j,:,:))) > &
+                                !        tol*tol*tscale) then
+                                tensor(ipair, j,:,:) = &
+                                (tensor(ipair, j,:,:) + transpose(tensor(jpair, j,:,:)))/2.0_DP
+                                tensor(jpair, j,:,:) = transpose(tensor(ipair, j,:,:))
+                                ! endif
                         enddo
                 enddo
         endif
@@ -555,7 +555,7 @@ module third_order_cond_centering
         integer :: i_r, j_r, iat, jat, kat, list(n_R, n_R), tot_r, step
         real(kind=DP) :: aux_tensor(3, 3, 3)
         real(kind=DP), dimension(n_R,3) :: unique_rvec3
-        real(kind=DP) :: tol, norma, tot_norma
+        real(kind=DP) :: tol, norma, tot_norma, norm_sum
 
         tol = 1.0_DP/10.0_DP**6
         tot_norma = 1000.0_DP
@@ -565,22 +565,30 @@ module third_order_cond_centering
         do while(tot_norma > tol)
                 step = step + 1
                 do i_r = 1, tot_r
-                aux_tensor = 0.0_DP
                 do iat = 1, natom
                 do jat = 1, natom
-                        do j_r = 1, list(tot_r, 1)
+                        aux_tensor = 0.0_DP
+                        norm_sum = 0.0_DP
+                        do j_r = 1, list(i_r, 1)
                         do kat = 1, natom
-                                aux_tensor = aux_tensor + &
-                                new_tensor(list(tot_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat, 3*(kat-1) + 1:3*kat)
+                        aux_tensor = aux_tensor + &
+                        new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat, 3*(kat-1) + 1:3*kat)
+                        norm_sum = norm_sum + &
+                        norma3(new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat, 3*(kat-1) + 1:3*kat))
                         enddo
                         enddo
-                aux_tensor = aux_tensor/dble(list(tot_r, 1))
-                do j_r = 1, list(tot_r, 1)
-                do kat = 1, natom
-                        new_tensor(list(tot_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat) = &
-                        new_tensor(list(tot_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat) - aux_tensor 
-                enddo
-                enddo
+                        !aux_tensor = aux_tensor/dble(list(i_r, 1))/dble(natom)
+                        do j_r = 1, list(i_r, 1)
+                        do kat = 1, natom
+                                if(norma3(aux_tensor) .gt. 0.0_DP) then
+                                new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat) = &
+                                new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat) &
+                                - aux_tensor*&
+                                norma3(new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) +1:3*kat))&
+                                /norm_sum
+                                endif
+                        enddo
+                        enddo
                 enddo
                 enddo
                 enddo
@@ -590,10 +598,11 @@ module third_order_cond_centering
                 do iat = 1, natom
                 do jat = 1, natom
                         norma = 0.0_DP
-                        do j_r = 1, list(tot_r, 1)
+                        aux_tensor = 0.0_DP
+                        do j_r = 1, list(i_r, 1)
                         do kat = 1, natom
                                 aux_tensor = aux_tensor + &
-                                new_tensor(list(tot_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat)
+                                new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat,3*(kat-1) + 1:3*kat)
                         enddo
                         enddo
                         norma = norma3(aux_tensor)
@@ -631,10 +640,10 @@ module third_order_cond_centering
         do i_r = 1, n_R
                 found = .False.
                 do j_r = 1, tot_r
-                        if(norm(r_vec3(i_r,:) - aux_vec3(j_r, 3)) < tol) then
+                        if(norm(r_vec3(i_r,:) - aux_vec3(j_r, :)) < tol) then
                                 found = .True.
-                                list(tot_r, 1) = list(tot_r, 1) + 1
-                                list(tot_r, list(tot_r, 1)) = i_r
+                                list(j_r, 1) = list(j_r, 1) + 1
+                                list(j_r, list(j_r, 1) + 1) = i_r
                                 EXIT
                         endif
                 enddo
@@ -645,6 +654,11 @@ module third_order_cond_centering
                         list(tot_r, list(tot_r, 1) + 1) = i_r
                 endif
         enddo
+
+        if(sum(list(1:tot_r,1)) .ne. n_R) then
+                print*, 'Total number of triplets do not agree with sum of multiplicities for third vector!'
+                STOP
+        endif
 
         u_rvec3(:,:) = aux_vec3(:,:)
 

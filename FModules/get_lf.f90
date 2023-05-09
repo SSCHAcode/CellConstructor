@@ -261,17 +261,17 @@ module get_lf
                         w_q,self_energy,is_q_gamma,lineshape,masses,nat,ne)
 
                 lineshape = lineshape*2.0_DP
-                !lineshapes(iqpt, :, :, :) = lineshape
-                do iband = 1, 3*nat
-                        do jband = 1, 3*nat
-                                do iband1 = 1, 3*nat
-                                do jband1 = 1, 3*nat
-                                        lineshapes(iqpt, jband, iband, :) = lineshapes(iqpt, jband, iband, :) + &
-                                        lineshape(jband1,iband1,:)*pols_q(jband,jband1)*conjg(pols_q(iband,iband1))
-                                enddo
-                                enddo
-                        enddo
-                enddo
+                lineshapes(iqpt, :, :, :) = lineshape
+                !do iband = 1, 3*nat
+                !        do jband = 1, 3*nat
+                !                do iband1 = 1, 3*nat
+                !                do jband1 = 1, 3*nat
+                !                        lineshapes(iqpt, jband, iband, :) = lineshapes(iqpt, jband, iband, :) + &
+                !                        lineshape(jband1,iband1,:)*pols_q(jband,jband1)*conjg(pols_q(iband,iband1))
+                !                enddo
+                !                enddo
+                !        enddo
+                !enddo
             else
                 lineshapes(iqpt,:,:,:) = complex(0.0_DP, 0.0_DP)
             endif
@@ -364,7 +364,7 @@ module get_lf
                 print*, 'Negative eigenvalue of dynamical matrix!'
                 w_neg_freqs = .True.
             endif
-!            print*, 'Interpolate frequency'
+            print*, 'Interpolate frequency'
             if(.not. w_neg_freqs) then
                 w_q = sqrt(w2_q)
                 self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)
@@ -380,7 +380,7 @@ module get_lf
                     curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
                     curr_w(jqpt) = weights(prev_events + jqpt)
                 enddo
-                !print*, 'Got grids'
+                print*, 'Got grids'
                 call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
                     nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
                     energies, .not. parallelize, gaussian, classical, self_energy) 

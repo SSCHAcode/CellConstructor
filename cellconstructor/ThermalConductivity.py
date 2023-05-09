@@ -1335,7 +1335,7 @@ class ThermalConductivity:
    ####################################################################################################################################
 
     def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', offdiag_mode = 'wigner',  gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
-            write_lineshapes=False, ne = 2000, kappa_filename = 'Thermal_conductivity'):
+            write_lineshapes=False, ne = 2000, mode_mixing = False, kappa_filename = 'Thermal_conductivity'):
 
         """
         Main function that calculates lattice thermal conductivity.
@@ -1352,6 +1352,7 @@ class ThermalConductivity:
         ne               : Number of frequency points to calculate phonon lineshapes on in case of GK. \
                            Number of frequency points to solve self-consistent equation on in case of SRTA. \
                            Less anharmonic materials and lower temperatures will need more points (in case of GK).
+        mode_mixing      : Calculate full self energy matrix 
         kappa_filename   : Name of the file to write the results to.
         """
 
@@ -1422,7 +1423,7 @@ class ThermalConductivity:
                     kappa_file.write(3*' ' + format(kappa_nondiag[2][0], '.12e'))
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa_diag + kappa_nondiag 
-            elif(mode == 'GK'):
+            elif(mode == 'GK' and not mode_mixing):
                 self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
                 energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
                 if(not self.off_diag):
@@ -1450,6 +1451,19 @@ class ThermalConductivity:
                     kappa_file.write(3*' ' + format(kappa_nondiag[2][0], '.12e'))
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa_diag + kappa_nondiag 
+            elif(mode == 'GK' and mode_mixing):
+                self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
+                energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
+                if(self.off_diag):
+                    kappa = self.calculate_kappa_gk_offdiag_mode_mixing(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing)
+                    kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
+                    for icart in range(3):
+                        kappa_file.write(3*' ' + format(kappa[icart][icart], '.12e'))
+                    kappa_file.write(3*' ' + format(kappa[0][1], '.12e'))
+                    kappa_file.write(3*' ' + format(kappa[1][2], '.12e'))
+                    kappa_file.write(3*' ' + format(kappa[2][0], '.12e'))
+                    kappa_file.write('\n')
+                    self.kappa[tc_key] = kappa
             else:
                 print('Can not recognize this method of calculating kappa! ')
                 print(mode)
@@ -1509,6 +1523,76 @@ class ThermalConductivity:
         return kappa
 
     ##################################################################################################################################
+
+    def calculate_kappa_gk_offdiag_mode_mixing(self, temperature, write_lineshapes, energies, gauss_smearing = False):
+
+        """
+        Calculation of lattice thermal conductivity using Green-Kubo method if both diagonal and off-diagonal group velocities are available.
+
+        temperature      : temperature at which kappa should be calculated.
+        write_lineshapes : Boolean noting should we write phonon lineshapes on a file
+        energies         : frequency points at which phonon lineshapes should be calculated
+
+        """
+
+        ls_key = format(temperature, '.1f')
+        if(ls_key in self.lineshapes.keys()):
+            print('Lineshapes for this temperature have already been calculated. Continuing ...')
+        else:
+            self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing, mode_mixing = 'mode_mixing')
+        exponents_plus = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
+        exponents_minus = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
+
+        kappa_diag = np.zeros((3,3), dtype = complex)
+        kappa_nondiag = np.zeros((3,3), dtype = complex)
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0):
+                        for jband in range(self.nband):
+                            if(self.freqs[iqpt, jband] != 0.0):
+                                for kband in range(self.nband):
+                                    if(self.freqs[iqpt, kband] != 0.0):
+                                        for lband in range(self.nband):
+                                            if(self.freqs[iqpt, lband] != 0.0):
+                                                if(self.group_velocity_mode == 'wigner'):
+                                                    vel_fact = 1.0
+                                                else:
+                                                    vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                                                #if(iband == jband and iband == kband and kband == lband):
+                                                integrals = 0.0
+                                                integrands1_plus = self.lineshapes[ls_key][iqpt, iband, lband]*np.conj(self.lineshapes[ls_key][iqpt, jband, kband])*exponents_plus/(exponents_plus - 1.0)**2
+                                                integrands1_minus = self.lineshapes[ls_key][iqpt, iband, lband]*np.conj(self.lineshapes[ls_key][iqpt, jband, kband])*exponents_minus/(exponents_minus - 1.0)**2
+                                                integrands2_plus = self.lineshapes[ls_key][iqpt, iband, kband]*np.conj(self.lineshapes[ls_key][iqpt, jband, lband])*exponents_plus/(exponents_plus - 1.0)**2
+                                                integrands2_minus = self.lineshapes[ls_key][iqpt, iband, kband]*np.conj(self.lineshapes[ls_key][iqpt, jband, lband])*exponents_minus/(exponents_minus - 1.0)**2
+                                                integrals = (np.sum(integrands1_plus, axis = len(integrands1_plus.shape) - 1) + np.sum(integrands1_minus, axis = len(integrands1_minus.shape) - 1)).real*self.delta_omega
+                                                integrals += (np.sum(integrands2_plus, axis = len(integrands2_plus.shape) - 1) + np.sum(integrands2_minus, axis = len(integrands2_minus.shape) - 1)).real*self.delta_omega
+                                                #if(np.abs(integrals.imag/integrals.real) > 1.0e-3 and np.abs(integrals.imag) > 1.0e-3):
+                                                #    raise RuntimeError('Large imaginary part in integrals of spectral functions!', integrals)
+                                                gvel1 = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                                gvel2 = np.zeros_like(self.gvels[iqpt, kband, lband])
+                                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                                for r in self.rotations:
+                                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                                    gvel1 = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                                    gvel2 = np.dot(rot_q, self.gvels[iqpt, kband, lband])
+                                                    gvel_sum += np.outer(gvel1.conj(), gvel2)
+                                                gvel_sum = gvel_sum.real*vel_fact**2/float(len(self.rotations))
+                                                if(iband == jband and iband == kband and kband == lband):
+                                                    kappa_diag += integrals*np.sqrt(self.freqs[iqpt,iband]*self.freqs[iqpt, kband]*self.freqs[iqpt,jband]*self.freqs[iqpt, lband])*\
+                                                            gvel_sum*SSCHA_TO_MS**2*(SSCHA_TO_THZ)*1.0e12*2.0*np.pi/4.0
+                                                else:
+                                                    kappa_nondiag += integrals*np.sqrt(self.freqs[iqpt,iband]*self.freqs[iqpt, kband]*self.freqs[iqpt,jband]*self.freqs[iqpt, lband])*\
+                                                            gvel_sum*SSCHA_TO_MS**2*(SSCHA_TO_THZ)*1.0e12*2.0*np.pi/4.0
+        
+        kappa_diag += kappa_diag.T
+        kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
+        kappa_nondiag += kappa_nondiag.T
+        kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
+        print(kappa_diag, kappa_nondiag)
+        return kappa_diag.real + kappa_nondiag.real
+
+    #################################################################################################################################
 
     def calculate_kappa_gk_offdiag(self, temperature, write_lineshapes, energies, gauss_smearing = False):
 
@@ -1613,6 +1697,7 @@ class ThermalConductivity:
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
         energies         : the list of frequencies for which lineshapes are calculated.
         method           : practically only determines how many times fortran routines are called. "fortran" should be much faster.
+        mode_mixing      : Calculate full self-energy matrix ("mode_mixing" gives it in mode basis, "cartesian" gives it in cartesian basis)
         gauss_smearing   : are we using Gaussian smearing as approximation for energy conservation
         """
 
@@ -1721,15 +1806,15 @@ class ThermalConductivity:
                         #    for jband in range(self.nband):
                         #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
                         lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
-                        tot_const_diag = 0.0
-                        tot_const_nondiag = 0.0
-                        for iband in range(len(lineshapes[jqpt])):
-                            tot_const_diag += np.sum(lineshapes[jqpt][iband][iband]).real*(energies[2] - energies[1])
-                            for jband in range(len(lineshapes[jqpt][iband])):
-                                print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1]))
-                                tot_const_nondiag += np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1])
-                        print('Normalization constant diagonal: ', tot_const_diag)
-                        print('Normalization constant all elements: ', tot_const_diag)
+                        #tot_const_diag = 0.0
+                        #tot_const_nondiag = 0.0
+                        #for iband in range(len(lineshapes[jqpt])):
+                        #    tot_const_diag += np.sum(lineshapes[jqpt][iband][iband]).real*(energies[2] - energies[1])
+                        #    for jband in range(len(lineshapes[jqpt][iband])):
+                        #        print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1]))
+                        #        tot_const_nondiag += np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1])
+                        #print('Normalization constant diagonal: ', tot_const_diag)
+                        #print('Normalization constant all elements: ', tot_const_diag)
                     else:
                         lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
                 if(write_lineshapes):
@@ -1915,6 +2000,7 @@ class ThermalConductivity:
         if(self.cp_mode == 'classical'):
             classical = True
 
+        print(psutil.virtual_memory().percent)
         if(mode_mixing == 'mode_mixing'):
             curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
                     self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
@@ -1933,6 +2019,8 @@ class ThermalConductivity:
                     self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
                     sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), nkpts, \
                     self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+        else:
+            raise RuntimeError('Unknown mode_mixing method! ')
 
         for ikpt in range(nkpts):
             if(mode_mixing == 'no'):
@@ -3122,10 +3210,6 @@ class ThermalConductivity:
 
         """
 
-        if(self.group_velocity_mode == 'wigner'):
-            vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
-        else:
-            vel_fact = 1.0
         with open(filename, 'w+') as outfile:
             outfile.write('#   ' + format('Frequencies (THz)', STR_FMT))
             outfile.write('    ' + format('Group velocity x (m/s)', STR_FMT))
@@ -3138,7 +3222,7 @@ class ThermalConductivity:
                     outfile.write(3*' ' + format(self.freqs[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
                     for icart in range(3):
                         if(self.off_diag):
-                            outfile.write(3*' ' + format(self.gvels[ikpt][iband,iband][icart]*SSCHA_TO_MS/vel_fact, '.12e'))
+                            outfile.write(3*' ' + format(self.gvels[ikpt][iband,iband][icart]*SSCHA_TO_MS, '.12e'))
                         else:
                             outfile.write(3*' ' + format(self.gvels[ikpt][iband][icart]*SSCHA_TO_MS, '.12e'))
                     outfile.write(3*' ' + format(self.sigmas[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
@@ -3654,43 +3738,85 @@ class ThermalConductivity:
 
     ######################################################################################################################################
 
-    def calculate_mode_gruneisen(self):
+    def calculate_mode_gruneisen_at_q(self, q):
 
         """
 
-        Does not work!
+        Calculate Gruneisen parameter for specific q-point!
+
+
+        q : Q point in cartesian coordinates
+
 
         """
 
         uc_positions = self.dyn.structure.coords.copy()
         natom = len(uc_positions)
         masses = self.dyn.structure.get_masses_array()
+        m1 = np.zeros(3*natom, dtype = float)
+        for iat in range(natom):
+            m1[3*iat:3*iat + 3] = masses[iat]
+
+        dynmat = self.get_dynamical_matrix(q)
+        w2_q, pols_q = np.linalg.eigh(dynmat)
+        w_q = np.sqrt(np.abs(w2_q))*np.sign(w2_q)
+        gruneisens = np.zeros_like(w_q)
+
+        for iband in range(len(w_q)):
+            gruneisen = 0.0 + 1j*0.0
+            for iuc in range(len(self.fc3.r_vector2[0])):
+                for iat in range(natom):
+                    for jat in range(natom):
+                        r = -1.0*self.fc3.r_vector2[:,iuc] + uc_positions[iat] - uc_positions[jat]
+                        phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(q, r)))
+                        eig1 = pols_q[3*iat:3*iat + 3, iband].conj().copy()/np.sqrt(masses[iat])
+                        eig2 = pols_q[3*jat:3*jat + 3, iband].copy()/np.sqrt(masses[jat])
+                        for kat in range(natom):
+                            gruneisen += np.einsum('ijk, i, j, k', self.fc3.tensor[iuc,3*iat:3*(iat + 1),3*jat:3*(jat + 1),3*kat:3*(kat + 1)], eig1,
+                                    eig2, self.fc3.r_vector3[:,iuc] + uc_positions[kat])*phase_factor
+            if(w_q[iband] > 0.0):
+                gruneisens[iband] = -1.0*gruneisen.real/w2_q[iband]/6.0/BOHR_TO_ANGSTROM
+            else:
+                print('Negative frequency in calculation of Gruneisen parameter for q point: ', q)
+                print(format(w_q[iband]*SSCHA_TO_THZ, '.3f'))
+                gruneisens[iband] = 0.0
+        return gruneisens
+
+    #######################################################################################################################################'
+
+    def calculate_mode_gruneisen_mesh(self):
+
+        """
+
+        Calculate Gruneisen parameter on a grid. Using equation from 10.1103/PhysRevLett.79.1885 !
+
+        """
+
+        print('Calculating Gruneisen parameters ...')
+        uc_positions = self.dyn.structure.coords.copy()
+        natom = len(uc_positions)
+        masses = self.dyn.structure.get_masses_array()
         for ikpt in range(self.nirrkpt):
+            ikpt0 = self.qstar[ikpt][0]
             for iband in range(self.nband):
                 gruneisen = 0.0 + 0.0j
                 for iuc in range(len(self.fc3.r_vector2[0])):
-                    phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(self.k_points[ikpt], self.fc3.r_vector2[:,iuc])))
                     for iat in range(natom):
                         for jat in range(natom):
-                            #rvec = self.fc3.r_vector2[:,iuc] + uc_positions[jat,:] - uc_positions[iat, :]
-                            #phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(self.k_points[ikpt], rvec)))
-                            mass_factor = 1.0/np.sqrt(masses[iat]*masses[jat])
+                            r = -1.0*self.fc3.r_vector2[:,iuc] + uc_positions[iat] - uc_positions[jat]
+                            phase_factor = np.exp(complex(0.0, 2.0*np.pi*np.dot(self.k_points[ikpt0], r)))
+                            eig1 = self.eigvecs[ikpt0,3*iat:3*iat + 3, iband].conj().copy()/np.sqrt(masses[iat])
+                            eig2 = self.eigvecs[ikpt0,3*jat:3*jat + 3, iband].copy()/np.sqrt(masses[jat])
                             for kat in range(natom):
-                                #for i in range(3):
-                                #    for j in range(3):
-                                #        for k in range(3):
-                                #            gruneisen += self.fc3.tensor[iuc,3*iat + i,3*jat + j,3*kat + k]*self.eigvecs[ikpt,iband,3*iat + i].conj()*self.eigvecs[ikpt,iband,3*jat + j]*(self.fc3.r_vector3[k,iuc] + uc_positions[kat,k])\
-                                #                    *phase_factor*mass_factor
-                                gruneisen += np.einsum('ijk, i, j, k', self.fc3.tensor[iuc,3*iat:3*(iat + 1),3*jat:3*(jat + 1),3*kat:3*(kat + 1)], self.eigvecs[ikpt,iband,3*iat:3*(iat+1)].conj(),
-                                        self.eigvecs[ikpt,iband,3*jat:3*(jat+1)], self.fc3.r_vector3[:,iuc] + uc_positions[kat])*phase_factor*mass_factor
-                if(self.freqs[self.qstar_list[ikpt][0], iband] > 0.0):
-                    #print(gruneisen.real, gruneisen.imag)
-                    for iqpt in range(len(self.qstar_list[ikpt])):
-                        jqpt = self.qstar_list[ikpt][iqpt]
+                                gruneisen += np.einsum('ijk, i, j, k', self.fc3.tensor[iuc,3*iat:3*(iat + 1),3*jat:3*(jat + 1),3*kat:3*(kat + 1)], eig1,
+                                        eig2, self.fc3.r_vector3[:,iuc] + uc_positions[kat])*phase_factor
+                if(self.freqs[ikpt0, iband] > 0.0):
+                    for iqpt in range(len(self.qstar[ikpt])):
+                        jqpt = self.qstar[ikpt][iqpt]
                         self.gruneisen[jqpt][iband] = -1.0*gruneisen.real/self.freqs[jqpt, iband]**2/6.0/BOHR_TO_ANGSTROM
                 else:
-                    for iqpt in range(len(self.qstar_list[ikpt])):
-                        jqpt = self.qstar_list[ikpt][iqpt]
+                    for iqpt in range(len(self.qstar[ikpt])):
+                        jqpt = self.qstar[ikpt][iqpt]
                         self.gruneisen[jqpt][iband] = 0.0
 
         with open('Gruneisen_parameter', 'w+') as outfile:
@@ -3702,3 +3828,64 @@ class ThermalConductivity:
                     outfile.write(3*' ' + format(self.freqs[ikpt][iband]*SSCHA_TO_THZ, '.12e'))
                     outfile.write(3*' ' + format(self.gruneisen[ikpt][iband], '.12e'))
                     outfile.write('\n')
+
+    ##############################################################################################################################################
+
+    def calculate_thermal_expansion_quasiharmonic(self, temperatures, bulk):
+
+        """
+
+        Calculate thermal expansion assuming quasiharmonic approximation. Should work well only for cubic materials with no free internal degrees of freedom.
+
+        temperatures : List of temperatures for which to calculate thermal expansion.
+        bulk         : Bulk modulus of the material (GPa).
+
+        """
+
+        te = np.zeros(len(temperatures))
+        volume = np.zeros(len(temperatures))
+        for itemp in range(len(temperatures)):
+            cp_key = format(temperatures[itemp], '.1f')
+            if(cp_key in self.cp.keys()):
+                print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
+            else:
+                self.get_heat_capacity(temperatures[itemp])
+            te[itemp] = np.einsum('ij,ij', self.cp[cp_key], self.gruneisen)/float(self.nkpt)/self.volume/bulk*1.0e21
+            volume[itemp] = self.volume*(1.0 + np.sum(te[:itemp])*(temperatures[1] - temperatures[0]))
+
+        with open('Thermal_expansion', 'w+') as outfile:
+            outfile.write('#   ' + format('Temperature (K)', STR_FMT))
+            outfile.write('    ' + format('Thermal expansion (1/K)', STR_FMT))
+            outfile.write('    ' + format('Volume (A^3)', STR_FMT))
+            outfile.write('\n')
+            for itemp in range(len(temperatures)):
+                outfile.write(3*' ' + format(temperatures[itemp], '.12e'))
+                outfile.write(3*' ' + format(te[itemp], '.12e'))
+                outfile.write(3*' ' + format(volume[itemp], '.12e'))
+                outfile.write('\n')
+
+    ################################################################################################################################################
+
+    def calculate_vibrational_part_of_bulk_modulus(self, temperatures):
+
+        bulk = np.zeros(len(temperatures))
+
+        for itemp in range(len(temperatures)):
+            pops = np.zeros_like(self.freqs)
+            for iqpt in range(len(pops)):
+                for iband in range(len(pops[iqpt])):
+                    pops[iqpt,iband] = bose_einstein(self.freqs[iqpt,iband]*SSCHA_TO_THZ*1.0e12, temperatures[itemp], HPLANCK, KB, cp_mode = self.cp_mode)
+            exponents = HPLANCK*self.freqs*SSCHA_TO_THZ*1.0e12/KB/temperatures[itemp]
+            term = np.einsum('ij,ij,ij,ij,ij', self.freqs, exponents, self.gruneisen**2, pops**2,np.exp(exponents))
+            bulk[itemp] = -1.0*term*SSCHA_TO_THZ*1.0e12*HPLANCK/self.volume*1.0e21/float(self.nkpt)
+
+        with open('Quasiharmonic_bulk_modulus', 'w+') as outfile:
+            outfile.write('#   ' + format('Temperature (K)', STR_FMT))
+            outfile.write('    ' + format('Bulk modulus (GPa)', STR_FMT))
+            outfile.write('\n')
+            for itemp in range(len(temperatures)):
+                outfile.write(3*' ' + format(temperatures[itemp], '.12e'))
+                outfile.write(3*' ' + format(bulk[itemp], '.12e'))
+                outfile.write('\n')
+            
+
