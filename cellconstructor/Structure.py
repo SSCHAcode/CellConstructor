@@ -137,7 +137,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         mass = ase_struct.get_masses()
         for i, ma in enumerate(mass):
             if not self.atoms[i] in self.masses:
-                self.masses[self.atoms[i]] = ma * ELECTRON_MASS_UMA
+                self.masses[self.atoms[i]] = ma  / MASS_RY_TO_UMA
         
 
     def copy(self):
@@ -343,6 +343,18 @@ Error, to compute the volume the structure must have a unit cell initialized:
         read_atoms = True
         if read_espresso:
             read_atoms = False
+
+            # Get the alat from the input file
+            espresso_dict = Methods.read_namelist(lines)
+            if "system" in espresso_dict:
+                if "alat" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["alat"]*BOHR_TO_ANGSTROM
+                elif "celldm(1)" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["celldm(1)"]*BOHR_TO_ANGSTROM
+
+                if "ibrav" in espresso_dict["system"]:
+                    assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
+            
         cell_present = False
         
         read_crystal = False
@@ -439,11 +451,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         atoms = ase.io.read(filename)
 
         # Now obtain all the information
-        self.unit_cell = atoms.get_cell()
-        self.has_unit_cell = True
-        self.atoms = atoms.get_chemical_symbols()
-        self.N_atoms = len(self.atoms)
-        self.coords = atoms.positions.copy()
+        self.generate_from_ase_atoms(atoms)
         
 
     def set_unit_cell(self, filename, delete_copies = False, rescale_coords = False):
@@ -534,6 +542,64 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         return Methods.get_reciprocal_vectors(self.unit_cell) * 2 * np.pi
         #return np.transpose(np.linalg.inv(self.unit_cell)) * 2 * np.pi
+
+    def strain(self, strain_tensor, voigt = False, fix_volume = False):
+        r"""
+        APPLY A STRAIN TO THE STRUCTURE
+        ===============================
+
+        This method applies a strain tensor to the structure.
+        Note, it will not affect the current structure, 
+        but it returns a new strained strcture. 
+
+        Note: in the voigt representation, the off-diagonal terms of the strain tensor are intended as the sum
+        of the two symmetric components of the tensor.
+
+        .. math ::
+
+            \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\
+            2\epsilon_4 \\ 2\epsilon_5 \\ 2\epsilon_6 \end{pmatrix} = 
+            \begin{pmatrix} \epsilon_1 & \epsilon_6 & \epsilon_5 \\
+            \epsilon_6 & \epsilon_2 & \epsilon_4 \\
+            \epsilon_5 & \epsilon_4 & \epsilon_3 \end{pmatrix}
+
+
+
+        Parameters
+        ----------
+            strain_tensor: ndarray (size = (3,3), dtype = np.double)
+                The strain tensor. It must be a 3x3 tensor.
+                If you want to use the Voigt notation, set voigt to true
+            voigt : bool
+                If true, the strain_tensor is assumed in the voigt notation
+                (a 6 element array).
+            fix_volume : bool
+                If true, impose a hard volume constrain, that prevents the train to 
+                change the total volume of the system.
+
+        Results
+        -------
+            strained_structure : CC.Structure.Structure()
+                The result of the strain.
+        """
+
+        if voigt:
+            strain_tensor[3:] /= 2
+            strain_tensor = Methods.transform_voigt(strain_tensor, voigt_to_mat = True)
+
+        
+        I = np.eye(3)
+        unit_cell = self.unit_cell.dot( I + strain_tensor.transpose())
+        
+        if fix_volume:
+            # Fix the volume
+            unit_cell[:,:] *= (self.get_volume() / np.abs(np.linalg.det(unit_cell)))**(1/np.float64(3))
+        
+        strained_struct = self.copy()
+        strained_struct.change_unit_cell(unit_cell)
+
+        return strained_struct
+        
         
         
     def delete_copies(self, minimum_dist=1e-6, verbose=False):
@@ -910,7 +976,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
             
             #print "Max distance:", np.max(effective_distances)
 
-            assert all(eq_atm == equiv_atoms)  
+            assert all(np.array(eq_atm) == np.array(equiv_atoms))  
+            eq_atm = equiv_atoms
 
             if return_distances:
                 return equiv_atoms, effective_distances

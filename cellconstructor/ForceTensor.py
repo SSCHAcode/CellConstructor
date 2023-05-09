@@ -95,6 +95,23 @@ class Tensor2(GenericTensor):
                 The dynamical matrix from which you want to setup the tensor
         """
 
+        # Check if the supercell is correct
+        ERR = """
+Error, the supercell of the phonon object is {}.
+       it must match with the supercell defined for the Tensor2: {}
+""".format(phonons.GetSupercell(), self.supercell_size)
+        #print(ERR)
+
+        assert np.all([self.supercell_size[i] == phonons.GetSupercell()[i] for i in range(3)]), ERR
+
+        # Check that no 1 atom with 1 q point
+        if np.prod(phonons.GetSupercell()) == 1 and phonons.structure.N_atoms == 1:
+            ERR = """
+Error, cannot initialize a tensor from a structure with 1 atom with only Gamma 
+       check if you imported the dynamical matrix with the correct nqirr.
+
+"""
+            raise ValueError(ERR)
         current_dyn = phonons.Copy()
 
         # Check if the dynamical matrix has the effective charges
@@ -321,13 +338,13 @@ class Tensor2(GenericTensor):
         
         # Broadcast
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)       
         
         
-    def Center(self, nneigh=None, Far=1,tol=1.0e-5):
+    def Center(self, nneigh=None, Far=2,tol=1.0e-5):
         """
         CENTERING 
         =========
@@ -370,6 +387,10 @@ class Tensor2(GenericTensor):
                     In the centering, supercell equivalent atoms are considered within 
                     -Far,+Far multiples of the super-lattice vectors
         """    
+        # Check if the phonons is initialized TODO
+        #if np.max(np.abs(self.x_r_vector2)) == 0:
+        #    raise ValueError("Error, Tensor object not initialized!")
+
         if Settings.am_i_the_master():
             
             
@@ -534,9 +555,9 @@ class Tensor2(GenericTensor):
                 print(" ")
                 print(" ====================================================================")
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -618,7 +639,7 @@ class Tensor2(GenericTensor):
 
 
 
-        self.tensor = Settings.broadcast(self.tensor)        
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)        
         
 
 
@@ -705,7 +726,7 @@ class Tensor2(GenericTensor):
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
-    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None):
+    def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None, lo_to_splitting = True):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
         This subroutine automatically performs the ASR
@@ -727,6 +748,10 @@ class Tensor2(GenericTensor):
                 If q2 is gamma and effective charges are present, this vector is used
                 to pick the direction of the nonanalitical correction to apply.
                 If it is not initialized, a random versor will be chosen.
+                If it is the 0 vector, the nonanalitic correction at gamma will be avoided.
+            lo_to_splitting : bool
+                If True and the point is gamma, add the nonanalytic correction in a direction
+                given by q_direct
 
         Results
         -------
@@ -744,7 +769,7 @@ class Tensor2(GenericTensor):
 
         # If effective charges are present, then add the nonanalitic part
         if self.effective_charges is not None:
-            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex128, order = "F")
             for i in range(self.nat):
                 for j in range(self.nat):
                     dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
@@ -756,16 +781,21 @@ class Tensor2(GenericTensor):
             # Check if the vector is gamma
             if np.max(np.abs(q2)) < 1e-12:
                 q_vect = np.zeros(3, dtype = np.double)
+                compute_nonanal = lo_to_splitting
                 if q_direct is not None:
                     # the - to take into account the difference between QE convension and our
-                    q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
+                    if np.linalg.norm(q_direct) < 1e-8:
+                        compute_nonanal = False
+                    else:
+                        q_vect[:] = -q_direct / np.sqrt(q_direct.dot(q_direct))
                 else:
                     q_vect[:] = np.random.normal(size = 3)
                     q_vect /= np.sqrt(q_vect.dot(q_vect))
 
                 # Apply the nonanal contribution at gamma
-                QE_itau = np.arange(self.nat) + 1
-                symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
+                if compute_nonanal:
+                    QE_itau = np.arange(self.nat) + 1
+                    symph.nonanal(QE_itau, self.dielectric_tensor, q_vect, self.QE_zeu, self.QE_omega, dynq, self.nat, self.nat)
 
             # Copy in the final fc the result
             for i in range(self.nat):
@@ -939,7 +969,7 @@ class Tensor2(GenericTensor):
 
     #     return new_tensor
 
-    def GeneratePhonons(self, supercell, asr = False):
+    def GeneratePhonons(self, supercell, asr = False, lo_to_splitting = False):
         """
         GENERATE PHONONS
         ================
@@ -961,6 +991,10 @@ class Tensor2(GenericTensor):
             - asr : bool
                 If true, the ASR is imposed during the interpolation.
                 This is the best way to correct the modes even close to gamma
+            - lo_to_splitting : bool
+                If true, the phonons at gamma will have the LO-TO splitting
+                from a random direction.
+                Note, this will break symmetrization.
         
         Results
         -------
@@ -980,7 +1014,12 @@ class Tensor2(GenericTensor):
 
         # Interpolate over the q points
         for i, q_vector in enumerate(q_vectors):
-            dynq = np.conj(self.Interpolate(q_vector, asr = asr))
+            q_direction = None
+            if lo_to_splitting:
+                q_direction = np.random.normal(size = 3) 
+                q_direction /= np.linalg.norm(q_direction)
+
+            dynq = self.Interpolate(-q_vector, asr = asr, q_direct= q_direction, lo_to_splitting=lo_to_splitting)
             dynmat.dynmats.append(dynq)
 
         # Adjust the q star according to symmetries
@@ -1105,7 +1144,7 @@ class Tensor3():
         self.supercell_size = supercell_size
         
         
-        # Cartesian lattice vectors
+        # Cartesian lattice vectors (in Angstrom)
         self.r_vector2 = np.zeros((3, n_R), dtype = np.double, order = "F")
         self.r_vector3 = np.zeros((3, n_R), dtype = np.double, order = "F")
         
@@ -1322,11 +1361,11 @@ class Tensor3():
                     
         # Broadcast            
                     
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)                    
                     
                     
@@ -1337,7 +1376,16 @@ class Tensor3():
 
         Save the tensor on a file.
 
-        The file format is the same as phono3py or D3Q       
+        The file format is the same as phono3py or D3Q.
+        The unit of measures are those in which the tensor is stored.
+        If readed from the result of get_free_energy_hessian, they are in Ry/Bohr^3.
+
+        To convert the units to eV/A^3 (used in phono3py, for example), you need to change them as:
+        >>> my_tensor3.tensor *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM**3
+        >>> my_tensor3.WriteOnFile("FORCE_CONSTANTS_3RD", file_format="phonopy")
+
+        However, remember to change back in Ry/Bohr^3 if you want to further process this tensor within Cellconstructor
+        (For example to compute )
 
         Parameters
         ----------
@@ -1366,9 +1414,10 @@ class Tensor3():
                     for nat1 in range(self.nat):
                         for nat2 in range(self.nat):
                             for nat3 in range(self.nat):
+                                f.write("\n")
                                 f.write("{:d}\n".format(i_block))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector2[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector3[:, r_block])))
                                 f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
                                 i_block += 1
                                 #
@@ -1376,7 +1425,7 @@ class Tensor3():
                                     z = xyz % 3
                                     y = (xyz %9)//3
                                     x = xyz // 9
-                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
+                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10f}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
         
         
         elif file_format.upper() == 'D3Q':
@@ -1401,7 +1450,7 @@ class Tensor3():
                                             f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
                                             
 
-    def Center(self, nneigh=None, Far=1,tol=1.0e-5):
+    def Center(self, nneigh=None, Far=2,tol=1.0e-5):
         """
         CENTERING 
         =========
@@ -1616,11 +1665,11 @@ class Tensor3():
                 print(" ")
                 print(" ====================================================================")
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -1704,7 +1753,7 @@ class Tensor3():
 
 
 
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
 
 
 
@@ -1957,18 +2006,18 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
         #
         self.x_r_vector2_sparse = Settings.broadcast(self.x_r_vector2_sparse)
         self.x_r_vector3_sparse = Settings.broadcast(self.x_r_vector3_sparse)
-        self.r_vector2_sparse = Settings.broadcast(self.r_vector2_sparse)
-        self.r_vector3_sparse = Settings.broadcast(self.r_vector3_sparse)
+        self.r_vector2_sparse = Settings.broadcast(self.r_vector2_sparse, enforce_double=True)
+        self.r_vector3_sparse = Settings.broadcast(self.r_vector3_sparse, enforce_double=True)
         self.n_R_sparse = Settings.broadcast(self.n_R_sparse)
         self.atom_sparse = Settings.broadcast(self.atom_sparse)
         self.r_blocks_sparse_list = Settings.broadcast(self.r_blocks_sparse_list)    
@@ -2053,7 +2102,7 @@ class Tensor3():
                 print(" ============================================================")
  
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
 
 
 
@@ -2142,11 +2191,11 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
 
 
@@ -2699,11 +2748,11 @@ class Tensor3():
 
            
         
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -2798,11 +2847,11 @@ class Tensor3():
 
 
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
 
@@ -2942,11 +2991,11 @@ class Tensor3():
                 print(" ")
                 print(" ============================================================")
  
-        self.tensor = Settings.broadcast(self.tensor)
+        self.tensor = Settings.broadcast(self.tensor, enforce_double=True)
         self.x_r_vector2 = Settings.broadcast(self.x_r_vector2)
         self.x_r_vector3 = Settings.broadcast(self.x_r_vector3)
-        self.r_vector2 = Settings.broadcast(self.r_vector2)
-        self.r_vector3 = Settings.broadcast(self.r_vector3)
+        self.r_vector2 = Settings.broadcast(self.r_vector2, enforce_double=True)
+        self.r_vector3 = Settings.broadcast(self.r_vector3, enforce_double=True)
         self.n_R = Settings.broadcast(self.n_R)
         self.n_sup = Settings.broadcast(self.n_sup)
  
@@ -2954,7 +3003,7 @@ class Tensor3():
 
 
 # Plot the phonons in the given k-path
-def get_phonons_in_qpath(dynamical_matrix, q_path):
+def get_phonons_in_qpath(dynamical_matrix, q_path, center_args = {}):
     """
     GET PHONONS IN K-PATH
     =====================
@@ -2967,6 +3016,9 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
             The dynamical matrix (with effective charges)
         q_path : list of ndarray(size of 3)
             List of q points in 2pi/A units.
+        center_args : dict
+            Dictionary of parameters to be passed to the Center function of
+            Tensor2
     
     Results
     -------
@@ -3012,7 +3064,7 @@ def get_phonons_in_qpath(dynamical_matrix, q_path):
                  dynamical_matrix.GetSupercell())
 
     t2.SetupFromPhonons(dynamical_matrix)
-    t2.Center(Far = 4)
+    t2.Center(**center_args)
     t2.Apply_ASR()
 
     n_k, _ = q_path.shape

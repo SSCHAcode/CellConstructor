@@ -41,7 +41,7 @@ def test_mode_symmetries(verbose = False):
 
     # Get the symmetry matrix in the polarization space
     t1 = time.time()
-    sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, ss, pols, timer, debug =True)
+    sim_modes = CC.symmetries.GetSymmetriesOnModes(symmetries, ss, pols, [], timer, debug =True)
     t2 = time.time()
     # Exploit the old slower function to test if the implementation is correct
     sim_modes2 = CC.symmetries._GetSymmetriesOnModes(symmetries, ss, pols)

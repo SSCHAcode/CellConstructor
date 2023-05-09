@@ -64,10 +64,19 @@ def test_supercell_fourier():
     # Try to revert the code
 
     dynmats_new = CC.Phonons.GetDynQFromFCSupercell(fc_new, np.array(dyn.q_tot), dyn.structure, super_structure)
+    d2 = CC.Phonons.GetDynQFromFCSupercell_parallel(fc_new, np.array(dyn.q_tot), dyn.structure, super_structure)
+
 
     dyn_sc_new = CC.Phonons.GetSupercellFCFromDyn(dynmats_new, np.array(dyn.q_tot), dyn.structure, super_structure)
+    dyn_sc_new2 = CC.Phonons.GetSupercellFCFromDyn(d2, np.array(dyn.q_tot), dyn.structure, super_structure)
 
-    print ("Distance reverted:", np.sqrt(np.sum((dyn_sc_new - fc_new)**2) / np.sum(dyn_sc_new**2)))
+    dist1 = np.max(np.abs(dyn_sc_new - fc_new))
+    dist2 = np.max(np.abs(dyn_sc_new2 - fc_new))
+    print ("Distance reverted:", dist1)
+    print ("Distance reverted:", dist2)
+
+    assert dist1 < 1e-10, 'Error in the fourier transform'
+    assert dist2 < 1e-10, 'Error in the parallel fourier transform'
 
     #print "\n".join ( ["RATIO: %.5f " % (w_tot[i] / w_old[i] ) for i in range (len(w_tot))])
 

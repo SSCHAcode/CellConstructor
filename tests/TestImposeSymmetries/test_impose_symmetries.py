@@ -51,3 +51,7 @@ def test_impose_symmetry():
     print ("New space group with high threshold:", s_group_after)
 
     assert s_group_after == GROUP
+
+
+if __name__ == "__main__":
+    test_impose_symmetry()

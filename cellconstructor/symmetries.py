@@ -19,6 +19,8 @@ import scipy.linalg
 import cellconstructor.Methods as Methods
 from cellconstructor.Units import *
 import cellconstructor.Timer as Timer
+from cellconstructor.Settings import ParallelPrint as print
+import cellconstructor.Settings as Settings
 
 # Load the fortran symmetry QE module
 import symph
@@ -87,7 +89,7 @@ class QE_Symmetry:
         self.QE_ft = np.zeros( (3, 48), dtype = np.float64, order = "F")
         
         
-        self.QE_minus_q = np.bool( False )
+        self.QE_minus_q = False
         self.QE_irotmq = np.intc(0)
         self.QE_nsymq = np.intc( 0 )
         self.QE_nsym = np.intc(0)
@@ -830,7 +832,6 @@ class QE_Symmetry:
                 The list of q points divided by stars, the fcq must follow the order
                 of the q points in the q_stars array
         """
-        
         nqirr = len(q_stars)
         nq = np.sum([len(x) for x in q_stars])
         
@@ -1784,7 +1785,7 @@ def GetIRT(structure, symmetry, timer = Timer.Timer(), debug = False):
         new_struct.apply_symmetry(symmetry, True)
         irt = np.array(new_struct.get_equivalent_atoms(n_struct_2), dtype =np.intc)
     else:
-        timer.execute_timed_function(new_struct.apply_symmetry, symmetry, True, timer = timer)
+        timer.execute_timed_function(new_struct.apply_symmetry, symmetry, True)
         irt = np.array( timer.execute_timed_function(new_struct.get_equivalent_atoms, n_struct_2), dtype =np.intc)
 
     return irt
@@ -1820,15 +1821,13 @@ def ApplySymmetryToVector(symmetry, vector, unit_cell, irt):
     nat, dumb = np.shape(vector)
     work = np.zeros( (nat, 3))
     sym = symmetry[:, :3]
-    
-    for i in range(nat):
-        # Pass to crystalline coordinates
-        v1 = Methods.covariant_coordinates(unit_cell, vector[i, :])
-        # Apply the symmetry
-        w1 = sym.dot(v1)
-        # Return in cartesian coordinates
-        work[irt[i], :] = np.einsum("ab,a", unit_cell, w1)
-    
+
+    v1 = Methods.covariant_coordinates(unit_cell, vector)
+    w1 = sym.dot(v1.T).T
+
+    # Return in cartesian coordinates
+    work[irt[:], :] = w1.dot(unit_cell)# unit_cell.T.dot(w1) #np.einsum("ab,a", unit_cell, w1)
+
     return work
 
 def ApplySymmetriesToVector(symmetries, vector, unit_cell, irts):
@@ -1951,6 +1950,9 @@ def GetQGrid(unit_cell, supercell_size, enforce_gamma_first = True):
     
     This method gives back a list of q points given the
     reciprocal lattice vectors and the supercell size.
+
+    The q points are returned in 2pi / a units.
+    Where a is the unit of measure of the unit_cell (usually Angstrom).
     
     Parameters
     ----------
@@ -2272,7 +2274,7 @@ def _GetSymmetriesOnModes(symmetries, structure, pol_vects):
 
         return pol_symmetries
 
-def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug = False):
+def GetSymmetriesOnModes(symmetries, structure, pol_vects, irts = [], timer = None, debug = False):
         """
         GET SYMMETRIES ON MODES
         =======================
@@ -2289,6 +2291,8 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug =
                in each other.
             pol_vects : ndarray(size = (n_dim, n_modes))
                The array of the polarization vectors (must be real)
+            irts : list
+                The list of equivalent atoms for each symmetry
 
 
         Results
@@ -2311,11 +2315,10 @@ def GetSymmetriesOnModes(symmetries, structure, pol_vects, timer = None, debug =
         # For each symmetry operation apply the
         pol_symmetries = np.zeros((n_sym, n_modes, n_modes), dtype = np.float64)
 
-        # Get the irt for all the symmetries
-        irts = []
-
-        for i, sym_mat in enumerate(symmetries):
-            irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
+        # Get the irt for all the symmetries (if needed)
+        if len(irts) == 0:
+            for i, sym_mat in enumerate(symmetries):
+                irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
             
         
             
@@ -2389,6 +2392,11 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
 
         threshold = 1e-8
 
+        # Compute irts once for all
+        irts = []
+        for i, sym_mat in enumerate(symmetries):
+            irts.append(GetIRT(structure, sym_mat, timer, debug = debug))
+
         for i in range(1, len(w)):
             if np.abs(w[i-1] - w[i]) < threshold :
                 N_deg[i] = N_deg[i-1] + 1
@@ -2416,7 +2424,7 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
         # Now compute the symmetries only in the correct blocks
         i_mode = 0
         result_list = []
-        for i in range(n_blocks):
+        for i in range(n_blocks): # TODO ADD MPI PARALLELIZATION
             mode_mask = np.zeros(n_modes, dtype = bool)
 
             for k in final_space[i]:
@@ -2427,7 +2435,7 @@ def GetSymmetriesOnModesDeg(symmetries, structure, pol_vects, w_freq, timer = No
             #assert np.sum(mode_mask.astype(int)) == N_deg[i_mode], "Error, something went wrong while computing the degeneracies."
 
             select_pols = pols[:, mode_mask]
-            pol_syms = GetSymmetriesOnModes(symmetries, structure, select_pols, timer, debug)
+            pol_syms = GetSymmetriesOnModes(symmetries, structure, select_pols, irts, timer, debug)
 
             i_mode += len(deg_space[i_mode])
 
@@ -2902,3 +2910,165 @@ def GetSymmetryMatrix(sym, structure, crystal = False):
         sym_mat[3 * i_irt : 3*i_irt+3, 3*i : 3*i+ 3] = sym_cryst
 
     return sym_mat
+
+
+def get_symmetry_equivalent_atoms(symmetries, structure, parallel=True, timer=None):
+    """
+    GET THE SYMMETRY EQUIVALENT ATOMS
+    =================================
+
+    This subroutine returns the list of the 'irt' variable, 
+    which is the index of the atom in the original structure 
+    equivalent to that of the structure after the symmetry operation is applied.
+
+       new_coords[irt[i], :] =  S coords[i, :]
+
+    This subroutine exploits MPI parallelization.
+
+    Parameters
+    ----------
+        symmetries : list of ndarray(size = (3, 4))
+            The array of the symmetries
+        structure : CC.Structure.Structure()
+            The structure on which the symmetries are applied
+
+    Results
+    -------
+        irts : list of ndarray(size = (structure.N_atoms, ), dtype = np.intc)
+            The list of the irt array for each symmetry
+    """
+
+    if not parallel:
+        irts = []
+        for i, s in enumerate(symmetries):
+            if timer is not None:
+                irt = timer.execute_timed_function(GetIRT, structure, s)
+            else:
+                irt = GetIRT(structure, s, timer=timer)
+            irts.append(irt)
+    else:
+        def function(s, timer=None):
+            return GetIRT(structure, s, timer=timer)
+
+        if timer is not None:
+            irts = timer.execute_timed_function(Settings.GoParallel, function, symmetries)
+        else:
+            irts = Settings.GoParallel(function, symmetries)
+
+
+    return irts
+
+
+def get_force_constants_generators(symmetries, irts, structure, timer=None):
+    """
+    GET FORCE CONSTANTS GENERATORS
+    ==============================
+
+    Compute a minimal basis for the force constants matrix.
+    It is very useful for the compression of the force constants matrix,
+    and to reduce the number of independent displacements that need to be calculated.
+
+    If it is for a supercell dynamical matrix, symmetries and structure must match the supercell.
+    Note, the basis of the generators is not orthonormal by default.
+
+    It returns both generators and the basis. 
+    Each generator contain the atom index, the cartesian direction and the symmetry index.
+    The corresponding row of the basis is transformed displacement vector according to the symmetry.
+    This allow to transform the force constants from the original basis to a more compact one.
+
+    This function is not parallelized and runs only on the master core.
+
+
+    Parameters
+    ----------
+        symmetries : list of ndarray(size = (3, 4))
+            The array of the symmetries
+        irts : list of ndarray(size = (structure.N_atoms, ), dtype = np.intc)
+            The list of the irt array for each symmetry
+        structure : CC.Structure.Structure()
+            The structure on which the symmetries are applied
+
+    Results
+    -------
+        generators : list of dict (size = 3*structure.N_atoms)
+            List of generators. 
+            Each generator is a dictionary with the following keys:
+                'sym_index' : int
+                    The index of the symmtry associated to the generator
+                'atom_index' : int
+                    The index of the atom associated to the generator
+                'direction' : int (0, 1, 2)
+                    The cartesian direction associated to the generator
+        independent_displacements : list
+            List of the independent displacements that identify the generators.
+        basis : ndarray(size = (3*structure.N_atoms, 3*structure.N_atoms), dtype = np.double)
+            The basis matrix of the generators.
+    """
+    displacements = []
+    generators = []
+    list_of_calculations = []
+    n_syms = len(symmetries)
+    nat3 = structure.N_atoms * 3
+
+    if Settings.am_i_the_master():
+        for i in range(structure.N_atoms):
+            for j in range(3):
+                # Generate the displacement
+                disp = np.zeros((structure.N_atoms, 3), dtype=np.double)
+                disp[i, j] += 1
+
+                #if debug:
+                #    print("Simulating displacement", i, j)
+
+                # Check if the displacement can be decomposed in those already computed
+                if timer is not None:
+                    coefficients = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, disp.ravel(), displacements)
+                else:
+                    coefficients = Methods.get_generic_covariant_coefficients(disp.ravel(), displacements)
+                
+                #if debug:
+                #    print("The decomposition is:", coefficients)
+                if coefficients is None:
+                    # The displacement needs to be computed
+                    list_of_calculations.append((i,j))
+
+
+                    # Generate the symmetry equivalent displacements
+                    if timer is not None:
+                        disp_sym = timer.execute_timed_function(ApplySymmetriesToVector, symmetries, disp, structure.unit_cell, irts)
+                    else:
+                        disp_sym = ApplySymmetriesToVector(symmetries, disp, structure.unit_cell, irts)
+
+
+                    # Check wether to add or not the newly generated displacements to the space
+                    for i_sym in range(n_syms):
+                        v = disp_sym[i_sym, :, :]
+                        #if debug:
+                        #    print("The symmetry {} gives a vector v = {}".format(i_sym, v))
+                        if timer is not None:
+                            coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), displacements)
+                        else:
+                            coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), displacements)
+                        #if debug:
+                        #    print("Is new?", coeffs is None)
+                        if coeffs is None:
+                            displacements.append(v.ravel())
+                            generators.append({"sym_index": i_sym, "atom_index": i, "direction": j})
+                            assert len(displacements) <= nat3, "The number of displacements is not correct. Something went wrong."
+                            if len(displacements) == nat3:
+                                break 
+
+                # Early exit    
+                if len(displacements) == nat3:
+                    break
+
+            # Early exit
+            if len(displacements) == nat3:
+                break
+    
+    # Broadcast the displacements to all the processes
+    displacements = Settings.broadcast(displacements)
+    list_of_calculations = Settings.broadcast(list_of_calculations)
+    generators = Settings.broadcast(generators)
+
+    return generators, list_of_calculations, displacements

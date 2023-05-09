@@ -43,48 +43,17 @@ q_path = band_path.cartesian_kpts()
 x_axis, xticks, xlabels = band_path.get_linear_kpoint_axis()
 
 
-# Now we need to Fourier interpolate the dynamical matrix
-# In the selected path
-# For this porupouse we create a Tensor2 object
-t2 = CC.ForceTensor.Tensor2(dyn.structure,
-                            dyn.structure.generate_supercell(dyn.GetSupercell()),
-                            dyn.GetSupercell())
-t2.SetupFromPhonons(dyn)
-
-# We now center the tensor and apply the sum rule after centering
-t2.Center(Far = 3)
-t2.Apply_ASR()
-
-
-# Now we need to perform the interpolation, dyagonalizing the dynamical matrix for each q point of the path
-n_modes = 3 * dyn.structure.N_atoms
-ws = np.zeros((N_POINTS, n_modes), dtype = np.double)
-m = dyn.structure.get_masses_array()
-m = np.tile(m, (3,1)).T.ravel()
-
-for i in range(N_POINTS):
-    # For each point in the path
-
-    # Interpoalte the dynamical matrix
-    fc = t2.Interpolate(-q_path[i, :])
-
-    # Mass rescale the force constant matrix
-    dynq = fc / np.outer(np.sqrt(m), np.sqrt(m))
-
-    # Diagonalize the dynamical matrix
-    w2 = np.linalg.eigvalsh(dynq)
-    ws[i, :] = np.sqrt(np.abs(w2)) * np.sign(w2) * CC.Units.RY_TO_CM
-    
-
+# Perform the interpolation
+frequencies = CC.ForceTensor.get_phonons_in_qpath(dyn, q_path)
 
 # ============= PLOT THE FIGURE =================
-plt.figure()
+fig = plt.figure(dpi = 200)
+ax = plt.gca()
 
 # Plot all the modes
-for i in range(n_modes):
-    plt.plot(x_axis, ws[:,i])
+for i in range(frequencies.shape[-1]):
+    ax.plot(x_axis, frequencies[:,i])
 
-ax = plt.gca()
 # Plot vertical lines for each high symmetry points
 for x in xticks:
     ax.axvline(x, 0, 1, color = "k", lw = 0.4)
@@ -96,5 +65,7 @@ ax.set_xticklabels(xlabels)
 ax.set_ylabel("Energy [cm-1]")
 ax.set_xlabel("q path")
 
-plt.tight_layout()
+fig.tight_layout()
+fig.savefig("dispersion.png")
+fig.savefig("dispersion.eps")
 plt.show()
