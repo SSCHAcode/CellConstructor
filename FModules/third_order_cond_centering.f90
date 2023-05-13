@@ -503,24 +503,12 @@ module third_order_cond_centering
                 index1 = kat + natom*(jat-1) + natom**2*(iat-1)
                 if(index0 .ne. index1) then
                 do i = 1, tot_trip(index1)
-                        !if(itrip .eq. 0) then
-                        !        itrip = itrip + 1
-                        !        f_rvec2(itrip, :) = rvec2(index1, i, :)
-                        !        f_rvec3(itrip, :) = rvec3(index1, i, :)
-                        !        f_tensor(itrip, 3*(kat-1)+1:3*kat, 3*(jat-1)+1:3*jat, 3*(iat-1)+1:3*iat) = &
-                        !                tensor(index1, i,:,:,:)
-                        !else
                                 found = .False.
                                 do j = 1, itrip
                                         if(norm(rvec2(index1, i, :) - f_rvec2(j, :)) < tol .and. &
                                          norm(rvec3(index1, i, :) - f_rvec3(j, :)) < tol) then
-                                                !print*, rvec2(index1, i, :), rvec3(index1, i, :)
-                                                !print*, f_rvec2(j, :), f_rvec3(j, :)
-                                                !print*, f_tensor(j, 3*(kat-1)+1:3*kat, 3*(jat-1)+1:3*jat, 3*(iat-1)+1:3*iat)
-                                                !print*, tensor(index1, i,:,:,:)
                                                 found = .True.
                                                 f_tensor(j, 3*(iat-1)+1:3*iat, 3*(jat-1)+1:3*jat, 3*(kat-1)+1:3*kat) = &
-                                                !f_tensor(j, 3*(kat-1)+1:3*kat, 3*(jat-1)+1:3*jat, 3*(iat-1)+1:3*iat) + &
                                                 tensor(index1, i,:,:,:)
                                                 EXIT
                                         endif
@@ -577,7 +565,6 @@ module third_order_cond_centering
                         norma3(new_tensor(list(i_r, j_r + 1), 3*(iat-1) + 1:3*iat, 3*(jat-1) + 1:3*jat, 3*(kat-1) + 1:3*kat))
                         enddo
                         enddo
-                        !aux_tensor = aux_tensor/dble(list(i_r, 1))/dble(natom)
                         do j_r = 1, list(i_r, 1)
                         do kat = 1, natom
                                 if(norma3(aux_tensor) .gt. 0.0_DP) then

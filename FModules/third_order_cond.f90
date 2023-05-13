@@ -21,9 +21,8 @@ module third_order_cond
     !
 
         DO i_block = 1, n_blocks
-            !arg = tpi * SUM(q2(:)*R2(:,i_block) + q3(:)*R3(:,i_block))
             arg = tpi*(dot_product(q2, R2(:,i_block)) + dot_product(q3, R3(:,i_block)))
-            phase = exp(cmplx(0.0_DP, arg,kind=DP))!CMPLX(Cos(arg),Sin(arg), kind=DP)
+            phase = exp(cmplx(0.0_DP, arg,kind=DP))
 
              fc_interp = fc_interp + phase*fc(i_block,:,:,:)
       ! 
@@ -354,13 +353,6 @@ module third_order_cond
                                 re_p = 0.0_DP
                         endif
                         ctm_P = CMPLX(re_p, im_p, kind=DP)
-                        if(ctm_P .ne. ctm_P) then
-                                print*, re_p, im_p
-                                print*, bose_P, gaussian_function(energies(ie) - omega_P, sigma)
-                                print*, energies(ie), omega_P, sigma
-                                print*, '361'
-                                STOP
-                        endif
                         im_p = bose_M *gaussian_function(energies(ie) + omega_M, sigma)
                         im_p1 = bose_M *gaussian_function(energies(ie) - omega_M, sigma)
                         if(energies(ie) + omega_M .ne. 0.0_DP) then
@@ -374,13 +366,6 @@ module third_order_cond
                                 re_p1 = 0.0_DP 
                         endif
                         ctm_M = CMPLX(re_p, im_p, kind=DP) - CMPLX(re_p1, im_p1, kind=DP)
-                        if(ctm_M .ne. ctm_M) then
-                                print*, '376'
-                                print*, re_p, im_p, re_p1, im_p1
-                                print*, bose_M, gaussian_function(energies(ie) + omega_M, sigma), &
-                                        gaussian_function(energies(ie) - omega_M, sigma)
-                                STOP
-                        endif
                         ctm(ie) =  ctm_P + ctm_M
                 ENDDO
             ELSE
@@ -576,14 +561,6 @@ module third_order_cond
             !   
             
             DO ie = 1,ne
-                 !do n = 1, nat3 - 1
-                 !do m = n + 1, nat3       
-                 !        if(abs(Pi(ie,n,m) - conjg(Pi(ie,m,n))) > abs(Pi(ie,n,m))*1.0e-8) then
-                 !                print*, 'Self energy is not Hermitian!'
-                 !                print*, Pi(ie,n,m), Pi(ie,m,n)
-                 !        endif
-                 !enddo
-                 !enddo
                  G=cmplx(0.0_dp,0.0_dp,kind=DP)
                  FORALL (m=1:nat3, n=1:nat3)
                      G(n,m) = -Pi(ie,n,m)
@@ -592,53 +569,17 @@ module third_order_cond
                  DO n=1,nat3
                    G(n,n)=G(n,n)+(ener(ie) + complex(0.0_DP,smear(n)))**2
                  ENDDO
-                ! do n = 1, nat3 - 1
-                ! do m = n + 1, nat3       
-                !         if(abs(G(n,m) - conjg(G(m,n))) > abs(G(n,m))*1.0e-8) then
-                !                 print*, 'G before is not Hermitian!'
-                !         endif
-                ! enddo
-                ! enddo
                  G = cinv(G) 
-                ! do n = 1, nat3 - 1
-                ! do m = n + 1, nat3       
-                !         if(abs(G(n,m) - conjg(G(m,n))) > abs(G(n,m))*1.0e-8) then
-                !                 print*, 'G before is not Hermitian!'
-                !         endif
-                ! enddo
-                ! enddo
                  IF ( notransl ) THEN
                    CALL eliminate_transl(G,mass,nat)      
                  END IF
                  do n = 1, nat3
                  do m = 1, nat3       
-                 !spectralf(m,n,ie)=spectralf(m,n,ie)-2.0_DP*DIMAG(G(m,n))*ener(ie)/twopi
-                 !spectralf(m,n,ie)=spectralf(m,n,ie)-DIMAG(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
                  spectralf(m,n,ie)=spectralf(m,n,ie)+complex(0.0_DP, 1.0_DP)*(G(m,n) - conjg(G(n,m)))*ener(ie)/twopi
                  enddo
                  enddo
-                ! do n = 1, nat3 - 1
-                ! do m = n + 1, nat3       
-                !         if(abs(spectralf(n,m,ie) + spectralf(m,n,ie)) > abs(spectralf(n,m,ie))*1.0e-8) then
-                !                 print*, 'spectrlaf before is not Hermitian!'
-                !         endif
-                ! enddo
-                ! enddo
             ENDDO
             
-            !open(unit = 1, file = 'Spectral_function_from_fortran')
-            !do ie = 1, ne
-            !     write(1, '(E24.17)', advance="no") ener(ie)
-            !     do n = 1, nat3
-            !     do m = 1, nat3
-            !             write(1, '(E24.17)', advance="no") spectralf(m,n,ie)
-            !     enddo
-            !     enddo
-            !     write(1,*) ' '
-            !enddo
-            !close(1)
-    !
-
     end subroutine calculate_spectral_function_cartesian
 !
 ! ======================== accessory routines ========================================

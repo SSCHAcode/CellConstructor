@@ -109,16 +109,6 @@ module get_lf
                         endif
                 endif
 
-                !open(file = 'Self_energy', unit = 1)
-                !do i = 1, ne
-                !        write(1,"(E20.12)",advance="no") energies(i)
-                !        do jqpt = 1, 3*nat
-                !                write(1,"(2E20.12)",advance="no") dble(self_energy(i,jqpt)), aimag(self_energy(i,jqpt))
-                !        enddo
-                !        write(1,*) ' '
-                !enddo
-                !close(1)
-
                 call compute_spectralf_diag_single(smear_id(:, iqpt), energies, w_q, self_energy, nat, ne, lineshape)
                 !call calculate_spectral_function(energies, w_q, self_energy, nat, ne, lineshape)
                 !call calculate_correlation_function(energies, w_q, self_energy, nat, ne, lineshape)
@@ -186,6 +176,7 @@ module get_lf
         integer, allocatable, dimension(:) :: curr_w
         logical :: is_q_gamma, w_neg_freqs, parallelize
 
+        ! Get non-diagonal lineshapes but in mode basis
 
         lineshapes(:,:,:,:) = complex(0.0_DP, 0.0_DP)
         kprim = transpose(inv(rprim))
@@ -212,11 +203,6 @@ module get_lf
             lineshape(:,:,:) = 0.0_DP 
             qpt = irrqgrid(:, iqpt) 
             call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
-            !d2_q = cmplx(0.0_DP, 0.0_DP, kind=DP)
-            !do iband = 1, 3*nat
-            !    d2_q(iband, iband) = cmplx(w2_q(iband), 0.0_DP, kind=DP)
-            !enddo
-            !d2_q = matmul(pols_q, matmul(d2_q, cinv(pols_q)))
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
 
             if(any(w2_q < 0.0_DP)) then
@@ -238,7 +224,6 @@ module get_lf
                     curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
                     curr_w(jqpt) = weights(prev_events + jqpt)
                 enddo
-                !print*, 'Got grids'
                 call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
                     nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
                     energies, .not. parallelize, gaussian, classical, self_energy) 
@@ -248,7 +233,7 @@ module get_lf
                 self_energy = self_energy/dble(tot_qpt)
                 if(gaussian) then
                         call calculate_real_part_via_Kramers_Kronig_2d(ne, 3*nat, self_energy, energies, w_q)
-                        !call hilbert_transform_via_FFT(ne, 3*nat, self_energy)
+                        !call hilbert_transform_via_FFT(ne, 3*nat, self_energy) ! not much better
                         if(any(self_energy .ne. self_energy)) then
                                 print*, 'NaN in Kramers Kronig'
                         endif
@@ -262,6 +247,7 @@ module get_lf
 
                 lineshape = lineshape*2.0_DP
                 lineshapes(iqpt, :, :, :) = lineshape
+                ! projected them to Cartesian coordinates. Leave it for debugging
                 !do iband = 1, 3*nat
                 !        do jband = 1, 3*nat
                 !                do iband1 = 1, 3*nat
@@ -353,11 +339,6 @@ module get_lf
             lineshape(:,:,:) = 0.0_DP 
             qpt = irrqgrid(:, iqpt) 
             call interpolate_fc2(nfc2, nat, fc2, r2_2, masses, pos, qpt, w2_q, pols_q, d2_q)
-            !d2_q = cmplx(0.0_DP, 0.0_DP, kind=DP)
-            !do iband = 1, 3*nat
-            !    d2_q(iband, iband) = cmplx(w2_q(iband), 0.0_DP, kind=DP)
-            !enddo
-            !d2_q = matmul(pols_q, matmul(d2_q, cinv(pols_q)))
             call check_if_gamma(nat, qpt, kprim, w2_q, is_q_gamma)
 
             if(any(w2_q < 0.0_DP)) then
@@ -398,14 +379,6 @@ module get_lf
                 if(any(self_energy .ne. self_energy)) then
                         print*, 'NaN in self_energy'
                 endif
-                !do iband = 1, 3*nat - 1
-                !        do jband = iband + 1, 3*nat
-                !                if(any(abs(self_energy(:,jband,iband) - conjg(self_energy(:,iband,jband))) > &
-                !                maxval(abs(self_energy(:,jband,iband)))*1.0e-6)) then
-                !                        print*, 'Self - energy is non-Hermitian in mode basis!'
-                !                endif
-                !        enddo
-                !enddo
                 do iband = 1, 3*nat
                         do jband = 1, 3*nat
                                 do iband1 = 1, 3*nat
@@ -416,28 +389,6 @@ module get_lf
                                 enddo
                         enddo
                 enddo
-
-                !do iband = 1, 3*nat - 1
-                !        do jband = iband + 1, 3*nat
-                !                if(any(abs(self_energy_cart(:,jband,iband) - conjg(self_energy_cart(:,iband,jband))) > &
-                !                maxval(abs(self_energy_cart(:,jband,iband)))*1.0e-6)) then
-                !                        print*, 'Self - energy is non-Hermitian in cartesian basis!'
-                !                endif
-                !        enddo
-                !enddo
-
-                !open(file = 'Self_energy_nmm', unit = 1)
-                !do i = 1, ne
-                !write(1,"(E20.12)",advance="no") energies(i)
-                !do iband = 1, 3*nat
-                !do jband = 1, 3*nat
-                !        write(1,"(2E20.12)",advance="no") dble(self_energy_cart(i,iband,jband)), &
-                !                aimag(self_energy_cart(i,iband,jband))
-                !enddo
-                !enddo
-                !write(1,*) ' '
-                !enddo
-                !close(1)
 
                 call calculate_spectral_function_cartesian(energies, smear_id(:, iqpt), &
                         d2_q,self_energy_cart,is_q_gamma,lineshape,masses,nat,ne)
@@ -1001,38 +952,7 @@ module get_lf
             w_k = sqrt(w2_k)
             w_mk_mq = sqrt(w2_mk_mq)
 
-!            do iat = 1, nat
-!            do i = 1, 3
-!                do jat = 1, nat
-!                do j = 1, 3
-!                    do kat = 1, nat
-!                    do k = 1, 3
-!                        d3(k + 3*(kat - 1), j + 3*(jat - 1), i + 3*(iat - 1)) = &
-!                                       ifc3(k + 3*(kat - 1), j + 3*(jat - 1), i + 3*(iat - 1))&
-!                                        /sqrt(masses(iat)*masses(jat)*masses(kat))
-!                    enddo
-!                    enddo
-!                enddo
-!                enddo
-!            enddo
-!            enddo
-
             d3 = ifc3*mass_array
-
-!            do i = 1, 3*nat
-!                do j = 1, 3*nat
-!                    do k = 1, 3*nat
-!                        do i1 = 1, 3*nat
-!                        do j1 = 1, 3*nat
-!                        do k1 = 1, 3*nat
-!                            d3_pols(k,j,i) = d3_pols(k,j,i) + &
-!                            d3(k1,j1,i1)*pols_q(k1,k)*pols_k(j1,j)*pols_mk_mq(i1,i) 
-!                        enddo
-!                        enddo
-!                        enddo
-!                    enddo
-!                enddo
-!            enddo
 
             do i = 1, 3*nat
             do i1 = 1, 3*nat
@@ -1187,22 +1107,6 @@ module get_lf
                 enddo
             enddo
             enddo
-!            d3 = ifc3*mass_array
-
-!            do i = 1, 3*nat
-!                do j = 1, 3*nat
-!                    do k = 1, 3*nat
-!                        do i1 = 1, 3*nat
-!                        do j1 = 1, 3*nat
-!                        do k1 = 1, 3*nat
-!                            d3_pols(k,j,i) = d3_pols(k,j,i) + &
-!                            d3(k1,j1,i1)*pols_q(k1,k)*pols_k(j1,j)*pols_mk_mq(i1,i) 
-!                        enddo
-!                        enddo
-!                        enddo
-!                    enddo
-!                enddo
-!            enddo
 
             do i = 1, 3*nat
             do i1 = 1, 3*nat
@@ -1488,7 +1392,6 @@ module get_lf
                                 if(i .ne. j) then
                                         diff = 1.0_DP/(energies(j) - energies(i))
                                         suma = 1.0_DP/(energies(j) + energies(i))
-                                        !rse = rse + im_part(j)*(diff + suma)*(energies(2) - energies(1))/PI
                                         rse = rse + aimag(self_energy(j, iband))*(diff - suma)*(energies(2) - energies(1))/PI
                                 else
                                         suma = 1.0_DP/(energies(j) + energies(i))
@@ -1500,7 +1403,6 @@ module get_lf
                         else 
                                 correction = 0.0_DP
                         endif
-                        !self_energy(i, iband) = complex((rse + correction)*2.0_DP*freq(iband), aimag(self_energy(i, iband)))
                         self_energy(i, iband) = complex(rse + correction, aimag(self_energy(i, iband)))
                 enddo
         enddo
@@ -1726,6 +1628,7 @@ module get_lf
             do iat = 1, nat
             do jat = 1, nat
                     !ruc = pos(:,jat) - pos(:,iat) - r2_2(:,ir)
+                    ! Have to keep this phase convention to be consistent with Fourier transform of the 3rd order force constants!
                     ruc = r2_2(:,ir)
                     phase = dot_product(ruc, q)*2.0_DP*PI
                     pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) = pols_q1(3*(jat - 1) + 1:3*jat, 3*(iat - 1) + 1:3*iat) &
