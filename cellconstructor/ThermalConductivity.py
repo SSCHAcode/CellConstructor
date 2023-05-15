@@ -8,7 +8,6 @@ import numpy as np
 import os, sys
 import scipy, scipy.optimize
 from scipy import integrate
-import h5py
 
 # Import the Fortran Code
 import symph
@@ -441,6 +440,16 @@ def rotate_eigenvectors(ddm, eigs):
     
     return rot_eigvecs
 
+def load_thermal_conductivity(filename = 'tc.pkl'):
+
+    import pickle
+
+    infile = open(filename, 'rb')
+    tc = pickle.load(infile)
+    infile.close()
+    return tc
+
+
 class ThermalConductivity:
 
     def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', group_velocity_mode = 'analytical', off_diag = False):
@@ -526,178 +535,14 @@ class ThermalConductivity:
         self.kappa = {}
         self.got_scattering_rates_isotopes = False
 
-    ##################################################################################################################################
+    ###################################################################################################################
 
-    def save(self, filename = 'sscha_thermal_conductivity.h5'):
-
-        """
-            Routine to save most of the information needed for further postprocessing.
-            
-            filename : Title of the file the information is to be stored to
+    def save_pickle(self, filename = 'tc.pkl'):
         
-        """
+        import pickle
 
-        hf = h5py.File(filename, 'w')
-
-        ne = None
-
-        if(self.smearing_scale is not None):
-            hf.create_dataset('smearing_scale', data = np.array([self.smearing_scale]))
-        hf.create_dataset('kpoint_grid', data = self.kpoint_grid)
-        hf.create_dataset('scattering_grid', data = self.scattering_grid)
-        hf.create_dataset('unit_cell', data = self.unitcell)
-        hf.create_dataset('supercell', data = self.supercell)
-        dt = h5py.special_dtype(vlen=str)
-        hf.create_dataset('smearing_type', data = self.smearing_type, dtype=dt)
-        hf.create_dataset('cp_mode', data = self.cp_mode)
-        hf.create_dataset('off_diag', data = self.off_diag)
-        hf.create_dataset('reciprocal_lattice', data = self.reciprocal_lattice)
-        hf.create_dataset('k_points', data = self.k_points)
-        hf.create_dataset('qpoints', data = self.qpoints)
-        hf.create_dataset('delta_omega', data = self.delta_omega)
-        hf.create_dataset('nkpt', data = self.nkpt)
-        hf.create_dataset('nband', data = self.nband)
-        hf.create_dataset('nirrkpt', data = self.nirrkpt)
-        
-        irrqpts = [hf.create_group('irreducible_kpoint' + str(i + 1)) for i in range(self.nirrkpt)]
-        for ikpt in range(self.nirrkpt):
-            irrqpts[ikpt].create_dataset('k_point', data = self.irr_k_points[ikpt])
-            irrqpts[ikpt].create_dataset('star', data = self.qstar[ikpt])
-            irrqpts[ikpt].create_dataset('frequency', data = self.freqs[self.qstar[ikpt][0]])
-            eigvecs = []
-            gvels = []
-            sigmas = []
-            for istar in range(len(self.qstar[ikpt])):
-                jkpt = self.qstar[ikpt][istar]
-                eigvecs.append(self.eigvecs[jkpt])
-                gvels.append(self.gvels[jkpt])
-                sigmas.append(self.sigmas[jkpt])
-            eigvecs = np.array(eigvecs)
-            gvels = np.array(gvels)
-            sigmas = np.array(sigmas)
-            irrqpts[ikpt].create_dataset('eigenvectors', data = eigvecs)
-            irrqpts[ikpt].create_dataset('group_velocities', data = gvels)
-            irrqpts[ikpt].create_dataset('sigmas', data = sigmas)
-            keys = []
-            for key in self.lifetimes.keys():
-                keys.append(key)
-            if(len(keys) > 0):
-                for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('lifetimes_' + keys[ik], data = self.lifetimes[keys[ik]][self.qstar[ikpt][0]])
-            keys = []
-            for key in self.freqs_shifts.keys():
-                keys.append(key)
-            if(len(keys) > 0):
-                for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('freqs_shifts_' + keys[ik], data = self.freqs_shifts[keys[ik]][self.qstar[ikpt][0]])
-            keys = []
-            for key in self.lineshapes.keys():
-                keys.append(key)
-            if(len(keys) > 0):
-                for ik in range(len(keys)):
-                    if(ne is None):
-                        ne = np.shape(self.lineshapes[keys[ik]])[-1]
-                        hf.create_dataset('ne', data = ne)
-                    else:
-                        if(ne != np.shape(self.lineshapes[keys[ik]])[-1]):
-                            raise RuntimeError('Number of energy/frequency points not same for all temperatures!')
-                    irrqpts[ikpt].create_dataset('lineshapes_' + keys[ik], data = self.lineshapes[keys[ik]][self.qstar[ikpt][0]])
-            keys = []
-            for key in self.cp.keys():
-                keys.append(key)
-            if(len(keys) > 0):
-                for ik in range(len(keys)):
-                    irrqpts[ikpt].create_dataset('cp_' + keys[ik], data = self.cp[keys[ik]][self.qstar[ikpt][0]])
-        keys = []
-        for key in self.kappa.keys():
-            keys.append(key)
-        if(len(keys) > 0):
-            for ik in range(len(keys)):
-                hf.create_dataset('kappa_' + keys[ik], data = self.kappa[keys[ik]])
-        hf.close()
-
-    def load(self, filename):
-
-        """
-            Routine to read the information that one might need for postprocessing!
-
-        """
-
-        hf = h5py.File(filename, 'r')
-
-        try:
-            self.smearing_scale = np.array(hf.get('smearing_scale'))
-        except:
-            pass
-        self.kpoint_grid = np.array(hf.get('kpoint_grid'))
-        self.scattering_grid = np.array(hf.get('scattering_grid'))
-        self.unitcell = np.array(hf.get('unit_cell'))
-        self.supercell = np.array(hf.get('supercell'))
-        self.smearing_type = np.array2string(np.array(hf.get('smearing_type')))[2:-1]
-        self.cp_mode = np.array2string(np.array(hf.get('cp_mode')))[2:-1]
-        self.off_diag = np.array(hf.get('off_diag')).item()
-        self.reciprocal_lattice = np.array(hf.get('reciprocal_lattice'))
-        self.k_points = np.array(hf.get('k_points'))
-        self.qpoints = np.array(hf.get('qpoints'))
-        self.delta_omega = np.array(hf.get('delta_omega')).item()
-        self.nkpt = np.array(hf.get('nkpt')).item()
-        self.nband = np.array(hf.get('nband')).item()
-        self.nirrkpt = np.array(hf.get('nirrkpt')).item()
-        ne = np.array(hf.get('ne')).item()
-        self.freqs = np.zeros((self.nkpt, self.nband))
-        self.gruneisen = np.zeros((self.nkpt, self.nband))
-        self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
-        if(self.off_diag):
-            self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3))
-        else:
-            self.gvels = np.zeros((self.nkpt, self.nband, 3))
-        self.sigmas = np.zeros_like(self.freqs)
-
-        self.irr_k_points = []
-        self.qstar = []
-        for i in range(self.nirrkpt):
-            self.irr_k_points.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('k_point')))
-            self.qstar.append(np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('star')))
-            eigvecs = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('eigenvectors'))
-            gvels = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('group_velocities'))
-            sigmas = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('sigmas'))
-
-            for istar in range(len(self.qstar[-1])):
-                jkpt = self.qstar[-1][istar]
-                self.freqs[jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get('frequency'))
-                self.eigvecs[jkpt] = eigvecs[istar]
-                self.gvels[jkpt] = gvels[istar]
-                self.sigmas[jkpt] = sigmas[istar]
-                keys = []
-                for key in hf.get('irreducible_kpoint' + str(i + 1)).keys():
-                    keys.append(key)
-                for key in keys:
-                    if('cp' in key):
-                        temp = key.split('_')[-1]
-                        if(temp not in self.cp.keys()):
-                            self.cp[temp] = np.zeros((self.nkpt, self.nband))
-                        self.cp[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
-                    elif('lifetimes' in key):
-                        temp = key.split('_')[-1]
-                        if(temp not in self.lifetimes.keys()):
-                            self.lifetimes[temp] = np.zeros((self.nkpt, self.nband))
-                        self.lifetimes[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
-                    elif('freqs_shifts' in key):
-                        temp = key.split('_')[-1]
-                        if(temp not in self.lifetimes.keys()):
-                            self.freqs_shifts[temp] = np.zeros((self.nkpt, self.nband))
-                        self.freqs_shifts[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
-                    elif('lineshapes' in key):
-                        temp = key.split('_')[-1]
-                        if(temp not in self.lineshapes.keys()):
-                            print('Reading')
-                            self.lineshapes[temp] = np.zeros((self.nkpt, self.nband, ne))
-                        self.lineshapes[temp][jkpt] = np.array(hf.get('irreducible_kpoint' + str(i + 1)).get(key))
-                    
-        for key in hf.keys():
-            if('kappa' in key):
-                temp = key.split('_')[-1]
-                self.kappa[temp] = np.array(hf.get(key))
+        with open(filename, 'wb') as outfile:
+            pickle.dump(self, outfile)
 
     ###################################################################################################################################
 
