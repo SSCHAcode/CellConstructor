@@ -29,7 +29,7 @@ import time
 
 __SEEKPATH=False
 try:
-    import phonopy
+    import seekpath 
     __SEEKPATH=True
 except:
     __SEEKPATH=False
@@ -1759,18 +1759,24 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def get_heat_capacity(self, temperature):
+    def get_heat_capacity(self, temperature, shifted = False):
 
         """
         Calculate phonon mode heat capacity at temperature.
 
+        shifted :: Boolean to tell us whether we shift frequencies by the real part of the self-energy!
+
         """
 
         cp_key = format(temperature, '.1f')
+        if(shifted):
+            freqs = self.freqs + self.freqs_shifts[cp_key]
+        else:
+            freqs = self.freqs.copy()
         cp = np.zeros_like(self.freqs)
         for ikpt in range(self.nkpt):
             for iband in range(self.nband):
-                cp[ikpt, iband] = heat_capacity(self.freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = self.cp_mode)
+                cp[ikpt, iband] = heat_capacity(freqs[ikpt, iband]*SSCHA_TO_THZ*1.0e12, temperature, HPLANCK, KB, cp_mode = self.cp_mode)
         self.cp[cp_key] = cp
 
 
@@ -1794,7 +1800,10 @@ class ThermalConductivity:
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
             print('Calculating phonon mode heat capacities for ' + format(temperature, '.1f') + ' K temperature!')
-            self.get_heat_capacity(temperature)
+            if(lf_method == 'SC'):
+                self.get_heat_capacity(temperature)
+            else:
+                self.get_heat_capacity(temperature)
 
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
@@ -1836,7 +1845,10 @@ class ThermalConductivity:
         if(cp_key in self.cp.keys()):
             print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_heat_capacity(temperature)
+            if(lf_method == 'SC'):
+                self.get_heat_capacity(temperature)
+            else:
+                self.get_heat_capacity(temperature)
         scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*1.0e12*2.0*np.pi)
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
