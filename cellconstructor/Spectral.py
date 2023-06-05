@@ -2237,7 +2237,17 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
 
     """
 
-
+    def output_file_sort_function(filename_sp, smear_cm, nsm):
+        for ism in range(nsm):
+            name = "{:6.2f}".format(smear_cm[ism]).strip()
+            filename_data = filename_sp+'_'+name+'.dat'
+            f = open(filename_data, 'rw')
+            data = np.loadtxt(f)
+            X = data[:,0]
+            Y = data[:,1]
+            data_out = [data[i] for i in np.lexsort((Y,X))] # <= Here is the sorting part
+            np.savetxt(f,data_out)
+        pass
 
     print(" ")
     print(" ===========================================" )
@@ -2409,6 +2419,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
     plwork.starmap(multiprocessing_work_diag_dynamic_correction_along_path,parameters)
     plwork.close()    #remember to close all your pools or they keep using memory/space.
     plwork.join()
+    output_file_sort_function(filename_sp, smear_cm, nsm)
 
 def multiprocessing_work_diag_dynamic_correction_along_path(iq,q,tensor2,tensor3,k_grid,
                                                          smear_id, smear_id_cm, smear, smear_cm, energies,
