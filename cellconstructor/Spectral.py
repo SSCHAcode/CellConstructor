@@ -2247,7 +2247,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
             head3 = f.readline()
             data = np.loadtxt(f)
             f.close()
-            head = head1+head2+head3
+            head = head1[1:]+head2[1:]+head3[1:]
             # X = data[:,0]
             # Y = data[:,1]
             # Z = data[:,2]
@@ -2261,7 +2261,7 @@ def get_diag_dynamic_correction_along_path_multiprocessing(dyn, tensor3,
             data = data[data[:,1].argsort(kind='mergesort')]
             data = data[data[:,0].argsort(kind='mergesort')]
             f = open("Sorted_"+filename_data, 'w')
-            np.savetxt(f,data, header=head)
+            np.savetxt(f,data, header=head[:-1])
         pass
 
     print(" ")
