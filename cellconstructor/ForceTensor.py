@@ -1127,8 +1127,13 @@ class Tensor3():
     This class defines the 3rank tensors, like 3rd force constants.
     """
 
-    def __init__(self, unitcell_structure, supercell_structure, supercell_size):
+    def __init__(self, dyn):
         #GenericTensor.__init__(self, *args, **kwargs)
+        
+        unitcell_structure=dyn.structure
+        supercell_size=dyn.GetSupercell()
+        supercell_structure=dyn.structure.generate_supercell(supercell_size)
+        
         
         n_sup = np.prod(supercell_size)
         nat = unitcell_structure.N_atoms
