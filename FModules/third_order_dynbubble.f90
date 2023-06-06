@@ -205,7 +205,6 @@ subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3
 end subroutine compute_diag_dynamic_bubble
 !
 !
-!                                      
 subroutine compute_perturb_selfnrg(nsig,sigma,T,freq,is_gamma,D3,n_mod,selfnrg)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
@@ -512,6 +511,7 @@ subroutine Lambda_dynamic_value(n_mod,value,nsigma,sigma,T,w_q2,w_q3,Lambda_out)
             lambda_out=-ctm * w2m1*w3m1/4.0_dp
             !
 end subroutine Lambda_dynamic_value
+!
 !
 ! ======================== accessory routines ========================================
 !
