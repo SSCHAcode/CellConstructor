@@ -1119,6 +1119,33 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
                        If 'None' then the number returned by os.cpu_count() is used.
                        (default: None)
     """
+    def output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm):
+        for ism in range(nsm):
+            name = "{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
+            #
+            filename_data = filename_sp+'_'+name+'.dat'
+            f = open(filename_data, 'r')
+            head1 = f.readline()
+            head2 = f.readline()
+            head3 = f.readline()
+            data = np.loadtxt(f)
+            f.close()
+            head = head1[1:]+head2[1:]+head3[1:]
+            # X = data[:,0]
+            # Y = data[:,1]
+            # Z = data[:,2]
+            # x = [X[i] for i in np.lexsort((Y,X))]
+            # y = [Y[i] for i in np.lexsort((Y,X))]
+            # z = [Z[i] for i in np.lexsort((Y,X))]
+            # f = open('plot_energies_'+filename_data, 'w')
+            # np.savetxt(f,np.c_[x,y,z])
+            # f.close()
+            data = data[data[:,2].argsort()] # First sort doesn't need to be stable.
+            data = data[data[:,1].argsort(kind='mergesort')]
+            data = data[data[:,0].argsort(kind='mergesort')]
+            f = open("Sorted_"+filename_data, 'w')
+            np.savetxt(f,data, header=head[:-1])
+        pass
 
     print(" ")
     print(" ===========================================" )
@@ -1249,6 +1276,8 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
     print(" ")
     print(" Results printed in "+filename_sp+'_[id_smear]_[smear].dat')
     print(" ")
+    output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+
 def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3,k_grid,smear_id, smear,
                                                     energies, energies_cm, T,static_limit, notransl ,
                                                     diag_approx,nsm,smear_id_cm,smear_cm,filename_sp ,
