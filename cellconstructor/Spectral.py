@@ -1370,27 +1370,27 @@ def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3
                         f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,0]))
                     f.write("\n")
                 #
-            else:
+        else:
+            #
+            for  ism in range(nsm):
                 #
-                for  ism in range(nsm):
-                    #
-                    #name="{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
-                    name="{:6.1f}".format(smear_cm[ism]).strip()
-                    #
-                    filename_new=filename_sp+'_'+name+'.dat'
-                    if iq == 0:
-                        with open(filename_new,'w') as f:
-                            f.write(" # ------------------------------------------------------------- \n")
-                            f.write(" # len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1) \n")
-                            f.write(" # ------------------------------------------------------------- \n")
-                            for ie, ene in enumerate(energies_cm):
-                                f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
-                            f.write("\n")
-                    else:
-                        with open(filename_new,'a') as f:
-                            for ie, ene in enumerate(energies_cm):
-                                f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
-                            f.write("\n")
+                #name="{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
+                name="{:6.1f}".format(smear_cm[ism]).strip()
+                #
+                filename_new=filename_sp+'_'+name+'.dat'
+                if iq == 0:
+                    with open(filename_new,'w') as f:
+                        f.write(" # ------------------------------------------------------------- \n")
+                        f.write(" # len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1) \n")
+                        f.write(" # ------------------------------------------------------------- \n")
+                        for ie, ene in enumerate(energies_cm):
+                            f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                        f.write("\n")
+                else:
+                    with open(filename_new,'a') as f:
+                        for ie, ene in enumerate(energies_cm):
+                            f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                        f.write("\n")
 
 
         if static_limit :
