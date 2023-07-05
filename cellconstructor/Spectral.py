@@ -1399,9 +1399,6 @@ def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3
                         for ie, ene in enumerate(energies_cm):
                             f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
                         f.write("\n")
-
-
-
         return 0
 
 
