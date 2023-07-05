@@ -1329,10 +1329,18 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
 
 
 
-    print(" ")
-    print(" Results printed in "+filename_sp+'_[id_smear]_[smear].dat')
-    print(" ")
+    if static_limit :
+        print(" ")
+        print(" Results printed in "+filename_sp+'_static.dat')
+        print(" ")
+    else:
+        print(" ")
+        print(" Results printed in "+filename_sp+'_[smear].dat')
+        print(" ")
     output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+
+
+
 
 def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3,k_grid,smear_id, smear,
                                                     energies, energies_cm, T,static_limit, notransl ,
@@ -1392,15 +1400,6 @@ def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3
                             f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
                         f.write("\n")
 
-
-        if static_limit :
-            print(" ")
-            print(" Results printed in "+filename_sp+'_static.dat')
-            print(" ")
-        else:
-            print(" ")
-            print(" Results printed in "+filename_sp+'_[smear].dat')
-            print(" ")
 
 
         return 0
