@@ -3246,182 +3246,6 @@ def get_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].dat')
     print(" ")
 
-#-------------------------------------------------------------------------------
-def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
-                            , sm0, sm0_id
-                            , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
-#                  ( tensor3,omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
-
-    """
-    Input data:
-     epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
-     a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
-     b = atom b -> Z(b) atomic number of atom b
-     q : ndarray(size = 3) = The q point at which compute the bubble. <-- this id Gamma so (0,0,0) or np.zeros(3)
-     tensor3 : Tensor3() = The third order force constant matrix
-     k_grid : list(len = 3) = The integration grid on the Brillouin zone
-     T : Temperature
-     ener : energies
-     nsm : integer = Number of smearings to consider     (default = 1)
-     e1, de ,e0: float = The list of energies considered (cm-1), from e0 to e1, with interval de
-     sm0_id, sm1_id : float = Minimum and maximum value of the smearing (cm-1) for the term of the Green function proportional to the identity
-     ie, ismear = index of energies and smear, not needed? for ie in range(np.arange(e0,e1,de).shape[0]); for ismear in range(np.arange(sm0_id,sm1_id).shape[0])
-     ---------
-     Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
-     M() = Atomic masses
-     e() = polarization vector
-     omega_nu = resonant frequency
-     Big_omega = Unit cell Volume
-    Output:
-     epsilon = Dielectric function (SI)
-    """
-    #electric_charge = 4.803e-10 #Fr (CGS)
-    electric_charge = 1.602176462e-19 #C (SI)
-    q = np.zeros(3)
-    twopi = 2*np.pi
-    # Prepare the tensor2 and obtain masses
-    tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
-    tensor2.SetupFromPhonons(dyn)
-    tensor2.Center()
-
-    tensor3 =  CC.ForceTensor.Tensor3(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
-    structure = tensor2.unitcell_structure
-    alat=tensor2.unitcell_structure.unit_cell
-    # a,b,c volume calculation
-    # d = np.cross(b,c)
-    # proj_a = (np.dot(a,d)/np.sqrt(sum(d**2))**2)*d
-    # Volume = np.linalg.norm(a)*np.linalg.norm(d)
-    Big_omega = np.abs(np.linalg.det(alat))    # The unit cell volume is the determinant of the matrix defined by the unit cell vectors
-    M =structure.get_masses_array()
-    #prepare the dielctric tensor of vacuum and effective charges
-    Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
-    epsilon_inf = Fonon.dielectric_tensor #(3,3)
-    Z = Fonon.effective_charges #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
-    #  ======================= Energy & Smearing ==========================================
-    # energy   in input is in cm-1
-    # smearing in input is in cm-1
-    # converto to Ry
-
-    # list of energies
-    energies=np.arange(e0,e1,de)/CC.Units.RY_TO_CM
-    ne=energies.shape[0]
-    # list of smearing
-    if nsm == 1 :
-        sm1=sm0
-        sm1_id=sm0_id
-    smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
-    smear_id=np.linspace(sm0_id,sm1_id,nsm)/CC.Units.RY_TO_CM
-    # ==========================================================================================
-        #----------------------------------------------------------------
-    def compute_k(k):
-            # phi3 in q, k, -q - k
-            t1 = time.time()
-            phi3=tensor3.Interpolate(k,-q-k, asr = False)
-            t2 = time.time()
-            # phi2 in k
-            phi2_k = tensor2.Interpolate(k, asr = False)
-
-            # phi2 in -q-k
-            phi2_mq_mk = tensor2.Interpolate(-q -k, asr = False)
-
-            t3 = time.time()
-
-            # dynamical matrices (divide by the masses)
-            d2_k = phi2_k * mm_inv_mat
-            d2_mq_mk = phi2_mq_mk * mm_inv_mat
-
-            # Diagonalize the dynamical matrices
-            w2_k, pols_k = np.linalg.eigh(d2_k)
-            w2_mq_mk, pols_mq_mk = np.linalg.eigh(d2_mq_mk)
-
-
-            is_k_gamma = CC.Methods.is_gamma(structure.unit_cell, k)
-            is_mq_mk_gamma = CC.Methods.is_gamma(structure.unit_cell, -q-k)
-
-            if is_k_gamma:
-                w2_k[0:3]=0.0
-            if not (w2_k >= 0.0).all():
-                print('k= ',k, '    (2pi/A)')
-                print('w(k)= ',np.sign(w2_k)*np.sqrt(np.abs(w2_k))*CC.Units.RY_TO_CM,'  (cm-1)')
-                print('Cannot continue with SSCHA negative frequencies')
-                exit()
-            w_k=np.sqrt(w2_k)
-
-            if is_mq_mk_gamma:
-                w2_mq_mk[0:3]=0.0
-            if not (w2_mq_mk >= 0.0).all():
-                print('-q-k= ',-q-k, '    (2pi/A)')
-                print('w(-q-k)= ',np.sign(w2_mq_mk)*np.sqrt(np.abs(w2_mq_mk))*CC.Units.RY_TO_CM,'  (cm-1)')
-                print('Cannot continue with SSCHA negative frequencies')
-                exit()
-            w_mq_mk=np.sqrt(w2_mq_mk)
-            w_q=np.sqrt(w2_q)
-            # Dividing the phi3 by the sqare root of masses
-            d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
-
-            # d3 in mode components
-            #d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
-            d3_pols = np.einsum("abc, ai -> ibc", d3, pols_q)
-            d3_pols = np.einsum("abc, bi -> aic", d3_pols, pols_k)
-            d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
-
-            t4 = time.time()
-
-            # Fortran duty ====
-            # Check if the q point is gamma
-            is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
-            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(energies,smear,static_limit,T,
-                                                                np.array([w_q,w_k,w_mq_mk]).T,
-                                                                np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
-                                                                d3_pols,diag_approx,ne,nsm,n_mod=3*structure.N_atoms)
-
-            t5 = time.time()
-
-            return tmp_bubble
-
-
-    CC.Settings.SetupParallel()
-
-    # Get the integration points
-    k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
-    # dynamical matrix in q
-    m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
-    mm_mat = np.sqrt(np.outer(m, m))
-    mm_inv_mat = 1 / mm_mat
-    # Get the phi2 in q
-    phi2_q = tensor2.Interpolate(q, asr = False)
-    d2_q = phi2_q * mm_inv_mat
-    # Diagonalize the dynamical matrix in q
-    w2_q, pols_q = np.linalg.eigh(d2_q)
-    d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
-    # divide by the N_k factor
-    d_bubble_mod /= len(k_points) # (ne,nsmear,3nat,3nat)
-    # the self-energy bubble in cartesian coord, divided by the sqare root of masses
-    d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
-        #----------------------------------------------------------------
-    epsilon = np.zeros((ne,3,3), dtype = np.double) #np.zeros((3,3))
-    response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
-    response2 = np.zeros((ne,3,3), dtype = np.double) #init the response2 value
-    response_function = np.zeros((ne,3,3), dtype = np.double) #init the response_function value
-    temp = np.zeros((ne,3,3), dtype = np.double)
-    for ie in range(ne):  #<-- The dispersion function is now in energies instead of frequencies.
-        for dielectric_read in range(3):
-            for a in range(dyn.structure.N_atoms):
-                for b in range(dyn.structure.N_atoms):
-                    # for i in range(3):
-                    #  for j in range(3):
-                    #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
-                    #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-                    temp[ie,ismear,dielectric_read,:] = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
-                    response2 += temp
-            response_function = response1*response2
-
-    #        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3,3) ??
-            epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3,3) ; epsilon_inf(3,3)??
-
-    refractive_index = np.sqrt(epsilon) #Cauchy Dispersion formula '**If mu=1** then n=sqrt(epsilon)'
-    return epsilon  #, refractive_index
-
 
 
  # ===== ONE-SHOT & PERTURBATIVE CORRECTION TO SSCHA FREQUENCY (SHIFT and LINEWIDTH) =====================
@@ -3836,3 +3660,180 @@ def get_os_perturb_dynamic_correction_along_path(dyn, tensor3,
     print(" ")
     print(" Results printed in "+filename_freq_dyn+'_'+'[smear].os/pert.dat')
     print(" ")
+
+
+#-------------------------------------------------------------------------------
+def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
+                            , sm0, sm0_id
+                            , diag_approx=False, nsm=1, static_limit=False): #skeleton function for TESTING...
+#                  ( tensor3,omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
+
+    """
+    Input data:
+     epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
+     a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
+     b = atom b -> Z(b) atomic number of atom b
+     q : ndarray(size = 3) = The q point at which compute the bubble. <-- this id Gamma so (0,0,0) or np.zeros(3)
+     tensor3 : Tensor3() = The third order force constant matrix
+     k_grid : list(len = 3) = The integration grid on the Brillouin zone
+     T : Temperature
+     ener : energies
+     nsm : integer = Number of smearings to consider     (default = 1)
+     e1, de ,e0: float = The list of energies considered (cm-1), from e0 to e1, with interval de
+     sm0_id, sm1_id : float = Minimum and maximum value of the smearing (cm-1) for the term of the Green function proportional to the identity
+     ie, ismear = index of energies and smear, not needed? for ie in range(np.arange(e0,e1,de).shape[0]); for ismear in range(np.arange(sm0_id,sm1_id).shape[0])
+     ---------
+     Z() = Born effective charge ---> Phonon.Phonon.effective_charges()
+     M() = Atomic masses
+     e() = polarization vector
+     omega_nu = resonant frequency
+     Big_omega = Unit cell Volume
+    Output:
+     epsilon = Dielectric function (SI)
+    """
+    #electric_charge = 4.803e-10 #Fr (CGS)
+    electric_charge = 1.602176462e-19 #C (SI)
+    q = np.zeros(3)
+    twopi = 2*np.pi
+    # Prepare the tensor2 and obtain masses
+    tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
+    tensor2.SetupFromPhonons(dyn)
+    tensor2.Center()
+
+    tensor3 =  CC.ForceTensor.Tensor3(dyn.structure, dyn.structure.generate_supercell(dyn.GetSupercell()), dyn.GetSupercell())
+    structure = tensor2.unitcell_structure
+    alat=tensor2.unitcell_structure.unit_cell
+    # a,b,c volume calculation
+    # d = np.cross(b,c)
+    # proj_a = (np.dot(a,d)/np.sqrt(sum(d**2))**2)*d
+    # Volume = np.linalg.norm(a)*np.linalg.norm(d)
+    Big_omega = np.abs(np.linalg.det(alat))    # The unit cell volume is the determinant of the matrix defined by the unit cell vectors
+    M =structure.get_masses_array()
+    #prepare the dielctric tensor of vacuum and effective charges
+    Fonon = Phonons.Phonons(dyn.structure) #('harmonic_dyn', NQIRR)
+    epsilon_inf = Fonon.dielectric_tensor #(3,3)
+    Z = Fonon.effective_charges #(Natoms, pol electric field, atomic coords) = (nat, 3, 3)
+    #  ======================= Energy & Smearing ==========================================
+    # energy   in input is in cm-1
+    # smearing in input is in cm-1
+    # converto to Ry
+
+    # list of energies
+    energies=np.arange(e0,e1,de)/CC.Units.RY_TO_CM
+    ne=energies.shape[0]
+    # list of smearing
+    if nsm == 1 :
+        sm1=sm0
+        sm1_id=sm0_id
+    smear=np.linspace(sm0,sm1,nsm)/CC.Units.RY_TO_CM
+    smear_id=np.linspace(sm0_id,sm1_id,nsm)/CC.Units.RY_TO_CM
+    # ==========================================================================================
+        #----------------------------------------------------------------
+    def compute_k(k):
+            # phi3 in q, k, -q - k
+            t1 = time.time()
+            phi3=tensor3.Interpolate(k,-q-k, asr = False)
+            t2 = time.time()
+            # phi2 in k
+            phi2_k = tensor2.Interpolate(k, asr = False)
+
+            # phi2 in -q-k
+            phi2_mq_mk = tensor2.Interpolate(-q -k, asr = False)
+
+            t3 = time.time()
+
+            # dynamical matrices (divide by the masses)
+            d2_k = phi2_k * mm_inv_mat
+            d2_mq_mk = phi2_mq_mk * mm_inv_mat
+
+            # Diagonalize the dynamical matrices
+            w2_k, pols_k = np.linalg.eigh(d2_k)
+            w2_mq_mk, pols_mq_mk = np.linalg.eigh(d2_mq_mk)
+
+
+            is_k_gamma = CC.Methods.is_gamma(structure.unit_cell, k)
+            is_mq_mk_gamma = CC.Methods.is_gamma(structure.unit_cell, -q-k)
+
+            if is_k_gamma:
+                w2_k[0:3]=0.0
+            if not (w2_k >= 0.0).all():
+                print('k= ',k, '    (2pi/A)')
+                print('w(k)= ',np.sign(w2_k)*np.sqrt(np.abs(w2_k))*CC.Units.RY_TO_CM,'  (cm-1)')
+                print('Cannot continue with SSCHA negative frequencies')
+                exit()
+            w_k=np.sqrt(w2_k)
+
+            if is_mq_mk_gamma:
+                w2_mq_mk[0:3]=0.0
+            if not (w2_mq_mk >= 0.0).all():
+                print('-q-k= ',-q-k, '    (2pi/A)')
+                print('w(-q-k)= ',np.sign(w2_mq_mk)*np.sqrt(np.abs(w2_mq_mk))*CC.Units.RY_TO_CM,'  (cm-1)')
+                print('Cannot continue with SSCHA negative frequencies')
+                exit()
+            w_mq_mk=np.sqrt(w2_mq_mk)
+            w_q=np.sqrt(w2_q)
+            # Dividing the phi3 by the sqare root of masses
+            d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
+
+            # d3 in mode components
+            #d3_pols = np.einsum("abc, ai, bj, ck -> ijk", d3, pols_mq, pols_k, pols_q_mk)
+            d3_pols = np.einsum("abc, ai -> ibc", d3, pols_q)
+            d3_pols = np.einsum("abc, bi -> aic", d3_pols, pols_k)
+            d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
+
+            t4 = time.time()
+
+            # Fortran duty ====
+            # Check if the q point is gamma
+            is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
+            tmp_bubble = thirdorder.third_order_bubble.compute_dynamic_bubble(energies,smear,static_limit,T,
+                                                                np.array([w_q,w_k,w_mq_mk]).T,
+                                                                np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
+                                                                d3_pols,diag_approx,ne,nsm,n_mod=3*structure.N_atoms)
+
+            t5 = time.time()
+
+            return tmp_bubble
+
+
+    CC.Settings.SetupParallel()
+
+    # Get the integration points
+    k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
+    # dynamical matrix in q
+    m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
+    mm_mat = np.sqrt(np.outer(m, m))
+    mm_inv_mat = 1 / mm_mat
+    # Get the phi2 in q
+    phi2_q = tensor2.Interpolate(q, asr = False)
+    d2_q = phi2_q * mm_inv_mat
+    # Diagonalize the dynamical matrix in q
+    w2_q, pols_q = np.linalg.eigh(d2_q)
+    d_bubble_mod = CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
+    # divide by the N_k factor
+    d_bubble_mod /= len(k_points) # (ne,nsmear,3nat,3nat)
+    # the self-energy bubble in cartesian coord, divided by the sqare root of masses
+    d_bubble_cart = np.einsum("pqab, ia, jb -> pqij", d_bubble_mod, pols_q, np.conj(pols_q))
+        #----------------------------------------------------------------
+    epsilon = np.zeros((ne,3,3), dtype = np.double) #np.zeros((3,3))
+    response1 = -(dyn.structure.N_atoms/Big_omega) * electric_charge**2
+    response2 = np.zeros((ne,3,3), dtype = np.double) #init the response2 value
+    response_function = np.zeros((ne,3,3), dtype = np.double) #init the response_function value
+    temp = np.zeros((ne,3,3), dtype = np.double)
+    for ie in range(ne):  #<-- The dispersion function is now in energies instead of frequencies.
+        for dielectric_read in range(3):
+            for a in range(dyn.structure.N_atoms):
+                for b in range(dyn.structure.N_atoms):
+                    # for i in range(3):
+                    #  for j in range(3):
+                    #temp = ((Z[a,:,:]*Z[b,:,:])/np.sqrt(M[a]*M[b]))*G(a,b,omega,nu,mu)   #<-- Usar 'd_bubble_cart' => G(n,m)=-d_bubble_cart(ie,ismear,a,b)
+                    #    temp = ((Z[a,i,j]*Z[b,i,j])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*ener(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+                    temp[ie,ismear,dielectric_read,:] = ((Z[a,dielectric_read,:]*Z[b,dielectric_read,:])/np.sqrt(M[a]*M[b]))*(2*d_bubble_cart(ie,ismear,a,b)*energies(ie)/twopi)   #<-- Hay que hacer el cálculo en Gamma
+                    response2 += temp
+            response_function = response1*response2
+
+    #        epsilon[dielectric_read,:]=epsilon_inf[dielectric_read,:]+4*np.pi*response_function[dielectric_read,:]  #<-- epsilon(ne,nsmear,3,3) ??
+            epsilon=epsilon_inf+4*np.pi*response_function  #<-- epsilon(ne,nsmear,3,3) ; epsilon_inf(3,3)??
+
+    refractive_index = np.sqrt(epsilon) #Cauchy Dispersion formula '**If mu=1** then n=sqrt(epsilon)'
+    return epsilon  #, refractive_index
