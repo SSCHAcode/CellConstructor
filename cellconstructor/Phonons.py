@@ -3489,12 +3489,14 @@ WARNING: Effective charges are not accounted by this method
         if apply_sum_rule:
             self.ApplySumRule()
 
-    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None):
+    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False):
         r"""
         DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
 
-        This method dyagonalizes the dynamical matrix using the supercell approach.
+        This method dyagonalizes the dynamical matrix in q space 
+        and returns the frequencies and the polarization vectors in the supercell,
+        without having to generate the force constant in real space.
 
         In this way we simply generate the polarization vector in the supercell
         using those in the unit cell.
@@ -3511,16 +3513,22 @@ WARNING: Effective charges are not accounted by this method
 
         Parameters
         ----------
-            lo_to_split : string or ndarray
+            - lo_to_split : string or ndarray
                 Could be a string with random, or a ndarray indicating the direction on which the
                 LO-TO splitting is computed. If None it is neglected.
                 If LO-TO is specified but no effective charges are present, then a warning is print and it is ignored.
+            - return_qmodes : bool
+                If true, frequencies and polarizations in q space are returned.
         Results
         -------
-            w_mu : ndarray( size = (n_modes), dtype = np.double)
+            - w_mu : ndarray( size = (n_modes), dtype = np.double)
                 Frequencies in the supercell
-            e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
+            - e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
                 Polarization vectors in the supercell
+            - w_q : ndarray( size = (3*Nat, nq), dtype = np.double, order = "F")
+                Frequencies in the q space (only if return_qmodes is True)
+            - e_q : ndarray( size = (3*Nat, 3*Nat, nq), dtype = np.complex128, order = "F")
+                Polarization vectors in the q space (only if return_qmodes is True)
         """
 
         supercell_size = len(self.q_tot)
@@ -3531,6 +3539,11 @@ WARNING: Effective charges are not accounted by this method
 
         w_array = np.zeros( nmodes, dtype = np.double)
         e_pols_sc = np.zeros( (nmodes, nmodes), dtype = np.double, order = "F")
+
+        nq = len(self.q_tot)
+        w_q = np.zeros((3*nat, nq), dtype = np.double, order = "F")
+        pols_q = np.zeros((3*nat, 3*nat, nq), dtype = np.complex128, order = "F")
+
 
         # Get the structure in the supercell
         super_structure = self.structure.generate_supercell(self.GetSupercell())
@@ -3562,6 +3575,13 @@ WARNING: Effective charges are not accounted by this method
                     break
 
             if skip_this_q:
+                # Check if we must return anyway the polarization in q space
+                if return_qmodes:
+                    # TODO: We could replace this by exploiting the symmetries
+                    wq, eq = self.DyagDinQ(iq)
+
+                    w_q[:, iq] = wq
+                    pols_q[:, :, iq] = eq
                 continue
 
 
@@ -3600,6 +3620,10 @@ WARNING: Effective charges are not accounted by this method
             else:
                 # Diagonalize the matrix in the given q point
                 wq, eq = self.DyagDinQ(iq)
+
+            # Store the frequencies and the polarization vectors
+            w_q[:, iq] = wq
+            pols_q[:, :, iq] = eq
 
             # Iterate over the frequencies of the given q point
             nm_q = i_mu
@@ -3740,6 +3764,8 @@ WARNING: Effective charges are not accounted by this method
         # Get the check for the polarization vector normalization
         assert np.max(np.abs(np.einsum("ab, ab->b", e_pols_sc, e_pols_sc) - 1)) < __EPSILON__
 
+        if return_qmodes:
+            return w_array, e_pols_sc, w_q, pols_q
         return w_array, e_pols_sc
 
 
@@ -4426,7 +4452,7 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, 
     supercell = (1,1,1), progress = -1, progress_bar = False,
-    use_symmetries = True):
+    use_symmetries = True, debug=False):
     """
     COMPUTE THE FORCE CONSTANT MATRIX
     =================================
@@ -4459,7 +4485,7 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
         if not __SPGLIB__:
             raise ImportError("SPGLIB is not installed. Cannot use symmetries. Rerun this subroutine with use_symmetries = False")
         return compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon,
-            supercell, progress, progress_bar)
+            supercell, progress, progress_bar, debug=debug)
 
     super_structure = structure.generate_supercell(supercell)
     final_dyn = Phonons(super_structure)
@@ -4665,6 +4691,10 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
         generators, list_of_calculations, displacements = symmetries.get_force_constants_generators(symm, irts, super_structure)
 
     print("Number of symmetry inequivalent displacements:", len(list_of_calculations))
+    if debug:
+        print("Saving the generators and displacements")
+        np.save("generators.npy", generators)
+        np.save("displacements.npy", displacements)
 
     assert len(displacements) == nat3, "The number of displacements is not correct. Something went wrong."
 
