@@ -1067,8 +1067,8 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
                                            tensor3,
                                            k_grid,
                                            e1, de, e0,
-                                           sm1, sm0,
-                                           sm1_id, sm0_id,
+                                           sm1=1.0, sm0=1.0,
+                                           sm1_id=None, sm0_id=None,
                                            nsm=1,
                                            T=0,
                                            q_path=[0.0,0.0,0.0],
@@ -1145,7 +1145,7 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
                     corresponding function)
                     (default : False)
         filename_sp  : string
-                      filename_sp_[id_smear]_[smear].dat
+                      filename_sp_[id_smear].dat
                       is the file where the result is written.
                       Format: length of the path (in 2pi/Alat),
                       energy (cm-1),spectral function (1/cm-1)
@@ -1202,6 +1202,13 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
         print(" ")
         print(" - The static limit is considered - ")
         print(" ")
+    else:
+        print(" ")
+        print(" Smearing values: ")
+        print(" ")
+        for sm in np.linspace(sm0,sm1,nsm):
+            print("     sm= {:>6.2f} cm-1".format(sm))
+        print(" ")
     if diag_approx :
         print(" ")
         print(" - The off-diagonal terms of the self-energy are discarded - ")
@@ -1250,7 +1257,12 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
     # energy   in input is in cm-1
     # smearing in input is in cm-1
     # converto to Ry
-
+    if sm1_id != None and sm0_id != None:
+        for sm in np.linspace(sm0_id,sm1_id,nsm):
+                print("     sm_id= {:>6.2f} cm-1".format(sm))
+    else:
+        sm1_id=de*2.0
+        sm0_id=de*2.0
     # list of energies
     energies=np.arange(e0,e1,de)/CC.Units.RY_TO_CM
     ne=energies.shape[0]
@@ -1339,26 +1351,58 @@ def work_full_dynamic_correction_along_path_multiprocessing(iq,q,tensor2,tensor3
 
 
         # ==================================================================================
-
         # print the result
-        for  ism in range(nsm):
+        #
+        if static_limit :
             #
-            name="{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
-            #
-            filename_new=filename_sp+'_'+name+'.dat'
+            filename_new=filename_sp+'_static.dat'
             if iq == 0:
                 with open(filename_new,'w') as f:
                     f.write(" # ------------------------------------------------------------- \n")
                     f.write(" # len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1) \n")
                     f.write(" # ------------------------------------------------------------- \n")
                     for ie, ene in enumerate(energies_cm):
-                        f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                        f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,0]))
                     f.write("\n")
             else:
                 with open(filename_new,'a') as f:
                     for ie, ene in enumerate(energies_cm):
-                        f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                        f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,0]))
                     f.write("\n")
+                #
+            else:
+                #
+                for  ism in range(nsm):
+                    #
+                    #name="{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
+                    name="{:6.1f}".format(smear_cm[ism]).strip()
+                    #
+                    filename_new=filename_sp+'_'+name+'.dat'
+                    if iq == 0:
+                        with open(filename_new,'w') as f:
+                            f.write(" # ------------------------------------------------------------- \n")
+                            f.write(" # len (2pi/Angstrom), energy (cm-1), spectral function (1/cm-1) \n")
+                            f.write(" # ------------------------------------------------------------- \n")
+                            for ie, ene in enumerate(energies_cm):
+                                f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                            f.write("\n")
+                    else:
+                        with open(filename_new,'a') as f:
+                            for ie, ene in enumerate(energies_cm):
+                                f.write("{:>10.6f}\t{:>11.7f}\t{:>11.7f}\n".format(x_length[iq],ene,spectralf[ie,ism]))
+                            f.write("\n")
+
+
+        if static_limit :
+            print(" ")
+            print(" Results printed in "+filename_sp+'_static.dat')
+            print(" ")
+        else:
+            print(" ")
+            print(" Results printed in "+filename_sp+'_[smear].dat')
+            print(" ")
+
+
         return 0
 
 
