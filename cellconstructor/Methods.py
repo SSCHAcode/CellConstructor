@@ -31,6 +31,7 @@ import warnings
 __PHONOPY=False
 try:
     import phonopy
+    import phono3py
     from phono3py.phonon3.fc3 import set_permutation_symmetry_compact_fc3, set_permutation_symmetry_fc3, set_translational_invariance_compact_fc3, set_translational_invariance_fc3, cutoff_fc3_by_zero, distribute_fc3
     from phono3py.phonon3.dataset import get_displacements_and_forces_fc3
     from phonopy.harmonic.force_constants import compact_fc_to_full_fc
@@ -1906,24 +1907,24 @@ def get_generic_covariant_coefficients(v, space, thr = 0.05):
         raise ValueError("Error, the minimization problem was not solved correctly")
         return None
 
-    # Check if two vectors are same if we account for periodic boundary conditions
-    def same_vectors(vec1, vec2, cell):
-        rvec1 = np.dot(vec1, cell)
-        rvec2 = np.dot(vec2, cell)
-        if(np.linalg.norm(rvec1 - rvec2) < 1.0-6):
-            return True
-        else:
-            same = False
-            for ix in range(-1,2):
-                if(not same):
-                    for iy in range(-1,2):
-                        if(not same):
-                            for iz in range(-1,2):
-                                rvec3 = rvec2 + np.array([ix,iy,iz])
-                                if(np.linalg.norm(rvec1 - rvec3) < 1.0-6):
-                                    same = True
-                                    break
-        return same
+# Check if two vectors are same if we account for periodic boundary conditions
+def same_vectors(vec1, vec2, cell):
+    rvec1 = np.dot(vec1, cell)
+    rvec2 = np.dot(vec2, cell)
+    if(np.linalg.norm(rvec1 - rvec2) < 1.0-6):
+        return True
+    else:
+        same = False
+        for ix in range(-1,2):
+            if(not same):
+                for iy in range(-1,2):
+                    if(not same):
+                        for iz in range(-1,2):
+                            rvec3 = rvec2 + np.array([ix,iy,iz])
+                            if(np.linalg.norm(rvec1 - rvec3) < 1.0-6):
+                                same = True
+                                break
+    return same
 
 # Rewrite phonopy force constants to a format identical to CC.ForceTensor one
 # Better use sscha_phonons_from_phonopy !
@@ -2039,6 +2040,35 @@ def sscha_phonons_from_phonopy(phonon):
 
     return dyn
 
+def compact_fc3_to_full_fc3_phonopy(tc):
+
+        dymmy_fc3 = tc.fc3.copy()
+        tc.generate_displacements()
+        supercells = tc.supercells_with_displacements
+        #fcart_dummy = []
+        #for isup in range(len(supercells)):
+        #    fcart_dummy.append(np.zeros_like(supercells[isup].scaled_positions))
+        #tc.forces = fcart_dummy
+        #disps, _ = get_displacements_and_forces_fc3(tc.dataset)
+        first_disp_atoms = np.unique([x["number"] for x in tc.dataset["first_atoms"]])
+        s2p_map = tc.primitive.s2p_map
+        p2s_map = tc.primitive.p2s_map
+        p2p_map = tc.primitive.p2p_map
+        s2compact = np.arange(len(s2p_map), dtype=int)
+        for i in first_disp_atoms:
+            assert i in p2s_map
+        #target_atoms = [i for i in p2s_map if i not in first_disp_atoms]
+        rotations = tc.symmetry.symmetry_operations["rotations"]
+        permutations = tc.symmetry.atomic_permutations
+        shape = list(np.shape(tc.fc3))
+        shape[0] = shape[1]
+        tc.fc3 = np.zeros(shape, dtype = float)
+        for iat in range(len(dymmy_fc3)):
+            tc.fc3[p2s_map[iat]] = dymmy_fc3[iat]
+        target_atoms = np.arange(len(s2p_map), dtype=int).tolist()
+        for i in range(len(p2s_map)):
+            target_atoms.remove(p2s_map[i])
+        distribute_fc3(tc.fc3, p2s_map, target_atoms, tc.supercell.cell.T, rotations, permutations, s2compact, verbose=True)
 
 # Get ForceTensor.Tensor3 from Phono3py object 
 def phonopy_fc3_to_tensor3(tc, apply_symmetries = True):
@@ -2051,25 +2081,7 @@ def phonopy_fc3_to_tensor3(tc, apply_symmetries = True):
     sc_nat = supercell.N_atoms
     if(uc_nat in tc.fc3.shape[0:3]):
         print('Compact forceconstants.')
-        tc.generate_displacements()
-        supercells = tc.supercells_with_displacements
-        tc.fc3 = force_constants_3rd_order
-        fcart_dummy = []
-        for isup in range(len(supercells)):
-            fcart_dummy.append(np.zeros_like(supercells[isup].scaled_positions))
-        tc.forces = fcart_dummy
-        disps, _ = get_displacements_and_forces_fc3(tc.dataset)
-        first_disp_atoms = np.unique([x["number"] for x in tc.dataset["first_atoms"]])
-        s2p_map = tc.primitive.s2p_map
-        p2s_map = tc.primitive.p2s_map
-        p2p_map = tc.primitive.p2p_map
-        s2compact = np.array([p2p_map[i] for i in s2p_map], dtype="int_")
-        for i in first_disp_atoms:
-            assert i in p2s_map
-        target_atoms = [i for i in p2s_map if i not in first_disp_atoms]
-        rotations = tc.symmetry.symmetry_operations["rotations"]
-        permutations = tc.symmetry.atomic_permutations
-        distribute_fc3(tc.fc3, first_disp_atoms, target_atoms, phonon.supercell.cell.T, rotations, permutations, s2compact, verbose=False)
+        compact_fc3_to_full_fc3_phonopy(tc)
 
     supercell_matrix = (np.diag(tc.supercell_matrix).astype(int)).tolist()
     supercell_structure = unitcell.generate_supercell(supercell_matrix)
