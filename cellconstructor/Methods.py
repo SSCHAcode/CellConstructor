@@ -2006,6 +2006,11 @@ def get_sscha_structure_from_phonopy(phatoms):
 # Get Cellconstructor.Phonons from Phonopy object
 def sscha_phonons_from_phonopy(phonon):
 
+    """
+    Get Phonons object from phonopy object.
+
+    """
+
     if(not __PHONOPY):
         raise RuntimeError('Phonopy and phono3py are needed for this routine!')
     sscha_structure = get_sscha_structure_from_phonopy(phonon.primitive) # get structure
@@ -2042,36 +2047,48 @@ def sscha_phonons_from_phonopy(phonon):
 
 def compact_fc3_to_full_fc3_phonopy(tc):
 
-        dymmy_fc3 = tc.fc3.copy()
-        tc.generate_displacements()
-        supercells = tc.supercells_with_displacements
-        #fcart_dummy = []
-        #for isup in range(len(supercells)):
-        #    fcart_dummy.append(np.zeros_like(supercells[isup].scaled_positions))
-        #tc.forces = fcart_dummy
-        #disps, _ = get_displacements_and_forces_fc3(tc.dataset)
-        first_disp_atoms = np.unique([x["number"] for x in tc.dataset["first_atoms"]])
-        s2p_map = tc.primitive.s2p_map
-        p2s_map = tc.primitive.p2s_map
-        p2p_map = tc.primitive.p2p_map
-        s2compact = np.arange(len(s2p_map), dtype=int)
-        for i in first_disp_atoms:
-            assert i in p2s_map
-        #target_atoms = [i for i in p2s_map if i not in first_disp_atoms]
-        rotations = tc.symmetry.symmetry_operations["rotations"]
-        permutations = tc.symmetry.atomic_permutations
-        shape = list(np.shape(tc.fc3))
-        shape[0] = shape[1]
-        tc.fc3 = np.zeros(shape, dtype = float)
-        for iat in range(len(dymmy_fc3)):
-            tc.fc3[p2s_map[iat]] = dymmy_fc3[iat]
-        target_atoms = np.arange(len(s2p_map), dtype=int).tolist()
-        for i in range(len(p2s_map)):
-            target_atoms.remove(p2s_map[i])
-        distribute_fc3(tc.fc3, p2s_map, target_atoms, tc.supercell.cell.T, rotations, permutations, s2compact, verbose=True)
+    """
 
-# Get ForceTensor.Tensor3 from Phono3py object 
+    Convert from compact to full format of phono3py 3rd force constants
+
+    """
+
+    dymmy_fc3 = tc.fc3.copy()
+    tc.generate_displacements()
+    supercells = tc.supercells_with_displacements
+    #fcart_dummy = []
+    #for isup in range(len(supercells)):
+    #    fcart_dummy.append(np.zeros_like(supercells[isup].scaled_positions))
+    #tc.forces = fcart_dummy
+    #disps, _ = get_displacements_and_forces_fc3(tc.dataset)
+    first_disp_atoms = np.unique([x["number"] for x in tc.dataset["first_atoms"]])
+    s2p_map = tc.primitive.s2p_map
+    p2s_map = tc.primitive.p2s_map
+    p2p_map = tc.primitive.p2p_map
+    s2compact = np.arange(len(s2p_map), dtype=int)
+    for i in first_disp_atoms:
+        assert i in p2s_map
+    #target_atoms = [i for i in p2s_map if i not in first_disp_atoms]
+    rotations = tc.symmetry.symmetry_operations["rotations"]
+    permutations = tc.symmetry.atomic_permutations
+    shape = list(np.shape(tc.fc3))
+    shape[0] = shape[1]
+    tc.fc3 = np.zeros(shape, dtype = float)
+    for iat in range(len(dymmy_fc3)):
+        tc.fc3[p2s_map[iat]] = dymmy_fc3[iat]
+    target_atoms = np.arange(len(s2p_map), dtype=int).tolist()
+    for i in range(len(p2s_map)):
+        target_atoms.remove(p2s_map[i])
+    distribute_fc3(tc.fc3, p2s_map, target_atoms, tc.supercell.cell.T, rotations, permutations, s2compact, verbose=True)
+
 def phonopy_fc3_to_tensor3(tc, apply_symmetries = True):
+
+    """
+    Get 3rd order force constants in SSCHA format from phono3py object.
+
+    tc     :  Phono3py object which contains 3rd order force constants
+
+    """
     
     if(not __PHONOPY):
         raise RuntimeError('Phonopy and phono3py are needed for this routine!')
@@ -2128,6 +2145,15 @@ def phonopy_fc3_to_tensor3(tc, apply_symmetries = True):
 
 def tensor2_to_phonopy_fc2(SSCHA_tensor, phonon):
 
+    """
+
+    Generate 2nd order forceconstants in phono3py format from SSCHA ForceTensor2 object.
+
+    SSCHA_tensor   :  SSCHA Tensor2 object
+    phonon         :  Phonopy object that provides structure and additional routines (should have the same supercell as the one used in generating SSCHA tensor)
+
+    """
+
     if(not __PHONOPY):
         raise RuntimeError('Phonopy and phono3py are needed for this routine!')
     SSCHA_force_constants = np.array(SSCHA_tensor.tensor.copy())
@@ -2162,6 +2188,15 @@ def tensor2_to_phonopy_fc2(SSCHA_tensor, phonon):
     return phonopy_tensor*RY_TO_EV/BOHR_TO_ANGSTROM**2
 
 def tensor3_to_phonopy_fc3(SSCHA_tensor, phonon):
+
+    """
+
+    Generate 3rd order forceconstants in phono3py format from SSCHA ForceTensor3 object.
+
+    SSCHA_tensor   :  SSCHA Tensor3 object
+    phonon         :  Phonopy object that provides structure and additional routines (should have the same supercell as the one used in generating SSCHA tensor)
+
+    """
 
     if(not __PHONOPY):
         raise RuntimeError('Phonopy and phono3py are needed for this routine!')
