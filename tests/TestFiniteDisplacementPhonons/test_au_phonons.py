@@ -14,9 +14,7 @@ import pytest
 @pytest.mark.parametrize("supercell", [(2,2,2), (3,3,3)])
 def test_phonons_finite_displacements(supercell, debug=False):
     """Test the phonons using finite displacements"""
-    timer=None
-    if debug:
-        timer = CC.Timer.Timer(active=True)
+    timer = CC.Timer.Timer(active=True)
 
     # Build a MgO structure using ASE
     atoms = ase.build.bulk('Cu', 'fcc', a=3.6)
