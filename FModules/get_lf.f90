@@ -886,7 +886,7 @@ module get_lf
         complex(kind=DP), dimension(3*nat) :: selfnrg
         complex(kind=DP), dimension(3*nat,3*nat) :: pols_k, pols_mk_mq, pols_k2, pols_mk_mq2
 !        complex(kind=DP), dimension(3*nat, 3*nat, 3*nat) :: ifc3, d3, d3_pols
-        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols
+        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols, intermediate
         logical :: is_k_gamma, is_mk_mq_gamma, is_k_neg, is_mk_mq_neg
         logical, dimension(3) :: if_gammas
 
@@ -906,13 +906,14 @@ module get_lf
         !$OMP PARALLEL DO IF(parallelize) DEFAULT(NONE) &
         !$OMP PRIVATE(i,j,k,i1,j1,k1, jqpt, ifc3, d3, d3_pols, kpt, mkpt, mkpt_r, is_k_gamma, is_mk_mq_gamma, w2_k, w2_mk_mq, &
         !$OMP w_k, w_mk_mq, pols_k, pols_mk_mq, pols_k2, pols_mk_mq2, iat, jat, kat, freqs_array, if_gammas, &
-        !$OMP is_k_neg, is_mk_mq_neg, selfnrg) &
+        !$OMP is_k_neg, is_mk_mq_neg, selfnrg, intermediate) &
         !$OMP SHARED(nqpt, nat, fc3, r3_2, r3_3, pos, nfc2, nfc3, masses, fc2, smear, T, weights, qgrid, qpt, kprim, is_q_gamma, &
         !$OMP r2_2, w_q, pols_q, mass_array, gaussian, classical, ikprim) &
         !$OMP REDUCTION(+:self_energy)
         do jqpt = 1, nqpt
 !            print*, jqpt
             allocate(ifc3(3*nat, 3*nat, 3*nat), d3(3*nat, 3*nat, 3*nat), d3_pols(3*nat, 3*nat, 3*nat))
+            allocate(intermediate(3*nat, 3*nat, 3*nat))
             is_k_neg = .False.
             is_mk_mq_neg = .False.
             ifc3(:,:,:) = complex(0.0_DP, 0.0_DP) 
@@ -954,11 +955,19 @@ module get_lf
 
             d3 = ifc3*mass_array
 
-            do i = 1, 3*nat
-            do i1 = 1, 3*nat
-                d3_pols(:,:,i) = d3_pols(:,:,i) + &
-                    matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !do i = 1, 3*nat
+            !do i1 = 1, 3*nat
+            !    d3_pols(:,:,i) = d3_pols(:,:,i) + &
+            !        matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !enddo
+            !enddo
+            intermediate = complex(0.0_DP, 0.0_DP)
+            do i=1,3*nat
+                intermediate(:,:,i) = matmul(matmul(transpose(pols_q), d3(:,:,i)), pols_k)
             enddo
+
+            do i1=1,3*nat
+                d3_pols(:,i1,:) = matmul(intermediate(:,i1,:), pols_mk_mq)
             enddo
 
             freqs_array(:, 1) = w_q
@@ -974,7 +983,7 @@ module get_lf
                 freqs_array, if_gammas, d3_pols, 3*nat, gaussian, classical, selfnrg)
             self_energy = self_energy + selfnrg*dble(weights(jqpt))
             endif
-            deallocate(ifc3, d3, d3_pols)
+            deallocate(ifc3, d3, d3_pols, intermediate)
         enddo
         !$OMP END PARALLEL DO
 
@@ -1018,7 +1027,7 @@ module get_lf
         !complex(kind=DP), dimension(ne, 3*nat) :: selfnrg
         complex(kind=DP), allocatable, dimension(:, :) :: selfnrg
         complex(kind=DP), allocatable,dimension(:,:) :: pols_k, pols_mk_mq, pols_k2, pols_mk_mq2
-        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols
+        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols, intermediate
         logical :: is_k_gamma, is_mk_mq_gamma, is_k_neg, is_mk_mq_neg
         logical, dimension(3) :: if_gammas
 
@@ -1039,7 +1048,7 @@ module get_lf
         !$OMP PARALLEL DO IF(parallelize) &
         !$OMP DEFAULT(NONE) &
         !$OMP PRIVATE(jqpt, ifc3, d3, d3_pols, kpt, mkpt, w2_k, pols_k, pols_k2, w2_mk_mq, pols_mk_mq, pols_mk_mq2,&
-        !$OMP  is_k_gamma, is_mk_mq_gamma, &
+        !$OMP  is_k_gamma, is_mk_mq_gamma, intermediate, &
         !$OMP is_k_neg, is_mk_mq_neg, w_k, w_mk_mq, i,j,k,i1,j1,k1,iat,jat,kat, freqs_array, if_gammas, selfnrg) &
         !$OMP SHARED(nqpt, qgrid, fc3, r3_2, r3_3, pos, qpt, nfc3, nat, nfc2, fc2, r2_2, masses, is_q_gamma, smear, &
         !$OMP T, energies, ne, w_q, pols_q,weights, kprim, gaussian, classical) &
@@ -1047,6 +1056,7 @@ module get_lf
         do jqpt = 1, nqpt
 !            print*, jqpt
             allocate(ifc3(3*nat, 3*nat, 3*nat), d3(3*nat, 3*nat, 3*nat), d3_pols(3*nat, 3*nat, 3*nat))
+            allocate(intermediate(3*nat, 3*nat, 3*nat))
             allocate(selfnrg(ne, 3*nat))
             allocate(pols_k(3*nat,3*nat), pols_mk_mq(3*nat,3*nat))
             allocate(pols_k2(3*nat,3*nat), pols_mk_mq2(3*nat,3*nat))
@@ -1108,12 +1118,22 @@ module get_lf
             enddo
             enddo
 
-            do i = 1, 3*nat
-            do i1 = 1, 3*nat
-                d3_pols(:,:,i) = d3_pols(:,:,i) + &
-                    matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !do i = 1, 3*nat
+            !do i1 = 1, 3*nat
+            !    d3_pols(:,:,i) = d3_pols(:,:,i) + &
+            !        matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !enddo
+            !enddo
+
+            intermediate = complex(0.0_DP, 0.0_DP)
+            do i=1,3*nat
+                intermediate(:,:,i) = matmul(matmul(transpose(pols_q), d3(:,:,i)), pols_k)
             enddo
+
+            do i1=1,3*nat
+                d3_pols(:,i1,:) = matmul(intermediate(:,i1,:), pols_mk_mq)
             enddo
+              
 !            print*, 'Got d3pols'
 
             freqs_array(:, 1) = w_q
@@ -1133,7 +1153,7 @@ module get_lf
                     print*, 'NaN for jqpt', jqpt
             endif
             deallocate(ifc3, d3, d3_pols, selfnrg)
-            deallocate(pols_k, pols_mk_mq)
+            deallocate(pols_k, pols_mk_mq, intermediate)
             deallocate(pols_k2, pols_mk_mq2)
             deallocate(kpt, mkpt)
             deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
@@ -1184,7 +1204,7 @@ module get_lf
         real(kind=DP), allocatable, dimension(:, :, :) :: mass_array
         complex(kind=DP), allocatable, dimension(:, :, :) :: selfnrg
         complex(kind=DP), allocatable,dimension(:,:) :: pols_k, pols_mk_mq, pols_k2, pols_mk_mq2
-        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols
+        complex(kind=DP), allocatable, dimension(:, :, :) :: ifc3, d3, d3_pols, intermediate
         logical :: is_k_gamma, is_mk_mq_gamma, is_k_neg, is_mk_mq_neg
         logical, dimension(3) :: if_gammas
         
@@ -1194,13 +1214,14 @@ module get_lf
         !$OMP PARALLEL DO IF(parallelize) &
         !$OMP DEFAULT(NONE) &
         !$OMP PRIVATE(jqpt, ifc3, d3, d3_pols, kpt, mkpt, w2_k, pols_k, pols_k2, w2_mk_mq, pols_mk_mq, pols_mk_mq2,&
-        !$OMP  is_k_gamma, is_mk_mq_gamma, &
+        !$OMP  is_k_gamma, is_mk_mq_gamma, intermediate, &
         !$OMP is_k_neg, is_mk_mq_neg, w_k, w_mk_mq, i,j,k,i1,j1,k1,iat,jat,kat, freqs_array, if_gammas, selfnrg) &
         !$OMP SHARED(nqpt, qgrid, fc3, r3_2, r3_3, pos, qpt, nfc3, nat, nfc2, fc2, r2_2, masses, is_q_gamma, smear, &
         !$OMP T, energies, ne, w_q, pols_q,weights, kprim, gaussian, classical) &
         !$OMP REDUCTION(+:self_energy)
         do jqpt = 1, nqpt
             !print*, jqpt
+            allocate(intermediate(3*nat, 3*nat, 3*nat))
             allocate(ifc3(3*nat, 3*nat, 3*nat), d3(3*nat, 3*nat, 3*nat), d3_pols(3*nat, 3*nat, 3*nat))
             allocate(selfnrg(ne, 3*nat, 3*nat))
             allocate(pols_k(3*nat,3*nat), pols_mk_mq(3*nat,3*nat))
@@ -1263,11 +1284,19 @@ module get_lf
             enddo
             enddo
 
-            do i = 1, 3*nat
-            do i1 = 1, 3*nat
-                d3_pols(:,:,i) = d3_pols(:,:,i) + &
-                    matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !do i = 1, 3*nat
+            !do i1 = 1, 3*nat
+            !    d3_pols(:,:,i) = d3_pols(:,:,i) + &
+            !        matmul(matmul(transpose(pols_q), d3(:,:,i1)), pols_k)*pols_mk_mq(i1,i)
+            !enddo
+            !enddo
+            intermediate = complex(0.0_DP, 0.0_DP)
+            do i=1,3*nat
+                intermediate(:,:,i) = matmul(matmul(transpose(pols_q), d3(:,:,i)), pols_k)
             enddo
+
+            do i1=1,3*nat
+                d3_pols(:,i1,:) = matmul(intermediate(:,i1,:), pols_mk_mq)
             enddo
 
             freqs_array(:, 1) = w_q
@@ -1287,7 +1316,7 @@ module get_lf
                     print*, 'NaN for jqpt', jqpt
             endif
             deallocate(ifc3, d3, d3_pols, selfnrg)
-            deallocate(pols_k, pols_mk_mq)
+            deallocate(pols_k, pols_mk_mq, intermediate)
             deallocate(pols_k2, pols_mk_mq2)
             deallocate(kpt, mkpt)
             deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
