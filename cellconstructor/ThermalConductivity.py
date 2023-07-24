@@ -2511,7 +2511,7 @@ class ThermalConductivity:
             for iuc in range(len(self.force_constants)):
                 for iat in range(len(uc_positions)):
                     for jat in range(len(uc_positions)):
-                        ruc = -self.ruc[iuc] #+ uc_positions[iat] - uc_positions[jat]
+                        ruc = -self.ruc[iuc] + uc_positions[iat] - uc_positions[jat]
                         phase = np.dot(ruc, q)*2.0*np.pi
                         auxfc[3*iat:3*(iat+1),3*jat:3*(jat+1)] += complex(0.0,1.0)*ruc[icart]*self.force_constants[iuc,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
             ddynmat.append(auxfc * mm_inv_mat)
