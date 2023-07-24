@@ -177,8 +177,8 @@ def split_configurations(n_configs):
     index = 0
     for i in range(nproc):
         start_config = index
-        index += self.N // nproc
-        if i < self.N % nproc:
+        index += n_configs // nproc
+        if i < n_configs % nproc:
             index += 1
         end_config = index
         
