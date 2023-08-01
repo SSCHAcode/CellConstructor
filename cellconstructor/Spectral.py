@@ -3469,7 +3469,7 @@ def get_os_perturb_dynamic_correction_along_path(dyn, tensor3,
         q_path : list of triplets
                  Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
                  where the caculation is performed
-                 (defualt: [0.0,0.0,0.0])
+                 (default: [0.0,0.0,0.0])
         q_path_file : string
                       Name of the file where the q_path can be read.
                       Format: column of triples, q points in 2pi/Angstrom
