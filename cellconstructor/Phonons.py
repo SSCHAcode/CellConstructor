@@ -1245,7 +1245,7 @@ class Phonons:
                     fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
                              (np.real(atomic_disp[3*i, mu]), np.imag(atomic_disp[3*i,mu]),
                               np.real(atomic_disp[3*i+1, mu]), np.imag(atomic_disp[3*i+1,mu]),
-                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+1,mu])))
+                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+2,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
 
@@ -1254,7 +1254,7 @@ class Phonons:
         warnings.warn("[DEPRECATION WARNING] save_phononpy is deprecated: use save_phonopy instead.")
         self.save_phonopy(*args, **kwargs)
 
-    def save_phonopy(self, path = ".", supercell_size = None, units_ev_ang2 = True, 
+    def save_phonopy(self, path = ".", supercell_size = None, units_ev_ang2 = True,
         write_poscar = True, write_unitcell = False):
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
@@ -1262,7 +1262,7 @@ class Phonons:
 
         This tool export the dynamical matrix into the PHONONPY plain text format.
         If units_ev_ang2 is True (default) the dynamical matrix is written in eV/A^2
-        Otherwise we use the Ry/bohr^2, as the quantum espresso format. 
+        Otherwise we use the Ry/bohr^2, as the quantum espresso format.
         Please, remember this when using Phononpy for the conversion factors.
 
         It will create a file called FORCE_CONSTANTS, one called unitcell.in
@@ -1276,13 +1276,13 @@ class Phonons:
                 The supercell that defines the dynamical matrix, note phononpy
                 works in the supercell. If none, it is inferred from the q points
             units_ev_ang2 : bool
-                If True (default) convert the units in eV / A^2 
+                If True (default) convert the units in eV / A^2
             write_poscar : bool
                 If True produce also the POSCAR file with the structure
                 for phonopy.
                 It requires ASE to be installed.
             write_unitcell : bool
-                If true, produce a unitcell.in for phonopy. 
+                If true, produce a unitcell.in for phonopy.
 
 
         """
@@ -3494,7 +3494,7 @@ WARNING: Effective charges are not accounted by this method
         DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
 
-        This method dyagonalizes the dynamical matrix in q space 
+        This method dyagonalizes the dynamical matrix in q space
         and returns the frequencies and the polarization vectors in the supercell,
         without having to generate the force constant in real space.
 
@@ -4450,7 +4450,7 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
 
-def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, 
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05,
     supercell = (1,1,1), progress = -1, progress_bar = False,
     use_symmetries = True, debug=False):
     """
@@ -4588,11 +4588,11 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
 
 
 
-def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=0.05, 
+def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=0.05,
                                              supercell=(1,1,1),
                                              progress=-1,
                                              progress_bar=False,
-                                             debug=False, 
+                                             debug=False,
                                              timer=None):
     """
     COMPUTE THE FORCE CONSTANT MATRIX EXPLOITING SYMMETRIES
@@ -4668,7 +4668,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
     # Get irt from the symmetries (atomic corrispondance after the application of symmetry)
     if debug:
         print("Getting symmetry equivalent atoms")
-    
+
     if timer is not None:
         irts = timer.execute_timed_function(symmetries.get_symmetry_equivalent_atoms, symm, super_structure)
     else:
@@ -4749,7 +4749,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
 
     # Define the force constant matrix in the basis of the auxiliary vectors
     fc_aux_basis = np.zeros((nat3, nat3), dtype = np.double)
-    
+
     # Compute the auxiliary force basis
     # This could exploit parallelization to speedup the calculation
     for index, gen in enumerate(generators):
@@ -4766,7 +4766,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
             force_sym = timer.execute_timed_function(symmetries.ApplySymmetryToVector,current_sym, force, super_structure.unit_cell, current_irt)
         else:
             force_sym = symmetries.ApplySymmetryToVector(current_sym, force, super_structure.unit_cell, current_irt)
-        
+
         fc_aux_basis[index, :] = force_sym.ravel()
 
 
@@ -4802,7 +4802,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
 
     #                 if coeffs is None:
     #                     disp_basis.append(v.ravel())
-    #                     counter_index += 1                
+    #                     counter_index += 1
     #                     fc_aux_basis[counter_index, :] = force_sym[i_sym, :, :].ravel()
 
     #np.savetxt("OriginalFC.dat", fc, fmt="%10.6f")
@@ -4835,7 +4835,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
         correct_dyn = Phonons(structure, nqirr = np.prod(supercell))
         q_tot = symmetries.GetQGrid(structure.unit_cell, supercell)
         if timer is not None:
-            dynq = timer.execute_timed_function(GetDynQFromFCSupercell, 
+            dynq = timer.execute_timed_function(GetDynQFromFCSupercell,
                 final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
         else:
             dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
