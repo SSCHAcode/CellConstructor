@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import print_function
-from __future__ import division 
+from __future__ import division
 
 import numpy as np
 import os, sys
@@ -16,8 +16,8 @@ import itertools
 import thermal_conductivity
 
 import cellconstructor as CC
-import cellconstructor.Phonons as Phonons 
-import cellconstructor.Methods as Methods 
+import cellconstructor.Phonons as Phonons
+import cellconstructor.Methods as Methods
 import cellconstructor.symmetries as symmetries
 import cellconstructor.Spectral
 from cellconstructor.Units import A_TO_BOHR, BOHR_TO_ANGSTROM, RY_TO_CM, ELECTRON_MASS_UMA, MASS_RY_TO_UMA, HBAR, K_B, RY_TO_EV
@@ -29,7 +29,7 @@ import time
 
 __SEEKPATH=False
 try:
-    import seekpath 
+    import seekpath
     __SEEKPATH=True
 except:
     __SEEKPATH=False
@@ -39,14 +39,14 @@ try:
     __MPI__ = True
 except:
     __MPI__ = False
-    
+
 try:
     import spglib
     __SPGLIB__ = True
 except:
     __SPGLIB__ = False
 
-__EPSILON__ = 1e-5 
+__EPSILON__ = 1e-5
 __EPSILON_W__ = 3e-9
 HBAR_JS = 1.054571817e-34
 HPLANCK = HBAR_JS*2.0*np.pi
@@ -55,7 +55,7 @@ HBAR_RY = HBAR_JS/RY_TO_J
 AU = 1.66053906660e-27
 EV_TO_J = 1.602176634e-19
 RY_TO_THZ = RY_TO_CM/0.0299792458
-SSCHA_TO_THZ = np.sqrt(RY_TO_J/AU/MASS_RY_TO_UMA)/BOHR_TO_ANGSTROM/100.0/2.0/np.pi 
+SSCHA_TO_THZ = np.sqrt(RY_TO_J/AU/MASS_RY_TO_UMA)/BOHR_TO_ANGSTROM/100.0/2.0/np.pi
 SSCHA_TO_MS = np.sqrt(RY_TO_J/AU/MASS_RY_TO_UMA)/BOHR_TO_ANGSTROM
 KB = 1.380649e-23
 STR_FMT = '<15'
@@ -114,7 +114,37 @@ natural_isotopes = {\
         'Sn':[[0.0097, 111.9048], [0.0066, 113.9028], [0.0034, 114.9033], [0.1454, 115.9017], [0.0768, 116.9029], [0.2422, 117.9016], [0.0859, 118.9033], [0.3258, 119.9022], [0.0463, 121.9034], [0.0579, 123.9053]],\
         'Sb':[[0.5721, 120.9038], [0.4279, 122.9042]],\
         'Te':[[0.0009, 119.9040], [0.0255, 121.9030], [0.0089, 122.9042], [0.0474, 123.9028], [0.0707, 124.9044], [0.1884, 125.9033], [0.3174, 127.9045], [0.3408, 129.9062]],\
-        'I' :[[1.0000, 126.9045]],}
+        'I' :[[1.0000, 126.9045]],\
+        'Xe':[[0.0009,123.905896],  [0.0009,125.904269], [0.0192, 127.903530], [0.2644,128.904779], [0.0408,129.903508], [0.2118,130.905082], [0.2689,131.904154], [0.1044,133.905395], [0.0887,135.907220]],\
+        'Cs':[[1.0000,132.905447]],\
+        'Ba':[[0.00106,129.906310], [0.00101,131.905056], [0.02417,133.904503], [0.06592,134.905683], [0.07854,135.904570], [0.11232,136.905821], [0.71698,137.905241]],\
+        'La':[[0.00090,137.907107], [0.99910,138.906348]],\
+        'Ce':[[0.00185,135.907144], [0.00251,137.905986], [0.88450,139.905434], [0.11114,141.909240]],\
+        'Pr':[[1.0000,140.907648]],\
+        'Nd':[[0.272,141.907719], [0.122,142.909810], [0.238,143.910083], [0.083,144.912569], [0.172,145.913112], [0.057,147.916889], [0.056,149.920887]],\
+        'Pm':[[1.000,144.912744]],\
+        'Sm':[[0.0307,143.911995], [0.1499,146.914893], [0.1124,147.914818], [0.1382,148.917180], [0.0738,149.917271], [0.2675,151.919728], [0.2275,153.922205]],\
+        'Eu':[[0.4781,150.919846], [0.5219,152.921226]],\
+        'Gd':[[0.0020,151.919788], [0.0218,153.920862], [0.1480,154.922619], [0.2047,155.922120], [0.1565,156.923957], [0.2484,157.924101], [0.2186,159.927051]],\
+        'Tb':[[1.0000,158.925343]],\
+        'Dy':[[0.0006,155.924278], [0.0010,157.924405], [0.0234,159.925194], [0.1891,160.926930], [0.2551,161.926795], [0.2490,162.928728], [0.2818,163.929171]],\
+        'Ho':[[1.0000,164.930319]],\
+        'Er':[[0.0014,161.928775], [0.0161,163.929197], [0.3361,165.930290], [0.2293,166.932045], [0.2678,167.932368], [0.1493,169.935460]],\
+        'Tm':[[1.0000,168.934211]],\
+        'Yb':[[0.0013,167.933894], [0.0304,169.934759], [0.1428,170.936322], [0.2183,171.936378], [0.1613,172.938207], [0.3183,173.938858], [0.1276,175.942568]],\
+        'Lu':[[0.9741,174.940768], [0.0259,175.942682]],\
+        'Hf':[[0.0016,173.940040], [0.0526,175.941402], [0.1860,176.943220], [0.2728,177.943698], [0.1362,178.945815], [0.3508,179.946549]],\
+        'Ta':[[0.00012,179.947466], [0.99988,180.947996]],\
+        'W' :[[0.0012,179.946706], [0.2650,181.948206], [0.1431,182.950224], [0.3064,183.950933], [0.2843,185.954362]],\
+        'Re':[[0.3740,184.952956], [0.6260,186.955751]],\
+        'Os':[[0.0002,183.952491], [0.0159,185.953838], [0.0196,186.955748], [0.1324,187.955836], [0.1615,188.958145], [0.2626,189.958445], [0.4078,191.961479]],\
+        'Ir':[[0.373,190.960591], [0.627,192.962924]],\
+        'Pt':[[0.00014,189.959930], [0.00782,191.961035], [0.32967,193.962664], [0.33832,194.964774], [0.25242,195.964935], [0.07163,197.967876]],\
+        'Au':[[1.0000,196.966552]],\
+        'Hg':[[0.0015,195.965815], [0.0997,197.966752], [0.1687,198.968262], [0.2310,199.968309], [0.1318,200.970285], [0.2986,201.970626], [0.0687,203.973476]],\
+        'Tl':[[0.29524,202.972329], [0.70476, 204.974412]],\
+        'Pb':[[0.014,203.973029],[0.241,205.974449], [0.221,206.975881], [0.524,207.976636]],\
+        'Bi':[[1.0000,208.980383]],}
 # This should be continued!
 
 def get_spglib_cell(dyn):
@@ -197,9 +227,9 @@ def heat_capacity(freqs, temperature, hbar1, kb1, cp_mode = 'quantum'):
             return 0.0
     elif(cp_mode == 'classical'):
         return kb1
-   
+
     ####################################################################################################################################
-    
+
 def bose_einstein(freqs, temperature, hbar1, kb1, cp_mode = 'quantum'):
 
     if(cp_mode == 'quantum'):
@@ -256,7 +286,7 @@ def check_degeneracy(x, tol):
     Simple check if there are degenerate phonon modes for a given k - point.
 
     x   - frequencies at the given k - point
-    tol - tolerance to be satisfied 
+    tol - tolerance to be satisfied
 
     """
 
@@ -272,7 +302,7 @@ def check_degeneracy(x, tol):
                     curr_degs.append(j)
             degs.append(curr_degs)
     return degs
-            
+
 def get_kpoints_in_path(path, nkpts, kprim):
     segments = path['path']
     coords = path['point_coords']
@@ -371,7 +401,7 @@ def apply_asr(tensor3, tol = 1.0e-10):
     print('Applying ASR!')
     natom = tensor3.unitcell_structure.N_atoms
 
-    fc3 = thermal_conductivity.third_order_cond_centering.apply_asr(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)  
+    fc3 = thermal_conductivity.third_order_cond_centering.apply_asr(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
     tensor3.tensor = fc3
     permutation = thermal_conductivity.third_order_cond_centering.check_permutation_symmetry(tensor3.tensor, tensor3.r_vector2.T, tensor3.r_vector3.T, tensor3.n_R, natom)
     if(not permutation):
@@ -437,7 +467,7 @@ def rotate_eigenvectors(ddm, eigs):
 
     _, eigvecs = np.linalg.eigh(np.dot(eigs.conj().T, np.dot(ddm, eigs)))
     rot_eigvecs = np.dot(eigvecs, eigs)
-    
+
     return rot_eigvecs
 
 def load_thermal_conductivity(filename = 'tc.pkl'):
@@ -462,7 +492,7 @@ class ThermalConductivity:
 
         Necesary:
 
-            dyn                 : SSCHA dynamical matrix object 
+            dyn                 : SSCHA dynamical matrix object
             tensor3             : SSCHA 3rd order force constants
 
             kpoint_grid         : Initializes the grid for Brillouin zone integration. It is used in the calculation of lattice thermal conductivity and
@@ -472,7 +502,7 @@ class ThermalConductivity:
             smearing_type       : Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
             cp_mode             : Flag determining how phonon occupation factors are calculated (quantum/classical), default is quantum
             group_velocity_mode : How to calculate group velocities. 'analytical', 'finite_difference', 'wigner'
-            off_diag            : Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
+            off_diag            : Boolean parameter for the calculation of the off-diagonal elements of group velocity.
 
         """
 
@@ -500,11 +530,11 @@ class ThermalConductivity:
         self.cp_mode = cp_mode
         self.off_diag = off_diag
         self.volume = self.dyn.structure.get_volume()
-        
+
         self.reciprocal_lattice = np.linalg.inv(self.unitcell).T
         self.force_constants = []
         self.ruc = []
-        self.set_force_constants(dyn) 
+        self.set_force_constants(dyn)
         self.nuc = len(self.ruc)
 
         self.symmetry = symmetries.QE_Symmetry(self.dyn.structure)
@@ -538,7 +568,7 @@ class ThermalConductivity:
     ###################################################################################################################
 
     def save_pickle(self, filename = 'tc.pkl'):
-        
+
         import pickle
 
         with open(filename, 'wb') as outfile:
@@ -548,7 +578,7 @@ class ThermalConductivity:
 
     def set_kpoints_spglib(self):
 
-        cell = get_spglib_cell(self.dyn) 
+        cell = get_spglib_cell(self.dyn)
         mapping, grid = spglib.get_ir_reciprocal_mesh(self.kpoint_grid, cell, is_shift=[0, 0, 0])
         rotations = spglib.get_symmetry_dataset(cell)['rotations']
 
@@ -678,7 +708,7 @@ class ThermalConductivity:
                 rotations.append(tot_r[i])
         rotations = np.asfortranarray(rotations)
         nsym = len(rotations)
-       
+
         irrgrid = []
         for iqpt in range(self.nirrkpt):
             irrgrid.append(self.qpoints[self.qstar[iqpt][0]])
@@ -704,7 +734,7 @@ class ThermalConductivity:
             print('Number of scattering events for ' + str(iqpt + 1) + '. q point in irr zone is ' + str(len(self.scattering_grids[iqpt])) + '!')
         self.set_up_scattering_grids = True
         print('Set up scattering grids in ' + format(time.time() - start_time, '.1f') + ' seconds.')
-                
+
     ###################################################################################################################################
 
     def set_scattering_grids_simple(self):
@@ -727,7 +757,7 @@ class ThermalConductivity:
             print('Number of scattering events for ' + str(iqpt + 1) + '. q point in irr zone is ' + str(len(self.scattering_grids[iqpt])) + '!')
         self.set_up_scattering_grids = True
         print('Set up scattering grids in ' + format(time.time() - start_time, '.1f') + ' seconds.')
-        
+
 
     ####################################################################################################################################
 
@@ -748,7 +778,7 @@ class ThermalConductivity:
         self.force_constants = self.fc2.tensor.copy()
         self.ruc = self.fc2.r_vector2.T
         invcell = np.linalg.inv(self.supercell)
-        
+
 
    ###################################################################################################################################
 
@@ -759,7 +789,7 @@ class ThermalConductivity:
 
         if type == adaptive : smearing for each phonon mode is unique and depends on the group velocity of the mode and the k point density.
                               For modes with zero velocity, take value 10 times smaller than the average smearing.
-        if type == constant : smearing is same for all of the modes 
+        if type == constant : smearing is same for all of the modes
 
         smearing_value : value of the smearing in case type == "constant"
 
@@ -950,7 +980,7 @@ class ThermalConductivity:
         ne               : Number of frequency points to calculate phonon lineshapes on in case of GK. \
                            Number of frequency points to solve self-consistent equation on in case of SRTA. \
                            Less anharmonic materials and lower temperatures will need more points (in case of GK).
-        mode_mixing      : Calculate full self energy matrix 
+        mode_mixing      : Calculate full self energy matrix
         kappa_filename   : Name of the file to write the results to.
         """
 
@@ -986,7 +1016,7 @@ class ThermalConductivity:
             kappa_file.write('   ' + format('Kappa_offdiag yz (W/mK)', STR_FMT))
             kappa_file.write('   ' + format('Kappa_offdiag zx (W/mK)', STR_FMT))
             kappa_file.write('\n')
-        
+
         for itemp in range(ntemp):
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
@@ -1020,7 +1050,7 @@ class ThermalConductivity:
                     kappa_file.write(3*' ' + format(kappa_nondiag[1][2], '.12e'))
                     kappa_file.write(3*' ' + format(kappa_nondiag[2][0], '.12e'))
                     kappa_file.write('\n')
-                    self.kappa[tc_key] = kappa_diag + kappa_nondiag 
+                    self.kappa[tc_key] = kappa_diag + kappa_nondiag
             elif(mode == 'GK' and not mode_mixing):
                 self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
                 energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
@@ -1048,7 +1078,7 @@ class ThermalConductivity:
                     kappa_file.write(3*' ' + format(kappa_nondiag[1][2], '.12e'))
                     kappa_file.write(3*' ' + format(kappa_nondiag[2][0], '.12e'))
                     kappa_file.write('\n')
-                    self.kappa[tc_key] = kappa_diag + kappa_nondiag 
+                    self.kappa[tc_key] = kappa_diag + kappa_nondiag
             elif(mode == 'GK' and mode_mixing):
                 self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
                 energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
@@ -1114,7 +1144,7 @@ class ThermalConductivity:
                             gvel_sum += np.outer(gvel.conj(), gvel)
                         gvel_sum = gvel_sum.real*SSCHA_TO_MS**2/float(len(self.rotations))
                         kappa += gvel_sum*integrals[iqpt][iband]*self.freqs[iqpt][iband]**2
-        
+
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
@@ -1182,7 +1212,7 @@ class ThermalConductivity:
                                                 else:
                                                     kappa_nondiag += integrals*np.sqrt(self.freqs[iqpt,iband]*self.freqs[iqpt, kband]*self.freqs[iqpt,jband]*self.freqs[iqpt, lband])*\
                                                             gvel_sum*SSCHA_TO_MS**2*(SSCHA_TO_THZ)*1.0e12*2.0*np.pi/4.0
-        
+
         kappa_diag += kappa_diag.T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
         kappa_nondiag += kappa_nondiag.T
@@ -1512,10 +1542,10 @@ class ThermalConductivity:
         smear            : Smearing used for energy conservation.
 
         """
-        
+
         if(not __SEEKPATH and kpoints is None):
             raise RuntimeError('To automatically generated a line in reciprocal space one need seekpath. First do "pip install seekpath"!')
-        
+
         start_time = time.time()
 
         tics = []
@@ -1722,7 +1752,7 @@ class ThermalConductivity:
         filename       : title of the file at which lineshape is to be written.
         curr_ls        : lineshape to be written
         jkpt           : the index of the k point for which lineshapes are to be written
-        energies       : frequencies at which lineshapes have been calculated 
+        energies       : frequencies at which lineshapes have been calculated
         mode_mixing    : Defines the shape of input curr_ls. if true curr_ls = (nband, nband, ne)
 
         """
@@ -1807,7 +1837,7 @@ class ThermalConductivity:
 
         if(write_lifetimes):
             self.write_transport_properties_to_file(temperature, isotope_scattering)
-           
+
         kappa = np.zeros((3,3))
         for istar in self.qstar:
             for iqpt in istar:
@@ -1980,12 +2010,12 @@ class ThermalConductivity:
    ####################################################################################################################################
 
     def get_frequencies(self):
-        
+
         """
         Get frequencies on a grid which is used for Brillouin zone integration (in THz).
-   
+
         """
-   
+
         return self.freqs*SSCHA_TO_THZ
 
     ####################################################################################################################################
@@ -2021,7 +2051,7 @@ class ThermalConductivity:
         for i in range(len(isotopes)):
             for j in range(len(isotopes[i])):
                 g_factor[i] += isotopes[i][j][0]*(1.0 - isotopes[i][j][1]/av_mass[i])**2
-            print('G factor of ' + self.dyn.structure.atoms[i] + ' is ' + format(g_factor[i], '.4f') + '.') 
+            print('G factor of ' + self.dyn.structure.atoms[i] + ' is ' + format(g_factor[i], '.4f') + '.')
 
         for ikpt in range(self.nirrkpt):
             jkpt = self.qstar[ikpt][0]
@@ -2032,7 +2062,7 @@ class ThermalConductivity:
 
         self.got_scattering_rates_isotopes = True
         print('Calculated scattering rates due to the isotope scattering in ' + format(time.time() - start_time, '.2e'), ' seconds!')
-        
+
     ####################################################################################################################################
 
     def get_scattering_rates_isotope_at_q(self, iqpt, g_factor, av_mass):
@@ -2051,9 +2081,9 @@ class ThermalConductivity:
                         raise RuntimeError('NAN!')
             scatt_rate[iband] = np.pi*scatt_rate[iband]/2.0/float(self.nkpt)*self.freqs[iqpt, iband]**2
         return scatt_rate
-  
+
     ####################################################################################################################################
-   
+
     def get_lifetimes(self, temperature, ne, gauss_smearing = False, isotope_scattering = True, isotopes = None, method = 'fortran-LA'):
 
         """
@@ -2065,10 +2095,10 @@ class ThermalConductivity:
         isotopes           : The relative concentration and masses of isotopes
         method             : Method by which phonon lifetimes are to be calculated.
             fortran/python : practically means only how many times fortran routine is being called. "fortran" much faster.
-            LA/P           : Approximation used for the lifetimes. 
+            LA/P           : Approximation used for the lifetimes.
                              LA means one shot approximation defined in J. Phys.: Condens. Matter 33 363001 . Default value.
                              P means perturbative approximation. The one used by most other codes!
-            SC             : Solve for lifetimes and frequency shifts self-consistently! 
+            SC             : Solve for lifetimes and frequency shifts self-consistently!
         """
 
         if(not self.set_up_scattering_grids):
@@ -2223,7 +2253,7 @@ class ThermalConductivity:
 
         elif(method == 'SC'):
             self.get_lifetimes_selfconsistently(temperature, ne, gauss_smearing = gauss_smearing)
-            
+
         else:
             print('Unrecognized method! Exit!')
             raise RuntimeError('No such method for calculating phonon lifetimes!')
@@ -2450,7 +2480,7 @@ class ThermalConductivity:
             gvel = np.zeros_like(tmp_gvel)
             for i in range(3):
                 gvel[:,:,i] = (tmp_gvel[:,:,i].conj().T + tmp_gvel[:,:,i])/2.0
-    
+
         return gvel, np.array(ddynmat).transpose((1,2,0))
 
     ##################################################################################################################################
@@ -2684,7 +2714,7 @@ class ThermalConductivity:
             w_q = np.sqrt(w2_q)
 
         return w_q, pols_q
-    
+
     ###################################################################################################################################
 
     def get_dynamical_matrix(self, q):
@@ -2707,12 +2737,12 @@ class ThermalConductivity:
         for ir in range(len(self.ruc)):
             for iat in range(len(uc_positions)):
                 for jat in range(len(uc_positions)):
-                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat] 
+                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat]
                     phase = np.dot(r, q)*2.0*np.pi
                     dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
         dynmat = dynmat*mm_inv_mat
         dynmat = (dynmat + dynmat.conj().T)/2.0
-        
+
         return dynmat
 
     ####################################################################################################################################
@@ -2778,7 +2808,7 @@ class ThermalConductivity:
                 dos_smoothed[ien] += gaussian(energies_smoothed[ien], energies[jen], de/2.0)*dos[jen]
         int_dos = np.sum(dos_smoothed)*de
         dos_smoothed = dos_smoothed/int_dos*np.sum(dos)*self.delta_omega
-        
+
         return energies*SSCHA_TO_THZ, dos/SSCHA_TO_THZ, energies_smoothed*SSCHA_TO_THZ, dos_smoothed/SSCHA_TO_THZ
 
     ########################################################################################################################################
@@ -2815,9 +2845,9 @@ class ThermalConductivity:
             print('Lineshapes not calculated for this temperature! Can not calculate mean square displacements! ')
             dos = 0
             energies = 0
-        
+
     ####################################################################################################################################
-   
+
     def write_harmonic_properties_to_file(self, filename = 'Phonon_harmonic_properties'):
 
         """
@@ -2887,29 +2917,29 @@ class ThermalConductivity:
 
         """
 
-            
+
         structure = self.fc2.unitcell_structure
-        
-        # Get the integration points 
+
+        # Get the integration points
         k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
-        
-            
+
+
         # Get the phi2 in q
         phi2_q = self.fc2.Interpolate(q, asr = False)
 
         # dynamical matrix in q
-        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()    
+        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1 / mm_mat
         #
         d2_q = phi2_q * mm_inv_mat
-        
+
         # Diagonalize the dynamical matrix in q
         w2_q, pols_q = np.linalg.eigh(d2_q)
-        
+
         # Check if the q point is gamma
         is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
-        
+
         if is_q_gamma:
             w2_q[0:3]=0.0
         if not (w2_q >= 0.0).all():
@@ -2917,14 +2947,14 @@ class ThermalConductivity:
             print('w(q)= ',np.sign(w2_q)*np.sqrt(np.abs(w2_q))*CC.Units.RY_TO_CM,'  (cm-1)')
             print('Cannot continue with SSCHA negative frequencies')
             exit()
-        w_q=np.sqrt(w2_q)  
+        w_q=np.sqrt(w2_q)
 
         def compute_k(k):
             # phi3 in q, k, -q - k
             phi3=self.fc3.Interpolate(k,-q-k, asr = False)
             #print(phi3)
             # phi2 in k
-            phi2_k = self.fc2.Interpolate(k, asr = False) 
+            phi2_k = self.fc2.Interpolate(k, asr = False)
 
             # phi2 in -q-k
             phi2_mq_mk = self.fc2.Interpolate(-q -k, asr = False)
@@ -2932,15 +2962,15 @@ class ThermalConductivity:
             # dynamical matrices (divide by the masses)
             d2_k = phi2_k * mm_inv_mat
             d2_mq_mk = phi2_mq_mk * mm_inv_mat
-            
+
             # Diagonalize the dynamical matrices
             w2_k, pols_k = np.linalg.eigh(d2_k)
             w2_mq_mk, pols_mq_mk = np.linalg.eigh(d2_mq_mk)
-            
-            
+
+
             is_k_gamma = CC.Methods.is_gamma(structure.unit_cell, k)
             is_mq_mk_gamma = CC.Methods.is_gamma(structure.unit_cell, -q-k)
-            
+
             if is_k_gamma:
                 w2_k[0:3]=0.0
             if not (w2_k >= 0.0).all():
@@ -2958,7 +2988,7 @@ class ThermalConductivity:
                 print('Cannot continue with SSCHA negative frequencies')
                 exit()
             w_mq_mk=np.sqrt(w2_mq_mk)
-           
+
             # Dividing the phi3 by the sqare root of masses
             d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
             #print(d3)
@@ -2969,23 +2999,23 @@ class ThermalConductivity:
             d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
             #print(d3_pols)
 
-            n_mod=3*structure.N_atoms 
+            n_mod=3*structure.N_atoms
             # Fortran duty ====
-            
+
             selfnrg  = thermal_conductivity.third_order_cond.compute_perturb_selfnrg_single(smear,T,
                                                                 np.array([w_q,w_k,w_mq_mk]).T,
                                                                 np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                                 d3_pols,n_mod)
-            return selfnrg    
-        
+            return selfnrg
+
         CC.Settings.SetupParallel()
 
         selfnrg =CC.Settings.GoParallel(compute_k, k_points, reduce_op = "+")
         # divide by the N_k factor
         selfnrg /= len(k_points) # (n_mod,nsigma)
-        
+
         #w_q_ext=w_q[...,None]
-            
+
         shift=np.divide(selfnrg.real, 2*w_q, out=np.zeros_like(selfnrg.real), where=w_q!=0)
         hwhm=np.divide(-selfnrg.imag, 2*w_q, out=np.zeros_like(selfnrg.imag), where=w_q!=0)
 
@@ -3242,29 +3272,29 @@ class ThermalConductivity:
 
         """
 
-            
+
         structure = self.fc2.unitcell_structure
-        
-        # Get the integration points 
+
+        # Get the integration points
         #k_points = CC.symmetries.GetQGrid(structure.unit_cell, k_grid)
-        
-            
+
+
         # Get the phi2 in q
         phi2_q = self.fc2.Interpolate(q, asr = False)
 
         # dynamical matrix in q
-        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()    
+        m = np.tile(structure.get_masses_array(), (3,1)).T.ravel()
         mm_mat = np.sqrt(np.outer(m, m))
         mm_inv_mat = 1 / mm_mat
         #
         d2_q = phi2_q * mm_inv_mat
-        
+
         # Diagonalize the dynamical matrix in q
         w2_q, pols_q = np.linalg.eigh(d2_q)
-        
+
         # Check if the q point is gamma
         is_q_gamma = CC.Methods.is_gamma(structure.unit_cell, q)
-        
+
         if is_q_gamma:
             w2_q[0:3]=0.0
         if not (w2_q >= 0.0).all():
@@ -3272,7 +3302,7 @@ class ThermalConductivity:
             print('w(q)= ',np.sign(w2_q)*np.sqrt(np.abs(w2_q))*CC.Units.RY_TO_CM,'  (cm-1)')
             print('Cannot continue with SSCHA negative frequencies')
             exit()
-        w_q=np.sqrt(w2_q)  
+        w_q=np.sqrt(w2_q)
 
         def compute_k(inputs):
             k = inputs[0]
@@ -3281,7 +3311,7 @@ class ThermalConductivity:
             phi3=self.fc3.Interpolate(k,-q-k, asr = False)
             #print(phi3)
             # phi2 in k
-            phi2_k = self.fc2.Interpolate(k, asr = False) 
+            phi2_k = self.fc2.Interpolate(k, asr = False)
 
             # phi2 in -q-k
             phi2_mq_mk = self.fc2.Interpolate(-q -k, asr = False)
@@ -3289,15 +3319,15 @@ class ThermalConductivity:
             # dynamical matrices (divide by the masses)
             d2_k = phi2_k * mm_inv_mat
             d2_mq_mk = phi2_mq_mk * mm_inv_mat
-            
+
             # Diagonalize the dynamical matrices
             w2_k, pols_k = np.linalg.eigh(d2_k)
             w2_mq_mk, pols_mq_mk = np.linalg.eigh(d2_mq_mk)
-            
-            
+
+
             is_k_gamma = CC.Methods.is_gamma(structure.unit_cell, k)
             is_mq_mk_gamma = CC.Methods.is_gamma(structure.unit_cell, -q-k)
-            
+
             if is_k_gamma:
                 w2_k[0:3]=0.0
             if not (w2_k >= 0.0).all():
@@ -3315,7 +3345,7 @@ class ThermalConductivity:
                 print('Cannot continue with SSCHA negative frequencies')
                 exit()
             w_mq_mk=np.sqrt(w2_mq_mk)
-           
+
             # Dividing the phi3 by the sqare root of masses
             d3 = np.einsum("abc, a, b, c -> abc", phi3, 1/np.sqrt(m), 1/np.sqrt(m), 1/np.sqrt(m))
             #print(d3)
@@ -3326,15 +3356,15 @@ class ThermalConductivity:
             d3_pols = np.einsum("abc, ci -> abi", d3_pols, pols_mq_mk)
             #print(d3_pols)
 
-            n_mod=3*structure.N_atoms 
+            n_mod=3*structure.N_atoms
             # Fortran duty ====
-            
+
             selfnrg  = thermal_conductivity.third_order_cond.compute_perturb_selfnrg_single(smear,T,
                                                                 np.array([w_q,w_k,w_mq_mk]).T,
                                                                 np.array([is_q_gamma,is_k_gamma,is_mq_mk_gamma]),
                                                                 d3_pols,n_mod)
-            return selfnrg*float(weight)    
-        
+            return selfnrg*float(weight)
+
         CC.Settings.SetupParallel()
 
         input_list = []
@@ -3343,9 +3373,9 @@ class ThermalConductivity:
         selfnrg =CC.Settings.GoParallel(compute_k, input_list, reduce_op = "+")
         # divide by the N_k factor
         selfnrg /= float(sum(weights)) # (n_mod,nsigma)
-        
+
         #w_q_ext=w_q[...,None]
-            
+
         shift=np.divide(selfnrg.real, 2*w_q, out=np.zeros_like(selfnrg.real), where=w_q!=0)
         hwhm=np.divide(-selfnrg.imag, 2*w_q, out=np.zeros_like(selfnrg.imag), where=w_q!=0)
 
@@ -3502,5 +3532,3 @@ class ThermalConductivity:
                 outfile.write(3*' ' + format(temperatures[itemp], '.12e'))
                 outfile.write(3*' ' + format(bulk[itemp], '.12e'))
                 outfile.write('\n')
-            
-
