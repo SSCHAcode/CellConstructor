@@ -199,7 +199,6 @@ end subroutine fix_coords_in_unit_cell
 
 subroutine matinv3(A, B)
     implicit none
-    !! Performs a direct calculation of the inverse of a 3×3 matrix.
     double precision, intent(in)  :: A(3,3)   !! Matrix
     double precision, intent(out) :: B(3,3)   !! Inverse matrix
     double precision              :: detinv
