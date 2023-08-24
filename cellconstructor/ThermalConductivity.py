@@ -1438,13 +1438,65 @@ class ThermalConductivity:
         for ie in range(np.shape(kappa_diag)[-1]):
             kappa_diag[:,:,ie] += kappa_diag[:,:,ie].T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
-        
+        kappa_diag *= (np.exp(energies*HBAR_RY*2.0*np.pi/KB/temperature) - 1.0)/(energies*HBAR_RY*2.0*np.pi/KB/temperature) 
 
         for ie in range(np.shape(kappa_nondiag)[-1]):
             kappa_nondiag[:,:,ie] += kappa_nondiag[:,:,ie].T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
+        kappa_nondiag *= (np.exp(energies*HBAR_RY*2.0*np.pi/KB/temperature) - 1.0)/(energies*HBAR_RY*2.0*np.pi/KB/temperature)
 
         return kappa_diag, kappa_nondiag
+
+    #################################################################################################################################
+
+    def get_self_energy_at_q(self, iqpt, temperature, energies, mode_mixing = 'no', gauss_smearing = False, write_self_energy = False):
+
+        if(self.delta_omega == 0.0 and energies is not None):
+            self.delta_omega = energies[1] - energies[0]
+
+        if(not self.set_up_scattering_grids):
+            self.set_scattering_grids_simple()
+
+        is_q_gamma = CC.Methods.is_gamma(self.fc2.unitcell_structure.unit_cell, self.k_points[iqpt]) 
+
+        if(mode_mixing == 'mode_mixing'):
+            self_energy = thermal_conductivity.get_lf.calculate_self_energy_full(self.freqs[iqpt], self.k_points[iqpt], self.eigvecs[iqpt], is_q_gamma, \
+                    self.scattering_grids[iqpt].T, self.scattering_weights[iqpt], self.fc2.tensor, self.fc3.tensor, self.fc2.r_vector2, self.fc3.r_vector2, \
+                    self.fc3.r_vector3, self.dyn.structure.coords.T, self.reciprocal_lattice, self.dyn.structure.get_masses_array(), self.sigmas[iqpt], \
+                    temperature, energies, True, gauss_smearing, False, len(self.scattering_grids[iqpt]), self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), len(energies))
+        elif(mode_mixing == 'no'):
+            self_energy = thermal_conductivity.get_lf.calculate_self_energy_p(self.freqs[iqpt], self.k_points[iqpt], self.eigvecs[iqpt], is_q_gamma, \
+                    self.scattering_grids[iqpt].T, self.scattering_weights[iqpt], self.fc2.tensor, self.fc3.tensor, self.fc2.r_vector2, self.fc3.r_vector2, \
+                    self.fc3.r_vector3, self.dyn.structure.coords.T, self.reciprocal_lattice, self.dyn.structure.get_masses_array(), self.sigmas[iqpt], \
+                    temperature, energies, True, gauss_smearing, False, len(self.scattering_grids[iqpt]), self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), len(energies))
+        else:
+            raise RuntimeError('The chosen option for mode_mixing(' + mode_mixing +  ') does not exist!')
+        if(gauss_smearing):
+            from scipy.signal import hilbert
+            real_part = hilbert(self_energy.imag)
+            self_energy.real = -1.0*real_part.imag
+
+        if(write_self_energy):
+            with open('Self_energy_' + str(iqpt + 1), 'w+') as outfile:
+                outfile.write('#   ' + format('Energy (THz)', STR_FMT))
+                for iband in range(self.nband):
+                    if(mode_mixing == 'mode_mixing'):
+                        for jband in range(self.nband):
+                            outfile.write('    ' + format('Self energy ' + str(iband) + ' - ' + str(jband) + ' (THz)', STR_FMT))
+                    else:
+                        outfile.write('    ' + format('Self energy ' + str(iband) +' (THz)', STR_FMT))
+                outfile.write('\n')
+                for ie in range(len(energies)):
+                    outfile.write(3*' ' + format(energies[ie]*SSCHA_TO_THZ, '.12e'))
+                    for iband in range(self.nband):
+                        if(mode_mixing == 'mode_mixing'):
+                            for jband in range(self.nband):
+                                outfile.write(3*' ' + format(self_energy[ie, iband, jband].real*SSCHA_TO_THZ, '.12e') + ' ' + format(self_energy[ie, iband, jband].imag*SSCHA_TO_THZ, '.12e'))
+                        else:
+                            outfile.write(3*' ' + format(self_energy[ie, iband].real*SSCHA_TO_THZ, '.12e') + ' ' + format(self_energy[ie, iband].imag*SSCHA_TO_THZ, '.12e'))
+                    outfile.write('\n')
+
+        return self_energy
 
     #################################################################################################################################
 
@@ -2406,7 +2458,7 @@ class ThermalConductivity:
 
    ####################################################################################################################################
 
-    def setup_harmonic_properties(self, smearing_value = 0.00005, symmetrize = False):
+    def setup_harmonic_properties(self, smearing_value = 0.00005, symmetrize = True):
 
         """
 
@@ -2428,8 +2480,8 @@ class ThermalConductivity:
             if(symmetrize):
                 self.gvels[ikpt] = self.symmetrize_group_velocity_by_index(self.gvels[ikpt], ikpt)
 
-        if(symmetrize):
-            self.symmetrize_group_velocities_over_star()
+        #if(symmetrize):
+        #    self.symmetrize_group_velocities_over_star()
         #self.check_group_velocities()
         #self.check_frequencies()
         self.setup_smearings(smearing_value)
@@ -2540,14 +2592,22 @@ class ThermalConductivity:
                         phase = np.dot(ruc, q)*2.0*np.pi
                         auxfc[3*iat:3*(iat+1),3*jat:3*(jat+1)] += complex(0.0,1.0)*ruc[icart]*self.force_constants[iuc,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
             ddynmat.append(auxfc * mm_inv_mat)
+            ddynmat[-1] += ddynmat[-1].conj().T
+            ddynmat[-1] /= 2.0
             if(icart == 0):
                 dirdynmat = ddynmat.copy()
+
+        new_eigvecs = np.zeros_like(eigvecs)
+        for deg in degs:
+            _, eigvecs1 = np.linalg.eigh(np.dot(eigvecs[:,deg].T.conj(), np.dot(np.sum(ddynmat,axis=0)/3.0, eigvecs[:,deg])))
+            new_eigvecs[:,deg] = np.dot(eigvecs[:,deg], eigvecs1)
+
         ddynmat = np.array(ddynmat)
         tmp_gvel = []
         freqs_matrix = np.einsum('i,j->ij', freqs, freqs)
         freqs_matrix = np.divide(np.ones_like(freqs_matrix), freqs_matrix, out=np.zeros_like(freqs_matrix), where=freqs_matrix!=0.0)
         for icart in range(3):
-            tmp_gvel.append(np.dot(eigvecs.T.conj(), np.dot(ddynmat[icart], eigvecs))/2.0*np.sqrt(freqs_matrix))
+            tmp_gvel.append(np.dot(new_eigvecs.T.conj(), np.dot(ddynmat[icart], new_eigvecs))/2.0*np.sqrt(freqs_matrix))
         tmp_gvel = np.array(tmp_gvel).transpose((1,2,0))
 
         if(not self.off_diag):
@@ -2675,11 +2735,17 @@ class ThermalConductivity:
             if(icart == 0):
                 dirdynmat = ddynmat[0].copy()
         ddynmat = np.array(ddynmat)
+
+        new_eigvecs = np.zeros_like(eigvecs)
+        for deg in degs:
+            _, eigvecs1 = np.linalg.eigh(np.dot(eigvecs[:,deg].T.conj(), np.dot(np.sum(ddynmat,axis=0)/3.0, eigvecs[:,deg])))
+            new_eigvecs[:,deg] = np.dot(eigvecs[:,deg], eigvecs1)
+
         tmp_gvel = []
         freqs_matrix = np.einsum('i,j->ij', freqs, freqs)
         freqs_matrix = np.divide(np.ones_like(freqs_matrix), freqs_matrix, out=np.zeros_like(freqs_matrix), where=freqs_matrix!=0.0)
         for icart in range(3):
-            tmp_gvel.append(np.dot(eigvecs.T.conj(), np.dot(ddynmat[icart], eigvecs))/2.0*np.sqrt(freqs_matrix))
+            tmp_gvel.append(np.dot(new_eigvecs.T.conj(), np.dot(ddynmat[icart], new_eigvecs))/2.0*np.sqrt(freqs_matrix))
         tmp_gvel = np.array(tmp_gvel).transpose((1,2,0))
 
         if(not self.off_diag):
