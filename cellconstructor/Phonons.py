@@ -1245,7 +1245,7 @@ class Phonons:
                     fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
                              (np.real(atomic_disp[3*i, mu]), np.imag(atomic_disp[3*i,mu]),
                               np.real(atomic_disp[3*i+1, mu]), np.imag(atomic_disp[3*i+1,mu]),
-                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+1,mu])))
+                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+2,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
 
