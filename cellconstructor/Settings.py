@@ -155,6 +155,37 @@ def GetNProc():
         return mpi4py.MPI.COMM_WORLD.Get_size()
     
     return __NPROC__
+
+def split_configurations(n_configs):
+    """
+    Return the range of configurations that each process must be compute.
+    The argument returned can directly go in the GoParallel function.
+
+    Parameters
+    ----------
+        n_configs : int
+            The total number of configurations to be computed
+
+    Returns
+    -------
+        list_of_inputs : list
+            A list of tuples (start, end) that specify the range of configurations
+    """
+
+    nproc = GetNProc()
+    list_of_inputs = []
+    index = 0
+    for i in range(nproc):
+        start_config = index
+        index += n_configs // nproc
+        if i < n_configs % nproc:
+            index += 1
+        end_config = index
+        
+        list_of_inputs.append( (start_config, end_config) )
+
+    return list_of_inputs
+
     
 def GoParallel(function, list_of_inputs, reduce_op = None, timer=None):
     """
