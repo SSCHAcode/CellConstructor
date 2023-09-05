@@ -345,7 +345,7 @@ module get_lf
                 print*, 'Negative eigenvalue of dynamical matrix!'
                 w_neg_freqs = .True.
             endif
-            print*, 'Interpolate frequency'
+!            print*, 'Interpolate frequency'
             if(.not. w_neg_freqs) then
                 w_q = sqrt(w2_q)
                 self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)

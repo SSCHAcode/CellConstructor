@@ -452,7 +452,7 @@ def load_thermal_conductivity(filename = 'tc.pkl'):
 
 class ThermalConductivity:
 
-    def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', group_velocity_mode = 'analytical', off_diag = False):
+    def __init__(self, dyn, tensor3, kpoint_grid = 2, scattering_grid = None, smearing_scale = 1.0, smearing_type = 'adaptive', cp_mode = 'quantum', group_velocity_mode = 'analytical', off_diag = False, phase_conv = 'smooth'):
 
         """
 
@@ -472,7 +472,8 @@ class ThermalConductivity:
             smearing_type       : Type of smearing used. Could be constant (same for all phonon modes) or adaptive (scaled by the phonon group velocity and the q point density).
             cp_mode             : Flag determining how phonon occupation factors are calculated (quantum/classical), default is quantum
             group_velocity_mode : How to calculate group velocities. 'analytical', 'finite_difference', 'wigner'
-            off_diag            : Boolean parameter for the calculation of the off-diagonal elements of group velocity. 
+            off_diag            : Boolean parameter for the calculation of the off-diagonal elements of group velocity.
+            phase_conv          : Phase convention for Fourier interpolation. Smooth (wrt atomic positions) or step (wrt to lattice vectors)
 
         """
 
@@ -498,6 +499,7 @@ class ThermalConductivity:
         self.supercell = self.dyn.structure.generate_supercell(dyn.GetSupercell()).unit_cell
         #print('Supercell: ')
         #print(self.supercell)
+        self.phase_conv = phase_conv
         self.smearing_type = smearing_type
         self.cp_mode = cp_mode
         self.off_diag = off_diag
@@ -1094,7 +1096,7 @@ class ThermalConductivity:
                 self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
                 energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
                 if(self.off_diag):
-                    kappa, kappa_nondiag = self.calculate_kappa_gk_AC(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing)
+                    kappa, kappa_nondiag, im_kappa, im_kappa_nondiag = self.calculate_kappa_gk_AC(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing)
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
                         kappa_file.write(3*' ' + format(kappa[icart][icart][0], '.12e'))
@@ -1125,6 +1127,16 @@ class ThermalConductivity:
                             outfile.write(3*' ' + format(kappa_nondiag[0][1][ien], '.12e'))
                             outfile.write(3*' ' + format(kappa_nondiag[1][2][ien], '.12e'))
                             outfile.write(3*' ' + format(kappa_nondiag[2][0][ien], '.12e'))
+                            for icart in range(3):
+                                outfile.write(3*' ' + format(im_kappa[icart][icart][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa[0][1][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa[1][2][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa[2][0][ien], '.12e'))
+                            for icart in range(3):
+                                outfile.write(3*' ' + format(im_kappa_nondiag[icart][icart][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa_nondiag[0][1][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa_nondiag[1][2][ien], '.12e'))
+                            outfile.write(3*' ' + format(im_kappa_nondiag[2][0][ien], '.12e'))
                             outfile.write('\n')
             else:
                 print('Can not recognize this method of calculating kappa! ')
@@ -1370,6 +1382,9 @@ class ThermalConductivity:
         ne = len(energies)
         exponents_plus = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         exponents_minus = np.exp(-1.0*energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
+        x = energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature
+        scale = (np.exp(x) - 1.0)/x
+        scale = np.insert(scale, 0, 1.0)
 
         kappa_diag = np.zeros((3,3, ne + 1))
         kappa_diag1 = np.zeros((3,3))
@@ -1438,14 +1453,26 @@ class ThermalConductivity:
         for ie in range(np.shape(kappa_diag)[-1]):
             kappa_diag[:,:,ie] += kappa_diag[:,:,ie].T
         kappa_diag = kappa_diag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
-        kappa_diag *= (np.exp(energies*HBAR_RY*2.0*np.pi/KB/temperature) - 1.0)/(energies*HBAR_RY*2.0*np.pi/KB/temperature) 
 
         for ie in range(np.shape(kappa_nondiag)[-1]):
             kappa_nondiag[:,:,ie] += kappa_nondiag[:,:,ie].T
         kappa_nondiag = kappa_nondiag/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
-        kappa_nondiag *= (np.exp(energies*HBAR_RY*2.0*np.pi/KB/temperature) - 1.0)/(energies*HBAR_RY*2.0*np.pi/KB/temperature)
 
-        return kappa_diag, kappa_nondiag
+        for i in range(3):
+            for j in range(3):
+                kappa_diag[i,j] *= scale
+                kappa_nondiag[i,j] *= scale
+
+        from scipy.signal import hilbert
+        im_kappa_diag = np.zeros_like(kappa_diag)
+        im_kappa_nondiag = np.zeros_like(kappa_nondiag)
+        for i in range(3):
+            for j in range(3):
+                im_kappa_diag[i,j] = hilbert(kappa_diag[i,j]).imag
+                im_kappa_nondiag[i,j] = hilbert(kappa_nondiag[i,j]).imag
+        
+
+        return kappa_diag, kappa_nondiag, im_kappa_diag, im_kappa_nondiag
 
     #################################################################################################################################
 
@@ -2933,11 +2960,17 @@ class ThermalConductivity:
         mm_inv_mat = 1.0 / mm_mat
         dynmat = np.zeros_like(self.force_constants[0], dtype = complex)
         for ir in range(len(self.ruc)):
-            for iat in range(len(uc_positions)):
-                for jat in range(len(uc_positions)):
-                    r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat] 
-                    phase = np.dot(r, q)*2.0*np.pi
-                    dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
+            if(self.phase_conv == 'smooth'):
+                for iat in range(len(uc_positions)):
+                    for jat in range(len(uc_positions)):
+                        r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat] 
+                        phase = np.dot(r, q)*2.0*np.pi
+                        dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
+            else:
+                r = -1.0*self.ruc[ir]
+                phase = np.dot(r, q)*2.0*np.pi
+                dynmat += self.force_constants[ir]*np.exp(1j*phase)
+
         dynmat = dynmat#*mm_inv_mat
         #dynmat = (dynmat + dynmat.conj().T)/2.0
        
