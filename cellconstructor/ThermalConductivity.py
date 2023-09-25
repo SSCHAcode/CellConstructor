@@ -131,7 +131,7 @@ def get_spglib_cell(dyn):
     for iat in range(len(dyn.structure.atoms)):
         for jat in range(len(symbols_unique)):
             if(dyn.structure.atoms[iat] == symbols_unique[jat]):
-                numbers[iat] == jat
+                numbers[iat] = jat
     return (dyn.structure.unit_cell, pos, numbers)
 
     ########################################################################################################################################
@@ -449,6 +449,71 @@ def load_thermal_conductivity(filename = 'tc.pkl'):
     infile.close()
     return tc
 
+def get_mapping_of_q_points(star, points, rotations):
+
+    mapping = []
+    for istar in range(len(star)):
+        star_mapping = []
+        iqpt1 = star[istar][0]
+        qpt1 = points[iqpt1]
+        for iqpt in range(len(star[istar])):
+            found = False
+            qpt_mapping = []
+            iqpt2 = star[istar][iqpt]
+            qpt2 = points[iqpt2]
+            if(np.linalg.norm(qpt2 + qpt1 - np.rint(qpt2 + qpt1)) < 1.0e-6):
+                qpt_mapping.append((-1, True))
+                found = True
+            else:
+                for irot in range(len(rotations)):
+                    qpt21 = np.dot(rotations[irot].T, qpt1)
+                    diffq = qpt21 - qpt2
+                    addq = qpt21 + qpt2
+                    if(np.linalg.norm(diffq - np.rint(diffq)) < 1.0e-6):
+                        qpt_mapping.append((irot, False))
+                        found = True
+                    elif(np.linalg.norm(addq - np.rint(addq)) < 1.0e-6):
+                        qpt_mapping.append((irot, True))
+                        found = True
+            if(found):
+                star_mapping.append(qpt_mapping)
+            else:
+                print('QPT1: ', qpt1)
+                print('QPT2: ', qpt2)
+                raise RuntimeError('Could not find any mapping between qpoints!')
+        mapping.append(star_mapping)
+
+    return mapping
+
+def construct_symmetry_matrix(rotation, translation, qvec, pos, atom_map, cell):
+    matrix = np.zeros((len(pos)*3, len(pos)*3), dtype=complex)
+    rx1 = []
+    for iat in range(len(pos)):
+        for jat in range(len(pos)):
+            if(iat == atom_map[jat]):
+                r = np.zeros_like(pos[iat])
+                phase = 0.0
+                r = pos[iat] - np.dot(rotation, pos[jat]) - translation
+                rx = np.dot(r, np.linalg.inv(cell))
+                rx1.append(rx)
+                if(np.linalg.norm(rx - np.rint(rx))>1.0e-6):
+                    raise RuntimeError('The atom is translated different than the translation vector!')
+                #else:
+                #    print(rx)
+                #phase = np.dot(qvec, r)*2.0*np.pi
+                phase = -1.0*np.dot(qvec, r)*2.0*np.pi
+                #matrix[3*jat:3*(jat+1), 3*iat:3*(iat+1)] = rotation*np.exp(complex(0.0, phase))
+                matrix[3*iat:3*(iat+1), 3*jat:3*(jat+1)] = rotation*np.exp(complex(0.0, phase))
+    try:
+        imatrix = np.linalg.inv(matrix)
+        #print('Gamma is invertible!')
+        if(not np.linalg.norm(imatrix - matrix.conj().T)/np.linalg.norm(matrix) < 1.0e-5):
+            raise RuntimeError('The transformation matrix is not unitary!')
+    except:
+        print(np.matmul(matrix, matrix.conj().T))
+        raise RuntimeError('Gamma is not invertible!')
+    return matrix#, rx1, np.exp(complex(0.0, phase)), phase, qvec, np.dot(qvec, r)
+
 
 class ThermalConductivity:
 
@@ -524,6 +589,7 @@ class ThermalConductivity:
         self.freqs = np.zeros((self.nkpt, self.nband))
         self.gruneisen = np.zeros((self.nkpt, self.nband))
         self.eigvecs = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
+        self.dynmats = np.zeros((self.nkpt, self.nband, self.nband), dtype=complex)
         if(self.off_diag):
             self.gvels = np.zeros((self.nkpt, self.nband, self.nband, 3), dtype = complex)
         else:
@@ -554,13 +620,34 @@ class ThermalConductivity:
 
         cell = get_spglib_cell(self.dyn) 
         mapping, grid = spglib.get_ir_reciprocal_mesh(self.kpoint_grid, cell, is_shift=[0, 0, 0])
-        rotations = spglib.get_symmetry_dataset(cell)['rotations']
+        symmetry_dataset = spglib.get_symmetry_dataset(cell, symprec=1e-5, angle_tolerance=-1.0, hall_number=0)
+        rotations = symmetry_dataset['rotations']
+        translations = symmetry_dataset['translations']
+        print(cell)
+        print('Spacegroup: ' + symmetry_dataset['international'] + str(symmetry_dataset['number']))
+        self.atom_map = np.zeros((len(rotations), len(cell[1])), dtype=int)
+        nrot = len(rotations)
+        for irot in range(nrot):
+            found = [False for jat in range(len(cell[1]))]
+            new_pos = np.einsum('ij,jk->ik', cell[1], rotations[irot].T) + translations[irot]
+            for iat in range(len(cell[1])):
+                for jat in range(len(cell[1])):
+                    diff = cell[1][jat] - new_pos[iat]
+                    if(np.linalg.norm(diff - np.rint(diff)) < 1.0e-5):
+                        self.atom_map[irot, iat] = jat
+                        if(not found[iat]):
+                            found[iat] = True
+                        else:
+                            print('Again found mapping to this atom!')
+            if(not all(found)):
+                raise RuntimeError('Could not find atom mapping for spacegroup symmetry: ' + str(irot + 1))
 
         self.irr_k_points = np.array(grid[np.unique(mapping)] / np.array(self.kpoint_grid, dtype=float))
         self.irr_k_points = np.dot(self.irr_k_points, self.reciprocal_lattice)
         self.qpoints = grid / np.array(self.kpoint_grid, dtype=float)
         self.k_points = np.dot(self.qpoints, self.reciprocal_lattice)
         self.rotations = np.array(rotations).copy()
+        self.translations = np.array(translations).copy()
 
         self.qstar = []
         for i in np.unique(mapping):
@@ -581,8 +668,8 @@ class ThermalConductivity:
                     if(np.linalg.norm(diffq) < 1.0e-6):
                         curr_little_group.append(irot)
                 self.little_group[iqpt].extend(curr_little_group)
-                if(len(istar) * len(self.little_group[iqpt]) != len(rotations)):
-                    raise RuntimeError('Number of symmetry operation wrong!', len(istar), len(self.little_group[iqpt]), len(rotations))
+                #if(len(istar) * len(self.little_group[iqpt]) != len(rotations)):
+                #    raise RuntimeError('Number of symmetry operation wrong!', len(istar), len(self.little_group[iqpt]), len(rotations))
 
         mapping1, grid1 = spglib.get_ir_reciprocal_mesh(self.scattering_grid, cell, is_shift=[0, 0, 0])
         self.scattering_qpoints = np.array(grid1 / np.array(self.scattering_grid, dtype=float))
@@ -1629,7 +1716,7 @@ class ThermalConductivity:
             else:
                 print('Selected mode_mixing approach: ', mode_mixing)
                 raise RuntimeError('Do not recognize the selected mode_mixing approach!')
-
+            scaled_positions = np.dot(self.dyn.structure.coords, np.linalg.inv(self.unitcell))
             for ikpt in range(self.nirrkpt):
                 jkpt = self.qstar[ikpt][0]
                 if(mode_mixing == 'no'):
@@ -1640,11 +1727,49 @@ class ThermalConductivity:
 
                 for iqpt in range(len(self.qstar[ikpt])):
                     jqpt = self.qstar[ikpt][iqpt]
+                    found = False
                     if(mode_mixing != 'no'):
                         #for iband in range(self.nband):
                         #    for jband in range(self.nband):
                         #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
-                        lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
+                        if(iqpt == 0):
+                            lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
+                            found = True
+                        else:
+                            qpt1 = self.qpoints[self.qstar[ikpt][0]]
+                            qpt2 = self.qpoints[jqpt]
+                            if(np.linalg.norm(qpt2 + qpt1 - np.rint(qpt2 + qpt1)) < 1.0e-6):
+                                lineshapes[jqpt,:,:,:] = 2.0*curr_ls[ikpt,:,:,:].conj()
+                                found = True
+                            else:
+                                found = False
+                                for irot in range(len(self.rotations)):
+                                    qpt21 = np.dot(self.rotations[irot].T, qpt1)
+                                    kpt21 = np.dot(qpt21, self.reciprocal_lattice)
+                                    diffq = qpt21 - qpt2
+                                    addq = qpt21 + qpt2
+                                    if(np.linalg.norm(diffq - np.rint(diffq)) < 1.0e-6):
+                                        rotation = self.rotations[irot]
+                                        translation = self.translations[irot]
+                                        atom_map = self.atom_map[irot]
+                                        gamma = construct_symmetry_matrix_for_dyn(rotation, translation, kpt21, scaled_positions, atom_map, self.unitcell, self.reciprocal_lattice)
+                                        #rotation = np.matmul(self.reciprocal_lattice.T, np.matmul(self.rotations[irot].T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                        #translation = np.dot(self.translations[irot], self.unitcell)
+                                        lineshapes[jqpt,:,:,:] = 2.0*np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T) #np.matmul(gamma, np.matmul(dyn1, gamma.conj().T))
+                                        found = True
+                                        break
+                                    elif(np.linalg.norm(addq - np.rint(addq)) < 1.0e-6):
+                                        rotation = self.rotations[irot]
+                                        translation = self.translations[irot]
+                                        atom_map = self.atom_map[irot]
+                                        gamma = construct_symmetry_matrix_for_dyn(rotation, translation, kpt21, scaled_positions, atom_map, self.unitcell, self.reciprocal_lattice)
+                                        #rotation = np.matmul(self.reciprocal_lattice.T, np.matmul(self.rotations[irot].T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                        #translation = np.dot(self.translations[irot], self.unitcell)
+                                        lineshapes[jqpt,:,:,:] = 2.0*np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T).conj() #np.matmul(gamma, np.matmul(dyn1, gamma.conj().T))
+                                        found = True
+                                        break
+                        if(not found):
+                            raise RuntimeError('Could not find mapping between q points in the star!')
                         #tot_const_diag = 0.0
                         #tot_const_nondiag = 0.0
                         #for iband in range(len(lineshapes[jqpt])):
@@ -1873,7 +1998,7 @@ class ThermalConductivity:
                         if(freqs[ikpt, iband] < np.amax(freqs[ikpt])*1.0e-6):
                             curr_ls[ikpt, iband] = 0.0
             if(mode_mixing != 'no'):
-                lineshapes[ikpt,:,:,:] = curr_ls[ikpt,:,:,:]
+                lineshapes[ikpt,:,:,:] = curr_ls[ikpt,:,:,:]*2.0
                 tot_const_diag = 0.0
                 tot_const_nondiag = 0.0
                 for iband in range(len(lineshapes[ikpt])):
@@ -1952,6 +2077,7 @@ class ThermalConductivity:
                 outfile.write('\n')
 
         print('Calculated SSCHA lineshapes in: ', time.time() - start_time)
+        return energies, lineshapes
 
     ##################################################################################################################################
     def write_lineshape(self, filename, curr_ls, jkpt, energies, mode_mixing):
@@ -2495,7 +2621,7 @@ class ThermalConductivity:
         """
 
         for ikpt, kpt in enumerate(self.k_points):
-            self.freqs[ikpt], self.eigvecs[ikpt] = self.get_frequency_at_q(kpt)
+            self.freqs[ikpt], self.eigvecs[ikpt], self.dynmats[ikpt] = self.get_frequency_at_q(kpt)
             if(self.group_velocity_mode == 'wigner'):
                 self.gvels[ikpt], self.ddms[ikpt] = self.get_group_velocity_wigner(kpt)
             elif(self.group_velocity_mode == 'analytical'):
@@ -2511,6 +2637,7 @@ class ThermalConductivity:
         #    self.symmetrize_group_velocities_over_star()
         #self.check_group_velocities()
         #self.check_frequencies()
+        #self.check_dynamical_matrices()
         self.setup_smearings(smearing_value)
         print('Harmonic properties are set up!')
 
@@ -2526,6 +2653,97 @@ class ThermalConductivity:
                 self.eigvecs[pairs[0]] = (self.eigvecs[pairs[0]] + self.eigvecs[pairs[1]].conj())/2.0
                 self.eigvecs[pairs[1]] = self.eigvecs[pairs[0]].conj()
 
+    #################################################################################################################################
+
+    def get_sg_in_cartesian(self):
+
+        rotations = np.zeros_like(self.rotations, dtype=float)
+        translations = np.zeros_like(self.translations, dtype=float)
+        for irot in range(len(rotations)):
+            rotations[irot] = np.matmul(self.reciprocal_lattice.T, np.matmul(self.rotations[irot].T, np.linalg.inv(self.reciprocal_lattice.T)))
+        translations = np.dot(self.translations, self.unitcell)
+
+        return rotations, translations
+
+    #################################################################################################################################
+
+    def check_dynamical_matrices(self):
+
+        rotations, translations = self.get_sg_in_cartesian()
+        #for irot in range(len(rotations)):
+        #    print('SG' + str(irot + 1))
+        #    print(rotations[irot])
+        #    print(translations[irot])
+        #    print(tc.atom_map[irot])
+        mapping = get_mapping_of_q_points(self.qstar, self.qpoints, self.rotations)
+        for istar in range(len(self.qstar)):
+            iqpt1 = self.qstar[istar][0]
+            qpt1 = self.qpoints[iqpt1]
+            kpt1 = self.k_points[iqpt1]
+            dyn1 = self.dynmats[iqpt1].copy()
+            for iqpt in range(1, len(self.qstar[istar])):
+                iqpt2 = self.qstar[istar][iqpt]
+                qpt2 = self.qpoints[iqpt2]
+                kpt2 = self.k_points[iqpt2]
+                dyn2 = self.dynmats[iqpt2].copy()
+                for imap in range(len(mapping[istar][iqpt])):
+                    irot = mapping[istar][iqpt][imap][0]
+                    atom_map = self.atom_map[irot]
+                    conjugate = mapping[istar][iqpt][imap][1]
+                    qpt21 = np.dot(self.rotations[irot].T, qpt1)
+                    kpt22 = np.dot(rotations[irot], kpt1)
+                    kpt21 = np.dot(self.reciprocal_lattice.T, qpt21)
+                    if(np.linalg.norm(kpt21 - kpt22) > 1.0e-6):
+                        print(np.linalg.norm(kpt21 - kpt22))
+                        print('Rotation in cartesian and reduced coordinates gives different results!')
+                    diffq = qpt21 - qpt2
+                    addq = qpt21 + qpt2
+                    if(irot == -1):
+                        dyn21 = dyn1.conj()
+                        if(np.any(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)):
+                            print('Some differences between rotated and original dynamical matrices!')
+                            print(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)
+                            print(qpt1, qpt2)
+                            for iband in range(len(dyn1)):
+                                print(dyn2[iband])
+                                print(dyn21[iband])
+                                print(dyn2[iband] - dyn21[iband])
+                                print('')
+                            #raise RuntimeError('Mapping dynamical matrices from q to -q did not work!')
+                    else:
+                        if(np.linalg.norm(diffq - np.rint(diffq)) < 1.0e-6 and not conjugate):
+                            gamma = construct_symmetry_matrix(rotations[irot], translations[irot], kpt21, self.dyn.structure.coords, atom_map, self.unitcell)
+                            dyn21 = np.matmul(gamma, np.matmul(dyn1, gamma.conj().T))
+                            if(np.any(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)):
+                                print('Some differences between rotated and original dynamical matrices!')
+                                print(rotations[irot])
+                                print(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)
+                                print(qpt1, qpt2)
+                                for iband in range(len(dyn1)):
+                                    print(dyn2[iband])
+                                    print(dyn21[iband])
+                                    print(dyn2[iband] - dyn21[iband])
+                                    print('')
+                                #raise RuntimeError('Mapping dynamical matrices from q to q star did not work!')
+                        elif(np.linalg.norm(addq - np.rint(addq)) < 1.0e-6 and conjugate):
+                            gamma = construct_symmetry_matrix(rotations[irot], translations[irot], kpt21, self.dyn.structure.coords, atom_map, self.unitcell)
+                            dyn21 = np.matmul(gamma, np.matmul(dyn1, gamma.conj().T))
+                            dyn21 = dyn21.conj()
+                            if(np.any(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)):
+                                print('Some differences between rotated and original dynamical matrices!')
+                                print(rotations[irot])
+                                print(np.abs(dyn21 - dyn2)/np.amax(np.abs(dyn2)) > 1.0e-2)
+                                print(qpt1, qpt2)
+                                for iband in range(len(dyn1)):
+                                    print(dyn2[iband])
+                                    print(dyn21[iband])
+                                    print(dyn2[iband] - dyn21[iband])
+                                    print('')
+                                #raise RuntimeError('Mapping dynamical matrices from q to q star through -q did not work!')
+                        else:
+                            raise RuntimeError('The mapping was wrong! This rotation does not give expected q point!')
+
+        print('Dynamical matrices satisfy symmetries!')
 
     #################################################################################################################################
 
@@ -2938,7 +3156,7 @@ class ThermalConductivity:
         #else:
         w_q = np.sqrt(w2_q)
 
-        return w_q, pols_q
+        return w_q, pols_q, dynmat
     
     ###################################################################################################################################
 
@@ -2948,7 +3166,7 @@ class ThermalConductivity:
 
         Get dynamical matrix at wave vector.
 
-        q : wave vector without 2pi factor
+        q : wave vector in cartesian coordinates without 2pi factor
 
         """
 
@@ -2966,12 +3184,14 @@ class ThermalConductivity:
                         r = -1.0*self.ruc[ir] + uc_positions[iat] - uc_positions[jat] 
                         phase = np.dot(r, q)*2.0*np.pi
                         dynmat[3*iat:3*(iat+1),3*jat:3*(jat+1)] += self.force_constants[ir,3*iat:3*(iat+1),3*jat:3*(jat+1)]*np.exp(1j*phase)
-            else:
+            elif(self.phase_conv == 'step'):
                 r = -1.0*self.ruc[ir]
                 phase = np.dot(r, q)*2.0*np.pi
                 dynmat += self.force_constants[ir]*np.exp(1j*phase)
+            else:
+                raise RuntimeError('Can not recognize phase convention!')
 
-        dynmat = dynmat#*mm_inv_mat
+        #dynmat = dynmat#*mm_inv_mat
         #dynmat = (dynmat + dynmat.conj().T)/2.0
        
         if self.fc2.effective_charges is not None: 
