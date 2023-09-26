@@ -1740,7 +1740,7 @@ class ThermalConductivity:
                             qpt1 = self.qpoints[self.qstar[ikpt][0]]
                             qpt2 = self.qpoints[jqpt]
                             if(np.linalg.norm(qpt2 + qpt1 - np.rint(qpt2 + qpt1)) < 1.0e-6):
-                                lineshapes[jqpt,:,:,:] = 2.0*curr_ls[ikpt,:,:,:].conj()
+                                lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:].conj()
                                 found = True
                             else:
                                 irot = mapping[ikpt][iqpt][0][0]
@@ -1748,7 +1748,7 @@ class ThermalConductivity:
                                 qpt21 = np.dot(self.rotations[irot].T, qpt1)
                                 kpt21 = np.dot(qpt21, self.reciprocal_lattice)
                                 gamma = construct_symmetry_matrix(rotations[irot], translations[irot], kpt21, self.dyn.structure.coords, atom_map, self.unitcell)
-                                lineshapes[jqpt,:,:,:] = 2.0*np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T)
+                                lineshapes[jqpt,:,:,:] = np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T)
                                 if(mapping[ikpt][iqpt][0][1]):
                                     lineshapes[jqpt,:,:,:] = lineshapes[jqpt,:,:,:].conj()
                         #tot_const_diag = 0.0
