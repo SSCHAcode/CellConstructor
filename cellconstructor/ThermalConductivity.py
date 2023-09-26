@@ -490,13 +490,18 @@ def construct_symmetry_matrix(rotation, translation, qvec, pos, atom_map, cell):
     rx1 = []
     for iat in range(len(pos)):
         for jat in range(len(pos)):
-            if(iat == atom_map[jat]):
+            if(jat == atom_map[iat]):
                 r = np.zeros_like(pos[iat])
                 phase = 0.0
                 r = pos[iat] - np.dot(rotation, pos[jat]) - translation
                 rx = np.dot(r, np.linalg.inv(cell))
                 rx1.append(rx)
                 if(np.linalg.norm(rx - np.rint(rx))>1.0e-6):
+                    print(rotation)
+                    print(translation)
+                    print(pos[iat], pos[jat])
+                    print(atom_map)
+                    print(rx)
                     raise RuntimeError('The atom is translated different than the translation vector!')
                 #else:
                 #    print(rx)
@@ -625,6 +630,7 @@ class ThermalConductivity:
         translations = symmetry_dataset['translations']
         print('Spacegroup: ' + symmetry_dataset['international'] + str(symmetry_dataset['number']))
         self.atom_map = np.zeros((len(rotations), len(cell[1])), dtype=int)
+
         nrot = len(rotations)
         for irot in range(nrot):
             found = [False for jat in range(len(cell[1]))]

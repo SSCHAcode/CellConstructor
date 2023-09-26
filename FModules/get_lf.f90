@@ -1315,8 +1315,9 @@ module get_lf
             if(any(self_energy .ne. self_energy)) then
                     print*, 'NaN for jqpt', jqpt
             endif
+            deallocate(intermediate)
             deallocate(ifc3, d3, d3_pols, selfnrg)
-            deallocate(pols_k, pols_mk_mq, intermediate)
+            deallocate(pols_k, pols_mk_mq)
             deallocate(pols_k2, pols_mk_mq2)
             deallocate(kpt, mkpt)
             deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
