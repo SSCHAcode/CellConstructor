@@ -1180,18 +1180,18 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
             data = np.loadtxt(f)
             f.close()
             head = head1[1:]+head2[1:]+head3[1:]
-            # X = data[:,0]
-            # Y = data[:,1]
-            # Z = data[:,2]
-            # x = [X[i] for i in np.lexsort((Y,X))]
-            # y = [Y[i] for i in np.lexsort((Y,X))]
-            # z = [Z[i] for i in np.lexsort((Y,X))]
+            X = data[:,0]
+            Y = data[:,1]
+            Z = data[:,2]
+            x = [X[i] for i in np.lexsort((Y,X))]
+            y = [Y[i] for i in np.lexsort((Y,X))]
+            z = [Z[i] for i in np.lexsort((Y,X))]
             # f = open('plot_energies_'+filename_data, 'w')
             # np.savetxt(f,np.c_[x,y,z])
             # f.close()
-            data = data[data[:,2].argsort()] # First sort doesn't need to be stable.
-            data = data[data[:,1].argsort(kind='mergesort')]
-            data = data[data[:,0].argsort(kind='mergesort')]
+            # data = data[data[:,2].argsort()] # First sort doesn't need to be stable.
+            # data = data[data[:,1].argsort(kind='mergesort')]
+            # data = data[data[:,0].argsort(kind='mergesort')]
             f = open("Sorted_"+filename_data, 'w')
             np.savetxt(f,data, header=head[:-1])
             f.close()
