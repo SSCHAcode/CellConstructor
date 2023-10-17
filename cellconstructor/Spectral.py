@@ -247,7 +247,7 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
         # if (iq==0):
         #     new_dyn.dynmats[iq] = dynq[iq, :, :]
         # else:
-        #     new_dyn.dynmats.append(dynq[iq, :, :])        
+        #     new_dyn.dynmats.append(dynq[iq, :, :])
 
     # Adjust the dynamical matrix q points and the stars
     new_dyn.AdjustQStar()
@@ -1333,16 +1333,19 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
     plwork.join()
 
 
-
     if static_limit :
         print(" ")
         print(" Results printed in "+filename_sp+'_static.dat')
         print(" ")
+        filename_new=filename_sp+'_static.dat'
+        output_file_sort_function(filename_new, smear_id_cm, smear_cm, nsm)
     else:
         print(" ")
         print(" Results printed in "+filename_sp+'_[smear].dat')
         print(" ")
-    output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+        name="{:6.1f}".format(smear_cm[ism]).strip()
+        filename_new=filename_sp+'_'+name+'.dat'
+        output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
 
 
 
