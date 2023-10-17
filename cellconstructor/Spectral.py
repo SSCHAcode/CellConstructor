@@ -241,7 +241,7 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
     dynq = get_static_correction(dyn, tensor3, k_grid, q_tot, T)
 
     # Add all the new computed dynamical matrix
-    new_dyn.dynmats[iq] = []
+    #new_dyn.dynmats[iq] = []
     for iq in range(len(q_tot)):
         new_dyn.dynmats.append(dynq[iq, :, :])
         # if (iq==0):
