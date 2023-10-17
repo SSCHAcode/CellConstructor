@@ -1339,9 +1339,10 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
         print(" ")
         print(" Results printed in "+filename_sp+'_[smear].dat')
         print(" ")
-        name="{:6.1f}".format(smear_cm[ism]).strip()
-        filename_new=filename_sp+'_'+name+'.dat'
-        output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+        for  ism in range(nsm):
+            name="{:6.1f}".format(smear_cm[ism]).strip()
+            filename_new=filename_sp+'_'+name+'.dat'
+            output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
 
 
 
