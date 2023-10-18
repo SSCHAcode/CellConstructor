@@ -1188,7 +1188,8 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
             # data = data[data[:,1].argsort(kind='mergesort')]
             # data = data[data[:,0].argsort(kind='mergesort')]
             f = open("Sorted_"+filename_data, 'w')
-            np.savetxt(f,data, header=head[:-1])
+            #np.savetxt(f,data, header=head[:-1])
+            np.savetxt(f,np.c_[x,y,z], header=head[:-1])
             f.close()
         pass
 
