@@ -345,7 +345,7 @@ module get_lf
                 print*, 'Negative eigenvalue of dynamical matrix!'
                 w_neg_freqs = .True.
             endif
-            print*, 'Interpolate frequency'
+!            print*, 'Interpolate frequency'
             if(.not. w_neg_freqs) then
                 w_q = sqrt(w2_q)
                 self_energy(:,:,:) = complex(0.0_DP, 0.0_DP)
@@ -361,7 +361,7 @@ module get_lf
                     curr_grid(:,jqpt) = qgrid(:,prev_events + jqpt)
                     curr_w(jqpt) = weights(prev_events + jqpt)
                 enddo
-                print*, 'Got grids'
+!                print*, 'Got grids'
                 call calculate_self_energy_full(w_q, qpt, pols_q, is_q_gamma, scatt_events(iqpt), nat, nfc2, &
                     nfc3, ne, curr_grid, curr_w, fc2, fc3, r2_2, r3_2, r3_3, pos, kprim, masses, smear(:,iqpt), T, &
                     energies, .not. parallelize, gaussian, classical, self_energy) 
@@ -1315,8 +1315,9 @@ module get_lf
             if(any(self_energy .ne. self_energy)) then
                     print*, 'NaN for jqpt', jqpt
             endif
+            deallocate(intermediate)
             deallocate(ifc3, d3, d3_pols, selfnrg)
-            deallocate(pols_k, pols_mk_mq, intermediate)
+            deallocate(pols_k, pols_mk_mq)
             deallocate(pols_k2, pols_mk_mq2)
             deallocate(kpt, mkpt)
             deallocate(w2_k, w2_mk_mq, w_k, w_mk_mq)
