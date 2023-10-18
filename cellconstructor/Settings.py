@@ -5,6 +5,8 @@ This file keeps in mind common settings that needs to be initialized once.
 import numpy as np
 import time
 import inspect
+import sys
+
 
 # The parallelization setup
 __PARALLEL_TYPE__ = "serial"
@@ -261,7 +263,15 @@ def GoParallel(function, list_of_inputs, reduce_op = None, timer=None):
         kwargs = {}
         # Check if function accepts a timer
         cmp_timer = None
-        if "timer" in inspect.getargspec(function).args and timer is not None:
+
+        major_version = sys.version_info.major
+        minor_version = sys.version_info.minor
+        if major_version == 2:
+            func = inspect.getargspec
+        if major_version == 3:
+            func = inspect.getfullargspec
+
+        if "timer" in func(function).args and timer is not None:
             cmp_timer = timer.spawn_child()
             kwargs["timer"] = cmp_timer
         
