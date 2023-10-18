@@ -245,6 +245,7 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
     for iq in range(1,len(q_tot)):
         new_dyn.dynmats.append(dynq[iq, :, :])
 
+
     # Adjust the dynamical matrix q points and the stars
     new_dyn.AdjustQStar()
 
