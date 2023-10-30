@@ -3489,17 +3489,17 @@ WARNING: Effective charges are not accounted by this method
         if apply_sum_rule:
             self.ApplySumRule()
 
-    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False):
+    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False, timer=None):
         r"""
-        DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
+        DIAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
 
-        This method dyagonalizes the dynamical matrix in q space
-        and returns the frequencies and the polarization vectors in the supercell,
-        without having to generate the force constant in real space.
+        This method diagonalizes the dynamical matrix in q space
+        returning frequencies and polarization vectors in the supercell,
+        without computing the force constant in real space.
 
-        In this way we simply generate the polarization vector in the supercell
-        using those in the unit cell.
+        This exploits the block theorem to reduce the size of the dynamical matrix.
+
 
         This is performed using the following equation:
 
@@ -3578,7 +3578,10 @@ WARNING: Effective charges are not accounted by this method
                 # Check if we must return anyway the polarization in q space
                 if return_qmodes:
                     # TODO: We could replace this by exploiting the symmetries
-                    wq, eq = self.DyagDinQ(iq)
+                    if timer is not None:
+                        wq, eq = timer.execute_timed_function(self.DyagDinQ, iq)
+                    else:
+                        wq, eq = self.DyagDinQ(iq)
 
                     w_q[:, iq] = wq
                     pols_q[:, :, iq] = eq
@@ -3619,7 +3622,10 @@ WARNING: Effective charges are not accounted by this method
                 wq = np.sqrt(np.abs(wq2)) * np.sign(wq2)
             else:
                 # Diagonalize the matrix in the given q point
-                wq, eq = self.DyagDinQ(iq)
+                if timer is not None:
+                    wq, eq = timer.execute_timed_function(self.DyagDinQ, iq)
+                else:
+                    wq, eq = self.DyagDinQ(iq)
 
             # Store the frequencies and the polarization vectors
             w_q[:, iq] = wq
@@ -3627,6 +3633,7 @@ WARNING: Effective charges are not accounted by this method
 
             # Iterate over the frequencies of the given q point
             nm_q = i_mu
+            t1 = time.time()
             for i_qnu, w_qnu in enumerate(wq):
 
                 tilde_e_qnu =  eq[:, i_qnu]
@@ -3747,6 +3754,10 @@ WARNING: Effective charges are not accounted by this method
                 #     w_array[i_mu] = w_qnu
                 #     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                 #     i_mu += 1
+
+            t2 = time.time()
+            if timer is not None:
+                timer.add_timer("Manipulate polarization vectors", t2 - t1)
 
             # Print how many vectors have been extracted
             if verbose:
