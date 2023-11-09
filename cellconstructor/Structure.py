@@ -902,7 +902,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         if (progress_bar): print()
 
-    def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = True):
+    def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = False):
         """
         This methods impose the list of symmetries found in the given filename.
         It solves a self-consistente equation: Sx = x. If this equation is not satisfied at precision
@@ -930,7 +930,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         index = 0
         while running:
             old_coords = np.zeros( np.shape(self.coords))
-            
+
             for sym in symmetries:
                 aux_struct = self.copy()
                 aux_struct.apply_symmetry(sym, delete_original = True)
