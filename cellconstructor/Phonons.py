@@ -3208,6 +3208,18 @@ WARNING: Effective charges are not accounted by this method
             self.SymmetrizeSupercell()
         else:
             qe_sym = symmetries.QE_Symmetry(self.structure)
+
+            # Impose the symmetries on the structure
+            # (This is very important in the case of ibrav-0
+            # where the threshold for detecting symmetries can be too shallow
+            # to actually compute correctly the dynamical matrix
+            qe_sym.SetupQPoint()
+            syms = qe_sym.GetSymmetries()
+            self.structure.impose_symmetries(syms)
+
+            # Re-initialize the symmetrization
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+
             fcq = np.array(self.dynmats, dtype = np.complex128)
             qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
 

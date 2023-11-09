@@ -1413,6 +1413,8 @@ class QE_Symmetry:
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 
                               self.QE_irt, self.QE_irotmq, self.QE_minus_q, self.QE_nsymq, self.QE_nat)
+
+        # TODO: Error while applying the symmetry
         
         # Return to cartesian coordinates
         for na in range(self.QE_nat):
