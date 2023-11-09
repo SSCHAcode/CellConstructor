@@ -1615,6 +1615,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         supercell.N_atoms = new_N_atoms
         supercell.atoms = atoms
         supercell.masses = self.masses.copy()
+        supercell.one_dim_axis = self.one_dim_axis
         
         # Define the supercell
         supercell.has_unit_cell = True
