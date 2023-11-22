@@ -3719,7 +3719,7 @@ def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
 
     """
     This function computes the dielectric function.
-    
+
     Input data:
      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
@@ -3781,6 +3781,9 @@ def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
     # ==========================================================================================
         #----------------------------------------------------------------
     def compute_k(k):
+            """
+            This function computes the k value.
+            """
             # phi3 in q, k, -q - k
             t1 = time.time()
             phi3=tensor3.Interpolate(k,-q-k, asr = False)
