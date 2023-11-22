@@ -3718,6 +3718,8 @@ def get_dielectric_function(dyn, k_grid, T, e0 ,e1, de, ie, ismear
 #                  ( tensor3,omega,N,nu,q, d_bubble_cart, ener,  epsilon_inf,atom_a, atom_b, ne,frequency,dielectric_tensor,tensor2,effective_charges,energies,spectralf,N,Big_omega)
 
     """
+    This function computes the dielectric function.
+    
     Input data:
      epsilon_inf = dielctric constant of vacuum ---> Phonon.Phonon.dielectric_tensor(3x3)
      a = atom a -> M(a) mass of atom a ---> tensor2 = CC.ForceTensor.Tensor2(dyn.structure, dyn_gemnerate_supwercell(dyn.GetSupercell()),dyn_GetSupercell()); tensor2.SetupFromPhonons(dyn); tensor2.center() ---> structure = tensor2.unitcell_structure ---> structure.get_masses_array()
