@@ -337,7 +337,6 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
     nat3=3*nat
     spectralf=0.0_dp
     !
-    !$OMP PARALLEL DO
     DO ismear = 1,nsmear
       DO mu = 1,nat3
         DO ie = 1, ne
@@ -359,7 +358,6 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
         ENDDO
       ENDDO
     ENDDO
-    !$OMP END PARALLEL DO
     !
 end subroutine compute_spectralf_diag
 !
