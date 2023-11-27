@@ -157,7 +157,7 @@ subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3
     !
     real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3)
     complex(kind=DP) :: Lambda_23(ne,nsig)
-    integer :: i, rho2, rho3, nu,mu
+    integer :: i, rho2, rho3, mu
     logical, parameter :: static_limit = .false.
 
     !
@@ -221,7 +221,7 @@ subroutine compute_perturb_selfnrg(nsig,sigma,T,freq,is_gamma,D3,n_mod,selfnrg)
     !
     real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3)
     complex(kind=DP) :: Lambda_23_freq(n_mod,nsig)
-    integer :: i, rho2, rho3, nu,mu
+    integer :: i, rho2, rho3, mu
     !
 !     do i = 1,n_mod
 !         q2(i,1)=freq(i,2)
