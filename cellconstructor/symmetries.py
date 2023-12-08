@@ -73,7 +73,10 @@ class QE_Symmetry:
             raise ValueError("Error, symmetry operation can be initialize only if the structure has a unit cell")
         
         self.structure = structure
-        self.threshold = np.float64(threshold)
+
+        # Max dimension 
+        max_dimension = np.max(self.structure.unit_cell.ravel())
+        self.threshold = np.float64(threshold / max_dimension)
         
         # Setup the threshold 
         symph.symm_base.set_accep_threshold(self.threshold)
