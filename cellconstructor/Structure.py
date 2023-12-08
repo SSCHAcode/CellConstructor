@@ -33,7 +33,7 @@ import cellconstructor.Timer as Timer
 
 import symph
 import warnings
-
+import difflib
 
 
 
