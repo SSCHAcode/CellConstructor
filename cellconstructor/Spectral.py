@@ -1346,7 +1346,7 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
         for  ism in range(nsm):
             name="{:6.1f}".format(smear_cm[ism]).strip()
             filename_new=filename_sp+'_'+name+'.dat'
-            output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+            output_file_sort_function(filename_new, smear_id_cm, smear_cm, nsm)
 
 
 
