@@ -2,4 +2,4 @@ setuptools
 numpy
 scipy
 ase
-spglib
+spglib<=2.2
