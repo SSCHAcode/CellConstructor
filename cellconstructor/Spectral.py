@@ -241,8 +241,10 @@ def get_static_correction_interpolated(dyn, tensor3, T, new_supercell, k_grid):
     dynq = get_static_correction(dyn, tensor3, k_grid, q_tot, T)
 
     # Add all the new computed dynamical matrix
-    for iq in range(len(q_tot)):
+    new_dyn.dynmats[0] = dynq[0, :, :]
+    for iq in range(1,len(q_tot)):
         new_dyn.dynmats.append(dynq[iq, :, :])
+
 
     # Adjust the dynamical matrix q points and the stars
     new_dyn.AdjustQStar()
@@ -1163,11 +1165,10 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
                        If 'None' then the number returned by os.cpu_count() is used.
                        (default: None)
     """
-    def output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm):
+    def output_file_sort_function(filename_data, smear_id_cm, smear_cm, nsm):
         for ism in range(nsm):
-            name = "{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
-            #
-            filename_data = filename_sp+'_'+name+'.dat'
+            #name = "{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
+            #filename_data = filename_sp+'_'+name+'.dat'
             f = open(filename_data, 'r')
             head1 = f.readline()
             head2 = f.readline()
@@ -1175,20 +1176,22 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
             data = np.loadtxt(f)
             f.close()
             head = head1[1:]+head2[1:]+head3[1:]
-            # X = data[:,0]
-            # Y = data[:,1]
-            # Z = data[:,2]
-            # x = [X[i] for i in np.lexsort((Y,X))]
-            # y = [Y[i] for i in np.lexsort((Y,X))]
-            # z = [Z[i] for i in np.lexsort((Y,X))]
+            X = data[:,0]
+            Y = data[:,1]
+            Z = data[:,2]
+            x = [X[i] for i in np.lexsort((Y,X))]
+            y = [Y[i] for i in np.lexsort((Y,X))]
+            z = [Z[i] for i in np.lexsort((Y,X))]
             # f = open('plot_energies_'+filename_data, 'w')
             # np.savetxt(f,np.c_[x,y,z])
             # f.close()
-            data = data[data[:,2].argsort()] # First sort doesn't need to be stable.
-            data = data[data[:,1].argsort(kind='mergesort')]
-            data = data[data[:,0].argsort(kind='mergesort')]
+            # data = data[data[:,2].argsort()] # First sort doesn't need to be stable.
+            # data = data[data[:,1].argsort(kind='mergesort')]
+            # data = data[data[:,0].argsort(kind='mergesort')]
             f = open("Sorted_"+filename_data, 'w')
-            np.savetxt(f,data, header=head[:-1])
+            #np.savetxt(f,data, header=head[:-1])
+            np.savetxt(f,np.c_[x,y,z], header=head[:-1])
+            f.close()
         pass
 
     print(" ")
@@ -1328,16 +1331,20 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
     plwork.join()
 
 
-
     if static_limit :
         print(" ")
         print(" Results printed in "+filename_sp+'_static.dat')
         print(" ")
+        filename_new=filename_sp+'_static.dat'
+        output_file_sort_function(filename_new, smear_id_cm, smear_cm, nsm)
     else:
         print(" ")
         print(" Results printed in "+filename_sp+'_[smear].dat')
         print(" ")
-    output_file_sort_function(filename_sp, smear_id_cm, smear_cm, nsm)
+        for  ism in range(nsm):
+            name="{:6.1f}".format(smear_cm[ism]).strip()
+            filename_new=filename_sp+'_'+name+'.dat'
+            output_file_sort_function(filename_new, smear_id_cm, smear_cm, nsm)
 
 
 
@@ -3469,7 +3476,7 @@ def get_os_perturb_dynamic_correction_along_path(dyn, tensor3,
         q_path : list of triplets
                  Path of the q-points of the Brillouin Zone, in 2pi/Anstrom units,
                  where the caculation is performed
-                 (defualt: [0.0,0.0,0.0])
+                 (default: [0.0,0.0,0.0])
         q_path_file : string
                       Name of the file where the q_path can be read.
                       Format: column of triples, q points in 2pi/Angstrom
