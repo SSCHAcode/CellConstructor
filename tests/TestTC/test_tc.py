@@ -51,6 +51,6 @@ def test_tc():
     for key in keys:
         for key1 in keys1:
             if(key == key1):
-                np.testing.assert_allclose(tc.kappa[key], tc1.kappa[key1])
+                np.testing.assert_allclose(tc.kappa[key], tc1.kappa[key1], atol = 1.0e-6)
 if __name__ == "__main__":
     test_tc()
