@@ -6,9 +6,13 @@ import cellconstructor as CC
 import cellconstructor.Phonons
 import cellconstructor.ForceTensor
 import cellconstructor.ThermalConductivity
+import sys, os
 import time
 
 def test_tc():
+    total_path = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(total_path)
+
     dyn_prefix = 'final_dyn'
     nqirr = 4
 
