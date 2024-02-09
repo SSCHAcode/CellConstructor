@@ -170,6 +170,7 @@ subroutine symdynph_gq_new (xq, phi, s, invs, rtau, irt, irotmq, minus_q, &
               enddo
               arg = arg * tpi
               faseq (isymq) = DCMPLX(cos (arg), sin (arg))
+
               do ipol = 1, 3
                  do jpol = 1, 3
                     do kpol = 1, 3
