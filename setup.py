@@ -51,8 +51,8 @@ cond_ext = Extension(name = "thermal_conductivity",
                                  "FModules/third_order_cond_centering.f90",
                                  "FModules/get_lf.f90"],
                       libraries= ["lapack", "blas"],
-                      extra_f90_compile_args = ["-cpp", "-fcheck=all", "-fopenmp", "-lgomp"],
-                      #extra_f90_compile_args = ["-cpp", "-O2", "-fopenmp", "-lgomp"],
+                      #extra_f90_compile_args = ["-cpp", "-fcheck=all", "-fopenmp", "-lgomp"],
+                      extra_f90_compile_args = ["-cpp", "-O2", "-fopenmp", "-lgomp"],
                       extra_link_args = ["-fopenmp"]
                       )
 

@@ -1625,6 +1625,7 @@ class ThermalConductivity:
             real_part = hilbert(self_energy.imag)
             self_energy.real = -1.0*real_part.imag
 
+        self_energy /= float(self.nkpt)
         if(write_self_energy):
             with open('Self_energy_' + str(iqpt + 1), 'w+') as outfile:
                 outfile.write('#   ' + format('Energy (THz)', STR_FMT))
@@ -1640,9 +1641,9 @@ class ThermalConductivity:
                     for iband in range(self.nband):
                         if(mode_mixing == 'mode_mixing'):
                             for jband in range(self.nband):
-                                outfile.write(3*' ' + format(self_energy[ie, iband, jband].real*SSCHA_TO_THZ, '.12e') + ' ' + format(self_energy[ie, iband, jband].imag*SSCHA_TO_THZ, '.12e'))
+                                outfile.write(3*' ' + format(self_energy[ie, iband, jband].real*SSCHA_TO_THZ**2, '.12e') + ' ' + format(self_energy[ie, iband, jband].imag*SSCHA_TO_THZ**2, '.12e'))
                         else:
-                            outfile.write(3*' ' + format(self_energy[ie, iband].real*SSCHA_TO_THZ, '.12e') + ' ' + format(self_energy[ie, iband].imag*SSCHA_TO_THZ, '.12e'))
+                            outfile.write(3*' ' + format(self_energy[ie, iband].real*SSCHA_TO_THZ**2, '.12e') + ' ' + format(self_energy[ie, iband].imag*SSCHA_TO_THZ**2, '.12e'))
                     outfile.write('\n')
 
         return self_energy
@@ -2242,10 +2243,10 @@ class ThermalConductivity:
         for istar in self.qstar:
             for iqpt in istar:
                 for iband in range(self.nband):
-                    if(self.freqs[iqpt, iband] != 0.0):
+                    if(self.freqs[iqpt, iband] != 0.0 and scatt_rates[iqpt, iband] != 0.0):
                         for jband in range(self.nband):
                             #if(self.freqs[iqpt, jband] != 0.0 and np.abs(self.freqs[iqpt, jband] - self.freqs[iqpt, iband]) > 1.0e-4/SSCHA_TO_THZ and iband != jband):
-                            if(self.freqs[iqpt, jband] != 0.0 and iband != jband):
+                            if(self.freqs[iqpt, jband] != 0.0 and scatt_rates[iqpt, jband] != 0.0 and iband != jband):
                                 if(self.group_velocity_mode == 'wigner'):
                                     vel_fact = 1.0
                                 else:

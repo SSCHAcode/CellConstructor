@@ -1169,7 +1169,6 @@ def get_full_dynamic_correction_along_path_multiprocessing(dyn,
     def output_file_sort_function(filename_data, smear_id_cm, smear_cm, nsm):
         for ism in range(nsm):
             #name = "{:5.2f}".format(smear_id_cm[ism]).strip()+"_"+"{:6.1f}".format(smear_cm[ism]).strip()
-            #
             #filename_data = filename_sp+'_'+name+'.dat'
             f = open(filename_data, 'r')
             head1 = f.readline()
