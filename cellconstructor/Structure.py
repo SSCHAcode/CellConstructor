@@ -676,7 +676,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         self.coords = np.delete(self.coords, list_pop, axis = 0)
         self.N_atoms -= N_rep
             
-    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1e-6, timer = Timer.Timer()):
+    def apply_symmetry(self, sym_mat, delete_original = False, thr = 1e-6, avoid_unit_cell = False, timer = Timer.Timer()):
         """
         This function apply the symmetry operation to the atoms
         of the current structure.
@@ -694,38 +694,47 @@ Error, to compute the volume the structure must have a unit cell initialized:
                (must be smaller than the minimum distance between two generic atoms in the struct,
                but bigger than the numerical error in the wyckoff positions of the structure).
         """
-
         if not self.has_unit_cell:
-            raise ValueError("The structure has no unit cell!")
-
+            avoid_unit_cell = True
+            
         if delete_original:
             #self.N_atoms *= 2
             new_atoms = np.zeros( (self.N_atoms, 3))
-            timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
-
-            old_coords = timer.execute_timed_function(Methods.covariant_coordinates, self.unit_cell, self.coords)
+            if not avoid_unit_cell:
+                timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
+                old_coords = timer.execute_timed_function(Methods.covariant_coordinates, self.unit_cell, self.coords)
+            else:
+                old_coords = self.coords.copy()
             new_coords = sym_mat[:, :3].dot(old_coords.T).T
             new_coords += np.tile( sym_mat[:, 3], (self.N_atoms, 1))
 
-            self.coords = new_coords.dot(self.unit_cell)
-
-            timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
+            if not avoid_unit_cell:
+                self.coords = new_coords.dot(self.unit_cell)
+                timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
+            else:
+                self.coords = new_coords
         else:
 
 
             for i in range(self.N_atoms):
                 # Convert the coordinates into covariant
-                old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
+                if not avoid_unit_cell:
+                    old_coords = Methods.covariant_coordinates(self.unit_cell, self.coords[i, :])
+                else:
+                    old_coords = self.coords[i, :].copy()
 
                 # Apply the symmetry
                 new_coords = sym_mat[:, :3].dot(old_coords)
                 new_coords += sym_mat[:, 3]
 
                 # Return into the cartesian coordinates
-                coords = np.dot( np.transpose(self.unit_cell), new_coords)
 
                 # Put the atoms into the unit cell
-                new_atoms[i, :] = Methods.put_into_cell(self.unit_cell, coords)
+                if not avoid_unit_cell:
+                    coords = np.dot( np.transpose(self.unit_cell), new_coords)
+                    new_atoms[i, :] = Methods.put_into_cell(self.unit_cell, coords)
+                else:
+                    new_atoms[i, :] = new_coords
                     
                 # Add also the atom type
                 if not delete_original:
@@ -757,7 +766,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         new_struct = self.copy()
 
         # Apply the symmetry
-        new_struct.apply_symmetry(sym_mat, delete_original=True)
+        new_struct.apply_symmetry(sym_mat, delete_original=True, avoid_unit_cell = not self.has_unit_cell)
         
         # Get the equivalence
         eq_atoms = new_struct.get_equivalent_atoms(self)
@@ -766,14 +775,15 @@ Error, to compute the volume the structure must have a unit cell initialized:
         new_struct.coords[eq_atoms, :] = new_struct.coords.copy()
         
         # Fix the structure in the unit cell
-        new_struct.fix_coords_in_unit_cell()
+        if self.has_unit_cell:
+            new_struct.fix_coords_in_unit_cell()
         
         # Get the displacements
         u_vect = self.get_displacement(new_struct)
         
         # Get the distance between the structures
-        dist = np.sqrt(np.sum(u_vect ** 2))
-        
+        dist = np.sqrt(np.sum(u_vect ** 2)) / self.N_atoms
+        #print("DIST:", dist)
         if dist > thr:
             return False
         return True
@@ -872,8 +882,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
             
             for sym in symmetries:
                 aux_struct = self.copy()
-                aux_struct.apply_symmetry(sym, delete_original = True)
-                aux_struct.fix_coords_in_unit_cell()
+                aux_struct.apply_symmetry(sym, delete_original = True, avoid_unit_cell= not self.has_unit_cell)
+                if self.has_unit_cell:
+                    aux_struct.fix_coords_in_unit_cell()
                 
                 # Get the equivalent atoms
                 eq_atoms = self.get_equivalent_atoms(aux_struct)
@@ -949,7 +960,15 @@ Error, to compute the volume the structure must have a unit cell initialized:
             if self.atoms.count(typ) != target_structure.atoms.count(typ):
                 raise ValueError("Error, the target structure must be of the same type of the current one")
         
-        eq_atm = list(symph.get_equivalent_atoms(self.coords, target_structure.coords, self.unit_cell, self.get_ityp(), target_structure.get_ityp()))
+        if self.has_unit_cell:
+            eq_atm = list(symph.get_equivalent_atoms(self.coords, target_structure.coords, self.unit_cell, self.get_ityp(), target_structure.get_ityp()))
+        else:
+            uc_fake = np.zeros((3,3), dtype = np.double)
+            uc_fake[0,0] = 1000
+            uc_fake[1,1] = 1000
+            uc_fake[2,2] = 1000
+            eq_atm = list(symph.get_equivalent_atoms(self.coords, target_structure.coords, uc_fake, self.get_ityp(), target_structure.get_ityp()))
+
 
         if debug or return_distances:
             equiv_atoms = []
@@ -1512,6 +1531,14 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         if len(dim) != 3:
             raise ValueError("ERROR, dim must have 3 integers.")
+
+        if np.prod(dim) == 1:
+            if not get_itau:
+                return self.copy()
+            
+            itau = np.zeros(self.N_atoms, dtype = np.intc)
+            itau[:] = np.arange(self.N_atoms)
+            return self.copy(), itau
 
         if not self.has_unit_cell:
             raise ValueError("ERROR, the specified system has not the unit cell.")
