@@ -241,22 +241,25 @@ def save_scf_trajectory(fname, trajectory):
             fp.write(text)
             fp.write("\n")
             
+def GenerateXYZVideoOfVibrations(*args, **kwargs):
+    """
+    Deprecated. look generate_vibration_video instead.
+    """
+    return generate_vibration_video(*args, **kwargs)
 
-def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1), w_pols = None):
+def generate_vibration_video(dynmat, filename, mode_id, amplitude, dt, N_t, supercell=(1,1,1), w_pols = None):
     """
     XYZ VIDEO
     =========
     
     This function save in the filename the XYZ video of the vibration along the chosen mode.
     
-    
-    NOTE: this functionality is supported only at gamma.
-    
     Parameters
     ----------
         filename : str
             Path of the filename in which you want to save the video. It is written in the xyz
             format, so it is recommanded to use the .xyz extension.
+            if 'None', then only return the video without saving into a file
         mode_id : int
             The number of the mode. Modes are numbered by their frequencies increasing, starting
             from imaginary (unstable) ones (if any).
@@ -267,10 +270,13 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
         N_t : int
             The total number of frames.
         supercell : list of 3 ints
-            The dimension of the supercell to be shown
+            Deprecated. It will be ignored.
         w_pols : (frequencies, polarizaitons)
             The result of the dyagonalization of the dynamical matrix. 
 
+    Results
+    -------
+        video : list of CC.Structure.Structure
         
     """
     # Define the conversion between the frequency in Ry and femptoseconds
@@ -280,19 +286,22 @@ def GenerateXYZVideoOfVibrations(dynmat, filename, mode_id, amplitude, dt, N_t, 
     if w_pols is not None:
         ws, polvects = w_pols
     else:
-        ws, polvects = dynmat.DyagDinQ(0)
+        ws, polvects = dynmat.DiagonalizeSupercell()
+
+    my_supercell = dynmat.GetSupercell()
+    superstruct = dynmat.structure.generate_supercell(my_supercell)
     
     # Extract the good one
     w = ws[mode_id]
-    _m_ = np.tile(dynmat.structure.get_masses_array(), (3,1)).T.ravel()
+    _m_ = np.tile(superstruct.get_masses_array(), (3,1)).T.ravel()
     polv = polvects[:, mode_id] / np.sqrt(_m_)
     polv /= np.linalg.norm(polv)
     
     # Get the basis structure
-    basis = dynmat.structure.generate_supercell(supercell)
+    basis = superstruct
     
     # Reproduce the polarization vectors along the number of supercells
-    polv = np.tile(polv, np.prod(supercell))
+    polv = polvects[:, mode_id]
     
     video_list = []
     times = []

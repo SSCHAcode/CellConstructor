@@ -52,10 +52,14 @@ def get_energy_forces(calculator, structure):
     if isinstance(calculator, ase.calculators.calculator.Calculator):
         atm = structure.get_ase_atoms()
         atm.set_calculator(calculator)
+
         energy = atm.get_total_energy()
+
         if isinstance(energy, np.ndarray):
             energy = energy[0]
-        return energy, atm.get_forces()
+
+        forces = atm.get_forces()
+        return energy, forces
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         return calculator.results["energy"], calculator.results["forces"]
@@ -226,6 +230,8 @@ class Espresso(FileIOCalculator):
 ATOMIC_SPECIES
 """
         for atm in typs:
+            if not atm in self.pseudopotentials:
+                raise ValueError(f"Error, the key {atm} is not a valid atom specified in the pseudopotentials: {list(self.pseudopotentials)}")
             scf_text += "{}  {}   {}\n".format(atm, self.masses[atm], self.pseudopotentials[atm])
         
         if isinstance(self.kpts, str):

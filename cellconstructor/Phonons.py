@@ -45,6 +45,12 @@ try:
 except:
     __SPGLIB__ = False
 
+try:
+    import ase, ase.io
+    __ASE__ = True
+except:
+    __ASE__ = False
+
 __EPSILON__ = 1e-5
 __EPSILON_W__ = 3e-9
 
@@ -1239,7 +1245,7 @@ class Phonons:
                     fp.write("( %10.6f%10.6f %10.6f%10.6f %10.6f%10.6f )\n" %
                              (np.real(atomic_disp[3*i, mu]), np.imag(atomic_disp[3*i,mu]),
                               np.real(atomic_disp[3*i+1, mu]), np.imag(atomic_disp[3*i+1,mu]),
-                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+1,mu])))
+                              np.real(atomic_disp[3*i+2, mu]), np.imag(atomic_disp[3*i+2,mu])))
             fp.write("*" * 75 + "\n")
             fp.close()
 
@@ -1248,14 +1254,16 @@ class Phonons:
         warnings.warn("[DEPRECATION WARNING] save_phononpy is deprecated: use save_phonopy instead.")
         self.save_phonopy(*args, **kwargs)
 
-    def save_phonopy(self, path = ".", supercell_size = None):
+    def save_phonopy(self, path = ".", supercell_size = None, units_ev_ang2 = True,
+        write_poscar = True, write_unitcell = False):
         """
         EXPORT THE DYN IN THE PHONONPY FORMAT
         =====================================
 
         This tool export the dynamical matrix into the PHONONPY plain text format.
-        We save them in Ry/bohr^2, as the quantum espresso format. Please, remember
-        this when using Phononpy for the conversion factors.
+        If units_ev_ang2 is True (default) the dynamical matrix is written in eV/A^2
+        Otherwise we use the Ry/bohr^2, as the quantum espresso format.
+        Please, remember this when using Phononpy for the conversion factors.
 
         It will create a file called FORCE_CONSTANTS, one called unitcell.in
         with the info on the structure
@@ -1267,6 +1275,14 @@ class Phonons:
             supercell_size : list of 3
                 The supercell that defines the dynamical matrix, note phononpy
                 works in the supercell. If none, it is inferred from the q points
+            units_ev_ang2 : bool
+                If True (default) convert the units in eV / A^2
+            write_poscar : bool
+                If True produce also the POSCAR file with the structure
+                for phonopy.
+                It requires ASE to be installed.
+            write_unitcell : bool
+                If true, produce a unitcell.in for phonopy.
 
 
         """
@@ -1285,8 +1301,12 @@ class Phonons:
         lines.append("%d   %d\n" % (nat_sc, nat_sc))
         for i in range(nat_sc):
             for j in range(nat_sc):
-                lines.append("%4d\t%4d\n" % (i, j))
-                mat = np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3])
+                lines.append("%4d\t%4d\n" % (i+1, j+1))
+                mat = np.copy(np.real(superdyn.dynmats[0][3*i : 3*i+ 3, 3*j: 3*j+3]))
+
+                if units_ev_ang2:
+                    mat *= RY_TO_EV / BOHR_TO_ANGSTROM**2
+
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[0,0], mat[0,1], mat[0,2]))
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[1,0], mat[1,1], mat[1,2]))
                 lines.append("%16.8f   %16.8f   %16.8f\n"  % (mat[2,0], mat[2,1], mat[2,2]))
@@ -1297,38 +1317,46 @@ class Phonons:
         f.close()
 
         # Produce the unit cell
-        lines = []
-        lines.append("&system\n")
-        lines.append("ibrav = 0\n")
-        lines.append("celldm(1) = 1.889726125836928\n")
-        lines.append("nat = %d\n" % self.structure.N_atoms)
+        if write_unitcell:
+            lines = []
+            lines.append("&system\n")
+            lines.append("ibrav = 0\n")
+            lines.append("celldm(1) = 1.889726125836928\n")
+            lines.append("nat = %d\n" % self.structure.N_atoms)
 
-        typs = self.structure.masses.keys()
-        lines.append("ntyp = %d\n" % len(typs))
-        lines.append("&end\n")
+            typs = self.structure.masses.keys()
+            lines.append("ntyp = %d\n" % len(typs))
+            lines.append("&end\n")
 
-        # Write the atomic species
-        lines.append("ATOMIC_SPECIES\n")
-        for i in typs:
-            m = self.structure.masses[i]
-            lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
+            # Write the atomic species
+            lines.append("ATOMIC_SPECIES\n")
+            for i in typs:
+                m = self.structure.masses[i]
+                lines.append("%s %16.8f   XXX\n" % (i, m / 911.444243096))
 
-        # Write the unit cell
-        lines.append("CELL_PARAMETERS alat\n")
-        for i in range(3):
-            uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
-            lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
+            # Write the unit cell
+            lines.append("CELL_PARAMETERS alat\n")
+            for i in range(3):
+                uc_v = self.structure.unit_cell[i, :] #* 1.889726125836928
+                lines.append("%16.8f   %16.8f  %16.8f\n" % (uc_v[0], uc_v[1], uc_v[2]))
 
-        lines.append("ATOMIC_POSITIONS crystal\n")
-        for i in range(nat):
-            atm = self.structure.atoms[i]
-            cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
-            lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
+            lines.append("ATOMIC_POSITIONS crystal\n")
+            for i in range(nat):
+                atm = self.structure.atoms[i]
+                cov_vect = Methods.covariant_coordinates(self.structure.unit_cell, self.structure.coords[i, :])
+                lines.append("%s  %16.8f   %16.8f   %16.8f\n" % (atm, cov_vect[0], cov_vect[1], cov_vect[2]))
 
 
-        f = open(os.path.join(path, "unitcell.in"), "w")
-        f.writelines(lines)
-        f.close()
+            f = open(os.path.join(path, "unitcell.in"), "w")
+            f.writelines(lines)
+            f.close()
+
+        # Write also the POSCAR file
+        if write_poscar:
+            if __ASE__:
+                ase.io.write("POSCAR", self.structure.get_ase_atoms(), direct=True)
+            else:
+                raise ImportError("Error, you must have ase installed to save the POSCAR file.")
 
     def load_phonopy(self, yaml_filename = "phonopy.yaml", fc_filename = None):
         """
@@ -1339,6 +1367,8 @@ class Phonons:
         It needs two files: the file with the structure information,
         and the file with the force constant matrix.
 
+        TODO: Test properly, possible bugs.
+
         Parameters
         ----------
             yaml_filename : string
@@ -1347,6 +1377,7 @@ class Phonons:
                 Path to the FORCE_CONSTANTS file. If None, a file called FORCE_CONSTANTS in the same directory
                 as phonopy.yaml will be looked for.
         """
+        warnings.warn("This subroutine is not tested yet, use it with care.")
 
         unit_cell = np.zeros((3,3), dtype = np.double)
         supercell = np.zeros(3, dtype = np.intc)
@@ -3489,15 +3520,17 @@ WARNING: Effective charges are not accounted by this method
         if not self.raman_tensor is None:
             qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
-    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None):
+    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False, timer=None):
         r"""
-        DYAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
+        DIAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL
         =================================================
 
-        This method dyagonalizes the dynamical matrix using the supercell approach.
+        This method diagonalizes the dynamical matrix in q space
+        returning frequencies and polarization vectors in the supercell,
+        without computing the force constant in real space.
 
-        In this way we simply generate the polarization vector in the supercell
-        using those in the unit cell.
+        This exploits the block theorem to reduce the size of the dynamical matrix.
+
 
         This is performed using the following equation:
 
@@ -3511,16 +3544,22 @@ WARNING: Effective charges are not accounted by this method
 
         Parameters
         ----------
-            lo_to_split : string or ndarray
+            - lo_to_split : string or ndarray
                 Could be a string with random, or a ndarray indicating the direction on which the
                 LO-TO splitting is computed. If None it is neglected.
                 If LO-TO is specified but no effective charges are present, then a warning is print and it is ignored.
+            - return_qmodes : bool
+                If true, frequencies and polarizations in q space are returned.
         Results
         -------
-            w_mu : ndarray( size = (n_modes), dtype = np.double)
+            - w_mu : ndarray( size = (n_modes), dtype = np.double)
                 Frequencies in the supercell
-            e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
+            - e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
                 Polarization vectors in the supercell
+            - w_q : ndarray( size = (3*Nat, nq), dtype = np.double, order = "F")
+                Frequencies in the q space (only if return_qmodes is True)
+            - e_q : ndarray( size = (3*Nat, 3*Nat, nq), dtype = np.complex128, order = "F")
+                Polarization vectors in the q space (only if return_qmodes is True)
         """
 
         supercell_size = len(self.q_tot)
@@ -3534,6 +3573,11 @@ WARNING: Effective charges are not accounted by this method
 
         w_array = np.zeros( nmodes, dtype = np.double)
         e_pols_sc = np.zeros( (nmodes, nmodes), dtype = np.double, order = "F")
+
+        nq = len(self.q_tot)
+        w_q = np.zeros((3*nat, nq), dtype = np.double, order = "F")
+        pols_q = np.zeros((3*nat, 3*nat, nq), dtype = np.complex128, order = "F")
+
 
         # Get the structure in the supercell
         super_structure = self.structure.generate_supercell(self.GetSupercell())
@@ -3571,6 +3615,16 @@ WARNING: Effective charges are not accounted by this method
                     break
 
             if skip_this_q:
+                # Check if we must return anyway the polarization in q space
+                if return_qmodes:
+                    # TODO: We could replace this by exploiting the symmetries
+                    if timer is not None:
+                        wq, eq = timer.execute_timed_function(self.DyagDinQ, iq)
+                    else:
+                        wq, eq = self.DyagDinQ(iq)
+
+                    w_q[:, iq] = wq
+                    pols_q[:, :, iq] = eq
                 continue
 
 
@@ -3608,10 +3662,18 @@ WARNING: Effective charges are not accounted by this method
                 wq = np.sqrt(np.abs(wq2)) * np.sign(wq2)
             else:
                 # Diagonalize the matrix in the given q point
-                wq, eq = self.DyagDinQ(iq)
+                if timer is not None:
+                    wq, eq = timer.execute_timed_function(self.DyagDinQ, iq)
+                else:
+                    wq, eq = self.DyagDinQ(iq)
+
+            # Store the frequencies and the polarization vectors
+            w_q[:, iq] = wq
+            pols_q[:, :, iq] = eq
 
             # Iterate over the frequencies of the given q point
             nm_q = i_mu
+            t1 = time.time()
             for i_qnu, w_qnu in enumerate(wq):
 
                 tilde_e_qnu =  eq[:, i_qnu]
@@ -3733,6 +3795,10 @@ WARNING: Effective charges are not accounted by this method
                 #     e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                 #     i_mu += 1
 
+            t2 = time.time()
+            if timer is not None:
+                timer.add_timer("Manipulate polarization vectors", t2 - t1)
+
             # Print how many vectors have been extracted
             if verbose:
                 print("The {} / {} q point produced {} nodes".format(iq, len(self.q_tot), i_mu - nm_q))
@@ -3749,6 +3815,8 @@ WARNING: Effective charges are not accounted by this method
         # Get the check for the polarization vector normalization
         assert np.max(np.abs(np.einsum("ab, ab->b", e_pols_sc, e_pols_sc) - 1)) < __EPSILON__
 
+        if return_qmodes:
+            return w_array, e_pols_sc, w_q, pols_q
         return w_array, e_pols_sc
 
 
@@ -4433,13 +4501,14 @@ List of ASE vectors: {}""".format(delta_R[0], delta_R[1], delta_R[2], R_cN)
 
 
 
-def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05, supercell = (1,1,1), progress = -1, progress_bar = False):
+def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.05,
+    supercell = (1,1,1), progress = -1, progress_bar = False,
+    use_symmetries = True, debug=False):
     """
     COMPUTE THE FORCE CONSTANT MATRIX
     =================================
 
     Use finite displacements to compute the force constant matrix.
-    (Works only at Gamma)
 
     Parameters
     ----------
@@ -4453,13 +4522,21 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
             If positive, prints the status each tot structures
         progress_bar : bool
             If True, overwrite the progress line each structure
+        use_symmetries : bool
+            If True, use the symmetries to reduce the number of calculations.
+            More details in the method 'compute_phonons_finite_displacements_sym'.
+            It requires the SPGLIB library.
 
     Results
     -------
         phonons : CC.Phonons.Phonons()
             The dynamical matrix
     """
-
+    if use_symmetries:
+        if not __SPGLIB__:
+            raise ImportError("SPGLIB is not installed. Cannot use symmetries. Rerun this subroutine with use_symmetries = False")
+        return compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon,
+            supercell, progress, progress_bar, debug=debug)
 
     if np.prod(supercell) > 1:
         super_structure = structure.generate_supercell(supercell)
@@ -4518,7 +4595,6 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
         fc_tmp = np.zeros((nat3, nat3), dtype = np.double)
         fc_tmp[3*i+j,:]  -= forces.ravel()
 
-        #print("FORCE ({}) = ".format(3*i+j), forces)
         return fc_tmp
         #atm = s.get_ase_atoms()
         #atm.set_calculator(ase_calculator)
@@ -4544,6 +4620,268 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
         print()
         print("Done.")
 
+    #np.savetxt("GoodFC.dat", fc, fmt="%10.6f")
+
+    # Impose hermitianity
+    fc = .5 * (fc + fc.T) / epsilon
+
+
+
+    # Convert to the correct units
+    final_dyn.dynmats[0] = fc  / RY_TO_EV * BOHR_TO_ANGSTROM**2
+
+
+    # Now we have the dynamical matrix in the supercell, get the dynamical matrix in the correct unit cell
+    if np.prod(supercell) > 1:
+        correct_dyn = Phonons(structure, nqirr = np.prod(supercell))
+        q_tot = symmetries.GetQGrid(structure.unit_cell, supercell)
+        dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        for iq, q in enumerate(q_tot):
+            correct_dyn.dynmats[iq] = dynq[iq, :,:]
+            correct_dyn.q_tot[iq] = q
+
+        correct_dyn.AdjustQStar()
+        final_dyn = correct_dyn
+
+    return final_dyn
+
+
+
+def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=0.05,
+                                             supercell=(1,1,1),
+                                             progress=-1,
+                                             progress_bar=False,
+                                             debug=False,
+                                             timer=None):
+    """
+    COMPUTE THE FORCE CONSTANT MATRIX EXPLOITING SYMMETRIES
+    =======================================================
+
+    Use finite displacements to compute the force constant matrix.
+    This subroutine exploits the symmetries of the structure to
+    reduce the number of calculations.
+
+    The algorithm is the following:
+    1. Generate the supercell
+    2. Generate each possible atomic displacement
+    3. Check whether the displacement can be obtained as a linear combination
+         of the displacements already computed (including their symmetry equivalents)
+    4. If not, add it to the list of independent displacements
+    5. Compute the force on each independent displaced structure
+    6. Compute the symmetry equivalent force on each displacement.
+    7. Define the matrix of change basis, between all possible Cartesian displacements
+            and the independent ones + their symmetry equivalents
+    8. Compute the force constant matrix as the matrix product of the inverse change of basis
+            and the matrix of forces.
+
+    TODO: This algorithm neglects the ASR, therefore, sometimes, there are 3 more independent
+        displacements whose computation could be avoided.
+
+
+    Parameters
+    ----------
+        structure : CC.Structure.Structure
+            The structure on the parameters
+        ase_calculator : ase.calculators.calculator
+            The ase calculator to compute energy and forces
+        epsilon : double
+            The finite displacement
+        progress : int
+            If positive, prints the status each tot structures
+        progress_bar : bool
+            If True, overwrite the progress line each structure
+        debug : bool
+            If True, prints debugging information
+
+    Results
+    -------
+        phonons : CC.Phonons.Phonons()
+            The dynamical matrix
+    """
+    #raise NotImplementedError("This subroutine is not working yet")
+
+    super_structure = structure.generate_supercell(supercell)
+    final_dyn = Phonons(super_structure)
+
+    nat3 = 3 * super_structure.N_atoms
+    fc = np.zeros( (nat3, nat3), dtype = np.double)
+
+    # Enable the parallel calculation
+    ase_calculator.directory = "calc_{}".format(Settings.get_rank())
+    ase_calculator.set_label("label_{}".format(Settings.get_rank()))
+
+
+    #atm = structure.get_ase_atoms()
+    #atm.set_calculator(ase_calculator)
+    fc[:,:] = np.zeros((nat3, nat3), np.double)
+    if progress > 0 or debug:
+        print()
+        print("Computing phonons with finite differences.")
+
+    #print("DEBUG:", debug)
+    # Use spglib to get all the symmetry operations
+    symm = spglib.get_symmetry(super_structure.get_ase_atoms())
+    symm = symmetries.GetSymmetriesFromSPGLIB(symm)
+    n_syms = len(symm)
+
+    # Get irt from the symmetries (atomic corrispondance after the application of symmetry)
+    if debug:
+        print("Getting symmetry equivalent atoms")
+
+    if timer is not None:
+        irts = timer.execute_timed_function(symmetries.get_symmetry_equivalent_atoms, symm, super_structure)
+    else:
+        irts = symmetries.get_symmetry_equivalent_atoms(symm, super_structure, timer=timer)
+    #irts = []
+    #for i, s in enumerate(symm):
+    #    if timer is not None:
+    #        irt = timer.execute_timed_function(symmetries.GetIRT, super_structure, s, timer=timer)
+    #    else:
+    #        irt = symmetries.GetIRT(super_structure, s, timer=timer)
+    #    irts.append(irt)
+
+    # Build the symmetry inequivalent displacements
+    # This is the basis that we will use to compute the force constant matrix
+    # Doing this in parallel is not possible, because the displacements are not independent
+    # Therefore, we need to compute all the displacements in a single process
+    if timer is not None:
+        generators, list_of_calculations, displacements = timer.execute_timed_function(symmetries.get_force_constants_generators, symm, irts, super_structure)
+    else:
+        generators, list_of_calculations, displacements = symmetries.get_force_constants_generators(symm, irts, super_structure)
+
+    print("Number of symmetry inequivalent displacements:", len(list_of_calculations))
+    if debug:
+        print("Saving the generators and displacements")
+        np.save("generators.npy", generators)
+        np.save("displacements.npy", displacements)
+
+    assert len(displacements) == nat3, "The number of displacements is not correct. Something went wrong."
+
+    def compute_force(indices):
+        i, j = indices
+        #Settings.all_print("Computing indices:", i, j)
+
+        if progress > 0:
+            if (3*i + j) % progress == 0:
+                if progress_bar and Settings.am_i_the_master():
+                    sys.stdout.write("\rProgress {:4.1f} % ... ".format(100 * (3*i + j + 1) / nat3))
+                    sys.stdout.flush()
+                else:
+                    Settings.all_print("Finite displacement of structure {} / {}".format(3*i + j + 1, nat3))
+
+
+
+        s = super_structure.copy()
+
+
+        s.coords[i, j] += epsilon
+
+
+        ase_calculator.set_label("disp_{}".format(3*i + j))
+        ase_calculator.directory = "disp_{}".format(3*i + j)
+        energy, forces = calculators.get_energy_forces(ase_calculator, s)
+        fc_tmp = np.zeros((nat3, nat3), dtype = np.double)
+        fc_tmp[3*i+j,:]  -= forces.ravel()
+
+        return fc_tmp
+        #atm = s.get_ase_atoms()
+        #atm.set_calculator(ase_calculator)
+        fc[3*i + j, :] -= forces.ravel()
+
+    if timer is not None:
+        fc = timer.execute_timed_function(Settings.GoParallel, compute_force, list_of_calculations, reduce_op='+')
+    else:
+        fc = Settings.GoParallel(compute_force, list_of_calculations, reduce_op='+')
+
+    #if Settings.am_i_the_master():
+    #    np.savetxt("FC_before_subtraction.dat", fc)
+
+    energy = None
+    forces = None
+    if Settings.am_i_the_master():
+        energy, forces = calculators.get_energy_forces(ase_calculator, super_structure)
+        fc[:,:] += np.tile(forces.ravel(), (nat3, 1))
+    Settings.barrier()
+    fc = Settings.broadcast(fc)
+
+    # Now we can generate all the symmetry equivalent forces
+
+    # Define the force constant matrix in the basis of the auxiliary vectors
+    fc_aux_basis = np.zeros((nat3, nat3), dtype = np.double)
+
+    # Compute the auxiliary force basis
+    # This could exploit parallelization to speedup the calculation
+    for index, gen in enumerate(generators):
+        # Get the symmetry operation
+        current_sym = symm[gen["sym_index"]]
+        current_irt = irts[gen["sym_index"]]
+
+        i = gen["atom_index"]
+        j = gen["direction"]
+        force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
+
+        # Apply the symmetry to the force
+        if timer is not None:
+            force_sym = timer.execute_timed_function(symmetries.ApplySymmetryToVector,current_sym, force, super_structure.unit_cell, current_irt)
+        else:
+            force_sym = symmetries.ApplySymmetryToVector(current_sym, force, super_structure.unit_cell, current_irt)
+
+        fc_aux_basis[index, :] = force_sym.ravel()
+
+
+    # We can now compute the force constants in the basis of the displacements
+    # counter_index = -1
+    # for i in range(super_structure.N_atoms):
+    #     if counter_index +1 == nat3:
+    #         break
+    #     for j in range(3):
+    #         if counter_index +1 == nat3:
+    #             break
+    #         disp = np.zeros((super_structure.N_atoms, 3), dtype=np.double)
+    #         disp[i, j] += 1
+    #         if (i, j) in list_of_calculations:
+    #             # Generate the basis
+    #             force = fc[3*i + j, :].reshape((super_structure.N_atoms, 3))
+
+    #             # Generate the symmetry equivalent displacements
+    #             if timer is not None:
+    #                 disp_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, disp, super_structure.unit_cell, irts)
+    #                 force_sym = timer.execute_timed_function(symmetries.ApplySymmetriesToVector,symm, force, super_structure.unit_cell, irts)
+    #             else:
+    #                 disp_sym = symmetries.ApplySymmetriesToVector(symm, disp, super_structure.unit_cell, irts)
+    #                 force_sym = symmetries.ApplySymmetriesToVector(symm, force, super_structure.unit_cell, irts)
+
+    #             # Check wether to add or not the newly generated displacements to the space
+    #             for i_sym in range(n_syms):
+    #                 v = disp_sym[i_sym, :, :]
+    #                 if timer is not None:
+    #                     coeffs = timer.execute_timed_function(Methods.get_generic_covariant_coefficients, v.ravel(), disp_basis)
+    #                 else:
+    #                     coeffs = Methods.get_generic_covariant_coefficients(v.ravel(), disp_basis)
+
+    #                 if coeffs is None:
+    #                     disp_basis.append(v.ravel())
+    #                     counter_index += 1
+    #                     fc_aux_basis[counter_index, :] = force_sym[i_sym, :, :].ravel()
+
+    #np.savetxt("OriginalFC.dat", fc, fmt="%10.6f")
+    #np.savetxt("FC_aux_basis.dat", fc_aux_basis, fmt="%10.6f")
+
+    # Transform back the force constant in the real space
+    metric_tensor = np.array(displacements)
+    inv_metric_tensor = np.linalg.inv(metric_tensor)
+    fc = inv_metric_tensor.dot(fc_aux_basis)#.dot(inv_metric_tensor.T)
+    #np.savetxt("NewFC.dat", fc, fmt="%10.6f")
+    #np.savetxt("MetricTensor.dat", metric_tensor, fmt="%10.6f")
+    #np.savetxt("InvMetricTensor.dat", inv_metric_tensor, fmt="%10.6f")
+
+    #if Settings.am_i_the_master():
+    #    np.savetxt("FC_after_subtraction.dat", fc)
+
+    if progress > 0:
+        print()
+        print("Done.")
+
     # Impose hermitianity
     fc = .5 * (fc + fc.T) / epsilon
 
@@ -4555,7 +4893,11 @@ def compute_phonons_finite_displacements(structure, ase_calculator, epsilon = 0.
     if np.prod(supercell) > 1:
         correct_dyn = Phonons(structure, nqirr = np.prod(supercell))
         q_tot = symmetries.GetQGrid(structure.unit_cell, supercell)
-        dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        if timer is not None:
+            dynq = timer.execute_timed_function(GetDynQFromFCSupercell,
+                final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
+        else:
+            dynq = GetDynQFromFCSupercell(final_dyn.dynmats[0], np.array(q_tot), structure, super_structure)
         for iq, q in enumerate(q_tot):
             correct_dyn.dynmats[iq] = dynq[iq, :,:]
             correct_dyn.q_tot[iq] = q
