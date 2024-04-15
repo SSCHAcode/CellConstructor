@@ -1095,7 +1095,7 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
-        offdiag_mode     : How to treat the off diagonal terms. 'gk' - Isaeva et al. Nat. Comm., 'wigner' - Simoncelli et al. Nature
+        offdiag_mode     : How to treat the off diagonal terms. 'gk' - Isaeva et al. Nat. Comm., 'wigner' - Simoncelli et al. Nature, 'perturbative'
         gauss_smearing   : If true will use the Gaussian function to satisfy energy conservation insted of Lorentzian
         lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
@@ -1158,6 +1158,8 @@ class ThermalConductivity:
                         kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag_isaeva(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
                     elif(offdiag_mode == 'wigner'):
                         kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
+                    elif(offdiag_mode == 'perturbative'):
+                        kappa_diag, kappa_nondiag = self.calculate_kappa_srta_offdiag_perturbative(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes=isotopes, lf_method = lf_method)
                     kappa_diag = kappa_diag/self.volume/float(self.nkpt)*1.0e30
                     kappa_nondiag = kappa_nondiag/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
