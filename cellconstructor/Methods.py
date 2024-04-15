@@ -754,7 +754,10 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
             
     """
     # Avoid trivial problems if the ibrav is a float
-    ibrav = int(ibrav + .5) 
+    if ibrav > 0:
+        ibrav = int(ibrav + .5) 
+    else:
+        ibrav = int(ibrav - .5)
     
     #SUPPORTED_IBRAV = [13]
     
@@ -869,6 +872,36 @@ def get_unit_cell_from_ibrav(ibrav, celldm):
         unit_cell[0,:] = np.array([a,0,0])
         unit_cell[1,:] = np.array([0, b/2, -c/2])
         unit_cell[2,:] = np.array([0, b/2, c/2])
+    elif ibrav == 12:
+        #    monoclinic p, unique axis b     celldm(2)=b/a
+        #                                        celldm(3)=c/a,
+        #                                        celldm(5)=cos(ac)
+        # v1 = (a,0,0), v2 = (0,b,0), v3 = (c*cos(beta),0,c*sin(beta))
+        # where beta is the angle between axis a and c
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+        cos_gamma = celldm[4]
+        sin_gamma = np.sqrt(1 - cos_gamma**2)
+
+        unit_cell[0, :] = np.array([a, 0, 0])
+        unit_cell[1, :] = np.array([b*cos_gamma, b*sin_gamma, 0])
+        unit_cell[2, :] = np.array([0, 0, c])
+    elif ibrav == -12:
+        #    monoclinic p, unique axis b     celldm(2)=b/a
+        #                                        celldm(3)=c/a,
+        #                                        celldm(5)=cos(ac)
+        # v1 = (a,0,0), v2 = (0,b,0), v3 = (c*cos(beta),0,c*sin(beta))
+        # where beta is the angle between axis a and c
+        a = celldm[0] * BOHR_TO_ANGSTROM
+        b = celldm[1] * a
+        c = celldm[2] * a
+        cos_beta = celldm[4]
+        sin_beta = np.sqrt(1 - cos_beta**2)
+
+        unit_cell[0, :] = np.array([a, 0, 0])
+        unit_cell[1, :] = np.array([0, b, 0])
+        unit_cell[2, :] = np.array([c*cos_beta, 0, c*sin_beta])
     elif ibrav == 13:
         # Monoclinic base-centered
         
