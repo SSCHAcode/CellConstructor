@@ -2292,6 +2292,81 @@ class ThermalConductivity:
 
         return kappa_diag, kappa_nondiag
 
+    ##################################################################################################################################
+
+    def calculate_kappa_srta_offdiag_perturbative(self, temperature, ne, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
+
+        """
+        Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Physics volume 15, pages 809–813 (2019)).
+        Quite slow!
+
+        """
+
+        lf_key = format(temperature, '.1f')
+        cp_key = format(temperature, '.1f')
+        if(lf_key in self.lifetimes.keys()):
+            print('Lifetimes for this temperature have already been calculated. Continuing ...')
+        else:
+            self.get_lifetimes(temperature, ne, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
+        if(cp_key in self.cp.keys()):
+            print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
+        else:
+            if(lf_method == 'SC'):
+                self.get_heat_capacity(temperature)
+            else:
+                self.get_heat_capacity(temperature)
+        scatt_rates = np.divide(np.ones_like(self.lifetimes[lf_key], dtype=float), self.lifetimes[lf_key], out=np.zeros_like(self.lifetimes[lf_key]), where=self.lifetimes[lf_key]!=0.0)/(SSCHA_TO_THZ*1.0e12*2.0*np.pi)
+        if(write_lifetimes):
+            self.write_transport_properties_to_file(temperature, isotope_scattering)
+
+        kappa_diag = np.zeros((3,3))
+        kappa_nondiag = np.zeros_like(kappa_diag)
+        for istar in self.qstar:
+            for iqpt in istar:
+                for iband in range(self.nband):
+                    if(self.freqs[iqpt, iband] != 0.0 and scatt_rates[iqpt, iband] != 0.0):
+                        for jband in range(self.nband):
+                            if(self.group_velocity_mode == 'wigner'):
+                                vel_fact = 2.0*np.sqrt(self.freqs[iqpt, jband]*self.freqs[iqpt, iband])/(self.freqs[iqpt, jband] + self.freqs[iqpt, iband]) # as per Eq.34 in Caldarelli et al
+                            else:
+                                vel_fact = 1.0
+                            #if(self.freqs[iqpt, jband] != 0.0 and np.abs(self.freqs[iqpt, jband] - self.freqs[iqpt, iband]) > 1.0e-4/SSCHA_TO_THZ and iband != jband):
+                            if(self.freqs[iqpt, jband] != 0.0 and scatt_rates[iqpt, jband] != 0.0 and iband != jband):
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2
+                                a1 = self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
+                                a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
+                                a4 = ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
+                                kappa_nondiag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
+                            elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
+                                gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
+                                gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
+                                for r in self.rotations:
+                                    rot_q = np.dot(self.reciprocal_lattice.T, np.dot(r.T, np.linalg.inv(self.reciprocal_lattice.T)))
+                                    gvel = np.dot(rot_q, self.gvels[iqpt, iband, jband])
+                                    gvel_sum += np.outer(gvel.conj(), gvel)
+                                gvel_sum = gvel_sum.real*vel_fact**2
+                                a1 = self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
+                                a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
+                                a4 = (self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
+                                kappa_diag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
+
+        kappa_diag = kappa_diag/SSCHA_TO_THZ/1.0e12
+        kappa_nondiag = kappa_nondiag/SSCHA_TO_THZ/1.0e12
+
+        kappa_diag += kappa_diag.T
+        kappa_nondiag += kappa_nondiag.T
+        kappa_diag = kappa_diag/2.0*SSCHA_TO_MS**2#*(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+        kappa_nondiag = kappa_nondiag/2.0*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
+
+
+        return kappa_diag, kappa_nondiag
+
     ################################################################################################################################################################################
 
     def calculate_kappa_srta_offdiag_isaeva(self, temperature, ne, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
