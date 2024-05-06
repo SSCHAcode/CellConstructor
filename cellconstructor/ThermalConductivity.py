@@ -1766,11 +1766,14 @@ class ThermalConductivity:
                     print('Selected mode_mixing approach: ', mode_mixing)
                     raise RuntimeError('Do not recognize the selected mode_mixing approach!')
             else:
-                selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
-                    self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
-                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), sigmas.T, temperature, \
-                    gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
-                    num_scattering_events)
+                if(ls_key not in self.lifetimes.keys()):
+                    selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
+                        self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
+                        self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), sigmas.T, temperature, \
+                        gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
+                        num_scattering_events)
+                else:
+                    print('Phonon lifetimes are already calculated so I am using that!')
             scaled_positions = np.dot(self.dyn.structure.coords, np.linalg.inv(self.unitcell))
             rotations, translations = self.get_sg_in_cartesian()
             mapping = get_mapping_of_q_points(self.qstar, self.qpoints, self.rotations)
@@ -1787,7 +1790,16 @@ class ThermalConductivity:
                     found = False
                     if(lorentzian_approximation):
                         for iband in range(self.nband):
-                            Gamma = selfengs[ikpt,iband]
+                            Gamma = complex(0.0, 0.0)
+                            if(ls_key in self.lifetimes.keys()):
+                                if(self.lifetimes[ls_key][jqpt][iband] != 0.0):
+                                    Gammaimag = self.lifetimes[ls_key][jqpt][iband]*(SSCHA_TO_THZ*2.0*np.pi*1.0e12)
+                                    Gammaimag = -1.0/Gammaimag/2.0
+                                    Gamma = complex(0.0, Gammaimag)
+                                else:
+                                    Gamma = complex(0.0, 0.0)
+                            else:
+                                Gamma = selfengs[ikpt,iband]
                             if(self.freqs[jqpt, iband] > np.amax(self.freqs[jqpt])*1.0e-6):
                                 lineshapes[jqpt,iband,:] = (-1.0*Gamma.imag/((energies - self.freqs[jqpt, iband])**2 + Gamma.imag**2) + Gamma.imag/((energies + self.freqs[jqpt, iband])**2 + Gamma.imag**2))/np.pi
                             else:
