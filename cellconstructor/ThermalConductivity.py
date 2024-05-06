@@ -943,25 +943,31 @@ class ThermalConductivity:
         prefered : in case both lifetimes and lineshapes are calculated defines which method to use to calculate spectral kappa
         """
 
+        temp_key = format(temperature, '.1f')
         if(not self.off_diag):
-            temp_key = format(temperature, '.1f')
             if(temp_key in self.lifetimes.keys() and temp_key in self.lineshapes.keys()):
                 if(prefered == 'lineshape'):
                     print('Both lineshapes and lifetimes are calculated. Calculating spectral kappa from lineshapes!')
-                    spec_kappa = self.calc_spectral_kappa_gk_diag(self, temperature)
+                    spec_kappa = self.calc_spectral_kappa_gk_diag(temperature)
                 else:
                     print('Both lineshapes and lifetimes are calculated. Calculating spectral kappa from lifetimes!')
-                    spec_kappa = self.calc_spectral_kappa_srta_diag(self, temperature, ne)
+                    spec_kappa = self.calc_spectral_kappa_srta_diag(temperature, ne)
             elif(temp_key in self.lifetimes.keys()):
-                spec_kappa = self.calc_spectral_kappa_srta_diag(self, temperature, ne)
+                spec_kappa = self.calc_spectral_kappa_srta_diag(temperature, ne)
             elif(temp_key in self.lineshapes.keys()):
-                spec_kappa = self.calc_spectral_kappa_gk_diag(self, temperature)
+                spec_kappa = self.calc_spectral_kappa_gk_diag(temperature)
             else:
                 print('You have not calculated phonon lifetimes or lineshapes for this temperature. Can not calculate spectral kappa!')
                 spec_kappa = (np.zeros(ne), np.zeros(ne))
         else:
-            print('Calculation with offdiagonal elements have been initialized. Not possible to calculate spectral kappa! ')
-            spec_kappa = (np.zeros(ne), np.zeros(ne))
+            if(temp_key in self.lifetimes.keys() and temp_key in self.lineshapes.keys()):
+                if(prefered == 'lineshape'):
+                    print('Both lineshapes and lifetimes are calculated. Calculating spectral kappa from lineshapes!')
+                    spec_kappa = self.calc_spectral_kappa_gk_diag(temperature)
+                else:
+                    print('Calculation with offdiagonal elements have been initialized. Not possible to calculate spectral kappa with lifetimes! ')
+                    raise RuntimeError('Calculation with offdiagonal elements have been initialized. Not possible to calculate spectral kappa with lifetimes! ')
+                    spec_kappa = (np.zeros(ne), np.zeros(ne))
 
         return spec_kappa
 
@@ -1085,7 +1091,7 @@ class ThermalConductivity:
    ####################################################################################################################################
 
     def calculate_kappa(self, temperatures = [300.0], write_lifetimes = True, mode = 'SRTA', offdiag_mode = 'wigner',  gauss_smearing = False, lf_method = 'fortran-LA', isotope_scattering = False, isotopes = None, \
-            write_lineshapes=False, ne = 2000, mode_mixing = False, kappa_filename = 'Thermal_conductivity'):
+            write_lineshapes=False, ne = 2000, mode_mixing = False, lorentzian_approximation = False, kappa_filename = 'Thermal_conductivity'):
 
         """
         Main function that calculates lattice thermal conductivity.
@@ -1095,7 +1101,7 @@ class ThermalConductivity:
         mode             : Method to calculate lattice thermal conductivity:
             SRTA         : Single relaxation time approximation (NOT selfconsistent solution) solution of Boltzmann transport equation
             GK           : Green-Kubo method (npj Computational Materials volume 7, Article number: 57 (2021))
-        offdiag_mode     : How to treat the off diagonal terms. 'gk' - Isaeva et al. Nat. Comm., 'wigner' - Simoncelli et al. Nature, 'perturbative'
+        offdiag_mode     : How to treat the off diagonal terms. 'isaeva' - Isaeva et al. Nat. Comm., 'wigner' - Simoncelli et al. Nature, 'perturbative'
         gauss_smearing   : If true will use the Gaussian function to satisfy energy conservation insted of Lorentzian
         lf_method        : In case of mode == SRTA, specifies the way to calculate lifetimes. See method in get_lifetimes function.
         write_lineshapes : Boolean parameter to write phonon lineshapes as they are being calculated.
@@ -1143,7 +1149,7 @@ class ThermalConductivity:
             tc_key = format(temperatures[itemp], '.1f')
             if(mode == 'SRTA'):
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_srta_diag(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
+                    kappa, _ = self.calculate_kappa_srta_diag(temperatures[itemp], ne, write_lifetimes, gauss_smearing = gauss_smearing, isotope_scattering=isotope_scattering, isotopes= isotopes, lf_method = lf_method)
                     kappa = kappa/self.volume/float(self.nkpt)*1.0e30
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
@@ -1179,7 +1185,7 @@ class ThermalConductivity:
                 self.delta_omega = np.amax(self.freqs)*2.0/float(ne)
                 energies = np.arange(ne, dtype=float)*self.delta_omega + self.delta_omega
                 if(not self.off_diag):
-                    kappa = self.calculate_kappa_gk_diag(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing)
+                    kappa, _ = self.calculate_kappa_gk_diag(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing, lorentzian_approximation = lorentzian_approximation)
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
                         kappa_file.write(3*' ' + format(kappa[icart][icart], '.12e'))
@@ -1189,7 +1195,7 @@ class ThermalConductivity:
                     kappa_file.write('\n')
                     self.kappa[tc_key] = kappa
                 else:
-                    kappa_diag, kappa_nondiag = self.calculate_kappa_gk_offdiag(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing)
+                    kappa_diag, kappa_nondiag = self.calculate_kappa_gk_offdiag(temperatures[itemp], write_lineshapes, energies, gauss_smearing = gauss_smearing, lorentzian_approximation = lorentzian_approximation)
                     kappa_file.write(3*' ' + format(temperatures[itemp], '.12e'))
                     for icart in range(3):
                         kappa_file.write(3*' ' + format(kappa_diag[icart][icart], '.12e'))
@@ -1273,7 +1279,7 @@ class ThermalConductivity:
 
     ##################################################################################################################################
 
-    def calculate_kappa_gk_diag(self, temperature, write_lineshapes, energies, gauss_smearing = False):
+    def calculate_kappa_gk_diag(self, temperature, write_lineshapes, energies, gauss_smearing = False, lorentzian_approximation = False):
 
         """
 
@@ -1289,7 +1295,7 @@ class ThermalConductivity:
         if(ls_key in self.lineshapes.keys()):
             print('Lineshapes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
+            self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing, lorentzian_approximation = lorentzian_approximation)
         exponents = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents/(exponents - 1.0)**2
         integrands_plus = self.lineshapes[ls_key]**2*exponents/(exponents - 1.0)**2
@@ -1302,6 +1308,7 @@ class ThermalConductivity:
         #integrals = (integrate.simps(integrands_plus, axis = len(integrands_plus.shape) - 1) + integrate.simps(integrands_minus, axis = len(integrands_minus.shape) - 1))*self.delta_omega*(SSCHA_TO_THZ*2.0*np.pi)*1.0e12/2.0
         #kappa = np.einsum('ijk,ijl,ij,ij,ij->kl', self.gvels.conj(), self.gvels, integrals, self.freqs, self.freqs).real*SSCHA_TO_MS**2#(SSCHA_TO_THZ*100.0*2.0*np.pi)**2
         kappa = np.zeros((3,3))
+        per_mode = np.zeros((self.nkpt, self.nband, 3, 3))
         for istar in self.qstar:
             for iqpt in istar:
                 for iband in range(self.nband):
@@ -1313,12 +1320,15 @@ class ThermalConductivity:
                             gvel = np.dot(rot_q, self.gvels[iqpt, iband])
                             gvel_sum += np.outer(gvel.conj(), gvel)
                         gvel_sum = gvel_sum.real*SSCHA_TO_MS**2/float(len(self.rotations))
+                        per_mode[iqpt, iband] = gvel_sum*integrals[iqpt][iband]*self.freqs[iqpt][iband]**2
+                        per_mode[iqpt, iband] += per_mode[iqpt, iband].T
                         kappa += gvel_sum*integrals[iqpt][iband]*self.freqs[iqpt][iband]**2
 
         kappa += kappa.T
         kappa = kappa/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
+        per_mode = per_mode/2.0*HBAR_JS**2/KB/temperature**2/self.volume/float(self.nkpt)*1.0e30*np.pi
 
-        return kappa
+        return kappa, per_mode
 
     ##################################################################################################################################
 
@@ -1392,7 +1402,7 @@ class ThermalConductivity:
 
     #################################################################################################################################
 
-    def calculate_kappa_gk_offdiag(self, temperature, write_lineshapes, energies, gauss_smearing = False):
+    def calculate_kappa_gk_offdiag(self, temperature, write_lineshapes, energies, gauss_smearing = False, lorentzian_approximation = False):
 
         """
         Calculation of lattice thermal conductivity using Green-Kubo method if both diagonal and off-diagonal group velocities are available.
@@ -1407,7 +1417,7 @@ class ThermalConductivity:
         if(ls_key in self.lineshapes.keys()):
             print('Lineshapes for this temperature have already been calculated. Continuing ...')
         else:
-            self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing)
+            self.get_lineshapes(temperature, write_lineshapes, energies, method = 'fortran', gauss_smearing = gauss_smearing, lorentzian_approximation = lorentzian_approximation)
         #kappa_diag = np.zeros((3,3))
         exponents_plus = np.exp(energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature)
         #integrands_plus = self.lineshapes[ls_key]**2*energies**2*exponents_plus/(exponents_plus - 1.0)**2
@@ -1652,7 +1662,7 @@ class ThermalConductivity:
 
     #################################################################################################################################
 
-    def get_lineshapes(self, temperature, write_lineshapes, energies, method = 'fortran', mode_mixing = 'no', gauss_smearing = False):
+    def get_lineshapes(self, temperature, write_lineshapes, energies, method = 'fortran', mode_mixing = 'no', gauss_smearing = False, lorentzian_approximation = False):
 
         """
         Calculate phonon lineshapes in full Brillouin zone.
@@ -1733,33 +1743,40 @@ class ThermalConductivity:
             if(self.cp_mode == 'classical'):
                 classical = True
 
-            if(mode_mixing == 'mode_mixing'):
-                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
-                        self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
-                        self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
-                        self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
-            elif(mode_mixing == 'cartesian'):
-                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_cartesian(irrqgrid, scattering_grids, weights, scattering_events,\
-                        self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
-                        self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
-                        self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
-            elif(mode_mixing == 'no'):
-                curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
-                        self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
-                        self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
-                        sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
-                        self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+            if(not lorentzian_approximation):
+                if(mode_mixing == 'mode_mixing'):
+                    curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_mode_mixing(irrqgrid, scattering_grids, weights, scattering_events,\
+                            self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                            self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                            sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                            self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                elif(mode_mixing == 'cartesian'):
+                    curr_ls = thermal_conductivity.get_lf.calculate_lineshapes_cartesian(irrqgrid, scattering_grids, weights, scattering_events,\
+                            self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                            self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                            sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                            self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                elif(mode_mixing == 'no'):
+                    curr_ls = thermal_conductivity.get_lf.calculate_lineshapes(irrqgrid, scattering_grids, weights, scattering_events,\
+                            self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, self.fc3.r_vector3, \
+                            self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(),\
+                            sigmas.T, np.zeros_like(sigmas.T, dtype=float), temperature, gauss_smearing, classical, energies, len(energies), self.nirrkpt, \
+                            self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor), num_scattering_events)
+                else:
+                    print('Selected mode_mixing approach: ', mode_mixing)
+                    raise RuntimeError('Do not recognize the selected mode_mixing approach!')
             else:
-                print('Selected mode_mixing approach: ', mode_mixing)
-                raise RuntimeError('Do not recognize the selected mode_mixing approach!')
+                selfengs = thermal_conductivity.get_lf.calculate_lifetimes(irrqgrid, scattering_grids, weights, scattering_events, \
+                    self.fc2.tensor, self.fc2.r_vector2, self.fc3.tensor, self.fc3.r_vector2, \
+                    self.fc3.r_vector3, self.unitcell, self.dyn.structure.coords.T, self.dyn.structure.get_masses_array(), sigmas.T, temperature, \
+                    gauss_smearing, classical, self.nirrkpt, self.dyn.structure.N_atoms, len(self.fc2.tensor), len(self.fc3.tensor),\
+                    num_scattering_events)
             scaled_positions = np.dot(self.dyn.structure.coords, np.linalg.inv(self.unitcell))
             rotations, translations = self.get_sg_in_cartesian()
             mapping = get_mapping_of_q_points(self.qstar, self.qpoints, self.rotations)
             for ikpt in range(self.nirrkpt):
                 jkpt = self.qstar[ikpt][0]
-                if(mode_mixing == 'no'):
+                if(mode_mixing == 'no' and not lorentzian_approximation):
                     if(CC.Methods.is_gamma(self.dyn.structure.unit_cell, self.k_points[jkpt])):
                         for iband in range(self.nband):
                             if(self.freqs[jkpt, iband] < np.amax(self.freqs[jkpt])*1.0e-6):
@@ -1768,39 +1785,47 @@ class ThermalConductivity:
                 for iqpt in range(len(self.qstar[ikpt])):
                     jqpt = self.qstar[ikpt][iqpt]
                     found = False
-                    if(mode_mixing != 'no'):
-                        #for iband in range(self.nband):
-                        #    for jband in range(self.nband):
-                        #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
-                        if(iqpt == 0):
-                            lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
-                            found = True
-                        else:
-                            qpt1 = self.qpoints[self.qstar[ikpt][0]]
-                            qpt2 = self.qpoints[jqpt]
-                            if(np.linalg.norm(qpt2 + qpt1 - np.rint(qpt2 + qpt1)) < 1.0e-6):
-                                lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:].conj()
+                    if(lorentzian_approximation):
+                        for iband in range(self.nband):
+                            Gamma = selfengs[ikpt,iband]
+                            if(self.freqs[jqpt, iband] > np.amax(self.freqs[jqpt])*1.0e-6):
+                                lineshapes[jqpt,iband,:] = (-1.0*Gamma.imag/((energies - self.freqs[jqpt, iband])**2 + Gamma.imag**2) + Gamma.imag/((energies + self.freqs[jqpt, iband])**2 + Gamma.imag**2))/np.pi
+                            else:
+                                lineshapes[jqpt,iband,:] = 0.0
+                    else:
+                        if(mode_mixing != 'no'):
+                            #for iband in range(self.nband):
+                            #    for jband in range(self.nband):
+                            #        curr_ls[ikpt, iband,jband,:] = curr_ls[ikpt, iband,jband,:]/np.sum(curr_ls[ikpt,iband,jband,:])/(energies[1]-energies[0]) # Forcing the normalization. Not sure if the best option!
+                            if(iqpt == 0):
+                                lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:]
                                 found = True
                             else:
-                                irot = mapping[ikpt][iqpt][0][0]
-                                atom_map = self.atom_map[irot]
-                                qpt21 = np.dot(self.rotations[irot].T, qpt1)
-                                kpt21 = np.dot(qpt21, self.reciprocal_lattice)
-                                gamma = construct_symmetry_matrix(rotations[irot], translations[irot], kpt21, self.dyn.structure.coords, atom_map, self.unitcell)
-                                lineshapes[jqpt,:,:,:] = np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T)
-                                if(mapping[ikpt][iqpt][0][1]):
-                                    lineshapes[jqpt,:,:,:] = lineshapes[jqpt,:,:,:].conj()
-                        #tot_const_diag = 0.0
-                        #tot_const_nondiag = 0.0
-                        #for iband in range(len(lineshapes[jqpt])):
-                        #    tot_const_diag += np.sum(lineshapes[jqpt][iband][iband]).real*(energies[2] - energies[1])
-                        #    for jband in range(len(lineshapes[jqpt][iband])):
-                        #        print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1]))
-                        #        tot_const_nondiag += np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1])
-                        #print('Normalization constant diagonal: ', tot_const_diag)
-                        #print('Normalization constant all elements: ', tot_const_diag)
-                    else:
-                        lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
+                                qpt1 = self.qpoints[self.qstar[ikpt][0]]
+                                qpt2 = self.qpoints[jqpt]
+                                if(np.linalg.norm(qpt2 + qpt1 - np.rint(qpt2 + qpt1)) < 1.0e-6):
+                                    lineshapes[jqpt,:,:,:] = curr_ls[ikpt,:,:,:].conj()
+                                    found = True
+                                else:
+                                    irot = mapping[ikpt][iqpt][0][0]
+                                    atom_map = self.atom_map[irot]
+                                    qpt21 = np.dot(self.rotations[irot].T, qpt1)
+                                    kpt21 = np.dot(qpt21, self.reciprocal_lattice)
+                                    gamma = construct_symmetry_matrix(rotations[irot], translations[irot], kpt21, self.dyn.structure.coords, atom_map, self.unitcell)
+                                    lineshapes[jqpt,:,:,:] = np.einsum('ij,jkl,km->iml', gamma, curr_ls[ikpt,:,:,:], gamma.conj().T)
+                                    if(mapping[ikpt][iqpt][0][1]):
+                                        lineshapes[jqpt,:,:,:] = lineshapes[jqpt,:,:,:].conj()
+                            #tot_const_diag = 0.0
+                            #tot_const_nondiag = 0.0
+                            #for iband in range(len(lineshapes[jqpt])):
+                            #    tot_const_diag += np.sum(lineshapes[jqpt][iband][iband]).real*(energies[2] - energies[1])
+                            #    for jband in range(len(lineshapes[jqpt][iband])):
+                            #        print('Normalization constant (' + str(iband + 1) + ',' + str(jband + 1)+ '): ', np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1]))
+                            #        tot_const_nondiag += np.sum(lineshapes[jqpt][iband][jband]).real*(energies[2] - energies[1])
+                            #print('Normalization constant diagonal: ', tot_const_diag)
+                            #print('Normalization constant all elements: ', tot_const_diag)
+                        else:
+                            lineshapes[jqpt,:,:] = curr_ls[ikpt,:,:]*2.0
                 if(write_lineshapes):
                     filename = 'Lineshape_irrkpt_' + str(jkpt) + '_T_' + format(temperature, '.1f')
                     self.write_lineshape(filename, lineshapes[jkpt], jkpt, energies, mode_mixing)
@@ -2196,6 +2221,7 @@ class ThermalConductivity:
             self.write_transport_properties_to_file(temperature, isotope_scattering)
 
         kappa = np.zeros((3,3))
+        per_mode = np.zeros((self.nkpt, self.nband, 3, 3))
         for istar in self.qstar:
             for iqpt in istar:
                 for iband in range(self.nband):
@@ -2207,11 +2233,14 @@ class ThermalConductivity:
                             gvel = np.dot(rot_q, self.gvels[iqpt, iband])
                             gvel_sum += np.outer(gvel.conj(), gvel)
                         gvel_sum = gvel_sum.real/float(len(self.rotations))
+                        per_mode[iqpt, iband] = self.cp[cp_key][iqpt][iband]*gvel_sum*self.lifetimes[lf_key][iqpt][iband]
+                        per_mode[iqpt, iband] += per_mode[iqpt, iband].T
                         kappa += self.cp[cp_key][iqpt][iband]*gvel_sum*self.lifetimes[lf_key][iqpt][iband]
         kappa += kappa.T
         kappa = kappa/2.0*SSCHA_TO_MS**2
+        per_mode = per_mode/2.0*SSCHA_TO_MS**2/self.volume/float(self.nkpt)*1.0e30
 
-        return kappa
+        return kappa, per_mode
 
     ##################################################################################################################################
 
@@ -2299,8 +2328,7 @@ class ThermalConductivity:
     def calculate_kappa_srta_offdiag_perturbative(self, temperature, ne, write_lifetimes, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
 
         """
-        Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity (Nature Physics volume 15, pages 809–813 (2019)).
-        Quite slow!
+        Calculates both diagonal and off diagonal contribution to the lattice thermal conductivity in the perturbative limit ().
 
         """
 
@@ -2342,9 +2370,12 @@ class ThermalConductivity:
                                     gvel_sum += np.outer(gvel.conj(), gvel)
                                 gvel_sum = gvel_sum.real*vel_fact**2
                                 a1 = self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
+                                a11 = self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] - self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
                                 a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
                                 a4 = ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
-                                kappa_nondiag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
+                                a41 = ((self.freqs[iqpt,iband] + self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
+                                kappa_nondiag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
+                                kappa_nondiag += a11*a3/a41*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
                             elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
                                 gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
                                 gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
@@ -2356,7 +2387,7 @@ class ThermalConductivity:
                                 a1 = self.freqs[iqpt, jband]*self.cp[cp_key][iqpt, iband]/self.freqs[iqpt, iband] + self.freqs[iqpt, iband]*self.cp[cp_key][iqpt, jband]/self.freqs[iqpt, jband]
                                 a3 = 0.5*(scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])
                                 a4 = (self.freqs[iqpt,iband] - self.freqs[iqpt,jband])**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
-                                kappa_diag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))#*float(len(istar))
+                                kappa_diag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
 
         kappa_diag = kappa_diag/SSCHA_TO_THZ/1.0e12
         kappa_nondiag = kappa_nondiag/SSCHA_TO_THZ/1.0e12
