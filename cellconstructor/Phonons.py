@@ -4075,7 +4075,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     #print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
 
     # Check the imaginary part
-    imag = np.sqrt(np.sum(np.imag(fc)**2))
+    imag = np.max(np.abs(np.imag(fc)))
     ASSERT_ERROR = """
     Error, the imaginary part of the real space force constant
     is not zero. IMAG={}
