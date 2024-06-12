@@ -1535,10 +1535,13 @@ class ThermalConductivity:
                             if(self.freqs[iqpt, jband] != 0.0 and iband != jband):
                                 i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0))
                                 i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
-                                integrals = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega
-                                i3 = np.append(np.append(np.flip(energies), np.zeros(1, dtype=float)), energies)
+                                integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                i3 = np.append(np.append(-np.flip(energies), np.zeros(1, dtype=float)), energies)
                                 i4 = np.divide(i2, i3, out=np.zeros_like(i2), where=i3!=0.0)
-                                integrals += np.append(np.zeros(1, dtype=float), energies)*np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                i5 = i1*i3
+                                integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integrals = integral1 + integral2
+                                #integrals += np.append(np.zeros(1, dtype=float), energies)*np.correlate(i2, i4, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
                                 #if(np.abs(np.sum(i1*i2)*self.delta_omega - integrals[0]) > np.abs(np.sum(i1*i2)*self.delta_omega)*1.0e-6):
                                 #    print(np.sum(i1*i2)*self.delta_omega, integrals[0])
                                 #    raise RuntimeError()
@@ -1565,12 +1568,22 @@ class ThermalConductivity:
                                     gvel = np.dot(rot_q, self.gvels[iqpt, iband, iband])
                                     gvel_sum += np.outer(gvel.conj(), gvel)
                                 gvel_sum = gvel_sum.real*vel_fact**2/float(len(self.rotations))
-                                i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]*exponents_plus/(exponents_plus - 1.0))
+                                i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0))
                                 i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
-                                integrals = np.correlate(i2, i1, mode = 'full')[len(i1)-1:len(i1) + ne]*self.delta_omega
-                                i3 = np.append(np.append(np.flip(energies), np.zeros(1, dtype=float)), energies)
+                                integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                i3 = np.append(np.append(-np.flip(energies), np.zeros(1, dtype=float)), energies)
                                 i4 = np.divide(i2, i3, out=np.zeros_like(i2), where=i3!=0.0)
-                                integrals += np.append(np.zeros(1, dtype=float), energies)*np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                i5 = i1*i3
+                                integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integrals = integral1 + integral2
+                                #i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]*exponents_plus/(exponents_plus - 1.0))
+                                #i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
+                                #integrals = np.correlate(i2, i1, mode = 'full')[len(i1)-1:len(i1) + ne]*self.delta_omega*0.5
+                                #i3 = np.append(np.append(-np.flip(energies), np.zeros(1, dtype=float)), energies)
+                                #i4 = np.divide(i1, i3, out=np.zeros_like(i2), where=i3!=0.0)
+                                #i5 = i3*i1
+                                #integrals += np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                #integrals += np.append(np.zeros(1, dtype=float), energies)*np.correlate(i2, i4, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
                                 #integrands_plus = self.lineshapes[ls_key][iqpt, iband]**2*exponents_plus/(exponents_plus - 1.0)**2
                                 #integrands_minus = self.lineshapes[ls_key][iqpt, iband]**2*exponents_minus/(exponents_minus - 1.0)**2
                                 #integrals1 = (np.sum(integrands_plus, axis = len(integrands_plus.shape) - 1) + np.sum(integrands_minus, axis = len(integrands_plus.shape) - 1))*self.delta_omega
