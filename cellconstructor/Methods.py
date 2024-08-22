@@ -40,11 +40,9 @@ except:
     __PHONOPY=False
 
 #from . import Structure
- 
-BOHR_TO_ANGSTROM = 0.529177249
+
+from cellconstructor.Units import BOHR_TO_ANGSTROM, EV_TO_J, AU
 __EPSILON__ = 1e-6
-EV_TO_J = 1.602176634e-19
-AU = 1.66053906660e-27
 
 
 __all__ = ["covariant_coordinates", "from_dynmat_to_spectrum", 
