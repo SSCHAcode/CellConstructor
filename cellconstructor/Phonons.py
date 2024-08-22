@@ -3780,6 +3780,58 @@ WARNING: Effective charges are not accounted by this method
         return w_array, e_pols_sc
 
 
+    def FixQPoints(self, threshold = 1e-1):
+        """
+        FIX Q POINTS
+        ============
+
+        This method fixes the q points in the phonon object. 
+        It is useful when the q points are slightly displaced from the exact position.
+        The displacement could come from a numerical truncation when writing the dynamical matrix on a file.
+
+
+        If a point is further than an actual crystal coordinate by more than the threshold, then raise an error.
+        """
+        
+        # Get the reciprocal vectors
+        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+
+        supercell = np.array(self.GetSupercell())
+
+        # Get the fractional coordinates of each q point
+        q_cryst = Methods.covariant_coordinates(bg, np.array(self.q_tot))
+        q_cryst_new = np.zeros_like(q_cryst)
+
+
+        for i in range(len(self.q_tot)):
+            # Get the integer representation
+            q_int = q_cryst[i, :] * supercell
+
+            # Round to the closest integer (even negative)
+            q_int = np.round(q_int)
+
+            # Get the fractional coordinates back
+            q_cryst_new[i, :] = q_int / supercell
+
+            # Get the distance between the two
+            if np.linalg.norm(q_cryst_new[i, :] - q_cryst[i, :]) > threshold:
+                error_msg = """
+Error, the q point {} is too far from the exact position.
+    Old fractional coords: {}
+    New fractional coords: {}
+""".format(self.q_tot[i], q_cryst[i, :], q_cryst_new[i, :])
+                raise ValueError(error_msg)
+
+        # Update the q points
+        new_q_tot = Methods.cryst_to_cart(bg, q_cryst_new)
+        for i in range(len(self.q_tot)):
+            self.q_tot[i] = new_q_tot[i, :]
+
+        
+        # Update the q stars
+        self.AdjustQStar()
+
+            
 
 
     def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True):
