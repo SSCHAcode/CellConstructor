@@ -83,7 +83,9 @@ def GetQ_vectors(structures, dynmat, u_disps = None):
         _m_[3 *i : 3*i + 3] = dynmat.structure.get_masses_array()[i]
 
     # Delete the translations
-    pols = pols[ :, ~ Methods.get_translations(pols, dynmat.structure.get_masses_array()) ]
+    trans = dynmat.structure.get_asr_modes(pols)
+    # trans=  Methods.get_translations(pols, dynmat.structure.get_masses_array())
+    pols = pols[ :, ~trans ]
 
     q_vects = np.zeros((len(structures), len(pols[0,:])), dtype = np.float64)
     
@@ -914,7 +916,8 @@ def PlotRamanSpectra(w_axis, T, sigma, dyn, pol1=None, pol2=None):
     w, pols = dyn.DyagDinQ(0)
     
     # Discard the translations
-    trans = Methods.get_translations(pols, dyn.structure.get_masses_array())
+    trans = dyn.structure.get_asr_modes(pols) 
+    # trans = Methods.get_translations(pols, dyn.structure.get_masses_array())
     
     # Convert in cm-1
     w *= RyToCm
@@ -1645,7 +1648,8 @@ def GetTwoPhononIRFromSecondOrderDypole(original_dyn, dM_dRdR, T, w_array, smear
     w_freqs, pol_vec = original_dyn.DiagonalizeSupercell()
 
     # Get the translations
-    trans_mask = Methods.get_translations(pol_vec, super_dyn.structure.get_masses_array())
+    trans_mask = super_dyn.structure.get_asr_modes(pol_vec)
+    # trans_mask = Methods.get_translations(pol_vec, super_dyn.structure.get_masses_array())
 
     # Remove the translations from w and the polarization vectors
     w_freqs = w_freqs[~trans_mask]
