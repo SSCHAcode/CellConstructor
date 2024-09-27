@@ -81,7 +81,7 @@ subroutine fast_ft_real_space_from_dynq(unit_cell_coords, super_cell_coords, ita
   double complex :: im, phase
 
   im     = (0.0d0,1.0d0)
-  twopi  = 6.283185307179586d0 
+  twopi  = 6.283185307179586d0
 
   fc_supercell(:,:) = 0.0d0
 

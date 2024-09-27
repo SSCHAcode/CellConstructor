@@ -1,0 +1,1402 @@
+running install
+running build
+running config_cc
+INFO: unifing config_cc, config, build_clib, build_ext, build commands --compiler options
+running config_fc
+INFO: unifing config_fc, config, build_clib, build_ext, build commands --fcompiler options
+running build_src
+INFO: build_src
+INFO: building extension "symph" sources
+INFO: f2py options: []
+INFO: f2py:> build/src.linux-x86_64-3.10/symphmodule.c
+creating build
+creating build/src.linux-x86_64-3.10
+Reading fortran codes...
+	Reading file 'FModules/symdynph_gq_new.f90' (format:free)
+	Reading file 'FModules/symm_base.f90' (format:free)
+	Reading file 'FModules/sgam_ph.f90' (format:free)
+	Reading file 'FModules/invmat.f90' (format:free)
+	Reading file 'FModules/set_asr.f90' (format:free)
+	Reading file 'FModules/error_handler.f90' (format:free)
+	Reading file 'FModules/io_global.f90' (format:free)
+	Reading file 'FModules/flush_unit.f90' (format:free)
+	Reading file 'FModules/symvector.f90' (format:free)
+	Reading file 'FModules/fc_supercell_from_dyn.f90' (format:free)
+	Reading file 'FModules/set_tau.f90' (format:free)
+	Reading file 'FModules/cryst_to_car.f90' (format:free)
+	Reading file 'FModules/recips.f90' (format:free)
+	Reading file 'FModules/q2qstar_out.f90' (format:free)
+	Reading file 'FModules/rotate_and_add_dyn.f90' (format:free)
+	Reading file 'FModules/trntnsc.f90' (format:free)
+	Reading file 'FModules/star_q.f90' (format:free)
+	Reading file 'FModules/eqvect.f90' (format:free)
+	Reading file 'FModules/symm_matrix.f90' (format:free)
+	Reading file 'FModules/from_matdyn.f90' (format:free)
+Line #110 in FModules/from_matdyn.f90:"  parameter (eps=1.0d-6,nx=2) "
+	get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+	Reading file 'FModules/interp.f90' (format:free)
+	Reading file 'FModules/q_gen.f90' (format:free)
+	Reading file 'FModules/smallgq.f90' (format:free)
+	Reading file 'FModules/symmetry_high_rank.f90' (format:free)
+	Reading file 'FModules/unwrap_tensors.f90' (format:free)
+	Reading file 'FModules/get_latvec.f90' (format:free)
+	Reading file 'FModules/contract_two_phonon_propagator.f90' (format:free)
+	Reading file 'FModules/get_q_grid_fast.f90' (format:free)
+	Reading file 'FModules/kind.f90' (format:free)
+	Reading file 'FModules/constants.f90' (format:free)
+	Reading file 'FModules/eff_charge_interp.f90' (format:free)
+	Reading file 'FModules/get_translations.f90' (format:free)
+	Reading file 'FModules/get_equivalent_atoms.f90' (format:free)
+Post-processing...
+	Block: symph
+			Block: symdynph_gq_new
+			Block: symm_base
+In: :symph:FModules/symm_base.f90:symm_base
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/symm_base.f90:symm_base
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+				Block: set_accep_threshold
+				Block: get_accep_threshold
+				Block: set_at_bg
+				Block: inverse_s
+				Block: set_sym_bl
+In: :symph:FModules/symm_base.f90:symm_base:set_sym_bl
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/symm_base.f90:symm_base:set_sym_bl
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/symm_base.f90:symm_base:set_sym_bl
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/symm_base.f90:symm_base:set_sym_bl
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+				Block: find_sym
+				Block: sgam_at
+				Block: sgam_at_mag
+				Block: set_sym
+				Block: copy_sym
+				Block: is_group
+				Block: eqvect
+				Block: checksym
+				Block: checkallsym
+				Block: s_axis_to_cart
+				Block: smallg_q
+			Block: sgam_ph_new
+			Block: invmat
+			Block: set_asr
+			Block: sp_zeu
+			Block: sp1
+			Block: sp2
+			Block: sp3
+			Block: errore
+			Block: infomsg
+In: :symph:FModules/error_handler.f90:infomsg
+get_useparameters: no module io_global info used by infomsg
+			Block: io_global
+				Block: io_global_start
+				Block: meta_io_global_start
+				Block: io_global_getionode
+				Block: io_global_getmeta
+			Block: flush_unit
+			Block: symvector
+			Block: fc_supercell_from_dyn
+			Block: fast_ft_real_space_from_dynq
+			Block: impose_trans_sc
+In: :symph:FModules/fc_supercell_from_dyn.f90:impose_trans_sc
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: dyn_from_fc
+			Block: set_tau
+In: :symph:FModules/set_tau.f90:set_tau
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: cryst_to_cart
+			Block: recips
+			Block: q2qstar_out
+			Block: rotate_and_add_dyn
+In: :symph:FModules/rotate_and_add_dyn.f90:rotate_and_add_dyn
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: trntnsc
+			Block: star_q
+			Block: eqvect
+In: :symph:FModules/eqvect.f90:eqvect
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: symmatrix
+			Block: cart_to_crys_mat
+			Block: crys_to_cart_mat
+			Block: frc_blk
+In: :symph:FModules/from_matdyn.f90:frc_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: wsinit
+In: :symph:FModules/from_matdyn.f90:wsinit
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: wsweight
+In: :symph:FModules/from_matdyn.f90:wsweight
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: get_frc
+			Block: asign_supercell_index_new
+			Block: q_gen
+In: :symph:FModules/q_gen.f90:q_gen
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: set_irotmq
+In: :symph:FModules/smallgq.f90:set_irotmq
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: get_tau_sc_latvec
+			Block: permute_v3
+			Block: permute_v4
+			Block: trans_v2
+			Block: trans_v3
+			Block: trans_v4
+			Block: sym_v2
+			Block: sym_v3
+			Block: sym_v4
+			Block: print_symm
+			Block: threetosix_real
+			Block: sixtothree_real
+			Block: get_latvec
+			Block: contract_two_ph_propagator
+			Block: get_two_phonon_propagator
+In: :symph:FModules/contract_two_phonon_propagator.f90:get_two_phonon_propagator
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/contract_two_phonon_propagator.f90:get_two_phonon_propagator
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/contract_two_phonon_propagator.f90:get_two_phonon_propagator
+get_parameters[TODO]: implement evaluation of complex expression (0d0, 1d0)
+In: :symph:FModules/contract_two_phonon_propagator.f90:get_two_phonon_propagator
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: get_q_grid
+			Block: kinds
+				Block: print_kind_info
+			Block: constants
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'kboltzmann' is not defined" on 'kboltzmann/hartree'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'kboltzmann' is not defined" on 'kboltzmann/rydberg'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'hartree' is not defined" on 'hartree/electronvolt'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'amu' is not defined" on 'amu/electronmass'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'hplanck' is not defined" on 'hplanck/tpi/hartree'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'electron' is not defined" on 'electron*bohrradius/debye'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'electronvolt' is not defined" on 'electronvolt/kboltzmann'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'rydberg' is not defined" on 'rydberg/kboltzmann'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'csi' is not defined" on 'csi/bohrradiussi*au'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'au' is not defined" on 'au'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "name 'au' is not defined" on 'au'
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/constants.f90:constants
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: rgd_blk
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "name 'csi' is not defined" on 'csi/bohrradiussi*au'
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:rgd_blk
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: nonanal
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "name 'csi' is not defined" on 'csi/bohrradiussi*au'
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :symph:FModules/eff_charge_interp.f90:nonanal
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: trasl
+			Block: get_translations
+			Block: get_equivalent_atoms
+			Block: get_closest_vector
+			Block: get_gr_data
+In: :symph:FModules/get_equivalent_atoms.f90:get_gr_data
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 8
+			Block: fix_coords_in_unit_cell
+			Block: matinv3
+Post-processing (stage 2)...
+	Block: symph
+		Block: unknown_interface
+			Block: symdynph_gq_new
+			Block: symm_base
+				Block: set_accep_threshold
+				Block: get_accep_threshold
+				Block: set_at_bg
+				Block: inverse_s
+				Block: set_sym_bl
+				Block: find_sym
+				Block: sgam_at
+				Block: sgam_at_mag
+				Block: set_sym
+				Block: copy_sym
+				Block: is_group
+				Block: eqvect
+				Block: checksym
+				Block: checkallsym
+				Block: s_axis_to_cart
+				Block: smallg_q
+			Block: sgam_ph_new
+			Block: invmat
+			Block: set_asr
+			Block: sp_zeu
+			Block: sp1
+			Block: sp2
+			Block: sp3
+			Block: errore
+			Block: infomsg
+			Block: io_global
+				Block: io_global_start
+				Block: meta_io_global_start
+				Block: io_global_getionode
+				Block: io_global_getmeta
+			Block: flush_unit
+			Block: symvector
+			Block: fc_supercell_from_dyn
+			Block: fast_ft_real_space_from_dynq
+			Block: impose_trans_sc
+			Block: dyn_from_fc
+			Block: set_tau
+			Block: cryst_to_cart
+			Block: recips
+			Block: q2qstar_out
+			Block: rotate_and_add_dyn
+			Block: trntnsc
+			Block: star_q
+			Block: eqvect
+			Block: symmatrix
+			Block: cart_to_crys_mat
+			Block: crys_to_cart_mat
+			Block: frc_blk
+			Block: wsinit
+			Block: wsweight
+			Block: get_frc
+			Block: asign_supercell_index_new
+			Block: q_gen
+			Block: set_irotmq
+			Block: get_tau_sc_latvec
+			Block: permute_v3
+			Block: permute_v4
+			Block: trans_v2
+			Block: trans_v3
+			Block: trans_v4
+			Block: sym_v2
+			Block: sym_v3
+			Block: sym_v4
+			Block: print_symm
+			Block: threetosix_real
+			Block: sixtothree_real
+			Block: get_latvec
+			Block: contract_two_ph_propagator
+			Block: get_two_phonon_propagator
+			Block: get_q_grid
+			Block: kinds
+				Block: print_kind_info
+			Block: constants
+			Block: rgd_blk
+			Block: nonanal
+			Block: trasl
+			Block: get_translations
+			Block: get_equivalent_atoms
+			Block: get_closest_vector
+			Block: get_gr_data
+			Block: fix_coords_in_unit_cell
+			Block: matinv3
+Building modules...
+    Building module "symph"...
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "symdynph_gq_new"...
+          symdynph_gq_new(xq,phi,s,invs,rtau,irt,irotmq,minus_q,nsymq,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sgam_ph_new"...
+          rtau = sgam_ph_new(at,bg,nsym,s,irt,tau,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "invmat"...
+          a_inv = invmat(a,[n])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "set_asr"...
+          set_asr(asr,axis,tau,dyn,zeu,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sp_zeu"...
+          sp_zeu(zeu_u,zeu_v,scal,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sp1"...
+          sp1(u,v,scal,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sp2"...
+          sp2(u,v,ind_v,scal,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sp3"...
+          sp3(u,v,i,na,scal,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "errore"...
+          errore(calling_routine,message,ierr)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "infomsg"...
+          infomsg(routine,message)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "flush_unit"...
+          flush_unit(unit_tobeflushed)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "symvector"...
+          symvector(nsym,irt,s,at,bg,vect,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "fc_supercell_from_dyn"...
+          phitot_sc = fc_supercell_from_dyn(phitot,q,tau,tau_sc,itau,[nat,nq])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "fast_ft_real_space_from_dynq"...
+          fc_supercell = fast_ft_real_space_from_dynq(unit_cell_coords,super_cell_coords,itau,q_tot,dynq,[nat,nat_sc,nq])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "impose_trans_sc"...
+          impose_trans_sc(fc_sc,tau_sc_cryst,itau,[nat_sc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "dyn_from_fc"...
+          dyn = dyn_from_fc(phitot_sc,q,tau,tau_sc,itau,nq,nat)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "set_tau"...
+          set_tau(at,at_blk,tau,tau_blk,ityp,ityp_blk,itau_blk,[nat,nat_blk])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "cryst_to_cart"...
+          cryst_to_cart(vec,trmat,iflag,[nvec])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "recips"...
+          b1,b2,b3 = recips(a1,a2,a3)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "q2qstar_out"...
+          dynqstar = q2qstar_out(dyn,at,bg,nsym,s,invs,irt,rtau,nq,sxq,isq,imq,nqtot,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "rotate_and_add_dyn"...
+          phi2 = rotate_and_add_dyn(phi,isym,s,invs,irt,rtau,sxq,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "trntnsc"...
+          trntnsc(phi,at,bg,iflg)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "star_q"...
+          nq,sxq,isq,imq = star_q(xq,at,bg,nsym,s,invs,verbosity)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+		Creating wrapper for Fortran function "eqvect"("eqvect")...
+        Constructing wrapper function "eqvect"...
+          eqvect = eqvect(x,y,f)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "symmatrix"...
+          symmatrix(matr,s,nsym,at,bg)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "cart_to_crys_mat"...
+          cart_to_crys_mat(matr,at)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "crys_to_cart_mat"...
+          crys_to_cart_mat(matr,bg)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "frc_blk"...
+          dyn = frc_blk(q,tau,frc,at,rws,nrws,[nat,nr1,nr2,nr3,nrwsx])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "wsinit"...
+          nrws = wsinit(rws,atw,[nrwsx])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+		Creating wrapper for Fortran function "wsweight"("wsweight")...
+        Constructing wrapper function "wsweight"...
+          wsweight = wsweight(r,rws,nrws,[nrwsx])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_frc"...
+          frc = get_frc(phi_sc,tau,tau_sc,at,itau,size1,size2,size3,[nat,natsc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "asign_supercell_index_new"...
+          l,m,n = asign_supercell_index_new(vect,at)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "q_gen"...
+          qbid = q_gen(nsc,at_blk,bg_blk,at,bg)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "set_irotmq"...
+          irotmq = set_irotmq(xq,s,nsymq,nsym,minus_q,bg,at,lgamma)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_tau_sc_latvec"...
+          tau_sc_latvec = get_tau_sc_latvec(tau_sc,latvec,at_sc,[nat_sc,nr])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "permute_v3"...
+          permute_v3(v3,[n])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "permute_v4"...
+          permute_v4(v4,[n])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "trans_v2"...
+          trans_v2(v2,tau_sc_latvec,[nat_sc,nr])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "trans_v3"...
+          trans_v3(v3,tau_sc_latvec,[nat_sc,nr])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "trans_v4"...
+          trans_v4(v4,tau_sc_latvec,[nat_sc,nr])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sym_v2"...
+          sym_v2(v2,at_sc,bg_sc,s,irt,nsym,[nat_sc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sym_v3"...
+          sym_v3(v3,at_sc,s,irt,nsym,[nat_sc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sym_v4"...
+          sym_v4(v4,at_sc,s,irt,nsym,[nat_sc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "print_symm"...
+          print_symm(s,nsym,irt,supercell,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "threetosix_real"...
+          mat6 = threetosix_real(mat3,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "sixtothree_real"...
+          mat3 = sixtothree_real(mat6,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers2.f90"
+    Maybe empty "symph-f2pywrappers.f"
+		Creating wrapper for Fortran subroutine "get_latvec"("get_latvec")...
+        Constructing wrapper function "get_latvec"...
+          latvec = get_latvec(tau_sc,tau,itau,nr,[nat,nat_sc])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "contract_two_ph_propagator"...
+          f_output = contract_two_ph_propagator(w_array,w_mu,t,smearing,m,[n_w,n_modes])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_two_phonon_propagator"...
+          chi = get_two_phonon_propagator(w_value,ws,t,smearing,[n_w])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_q_grid"...
+          q_list = get_q_grid(bg,supercell_size,n_size)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "rgd_blk"...
+          rgd_blk(nr1,nr2,nr3,dyn,q,tau,epsil,zeu,bg,omega,alat,loto_2d,sign,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "nonanal"...
+          nonanal(itau_blk,epsil,q,zeu,omega,dyn,[nat,nat_blk])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "trasl"...
+          phid = trasl(phiq,nq,nr1,nr2,nr3,m1,m2,m3,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_translations"...
+          trans = get_translations(pols,masses,[nmod,nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_equivalent_atoms"...
+          eq_atoms = get_equivalent_atoms(coords1,coords2,unit_cell,ityp1,ityp2,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_closest_vector"...
+          new_v_dist = get_closest_vector(unit_cell,v_dist)
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "get_gr_data"...
+          r_value,gr = get_gr_data(cells,coords,ityp,type1,type2,r_min,r_max,n_r,[n_structs,nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "fix_coords_in_unit_cell"...
+          new_coords = fix_coords_in_unit_cell(coords,unit_cell,[nat])
+    Generating possibly empty wrappers"
+    Maybe empty "symph-f2pywrappers.f"
+        Constructing wrapper function "matinv3"...
+          b = matinv3(a)
+		Constructing F90 module support for "symm_base"...
+		  Variables: eps1 eps2 s sr sname ft ftau nrot nsym nsym_ns nsym_na t_rev no_t_rev time_reversal irt invs invsym d1 d2 d3 allfrac nofrac nosym nosym_evc at bg
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+            Constructing wrapper function "symm_base.set_accep_threshold"...
+              set_accep_threshold(thr)
+            Constructing wrapper function "symm_base.get_accep_threshold"...
+              thr = get_accep_threshold()
+            Constructing wrapper function "symm_base.set_at_bg"...
+              set_at_bg(new_at,new_bg)
+            Constructing wrapper function "symm_base.inverse_s"...
+              inverse_s()
+            Constructing wrapper function "symm_base.set_sym_bl"...
+              set_sym_bl()
+            Constructing wrapper function "symm_base.find_sym"...
+              find_sym(tau,ityp,nr1,nr2,nr3,magnetic_sym,m_loc,[nat])
+            Constructing wrapper function "symm_base.sgam_at"...
+              sym = sgam_at(tau,ityp,nr1,nr2,nr3,[nat])
+            Constructing wrapper function "symm_base.sgam_at_mag"...
+              sgam_at_mag(m_loc,sym,[nat])
+            Constructing wrapper function "symm_base.set_sym"...
+              set_sym(tau,ityp,nspin_mag,m_loc,nr1,nr2,nr3,[nat])
+		Creating wrapper for Fortran function "copy_sym"("copy_sym")...
+            Constructing wrapper function "symm_base.copy_sym"...
+              copy_sym = copy_sym(nrot_,sym)
+		Creating wrapper for Fortran function "is_group"("is_group")...
+            Constructing wrapper function "symm_base.is_group"...
+              is_group = is_group()
+		Creating wrapper for Fortran function "eqvect"("eqvect")...
+            Constructing wrapper function "symm_base.eqvect"...
+              eqvect = eqvect(x,y,f)
+		Creating wrapper for Fortran function "checksym"("checksym")...
+            Constructing wrapper function "symm_base.checksym"...
+              checksym = checksym(irot,ityp,xau,rau,ft_,[nat])
+            Constructing wrapper function "symm_base.checkallsym"...
+              checkallsym(tau,ityp,nr1,nr2,nr3,[nat])
+            Constructing wrapper function "symm_base.s_axis_to_cart"...
+              s_axis_to_cart()
+            Constructing wrapper function "symm_base.smallg_q"...
+              minus_q = smallg_q(aq,modenum,sym)
+		Constructing F90 module support for "io_global"...
+		  Variables: stdout_bn ionode ionode_id meta_ionode meta_ionode_id xmlinputunit xmloutputunit xmltmpunit
+            Constructing wrapper function "io_global.io_global_start"...
+              io_global_start(mpime,ionode_set)
+            Constructing wrapper function "io_global.meta_io_global_start"...
+              meta_io_global_start(mpime,ionode_set)
+            Constructing wrapper function "io_global.io_global_getionode"...
+              ionode_out,ionode_id_out = io_global_getionode()
+            Constructing wrapper function "io_global.io_global_getmeta"...
+              io_global_getmeta(myrank,root)
+		Constructing F90 module support for "kinds"...
+		  Variables: dp sgl i4b
+            Constructing wrapper function "kinds.print_kind_info"...
+              print_kind_info(stdout_bn)
+		Constructing F90 module support for "constants"...
+		  Variables: pi tpi fpi sqrtpi sqrtpm1 sqrt2 h_planck_si k_boltzmann_si electron_si electronvolt_si electronmass_si hartree_si rydberg_si bohr_radius_si amu_si c_si munought_si epsnought_si k_boltzmann_au k_boltzmann_ry autoev rytoev amu_au amu_ry au_sec au_ps au_gpa ry_kbar debye_si au_debye ev_to_kelvin ry_to_kelvin evtonm rytonm c_au eps4 eps6 eps8 eps12 eps14 eps16 eps24 eps32 gsmall e2 degspin bohr_radius_cm bohr_radius_angs angstrom_au dip_debye au_terahertz au_to_ohmcmm1 ry_to_thz ry_to_ghz ry_to_cmm1 avogadro
+    Wrote C/API module "symph" to file "build/src.linux-x86_64-3.10/symphmodule.c"
+    Fortran 77 wrappers are saved to "build/src.linux-x86_64-3.10/symph-f2pywrappers.f"
+    Fortran 90 wrappers are saved to "build/src.linux-x86_64-3.10/symph-f2pywrappers2.f90"
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10/fortranobject.c' to sources.
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10' to include_dirs.
+creating build/src.linux-x86_64-3.10/build
+creating build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10
+copying /usr/local/lib/python3.10/dist-packages/numpy/f2py/src/fortranobject.c -> build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10
+copying /usr/local/lib/python3.10/dist-packages/numpy/f2py/src/fortranobject.h -> build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10
+INFO:   adding 'build/src.linux-x86_64-3.10/symph-f2pywrappers.f' to sources.
+INFO:   adding 'build/src.linux-x86_64-3.10/symph-f2pywrappers2.f90' to sources.
+INFO: building extension "cc_linalg" sources
+INFO: building extension "thirdorder" sources
+INFO: f2py options: []
+INFO: f2py:> build/src.linux-x86_64-3.10/thirdordermodule.c
+Reading fortran codes...
+	Reading file 'FModules/third_order_centering.f90' (format:free)
+	Reading file 'FModules/third_order_ASR.f90' (format:free)
+	Reading file 'FModules/third_order_interpol.f90' (format:free)
+	Reading file 'FModules/third_order_dynbubble.f90' (format:free)
+Post-processing...
+	Block: thirdorder
+			Block: third_order_centering
+				Block: analysis
+				Block: center
+				Block: center_sparse
+				Block: pre_center
+				Block: assign
+				Block: within_dmax
+				Block: compute_perimeter
+				Block: three_to_one_len
+				Block: three_to_one
+				Block: one_to_three_len
+				Block: one_to_three
+				Block: min_el_wise_2
+				Block: max_el_wise_2
+				Block: min_el_wise_3
+				Block: max_el_wise_3
+				Block: cryst_to_cart
+			Block: third_order_asr
+				Block: initialize_r2index
+				Block: initialize_perm
+				Block: geq
+				Block: f
+				Block: impose_perm_sym
+				Block: impose_asr_3rd
+				Block: impose_asr
+			Block: third_order_interpol
+				Block: interpol
+In: :thirdorder:FModules/third_order_interpol.f90:third_order_interpol:interpol
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+			Block: third_order_bubble
+				Block: compute_static_bubble
+				Block: compute_dynamic_bubble
+				Block: compute_diag_dynamic_bubble
+				Block: compute_perturb_selfnrg
+				Block: compute_spectralf
+In: :thirdorder:FModules/third_order_dynbubble.f90:third_order_bubble:compute_spectralf
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+				Block: compute_spectralf_diag
+In: :thirdorder:FModules/third_order_dynbubble.f90:third_order_bubble:compute_spectralf_diag
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+				Block: lambda
+				Block: lambda_dynamic
+				Block: lambda_dynamic_value
+				Block: bose_freq
+				Block: f_bose
+In: :thirdorder:FModules/third_order_dynbubble.f90:third_order_bubble:f_bose
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+In: :thirdorder:FModules/third_order_dynbubble.f90:third_order_bubble:f_bose
+analyzevars: prefix ('elemental') were not used
+				Block: df_bose
+In: :thirdorder:FModules/third_order_dynbubble.f90:third_order_bubble:df_bose
+get_parameters: got "eval() arg 1 must be a string, bytes or code object" on 4
+				Block: invzmat
+				Block: eliminate_transl
+Post-processing (stage 2)...
+	Block: thirdorder
+		Block: unknown_interface
+			Block: third_order_centering
+				Block: analysis
+				Block: center
+				Block: center_sparse
+				Block: pre_center
+				Block: assign
+				Block: within_dmax
+				Block: compute_perimeter
+				Block: three_to_one_len
+				Block: three_to_one
+				Block: one_to_three_len
+				Block: one_to_three
+				Block: min_el_wise_2
+				Block: max_el_wise_2
+				Block: min_el_wise_3
+				Block: max_el_wise_3
+				Block: cryst_to_cart
+			Block: third_order_asr
+				Block: initialize_r2index
+				Block: initialize_perm
+				Block: geq
+				Block: f
+				Block: impose_perm_sym
+				Block: impose_asr_3rd
+				Block: impose_asr
+			Block: third_order_interpol
+				Block: interpol
+			Block: third_order_bubble
+				Block: compute_static_bubble
+				Block: compute_dynamic_bubble
+				Block: compute_diag_dynamic_bubble
+				Block: compute_perturb_selfnrg
+				Block: compute_spectralf
+				Block: compute_spectralf_diag
+				Block: lambda
+				Block: lambda_dynamic
+				Block: lambda_dynamic_value
+				Block: bose_freq
+				Block: f_bose
+				Block: df_bose
+				Block: invzmat
+				Block: eliminate_transl
+Building modules...
+    Building module "thirdorder"...
+		Constructing F90 module support for "third_order_centering"...
+            Constructing wrapper function "third_order_centering.analysis"...
+              weight,xr2,xr3 = analysis(far,tol,dmax,sc_size,xr2_list,xr3_list,alat,tau,tensor,[nat,n_blocks])
+            Constructing wrapper function "third_order_centering.center"...
+              centered = center(original,weight,xr2_list,xr2,xr3_list,xr3,far,[nat,n_blocks,n_blocks_old])
+            Constructing wrapper function "third_order_centering.center_sparse"...
+              centered,n_sparse_blocks,xr2_sparse_list,xr3_sparse_list,atom_sparse_list,r_blocks_sparse_list = center_sparse(original,weight,xr2_list,xr2,xr3_list,xr3,far,[nat,n_sup,n_blocks])
+            Constructing wrapper function "third_order_centering.pre_center"...
+              centered,lat_min,lat_max = pre_center(far,nq1,nq2,nq3,tol,alat,tau,original,[nat])
+            Constructing wrapper function "third_order_centering.assign"...
+              centered,x2,x3,r2,r3 = assign(alat,lat_min_prev,lat_max_prev,centered_prev,lat_min,lat_max,n_sup_ws,[nat,n_sup_ws_prev])
+		Creating wrapper for Fortran function "within_dmax"("within_dmax")...
+            Constructing wrapper function "third_order_centering.within_dmax"...
+              within_dmax = within_dmax(v1,v2,v3,d1,d2,d3,tol)
+		Creating wrapper for Fortran function "compute_perimeter"("compute_perimeter")...
+            Constructing wrapper function "third_order_centering.compute_perimeter"...
+              compute_perimeter = compute_perimeter(v1,v2,v3)
+		Creating wrapper for Fortran function "three_to_one_len"("three_to_one_len")...
+            Constructing wrapper function "third_order_centering.three_to_one_len"...
+              three_to_one_len = three_to_one_len(v,v_min,v_len)
+		Creating wrapper for Fortran function "three_to_one"("three_to_one")...
+            Constructing wrapper function "third_order_centering.three_to_one"...
+              three_to_one = three_to_one(v,v_min,v_max)
+		Creating wrapper for Fortran function "one_to_three_len"("one_to_three_len")...
+            Constructing wrapper function "third_order_centering.one_to_three_len"...
+              one_to_three_len = one_to_three_len(j,v_min,v_len)
+		Creating wrapper for Fortran function "one_to_three"("one_to_three")...
+            Constructing wrapper function "third_order_centering.one_to_three"...
+              one_to_three = one_to_three(j,v_min,v_max)
+		Creating wrapper for Fortran function "min_el_wise_2"("min_el_wise_2")...
+            Constructing wrapper function "third_order_centering.min_el_wise_2"...
+              min_el_wise_2 = min_el_wise_2(a,b)
+		Creating wrapper for Fortran function "max_el_wise_2"("max_el_wise_2")...
+            Constructing wrapper function "third_order_centering.max_el_wise_2"...
+              max_el_wise_2 = max_el_wise_2(a,b)
+		Creating wrapper for Fortran function "min_el_wise_3"("min_el_wise_3")...
+            Constructing wrapper function "third_order_centering.min_el_wise_3"...
+              min_el_wise_3 = min_el_wise_3(a,b,c)
+		Creating wrapper for Fortran function "max_el_wise_3"("max_el_wise_3")...
+            Constructing wrapper function "third_order_centering.max_el_wise_3"...
+              max_el_wise_3 = max_el_wise_3(a,b,c)
+		Creating wrapper for Fortran function "cryst_to_cart"("cryst_to_cart")...
+            Constructing wrapper function "third_order_centering.cryst_to_cart"...
+              cryst_to_cart = cryst_to_cart(v,alat)
+		Constructing F90 module support for "third_order_asr"...
+		  Variables: perm_initialized p r2index_initialized index_blocks_r2 num_blocks_r2
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+            Constructing wrapper function "third_order_asr.initialize_r2index"...
+              initialize_r2index(xr2,xr2list,pbc,[totnum_r2,n_blocks,sclat])
+            Constructing wrapper function "third_order_asr.initialize_perm"...
+              initialize_perm(r23,sclat,pbc,[n_blocks])
+		Creating wrapper for Fortran function "geq"("geq")...
+            Constructing wrapper function "third_order_asr.geq"...
+              geq = geq(v1,v2,lat,pbc)
+		Creating wrapper for Fortran function "f"("f")...
+            Constructing wrapper function "third_order_asr.f"...
+              f = f(x)
+            Constructing wrapper function "third_order_asr.impose_perm_sym"...
+              fcvar,fc_sym = impose_perm_sym(fc,r23,sclat,pbc,verbose,[nat,n_blocks])
+            Constructing wrapper function "third_order_asr.impose_asr_3rd"...
+              fcvar,sum3rd,fc_asr = impose_asr_3rd(fc,xr2,xr2list,pow,sclat,pbc,verbose,[totnum_r2,nat,n_blocks])
+            Constructing wrapper function "third_order_asr.impose_asr"...
+              fc_out = impose_asr(fc,r23,xr2,xr2list,pow,sclat,pbc,threshold,maxite,verbose,[totnum_r2,nat,n_blocks])
+		Constructing F90 module support for "third_order_interpol"...
+            Constructing wrapper function "third_order_interpol.interpol"...
+              fc_interp = interpol(fc,r2,r3,q2,q3,[n_blocks,nat])
+		Constructing F90 module support for "third_order_bubble"...
+            Constructing wrapper function "third_order_bubble.compute_static_bubble"...
+              bubble = compute_static_bubble(t,freq,is_gamma,d3,[n_mod])
+            Constructing wrapper function "third_order_bubble.compute_dynamic_bubble"...
+              bubble = compute_dynamic_bubble(energies,sigma,static_limit,t,freq,is_gamma,d3,diag_approx,[ne,nsig,n_mod])
+            Constructing wrapper function "third_order_bubble.compute_diag_dynamic_bubble"...
+              bubble = compute_diag_dynamic_bubble(energies,sigma,t,freq,is_gamma,d3,[ne,nsig,n_mod])
+            Constructing wrapper function "third_order_bubble.compute_perturb_selfnrg"...
+              selfnrg = compute_perturb_selfnrg(sigma,t,freq,is_gamma,d3,[nsig,n_mod])
+            Constructing wrapper function "third_order_bubble.compute_spectralf"...
+              spectralf = compute_spectralf(smear_id,ener,d2,pi,notransl,mass,[nat,ne,nsmear])
+            Constructing wrapper function "third_order_bubble.compute_spectralf_diag"...
+              spectralf = compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,[nat,ne,nsmear])
+            Constructing wrapper function "third_order_bubble.lambda"...
+              lambda_out = lambda(t,w_q2,w_q3)
+            Constructing wrapper function "third_order_bubble.lambda_dynamic"...
+              lambda_out = lambda_dynamic(energies,sigma,t,static_limit,w_q2,w_q3,[ne,nsigma])
+            Constructing wrapper function "third_order_bubble.lambda_dynamic_value"...
+              lambda_out = lambda_dynamic_value(value,sigma,t,w_q2,w_q3,[n_mod,nsigma])
+            Constructing wrapper function "third_order_bubble.bose_freq"...
+              bose = bose_freq(t,freq,[n_mod])
+		Creating wrapper for Fortran function "f_bose"("f_bose")...
+            Constructing wrapper function "third_order_bubble.f_bose"...
+              f_bose = f_bose(freq,t)
+		Creating wrapper for Fortran function "df_bose"("df_bose")...
+            Constructing wrapper function "third_order_bubble.df_bose"...
+              df_bose = df_bose(freq,t)
+            Constructing wrapper function "third_order_bubble.invzmat"...
+              invzmat(a,[n])
+            Constructing wrapper function "third_order_bubble.eliminate_transl"...
+              eliminate_transl(a,mass,[nat])
+    Wrote C/API module "thirdorder" to file "build/src.linux-x86_64-3.10/thirdordermodule.c"
+    Fortran 90 wrappers are saved to "build/src.linux-x86_64-3.10/thirdorder-f2pywrappers2.f90"
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10/fortranobject.c' to sources.
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10' to include_dirs.
+INFO:   adding 'build/src.linux-x86_64-3.10/thirdorder-f2pywrappers2.f90' to sources.
+INFO: building extension "secondorder" sources
+INFO: f2py options: []
+INFO: f2py:> build/src.linux-x86_64-3.10/secondordermodule.c
+Reading fortran codes...
+	Reading file 'FModules/second_order_centering.f90' (format:free)
+	Reading file 'FModules/second_order_ASR.f90' (format:free)
+Post-processing...
+	Block: secondorder
+			Block: second_order_centering
+				Block: analysis
+				Block: center
+				Block: within_dmax
+				Block: compute_perimeter
+				Block: cryst_to_cart
+			Block: second_order_asr
+				Block: initialize_perm
+				Block: clear_all
+				Block: geq
+				Block: impose_perm_sym
+				Block: impose_asr_2nd
+				Block: impose_asr
+Post-processing (stage 2)...
+	Block: secondorder
+		Block: unknown_interface
+			Block: second_order_centering
+				Block: analysis
+				Block: center
+				Block: within_dmax
+				Block: compute_perimeter
+				Block: cryst_to_cart
+			Block: second_order_asr
+				Block: initialize_perm
+				Block: clear_all
+				Block: geq
+				Block: impose_perm_sym
+				Block: impose_asr_2nd
+				Block: impose_asr
+Building modules...
+    Building module "secondorder"...
+		Constructing F90 module support for "second_order_centering"...
+            Constructing wrapper function "second_order_centering.analysis"...
+              weight,xr2 = analysis(far,tol,dmax,sc_size,xr2_list,alat,tau,tensor,[nat,n_blocks])
+            Constructing wrapper function "second_order_centering.center"...
+              centered = center(original,weight,xr2_list,xr2,far,[nat,n_blocks,n_blocks_old])
+		Creating wrapper for Fortran function "within_dmax"("within_dmax")...
+            Constructing wrapper function "second_order_centering.within_dmax"...
+              within_dmax = within_dmax(v1,v2,d1,d2,tol)
+		Creating wrapper for Fortran function "compute_perimeter"("compute_perimeter")...
+            Constructing wrapper function "second_order_centering.compute_perimeter"...
+              compute_perimeter = compute_perimeter(v1,v2)
+		Creating wrapper for Fortran function "cryst_to_cart"("cryst_to_cart")...
+            Constructing wrapper function "second_order_centering.cryst_to_cart"...
+              cryst_to_cart = cryst_to_cart(v,alat)
+		Constructing F90 module support for "second_order_asr"...
+		  Variables: perm_initialized p
+getarrdims:warning: assumed shape array, using 0 instead of ':'
+            Constructing wrapper function "second_order_asr.initialize_perm"...
+              initialize_perm(r2,sclat,pbc,[n_blocks])
+            Constructing wrapper function "second_order_asr.clear_all"...
+              clear_all()
+		Creating wrapper for Fortran function "geq"("geq")...
+            Constructing wrapper function "second_order_asr.geq"...
+              geq = geq(v1,v2,lat,pbc)
+            Constructing wrapper function "second_order_asr.impose_perm_sym"...
+              fcvar,fc_sym = impose_perm_sym(fc,r2,sclat,pbc,verbose,[nat,n_blocks])
+            Constructing wrapper function "second_order_asr.impose_asr_2nd"...
+              fcvar,sum2nd,fc_asr = impose_asr_2nd(fc,pow,sclat,pbc,verbose,[nat,n_blocks])
+            Constructing wrapper function "second_order_asr.impose_asr"...
+              fc_out = impose_asr(fc,r2,pow,sclat,pbc,threshold,maxite,verbose,[nat,n_blocks])
+    Wrote C/API module "secondorder" to file "build/src.linux-x86_64-3.10/secondordermodule.c"
+    Fortran 90 wrappers are saved to "build/src.linux-x86_64-3.10/secondorder-f2pywrappers2.f90"
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10/fortranobject.c' to sources.
+INFO:   adding 'build/src.linux-x86_64-3.10/build/src.linux-x86_64-3.10' to include_dirs.
+INFO:   adding 'build/src.linux-x86_64-3.10/secondorder-f2pywrappers2.f90' to sources.
+INFO: build_src: building npy-pkg config files
+running build_py
+creating build/lib.linux-x86_64-3.10
+creating build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Methods.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/calculators.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Phonons.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/AnharmonicForceFields.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/ForceTensor.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/__init__.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Spectral.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Bands.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Manipulate.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Units.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Settings.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Structure.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/symmetries.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Timer.py -> build/lib.linux-x86_64-3.10/cellconstructor
+copying cellconstructor/Moro_object.py -> build/lib.linux-x86_64-3.10/cellconstructor
+creating build/lib.linux-x86_64-3.10/cellconstructor/SymData
+copying cellconstructor/SymData/64.dat -> build/lib.linux-x86_64-3.10/cellconstructor/SymData
+copying cellconstructor/SymData/36_red.dat -> build/lib.linux-x86_64-3.10/cellconstructor/SymData
+copying cellconstructor/SymData/15.dat -> build/lib.linux-x86_64-3.10/cellconstructor/SymData
+copying cellconstructor/SymData/60.dat -> build/lib.linux-x86_64-3.10/cellconstructor/SymData
+copying cellconstructor/SymData/36.dat -> build/lib.linux-x86_64-3.10/cellconstructor/SymData
+running build_ext
+INFO: customize UnixCCompiler
+INFO: customize UnixCCompiler using build_ext
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-march=native)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+creating /tmp/tmpcmtles2_/usr
+creating /tmp/tmpcmtles2_/usr/local
+creating /tmp/tmpcmtles2_/usr/local/lib
+creating /tmp/tmpcmtles2_/usr/local/lib/python3.10
+creating /tmp/tmpcmtles2_/usr/local/lib/python3.10/dist-packages
+creating /tmp/tmpcmtles2_/usr/local/lib/python3.10/dist-packages/numpy
+creating /tmp/tmpcmtles2_/usr/local/lib/python3.10/dist-packages/numpy/distutils
+creating /tmp/tmpcmtles2_/usr/local/lib/python3.10/dist-packages/numpy/distutils/checks
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-march=native'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-O3)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-O3'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-Werror)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-Werror'
+INFO: CCompilerOpt.__init__[1782] : check requested baseline
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-msse)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-msse2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse2'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSE' with flags (-msse -msse2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSE2' with flags (-msse -msse2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -Werror'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-msse3)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse3'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSE3' with flags (-msse -msse2 -msse3)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -Werror'
+INFO: CCompilerOpt.__init__[1791] : check requested dispatch-able features
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mssse3)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mssse3'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-msse4.1)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse4.1'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mpopcnt)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mpopcnt'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'POPCNT' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -Werror'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-msse4.2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse4.2'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mf16c)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mf16c'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx2'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX2' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mavx2 -Werror'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mfma)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mfma'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx512f -mno-mmx)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx512f -mno-mmx'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx512cd)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx512cd'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx512vl -mavx512bw -mavx512dq)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx512vl -mavx512bw -mavx512dq'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx512vnni)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx512vnni'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX512_CLX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512vnni -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSE41' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'F16C' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -Werror'
+INFO: CCompilerOpt.cc_test_flags[1073] : testing flags (-mavx512ifma -mavx512vbmi)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-mavx512ifma -mavx512vbmi'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX512_CNL' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq -mavx512ifma -mavx512vbmi -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX512CD' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSSE3' with flags (-msse -msse2 -msse3 -mssse3)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'FMA3' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'SSE42' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -Werror'
+INFO: CCompilerOpt.feature_test[1547] : testing feature 'AVX512_SKX' with flags (-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq)
+INFO: C compiler: x86_64-linux-gnu-gcc -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC
+
+INFO: compile options: '-I/usr/include/python3.10 -c'
+extra options: '-msse -msse2 -msse3 -mssse3 -msse4.1 -mpopcnt -msse4.2 -mavx -mf16c -mfma -mavx2 -mavx512f -mno-mmx -mavx512cd -mavx512vl -mavx512bw -mavx512dq -Werror'
+INFO: CCompilerOpt.cache_flush[857] : write cache to path -> /home/antonio/CellConstructor/build/temp.linux-x86_64-3.10/ccompiler_opt_cache_ext.py
