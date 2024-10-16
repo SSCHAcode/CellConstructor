@@ -1680,7 +1680,7 @@ class ThermalConductivity:
             for i in range(3):
                 for j in range(3):
                     ac_kappa1[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix1[iom]*(1.0/(1.0 + nu_lifetimes1)), axis = (0,1))
-                    ac_kappa2[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix2[iom]*(1.0/(1.0 + nu_lifetimes2)), axis = (0,1))
+                    ac_kappa2[iom,i,j] = np.sum(kappaq[:,:,i,j]*(c_matrix1[iom] + c_matrix2[iom])*(1.0/(1.0 + nu_lifetimes2)), axis = (0,1))
                     ac_kappa4[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix2[iom]*(1.0/(1.0 + nu_lifetimes1)), axis = (0,1))
             ac_kappa[iom] = ac_kappa1[iom] - ac_kappa2[iom] + ac_kappa4[iom]
 
