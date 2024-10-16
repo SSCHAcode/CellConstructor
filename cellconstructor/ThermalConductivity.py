@@ -1498,6 +1498,7 @@ class ThermalConductivity:
 
     def calculate_kappa_gk_AC(self, temperature, write_lineshapes, energies, gauss_smearing = False):
 
+        from scipy.signal import correlate
         """
         Calculation of lattice thermal conductivity using Green-Kubo method if both diagonal and off-diagonal group velocities are available.
 
@@ -1535,11 +1536,13 @@ class ThermalConductivity:
                             if(self.freqs[iqpt, jband] != 0.0 and iband != jband):
                                 i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0))
                                 i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
-                                integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                #integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integral1 = correlate(i2, i1, mode = 'full', method='fft')[len(i1) - 1:len(i1) + ne]*self.delta_omega*0.5
                                 i3 = np.append(np.append(-np.flip(energies), np.zeros(1, dtype=float)), energies)
                                 i4 = np.divide(i2, i3, out=np.zeros_like(i2), where=i3!=0.0)
                                 i5 = i1*i3
-                                integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                #integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integral2 = correlate(i4, i5, mode = 'full', method='fft')[len(i1) - 1:len(i1) + ne]*self.delta_omega*0.5
                                 integrals = integral1 + integral2
                                 #integrals += np.append(np.zeros(1, dtype=float), energies)*np.correlate(i2, i4, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
                                 #if(np.abs(np.sum(i1*i2)*self.delta_omega - integrals[0]) > np.abs(np.sum(i1*i2)*self.delta_omega)*1.0e-6):
@@ -1570,11 +1573,13 @@ class ThermalConductivity:
                                 gvel_sum = gvel_sum.real*vel_fact**2/float(len(self.rotations))
                                 i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, jband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, jband]*exponents_plus/(exponents_plus - 1.0))
                                 i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
-                                integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                #integral1 = np.correlate(i2, i1, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integral1 = correlate(i2, i1, mode = 'full', method='fft')[len(i1) - 1:len(i1) + ne]*self.delta_omega*0.5
                                 i3 = np.append(np.append(-np.flip(energies), np.zeros(1, dtype=float)), energies)
                                 i4 = np.divide(i2, i3, out=np.zeros_like(i2), where=i3!=0.0)
                                 i5 = i1*i3
-                                integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                #integral2 = np.correlate(i4, i5, mode = 'full')[len(i1) - 1:len(i1) + ne ]*self.delta_omega*0.5
+                                integral2 = correlate(i4, i5, mode = 'full', method='fft')[len(i1) - 1:len(i1) + ne]*self.delta_omega*0.5
                                 integrals = integral1 + integral2
                                 #i1 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]*exponents_minus/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]*exponents_plus/(exponents_plus - 1.0))
                                 #i2 = np.append(np.append(np.flip(self.lineshapes[ls_key][iqpt, iband]/(exponents_minus - 1.0)), np.zeros(1, dtype=float)), self.lineshapes[ls_key][iqpt, iband]/(exponents_plus - 1.0))
@@ -2400,7 +2405,7 @@ class ThermalConductivity:
                                 a4 = ((self.freqs[iqpt,iband] - self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
                                 a41 = ((self.freqs[iqpt,iband] + self.freqs[iqpt,jband]))**2 + (scatt_rates[iqpt, iband] + scatt_rates[iqpt, jband])**2/4.0
                                 kappa_nondiag += a1*a3/a4*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
-                                kappa_nondiag += a11*a3/a41*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
+                                kappa_nondiag += a1*a3/a41*gvel_sum/2.0/np.pi/float(len(self.rotations))/2.0#*float(len(istar))
                             elif(self.freqs[iqpt, jband] != 0.0 and iband == jband):
                                 gvel_sum = np.zeros_like(kappa_diag, dtype=complex)
                                 gvel = np.zeros_like(self.gvels[iqpt, iband, jband])
