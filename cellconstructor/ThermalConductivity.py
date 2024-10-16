@@ -1628,6 +1628,66 @@ class ThermalConductivity:
 
     #################################################################################################################################
 
+    def calculate_kappa_perturb_AC(self, temperature, energies, gauss_smearing = False, isotope_scattering = False, isotopes = None, lf_method = 'fortran-LA'):
+
+        """
+
+        Calculate AC thermal conductivity in the perturbative regime !
+
+        """
+
+        lf_key = format(temperature, '.1f')
+        cp_key = format(temperature, '.1f')
+        if(lf_key in self.lifetimes.keys()):
+            print('Lifetimes for this temperature have already been calculated. Continuing ...')
+        else:
+            print('Calculating phonon lifetimes for ' + format(temperature, '.1f') + ' K temperature!')
+            self.get_lifetimes(temperature, ne, gauss_smearing = gauss_smearing, isotope_scattering = isotope_scattering, isotopes = isotopes, method = lf_method)
+        if(cp_key in self.cp.keys()):
+            print('Phonon mode heat capacities for this temperature have already been calculated. Continuing ...')
+        else:
+            print('Calculating phonon mode heat capacities for ' + format(temperature, '.1f') + ' K temperature!')
+            self.get_heat_capacity(temperature)
+
+        constant = SSCHA_TO_THZ*2.0*np.pi*1.0e12
+        ne = len(energies)
+
+        kappaq_shape = (self.nkpt, self.nband, 3, 3)
+        kappaq = np.zeros_like(kappaq_shape)
+        if(self.off_diag):
+            kappaq = np.einsum('ijjk, ijjl, ij, ij -> ijkl', self.gvels[:,:,:,:], self.gvels[:,:,:,:], self.cp[cp_key], self.lifetimes[lf_key])*SSCHA_TO_MS**2/self.volume/float(self.nkpt)*1.e30
+        else:
+            kappaq = np.einsum('ijk, ijl, ij, ij -> ijkl', self.gvels[:,:,:], self.gvels[:,:,:], self.cp[cp_key], self.lifetimes[lf_key])*SSCHA_TO_MS**2/self.volume/float(self.nkpt)*1.e30
+
+        c_matrix1 = np.zeros((ne, self.nkpt, self.nband))
+        c_matrix2 = np.zeros((ne, self.nkpt, self.nband))
+        exponents = energies*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature
+        omega_exponents = self.freqs*SSCHA_TO_THZ*1.0e12*HPLANCK/KB/temperature
+        ac_kappa = np.zeros((ne, 3, 3))
+        ac_kappa1 = np.zeros_like(ac_kappa)
+        ac_kappa2 = np.zeros_like(ac_kappa)
+        ac_kappa4 = np.zeros_like(ac_kappa)
+        for iom in range(ne):
+            if(energies[iom] != 0.0):
+                c_matrix1[iom] = 0.25*(np.exp(exponents[iom]) - 1.0)/exponents[iom]*(1.0 + self.freqs/(self.freqs+energies[iom]))*(np.exp(omega_exponents) - 1.0)/(np.exp(omega_exponents + exponents[iom]) - 1.0)
+                divided = np.divide(self.freqs + energies[iom], self.freqs, out=np.zeros_like(self.freqs), where = self.freqs != 0.0)
+                c_matrix2[iom] = 0.25*(np.exp(exponents[iom]) - 1.0)/exponents[iom]*(1.0 + divided)*(np.exp(-omega_exponents) - 1.0)/(np.exp(-omega_exponents - exponents[iom]) - 1.0)/np.exp(exponents[iom])
+            else:
+                c_matrix1[iom] = 0.5
+                c_matrix2[iom] = 0.5
+            nu_lifetimes1 = (self.lifetimes[lf_key])**2*energies[iom]**2*constant**2
+            nu_lifetimes2 = (self.lifetimes[lf_key])**2*(energies[iom] + 2.0*self.freqs)**2*constant**2
+            for i in range(3):
+                for j in range(3):
+                    ac_kappa1[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix1[iom]*(1.0/(1.0 + nu_lifetimes1)), axis = (0,1))
+                    ac_kappa2[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix2[iom]*(1.0/(1.0 + nu_lifetimes2)), axis = (0,1))
+                    ac_kappa4[iom,i,j] = np.sum(kappaq[:,:,i,j]*c_matrix2[iom]*(1.0/(1.0 + nu_lifetimes1)), axis = (0,1))
+            ac_kappa[iom] = ac_kappa1[iom] - ac_kappa2[iom] + ac_kappa4[iom]
+
+        return ac_kappa, ac_kappa1, ac_kappa2, ac_kappa4
+
+    #################################################################################################################################
+
     def get_self_energy_at_q(self, iqpt, temperature, energies, mode_mixing = 'no', gauss_smearing = False, write_self_energy = False):
 
         if(self.delta_omega == 0.0 and energies is not None):
