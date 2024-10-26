@@ -284,7 +284,7 @@ subroutine compute_spectralf(smear_id,ener,d2,Pi,notransl,spectralf,mass,nat,ne,
     !
     integer                      :: nat3,n,m,ismear,ie
     complex(kind=dp)             :: G(3*nat,3*nat) 
-    complex(kind=dp)             :: fact
+    complex(kind=dp)             :: fact, w_plus_eta
     
     nat3=3*nat
         
@@ -301,6 +301,7 @@ subroutine compute_spectralf(smear_id,ener,d2,Pi,notransl,spectralf,mass,nat,ne,
          G=G-d2
          ! ADD PROPTO IDENTITY PART
          fact=smear_id(ismear)*(0.0_dp,1.0_dp)
+         w_plus_eta = ener(ie)+fact
          DO n=1,nat3
            G(n,n)=G(n,n)+(ener(ie)+fact)**2
          ENDDO
@@ -310,7 +311,7 @@ subroutine compute_spectralf(smear_id,ener,d2,Pi,notransl,spectralf,mass,nat,ne,
            CALL eliminate_transl(G,mass,nat)      
          END IF        
          DO n=1,nat3
-           spectralf(ie,ismear)=spectralf(ie,ismear)-2*DIMAG(G(n,n))*ener(ie)/twopi
+           spectralf(ie,ismear)=spectralf(ie,ismear)-2*DIMAG(G(n,n)*w_plus_eta)/twopi
          END DO         
     ENDDO
     ENDDO    
@@ -347,7 +348,11 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
           !
           ! (w/2pi)(-2Im [1/a+ib])= (w/pi) b/(a**2+b**2) 
           !
-          num   = ener(ie)*b
+          ! If w -> w + i eta, then we must add also
+          ! - (eta/pi) a / (a**2+b**2)
+          !
+          num = ener(ie)*b
+          num = num -smear_id(ismear)*a
           denom = (a**2+b**2)*pi
           !
           IF(ABS(denom)/=0._dp)THEN
