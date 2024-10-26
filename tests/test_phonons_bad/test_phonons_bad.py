@@ -32,4 +32,4 @@ def test_phonons_bad(verbose=False):
 
 
 if __name__ == "__main__":
-    test_phonons_bad(verbose=True)
+    test_phonons_bad()

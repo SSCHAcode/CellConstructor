@@ -1636,6 +1636,9 @@ class ThermalConductivity:
 
         """
 
+        constant = SSCHA_TO_THZ*2.0*np.pi*1.0e12
+        ne = len(energies)
+
         lf_key = format(temperature, '.1f')
         cp_key = format(temperature, '.1f')
         if(lf_key in self.lifetimes.keys()):
@@ -1648,9 +1651,6 @@ class ThermalConductivity:
         else:
             print('Calculating phonon mode heat capacities for ' + format(temperature, '.1f') + ' K temperature!')
             self.get_heat_capacity(temperature)
-
-        constant = SSCHA_TO_THZ*2.0*np.pi*1.0e12
-        ne = len(energies)
 
         kappaq_shape = (self.nkpt, self.nband, 3, 3)
         kappaq = np.zeros_like(kappaq_shape)
