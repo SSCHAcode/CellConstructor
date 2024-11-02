@@ -1928,7 +1928,7 @@ class Phonons:
         dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size, img_thr = img_thr)
 
         # Check also effective charges and dielectric tensor
-        if self.dieltensor is not None:
+        if self.dielectric_tensor is not None:
             dyn_supercell.dielectric_tensor = self.dielectric_tensor
         if self.effective_charges is not None:
             itau = super_struct.get_itau(self.structure) - 1
@@ -1936,6 +1936,14 @@ class Phonons:
             for i in range(nat_sc):
                 i_uc = itau[i]
                 dyn_supercell.effective_charges[i, :, :] = self.effective_charges[i_uc, :, :]
+        if self.raman_tensor is not None:
+            itau = super_struct.get_itau(self.structure) - 1
+            dyn_supercell.raman_tensor = np.zeros((3, 3, 3*nat_sc), dtype = np.double)
+            for i in range(3 * nat_sc):
+                i_at = i // 3
+                j_coord = i % 3
+                i_uc = itau[i_at]
+                dyn_supercell.raman_tensor[:, :, i] = self.raman_tensor[:, :, i_uc + j_coord]
 
         return dyn_supercell
 
