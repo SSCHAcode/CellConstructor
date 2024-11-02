@@ -1885,7 +1885,7 @@ class Phonons:
 
 
 
-    def GenerateSupercellDyn(self, supercell_size, img_thr = 1e-6):
+    def GenerateSupercellDyn(self, supercell_size=None, img_thr = 1e-6):
         """
         GENERATE SUPERCEL DYN
         =====================
@@ -1899,7 +1899,7 @@ class Phonons:
         ----------
             supercell_size : array int (size=3)
                 the dimension of the cell on which you want to generate the new
-                Phonon
+                Phonon. If None, it is inferred from the q points.
 
         Results
         -------
@@ -1907,6 +1907,10 @@ class Phonons:
                 A Phonons class of the supercell
 
         """
+        if supercell_size is None:
+            supercell_size = self.GetSupercell()
+
+
         # First check if the q vectors are compatible with the supercell
         if not symmetries.CheckSupercellQ(self.structure.unit_cell, supercell_size, self.q_tot):
             print("Q points:", self.q_tot)
@@ -1916,9 +1920,22 @@ class Phonons:
 
         super_struct = self.structure.generate_supercell(supercell_size)
 
+        nat = self.structure.N_atoms
+        nat_sc = super_struct.N_atoms
+
         dyn_supercell = Phonons(super_struct, nqirr = 1, force_real = True)
 
         dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size, img_thr = img_thr)
+
+        # Check also effective charges and dielectric tensor
+        if self.dieltensor is not None:
+            dyn_supercell.dielectric_tensor = self.dielectric_tensor
+        if self.effective_charges is not None:
+            itau = super_struct.get_itau(self.structure) - 1
+            dyn_supercell.effective_charges = np.zeros((nat_sc, 3, 3), dtype = np.double)
+            for i in range(nat_sc):
+                i_uc = itau[i]
+                dyn_supercell.effective_charges[i, :, :] = self.effective_charges[i_uc, :, :]
 
         return dyn_supercell
 
