@@ -72,7 +72,7 @@ cc_modules_ext = Extension(name = "cc_linalg",
 
 
 setup( name = "CellConstructor",
-       version = "1.4.1",
+       version = "1.5.0",
        description = "Python utilities that is interfaced with ASE for atomic crystal analysis",
        author = "Lorenzo Monacelli",
        url = "https://github.com/mesonepigreco/CellConstructor",

@@ -1349,6 +1349,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
         This method returns the ase atoms structure, ready for computations.
 
+        This function automatically transform isotopes like deuterium 'D' in 'H' atoms,
+        otherwise ase crashes.
+
         Results
         -------
             - atoms : ase.Atoms()
@@ -1362,7 +1365,10 @@ Error, to compute the volume the structure must have a unit cell initialized:
         # Get thee atom list
         atm_list = []
         for i in range(self.N_atoms):
-            atm_list.append(ase.Atom(self.atoms[i], self.coords[i,:]))
+            atm_lbl = self.atoms[i]
+            if atm_lbl == "D":
+                atm_lbl = "H"
+            atm_list.append(ase.Atom(atm_lbl, self.coords[i,:]))
 
         atm = ase.Atoms(atm_list)
         
