@@ -2866,6 +2866,7 @@ class Phonons:
         current_mesh = self.GetSupercell()
         t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
         t2.SetupFromPhonons(self)
+        t2.Center()
 
         out_dyn = t2.GeneratePhonons(mesh_dim, lo_to_splitting=lo_to_splitting)
         return out_dyn
