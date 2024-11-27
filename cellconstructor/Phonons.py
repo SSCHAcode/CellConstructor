@@ -3860,7 +3860,7 @@ Error, the q point {} is too far from the exact position.
             
 
 
-    def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True):
+    def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True, avoid_check_atoms=False):
         """
         READ INFO FROM ESPRESSO
         =======================
@@ -3881,6 +3881,9 @@ Error, the q point {} is too far from the exact position.
                 If False, the effective charges will be ignored
             read_raman_tensor : bool
                 If False, the Raman tensor will be ignored.
+            avoid_check_atoms : bool
+                If False, does not check the correspondence with the atomic type.
+                Useful if you employed isotopes with a different atomic name.
         """
 
         if not os.path.exists(filename):
@@ -3957,11 +3960,14 @@ Error, the q point {} is too far from the exact position.
                     # Check the consistency of the atom type
                     atm_type = data[2]
                     if self.structure.atoms[reading_atom] != atm_type:
-                        error = """
+                        if not avoid_check_atoms:
+                            error = """
 Error while reading {}:
     atom index {} shoud be {}, while it is {} (index {})
+
+To avoid this error, set avoid_check_atoms = True in the ReadInfoFromESPRESSO method.
 """.format(filename, reading_atom, self.structure.atoms[reading_atom], atm_type, reading_atom+1)
-                        raise ValueError(error)
+                            raise ValueError(error)
                 if len(data) == 6 and data[0][0] == 'E':
                     self.effective_charges[reading_atom, reading_index, :] = [float(x) for x in data[2:5]]
                     reading_index += 1
