@@ -408,7 +408,8 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
             nq2=self.supercell_size[2]
             
             # by default no maximum distances
-            dist_range=np.ones((self.nat))*np.infty
+            #dist_range=np.ones((self.nat))*np.infty
+            dist_range=np.ones((self.nat))*np.inf
             #
             if nneigh!=None:
             # =======================================================================
@@ -1520,7 +1521,8 @@ class Tensor3():
             nq2=self.supercell_size[2]
             
             # by default no maximum distances
-            dist_range=np.ones((self.nat))*np.infty
+            #dist_range=np.ones((self.nat))*np.infty
+            dist_range=np.ones((self.nat))*np.inf
             #
             if nneigh!=None:
             # =======================================================================
