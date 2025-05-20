@@ -1422,6 +1422,38 @@ def convert_3tensor_to_cryst(tensor, unit_cell, cryst_to_cart = False):
         comp_matrix = np.linalg.inv(comp_matrix)
 
     return np.einsum("ia, jb, kc, ijk -> abc", comp_matrix, comp_matrix, comp_matrix, tensor)
+
+
+def convert_4tensor_to_cryst(tensor, unit_cell, cryst_to_cart = False):
+    """
+    Convert to crystal coordinates
+    ==============================
+
+    This subroutine converts the 4 rank tensor to crystal coordinates and vice versa.
+
+    Paramters
+    ---------
+        tensor : ndarray( size = (3,3,3,3))
+            The 4rank tensor to be converted
+        unit_cell : ndarray
+            The unit cell of the structure
+        cryst_to_cart : bool
+            If true, reverse convert crystal to cartesian.
+    """
+    
+    # Get the metric tensor from the unit_cell
+    metric_tensor = np.zeros((3,3))
+    for i in range(0, 3):
+        for j in range(i, 3):
+            metric_tensor[i, j] = metric_tensor[j,i] = unit_cell[i,:].dot(unit_cell[j, :])
+
+    comp_matrix = np.einsum("ij, jk", np.linalg.inv(metric_tensor), unit_cell) 
+    if not cryst_to_cart:
+        comp_matrix = np.linalg.inv(comp_matrix)
+
+    return np.einsum("ia, jb, kc, ld, ijkl -> abcd", comp_matrix, comp_matrix, comp_matrix, comp_matrix, tensor)
+
+
         
 def convert_fc(fc_matrix, unit_cell, cryst_to_cart = False):
     """

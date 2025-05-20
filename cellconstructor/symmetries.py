@@ -477,7 +477,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
 
         Parameters
         ----------
-            - raman_tensor : ndarray (size = (3, 3, 3*nat))
+            - raman_tensor : ndarray (size = (3, 3, 3 * nat))
                 The raman tensor. The first two indices indicate
                 the polarization of the incoming/outcoming field, while the last one
                 is the atomic/cartesian coordinate
@@ -509,6 +509,8 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         
         # Now we apply the sum rule
         rt_reshaped -= shift / self.QE_nat
+        
+        # Auxiliary variable
         new_tensor = np.zeros(np.shape(rt_reshaped), dtype = np.double)
 
         # Get the raman tensor in crystal components
@@ -521,7 +523,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
                 irt = self.QE_translations_irt[:, i] - 1
                 for j in range(self.QE_nat):
                     new_mat = rt_reshaped[:,:, irt[j], :]
-                    new_tensor += new_mat
+                    new_tensor[:,:,j,:] += new_mat[:,:,:]
 
             rt_reshaped = new_tensor / self.QE_translation_nr
             new_tensor[:,:,:,:] = 0.
@@ -532,7 +534,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
 
             for j in range(self.QE_nat):
                 # Apply the symmetry to the 3 order tensor
-                new_mat = np.einsum("ai, bj, ck, ijk", self.QE_s[:,:,i], self.QE_s[:,:,i], self.QE_s[:,:,i], rt_reshaped[:,:, irt[j], :])
+                new_mat = np.einsum("ai, bj, ck, ijk -> abc", self.QE_s[:,:,i], self.QE_s[:,:,i], self.QE_s[:,:,i], rt_reshaped[:,:, irt[j], :])
                 #new_mat = self.QE_s[:,:, i].dot( eff_charges[irt[j], :, :].dot(self.QE_s[:,:,i].T))
                 new_tensor[:,:,j,:] += new_mat
 
@@ -559,8 +561,9 @@ After loading the dynamical matrix (where dyn is the Phonon object)
 
         Parameters
         ----------
-            dM_drdr : ndarray (size = (3 nat_sc, 3nat_sc, 3))
+            dM_drdr : ndarray (size = (3 nat_sc, 3 nat_sc, 3))
                 The derivative of effective charges.
+                The last index refers to electric field
             apply_asr : bool
                 If True the sum rule is applied. 
                 The sum rule is the 'custom' one where translations are projected
@@ -574,12 +577,8 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         assert cart == 3
 
         nat = int(nat3 / 3)
-        
-        # Apply hermitianity
-        #print("Original:")
-        #print(dM_drdr[:,:,0])
 
-        dM_drdr += np.einsum("abc->bac", dM_drdr)
+        dM_drdr += np.einsum("abc -> bac", dM_drdr)
         dM_drdr /= 2
 
         # Apply the Sum Rule
@@ -587,17 +586,10 @@ After loading the dynamical matrix (where dyn is the Phonon object)
             for pol in range(3):
                 CustomASR(dM_drdr[:,:,pol])
 
-        #print("After the sum rule:")
-        #print(dM_drdr[:,:,0])
-
-        # Convert in crystal coordinates
+        # Convert in crystal coordinates MAKE SURE THAT THIS IS CONVERTED BACK IN CARTESIAN COORDINATES
         for i in range(nat):
             for j in range(nat):
                 dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T)
-
-
-        #print("Crystal:")
-        #print(dM_drdr[:,:,0])
 
 
         # Apply translations
@@ -612,47 +604,157 @@ After loading the dynamical matrix (where dyn is the Phonon object)
 
             dM_drdr[:,:,:] = new_dM / self.QE_translation_nr
             new_dM[:,:,:] = 0
-
         
-        #print("After transl:")
-        #print(dM_drdr[:,:,0])
-
-        #self.PrintSymmetries()
+        # # DEBUG VARIABLE
+        # debug = np.zeros(np.shape(new_dM)) 
 
         # Apply rotations
         for i in range(self.QE_nsym):
             irt = self.QE_irt[i, :] - 1
-
-            #print("")
-            #print("--------------------")
-            #print("symmetry: {:d}, irt: {}".format(i+1, irt +1))
-
-            #prova = np.zeros(np.shape(new_dM))
-
             for jat in range(nat):
                 for kat in range(nat):
                     new_mat = dM_drdr[3*irt[jat]: 3*irt[jat]+3, 3*irt[kat]:3*irt[kat] + 3,:]
                     # Apply the symmetries
 
-                    new_mat = np.einsum("ck, ijk->ijc", self.QE_s[:,:,i], new_mat)
-                    new_mat = np.einsum("bj, ijc->ibc", self.QE_s[:,:,i], new_mat)
-                    new_mat = np.einsum("ai, ibc->abc", self.QE_s[:,:,i], new_mat)
-                    #prova[3*jat:3*jat+3, 3*kat:3*kat+3,:] = new_mat
+                    new_mat = np.einsum("ck, ijk -> ijc", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("bj, ijc -> ibc", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("ai, ibc -> abc", self.QE_s[:,:,i], new_mat)
                     new_dM[3*jat:3*jat+3, 3*kat:3*kat+3,:] += new_mat
         
-            #print(np.einsum("abc->cab", prova))
-            #print("--------------------")
         dM_drdr[:,:,:] = new_dM / self.QE_nsym
+        
+        # # CONVERT IN CARTESIAN COORDINATES TO DEBUG
+        # for _i_ in range(nat):
+        #     for _j_ in range(nat):
+        #         debug[3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3, :] = Methods.convert_3tensor_to_cryst(new_dM[3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3, :],\
+        #                                                                                           self.QE_at.T, cryst_to_cart = True)
+        # np.save('CC_new_{}'.format(i),  debug)
 
 
-
-        # Convert in crystal coordinates
+        # Convert in cartesian coordinates
         for i in range(nat):
             for j in range(nat):
                 dM_drdr[3*i : 3*i + 3, 3*j: 3*j+3, :] = Methods.convert_3tensor_to_cryst(dM_drdr[3*i:3*i+3, 3*j:3*j+3,:], self.QE_at.T, True)
 
         
 
+    def ApplySymmetryToSecondOrderRamanTensor(self, dalpha_drdr, apply_asr = True):
+        """
+        SYMMETRIZE TWO PHONON EFFECTIVE CHARGES
+        =======================================
+
+        This subroutine applies simmetries to the second order Raman tensor.
+
+        Note, to symmetrize this tensor, symmetries must be imposed on the supercell.
+
+        Parameters
+        ----------
+            dalpha_drdr : ndarray (size = (3, 3, 3 nat_sc, 3 nat_sc))
+                The second derivative of polarizability.
+            apply_asr : bool
+                If True the sum rule is applied. 
+                The sum rule is the 'custom' one where translations are projected
+                out from the space for each polarization components.
+        """
+        # Check the shape of the tensor
+        E1, E2, nat3, nat3_ = np.shape(dalpha_drdr)
+
+        assert nat3 == nat3_, "Error on the shape of the argument for the atomic indices"
+        assert nat3 == 3 * self.QE_nat, "Wrong number of atoms (Symmetries must be setup in the supercell)"
+        assert E1 == E2, "Error on the shape of the argument electric field"
+        assert E1 == 3, "The first two entries are assosciated with electric field"
+        
+        # Get the number of atoms in the supercell
+        nat = int(nat3 /3)
+        
+        # Apply hermitianity on the atomic indices
+        dalpha_drdr += np.einsum("abcd->abdc", dalpha_drdr)
+        dalpha_drdr /= 2
+        
+        # Apply hermitianity on the electric field
+        dalpha_drdr += np.einsum("abcd->bacd", dalpha_drdr)
+        dalpha_drdr /= 2
+        
+        # SUM RULE ranging on the electric field components
+        if apply_asr:
+            for pol1 in range(3):
+                for pol2 in range(3):
+                    CustomASR(dalpha_drdr[pol1, pol2, :, :])
+                             
+        # CONVERT TO CRYSTAL COORDINATES
+        for i in range(nat):
+            for j in range(nat):
+                dalpha_drdr[:, :, 3*i : 3*i + 3, 3*j: 3*j + 3] = Methods.convert_4tensor_to_cryst(dalpha_drdr[:, :, 3*i : 3*i + 3, 3*j: 3*j + 3], self.QE_at.T)
+                
+        
+        # Get a ZERO second order Raman tensor (AUXILIARY)
+        new_dalpha_drdr = np.zeros(np.shape(dalpha_drdr), dtype = np.double)
+        
+        # TRANSLATIONS
+        if self.QE_translation_nr > 1:
+            for i in range(self.QE_translation_nr):
+                # irt[at1] is the atom on which the translation i maps at1
+                irt = self.QE_translations_irt[:, i] - 1
+                for at1 in range(nat):
+                    for at2 in range(nat):
+                        # Get the part of the tensor that is equivalent by translations of atom at1 at2
+                        new_mat = dalpha_drdr[:, :, 3*irt[at1]: 3*irt[at1] + 3, 3 * irt[at2]: 3*irt[at2] + 3]
+                        # Fill with the symmetric counterparts
+                        new_dalpha_drdr[:, :, 3*at1: 3*at1+3, 3*at2:3*at2+3] += new_mat
+
+            # OVERWRITE the second order Raman tensor
+            dalpha_drdr[:,:,:,:] = new_dalpha_drdr / self.QE_translation_nr
+            # SET TO ZERO THE AUXILIARY VARIABLE
+            new_dalpha_drdr[:,:,:,:] = 0
+           
+        # # DEBUG VARIABLE
+        # debug = np.zeros(np.shape(new_dalpha_drdr)) 
+        
+        # ROTATIONS
+        for i in range(self.QE_nsym):
+            # the symmetry applied on irt[at] gives the atom at
+            irt = self.QE_irt[i, :] - 1
+
+            for at1 in range(nat):
+                for at2 in range(nat):
+                    # Get the part of the tensor that is equivalent by rotations of atom at1 at2 
+                    # This has shape = (3, 3, 3, 3)
+                    new_mat = dalpha_drdr[:, :, 3*irt[at1] : 3*irt[at1] + 3, 3*irt[at2] : 3*irt[at2] + 3]
+                    
+                    # Apply the symmetries
+                    new_mat = np.einsum("dl, ijkl -> ijkd", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("ck, ijkd -> ijcd", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("bj, ijcd -> ibcd", self.QE_s[:,:,i], new_mat)
+                    new_mat = np.einsum("ai, ibcd -> abcd", self.QE_s[:,:,i], new_mat)
+     
+                    new_dalpha_drdr[:, :, 3*at1: 3*at1 + 3, 3*at2: 3*at2 + 3] += new_mat
+            
+            # # CONVERT IN CARTESIAN COORDINATES TO DEBUG
+            # for _i_ in range(nat):
+            #     for _j_ in range(nat):
+            #         debug[:, :, 3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3] = Methods.convert_4tensor_to_cryst(new_dalpha_drdr[:, :, 3*_i_ : 3*_i_ + 3, 3*_j_ : 3*_j_ + 3],\
+            #                                                                                              self.QE_at.T, cryst_to_cart = True)
+            # np.save('CC_new_{}'.format(i),  debug)
+
+        # OVERWRITE THE second order Raman tensor
+        dalpha_drdr[:,:,:,:] = new_dalpha_drdr /self.QE_nsym
+        
+        
+        # Convert BACK in crystal coordinates
+        for i in range(nat):
+            for j in range(nat):
+                dalpha_drdr[:, :, 3*i : 3*i + 3, 3*j: 3*j+3] = Methods.convert_4tensor_to_cryst(dalpha_drdr[:, :, 3*i : 3*i + 3, 3*j : 3*j + 3],\
+                                                                                                self.QE_at.T, cryst_to_cart = True)
+                
+        # # TO DEBUG       
+        # np.save('CC_raman', dalpha_drdr)
+
+        return
+        
+        
+        
+        
+    
     def ApplySymmetryToTensor4(self, v4, initialize_symmetries = True):
         """
         SYMMETRIZE A RANK-4 TENSOR
