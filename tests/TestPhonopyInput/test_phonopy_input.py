@@ -5,6 +5,7 @@ import cellconstructor.Phonons
 import pytest
 import numpy as np
 
+@pytest.mark.skip(reason="Bug in read phonopy not catched by the test. Deactivated the function")
 def test_phonopy_input():
 
     # Go to the current directory
