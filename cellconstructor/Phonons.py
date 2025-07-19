@@ -1286,6 +1286,7 @@ class Phonons:
 
 
         """
+        raise NotImplementedError("This subroutine to save in phonopy format is broken. Use CC.Methods.tensor2_to_phonopy_fc2 instead.")
         if supercell_size is None:
             supercell_size = self.GetSupercell()
 
