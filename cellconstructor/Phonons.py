@@ -1377,6 +1377,7 @@ class Phonons:
                 Path to the FORCE_CONSTANTS file. If None, a file called FORCE_CONSTANTS in the same directory
                 as phonopy.yaml will be looked for.
         """
+        raise NotImplementedError("Error, this subroutine contains bugs. Use CC.Methods.phonopy_fc2_to_tensor2 instead")
         warnings.warn("This subroutine is not tested yet, use it with care.")
 
         unit_cell = np.zeros((3,3), dtype = np.double)
