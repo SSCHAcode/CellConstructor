@@ -14,7 +14,12 @@ jobs:
       with:
         python-version: 3.9
 
-    - name: Install dependencies
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libblas-dev liblapack-dev gfortran pkg-config
+
+    - name: Install Python dependencies
       run: |
         pip install meson ninja meson-python numpy scipy ase
 
