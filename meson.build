@@ -1,4 +1,4 @@
-project('CellConstructor', 'fortran', 'c', 'python',
+project('CellConstructor', 'fortran', 'c',
   version: '1.5.0',
   license: 'GPL',
   # Common compilation options for Fortran.
