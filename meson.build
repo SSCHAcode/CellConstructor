@@ -175,8 +175,15 @@ install_data(
 
 # --- Installing the executable scripts ---
 # Installs the scripts directly into the Python environment's scripts directory.
-install_scripts(
+#install_scripts(
+#  'scripts/symmetrize_dynmat.py',
+#  'scripts/cellconstructor_test.py',
+#  'scripts/view_scf_atoms.py'
+#)
+install_data([
   'scripts/symmetrize_dynmat.py',
   'scripts/cellconstructor_test.py',
   'scripts/view_scf_atoms.py'
+],
+install_dir: get_option('bindir')
 )
