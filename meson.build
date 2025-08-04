@@ -134,10 +134,30 @@ py_cc_linalg_ext = python_installation.extension_module(
 # --- Installing the Python package 'cellconstructor' ---
 # This installs the .py files from the 'cellconstructor' directory
 # into the 'cellconstructor' subdirectory within the Python site-packages.
-python_installation.install_sources(
-  python_installation.find_sources('cellconstructor/*.py'),
-  subdir: 'cellconstructor'
+#python_installation.install_sources(
+#  python_installation.find_sources('cellconstructor/*.py'),
+#  subdir: 'cellconstructor'
+#)
+install_data(
+  'cellconstructor/__init__.py',
+  'cellconstructor/AnharmonicForceFields.py',
+  'cellconstructor/calculators.py',
+  'cellconstructor/Methods.py',
+  'cellconstructor/Phonons.py',
+  'cellconstructor/Spectral.py',
+  'cellconstructor/ThermalConductivity.py',
+  'cellconstructor/Units.py',
+  'cellconstructor/Bands.py',
+  'cellconstructor/ForceTensor.py',
+  'cellconstructor/Manipulate.py',
+  'cellconstructor/Moro_object.py',
+  'cellconstructor/Settings.py',
+  'cellconstructor/Structure.py',
+  'cellconstructor/symmetries.py',
+  'cellconstructor/Timer.py',
+  install_dir: python_installation.get_install_dir() / 'cellconstructor',
 )
+
 
 # Installing package data (.dat files)
 # They are installed in the 'cellconstructor/SymData' directory in the site-packages.
