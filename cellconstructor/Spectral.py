@@ -1946,7 +1946,8 @@ def get_diag_dynamic_correction_along_path(dyn, tensor3,
                     else:
                         xtriv=findne(wq[ifreq],e0,de)
                         osval=np.real(z[xtriv-1,ism,ifreq])
-                        diff=np.infty
+                        #diff=np.infty
+                        diff=np.inf
                         for x in range(ne):
                             value=np.real(z[x,ism,ifreq])-energies_cm[x]
                             if( abs(value ) < 2*de) :
@@ -2662,7 +2663,8 @@ def multiprocessing_work_diag_dynamic_correction_along_path(iq,q,tensor2,tensor3
                     else:
                         xtriv=findne(wq[ifreq],e0,de)
                         osval=np.real(z[xtriv-1,ism,ifreq])
-                        diff=np.infty
+                        #diff=np.infty
+                        diff=np.inf
                         for x in range(ne):
                             value=np.real(z[x,ism,ifreq])-energies_cm[x]
                             if( abs(value ) < 2*de) :

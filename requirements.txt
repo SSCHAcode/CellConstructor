@@ -1,4 +1,4 @@
-setuptools
+setuptools<=73
 numpy
 scipy
 ase

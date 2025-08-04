@@ -17,30 +17,30 @@ subroutine compute_static_bubble(T,freq,is_gamma,D3,n_mod,bubble)
     real(kind=DP) :: Lambda_23,q2(n_mod,3),q3(n_mod,3)
     integer :: i, rho2, rho3, nu,mu
 
-
-    !
+    
+    ! 
 !     do i = 1,n_mod
 !         q2(i,1)=freq(i,2)
 !         q2(i,2)=freqm1(i,2)
-!         q2(i,3)=bose(i,2)
+!         q2(i,3)=bose(i,2) 
 !         q3(i,1)=freq(i,3)
-!         q3(i,2)=freqm1(i,3)
-!         q3(i,3)=bose(i,3)
+!         q3(i,2)=freqm1(i,3)        
+!         q3(i,3)=bose(i,3)        
 !     end do
     !
-
+    
     q2(:,1)=freq(:,2)
-    q3(:,1)=freq(:,3)
-
+    q3(:,1)=freq(:,3) 
+ 
     q2(:,2)=0.0_dp
     q3(:,2)=0.0_dp
     do i = 1, n_mod
       if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
       if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
-    end do
+    end do    
 
     call bose_freq(T, n_mod, freq(:,2), q2(:,3))
-    call bose_freq(T, n_mod, freq(:,3), q3(:,3))
+    call bose_freq(T, n_mod, freq(:,3), q3(:,3))        
 
     !
     bubble=(0.0_dp,0.0_dp)
@@ -52,13 +52,13 @@ subroutine compute_static_bubble(T,freq,is_gamma,D3,n_mod,bubble)
             !
             DO nu = 1,n_mod
             DO mu = 1,n_mod
-                   bubble(mu,nu) = bubble(mu,nu) +  &
+                   bubble(mu,nu) = bubble(mu,nu) +  & 
                                      CONJG(D3(mu,rho2,rho3))*Lambda_23*D3(nu,rho2,rho3)
             END DO
-            END DO
+            END DO 
             !
     END DO
-    END DO
+    END DO    
     !
 end subroutine compute_static_bubble
 !
@@ -71,8 +71,8 @@ subroutine compute_dynamic_bubble(energies,sigma,static_limit,T,freq,is_gamma,D3
     complex(kind=DP), dimension(ne,nsig,n_mod,n_mod),intent(OUT) :: bubble
     !
     integer, intent(IN)       :: ne
-    real(kind=DP), intent(IN) :: energies(ne)
-    integer, intent(IN)       :: nsig
+    real(kind=DP), intent(IN) :: energies(ne)    
+    integer, intent(IN)       :: nsig    
     real(kind=DP), intent(IN) :: sigma(nsig)
     real(kind=DP), intent(IN) :: T
     real(kind=DP), intent(IN) :: freq(n_mod,3)
@@ -83,33 +83,33 @@ subroutine compute_dynamic_bubble(energies,sigma,static_limit,T,freq,is_gamma,D3
     integer, intent(IN) :: n_mod
     !
     real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3)
-    complex(kind=DP) :: Lambda_23(ne,nsig)
+    complex(kind=DP) :: Lambda_23(ne,nsig)    
     integer :: i, rho2, rho3, nu,mu
 
-
-    !
+    
+    ! 
 !     do i = 1,n_mod
 !         q2(i,1)=freq(i,2)
 !         q2(i,2)=freqm1(i,2)
-!         q2(i,3)=bose(i,2)
+!         q2(i,3)=bose(i,2) 
 !         q3(i,1)=freq(i,3)
-!         q3(i,2)=freqm1(i,3)
-!         q3(i,3)=bose(i,3)
+!         q3(i,2)=freqm1(i,3)        
+!         q3(i,3)=bose(i,3)        
 !     end do
     !
-
+    
     q2(:,1)=freq(:,2)
-    q3(:,1)=freq(:,3)
-
+    q3(:,1)=freq(:,3) 
+ 
     q2(:,2)=0.0_dp
     q3(:,2)=0.0_dp
     do i = 1, n_mod
       if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
       if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
-    end do
+    end do    
 
     call bose_freq(T, n_mod, freq(:,2), q2(:,3))
-    call bose_freq(T, n_mod, freq(:,3), q3(:,3))
+    call bose_freq(T, n_mod, freq(:,3), q3(:,3))        
     !
     bubble=(0.0_dp,0.0_dp)
     !
@@ -120,25 +120,25 @@ subroutine compute_dynamic_bubble(energies,sigma,static_limit,T,freq,is_gamma,D3
             !
             if (diag_approx) then
                 DO nu = 1,n_mod
-                    bubble(:,:,nu,nu) = bubble(:,:,nu,nu) +  &
+                    bubble(:,:,nu,nu) = bubble(:,:,nu,nu) +  & 
                                         CONJG(D3(nu,rho2,rho3))*Lambda_23(:,:)*D3(nu,rho2,rho3)
                 END DO
             else
                 DO nu = 1,n_mod
                 DO mu = 1,n_mod
-                    bubble(:,:,mu,nu) = bubble(:,:,mu,nu) +  &
+                    bubble(:,:,mu,nu) = bubble(:,:,mu,nu) +  & 
                                         CONJG(D3(mu,rho2,rho3))*Lambda_23(:,:)*D3(nu,rho2,rho3)
                 END DO
                 END DO
             end if
             !
     END DO
-    END DO
+    END DO    
     !
 end subroutine compute_dynamic_bubble
 !
 !
-!
+!                                      
 subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3,n_mod,bubble)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
@@ -146,8 +146,8 @@ subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3
     complex(kind=DP), dimension(ne,nsig,n_mod),intent(OUT) :: bubble
     !
     integer, intent(IN)       :: ne
-    real(kind=DP), intent(IN) :: energies(ne)
-    integer, intent(IN)       :: nsig
+    real(kind=DP), intent(IN) :: energies(ne)    
+    integer, intent(IN)       :: nsig    
     real(kind=DP), intent(IN) :: sigma(nsig)
     real(kind=DP), intent(IN) :: T
     real(kind=DP), intent(IN) :: freq(n_mod,3)
@@ -156,33 +156,33 @@ subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3
     integer, intent(IN) :: n_mod
     !
     real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3)
-    complex(kind=DP) :: Lambda_23(ne,nsig)
-    integer :: i, rho2, rho3, mu
+    complex(kind=DP) :: Lambda_23(ne,nsig)   
+    integer :: i, rho2, rho3, nu,mu
     logical, parameter :: static_limit = .false.
-
-    !
+    
+    ! 
 !     do i = 1,n_mod
 !         q2(i,1)=freq(i,2)
 !         q2(i,2)=freqm1(i,2)
-!         q2(i,3)=bose(i,2)
+!         q2(i,3)=bose(i,2) 
 !         q3(i,1)=freq(i,3)
-!         q3(i,2)=freqm1(i,3)
-!         q3(i,3)=bose(i,3)
+!         q3(i,2)=freqm1(i,3)        
+!         q3(i,3)=bose(i,3)        
 !     end do
     !
-
+    
     q2(:,1)=freq(:,2)
-    q3(:,1)=freq(:,3)
-
+    q3(:,1)=freq(:,3) 
+ 
     q2(:,2)=0.0_dp
     q3(:,2)=0.0_dp
     do i = 1, n_mod
       if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
       if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
-    end do
+    end do    
 
     call bose_freq(T, n_mod, freq(:,2), q2(:,3))
-    call bose_freq(T, n_mod, freq(:,3), q3(:,3))
+    call bose_freq(T, n_mod, freq(:,3), q3(:,3))        
 
     !
     bubble=(0.0_dp,0.0_dp)
@@ -190,17 +190,17 @@ subroutine compute_diag_dynamic_bubble(ne,energies,nsig,sigma,T,freq,is_gamma,D3
     DO rho3=1,n_mod
     DO rho2=1,n_mod
             !
-            call Lambda_dynamic(ne,energies,nsig,sigma,T,static_limit,q2(rho2,:),q3(rho3,:),Lambda_23)
+            call Lambda_dynamic(ne,energies,nsig,sigma,T,static_limit,q2(rho2,:),q3(rho3,:),Lambda_23)           
             !
             DO mu = 1,n_mod
-                   !
-                   bubble(:,:,mu) = bubble(:,:,mu) +  &
+                   ! 
+                   bubble(:,:,mu) = bubble(:,:,mu) +  & 
                                      CONJG(D3(mu,rho2,rho3))*Lambda_23(:,:)*D3(mu,rho2,rho3)
                    !
-            END DO
+            END DO            
             !
     END DO
-    END DO
+    END DO    
     !
 end subroutine compute_diag_dynamic_bubble
 !
@@ -211,7 +211,7 @@ subroutine compute_perturb_selfnrg(nsig,sigma,T,freq,is_gamma,D3,n_mod,selfnrg)
     !
     complex(kind=DP), dimension(n_mod,nsig),intent(OUT)     :: selfnrg
     !
-    integer, intent(IN)       :: nsig
+    integer, intent(IN)       :: nsig    
     real(kind=DP), intent(IN) :: sigma(nsig)
     real(kind=DP), intent(IN) :: T
     real(kind=DP), intent(IN) :: freq(n_mod,3)
@@ -220,31 +220,31 @@ subroutine compute_perturb_selfnrg(nsig,sigma,T,freq,is_gamma,D3,n_mod,selfnrg)
     integer, intent(IN) :: n_mod
     !
     real(kind=DP)    :: q2(n_mod,3),q3(n_mod,3)
-    complex(kind=DP) :: Lambda_23_freq(n_mod,nsig)
-    integer :: i, rho2, rho3, mu
-    !
+    complex(kind=DP) :: Lambda_23_freq(n_mod,nsig)    
+    integer :: i, rho2, rho3, nu,mu
+    ! 
 !     do i = 1,n_mod
 !         q2(i,1)=freq(i,2)
 !         q2(i,2)=freqm1(i,2)
-!         q2(i,3)=bose(i,2)
+!         q2(i,3)=bose(i,2) 
 !         q3(i,1)=freq(i,3)
-!         q3(i,2)=freqm1(i,3)
-!         q3(i,3)=bose(i,3)
+!         q3(i,2)=freqm1(i,3)        
+!         q3(i,3)=bose(i,3)        
 !     end do
     !
-
+    
     q2(:,1)=freq(:,2)
-    q3(:,1)=freq(:,3)
-
+    q3(:,1)=freq(:,3) 
+ 
     q2(:,2)=0.0_dp
     q3(:,2)=0.0_dp
     do i = 1, n_mod
       if (.not. is_gamma(2) .or. i > 3) q2(i,2)=1.0_dp/freq(i,2)
       if (.not. is_gamma(3) .or. i > 3) q3(i,2)=1.0_dp/freq(i,3)
-    end do
+    end do    
 
     call bose_freq(T, n_mod, freq(:,2), q2(:,3))
-    call bose_freq(T, n_mod, freq(:,3), q3(:,3))
+    call bose_freq(T, n_mod, freq(:,3), q3(:,3))        
 
     !
     selfnrg=(0.0_dp,0.0_dp)
@@ -253,16 +253,16 @@ subroutine compute_perturb_selfnrg(nsig,sigma,T,freq,is_gamma,D3,n_mod,selfnrg)
     DO rho3=1,n_mod
     DO rho2=1,n_mod
             !
-            call Lambda_dynamic_value(n_mod,freq(:,1),nsig,sigma,T,q2(rho2,:),q3(rho3,:),Lambda_23_freq)
+            call Lambda_dynamic_value(n_mod,freq(:,1),nsig,sigma,T,q2(rho2,:),q3(rho3,:),Lambda_23_freq) 
             !
             DO mu = 1,n_mod
-
-                   selfnrg(mu,:)  = selfnrg(mu,:) + &
+            
+                   selfnrg(mu,:)  = selfnrg(mu,:) + & 
                                      CONJG(D3(mu,rho2,rho3))*Lambda_23_freq(mu,:)*D3(mu,rho2,rho3)
-            END DO
+            END DO            
             !
     END DO
-    END DO
+    END DO    
     !
 end subroutine compute_perturb_selfnrg
 !
@@ -283,13 +283,13 @@ subroutine compute_spectralf(smear_id,ener,d2,Pi,notransl,spectralf,mass,nat,ne,
     real(kind=dp), intent(out)   :: spectralf(ne,nsmear)
     !
     integer                      :: nat3,n,m,ismear,ie
-    complex(kind=dp)             :: G(3*nat,3*nat)
-    complex(kind=dp)             :: fact
-
+    complex(kind=dp)             :: G(3*nat,3*nat) 
+    complex(kind=dp)             :: fact, w_plus_eta
+    
     nat3=3*nat
-
+        
     spectralf=0.0_dp
-    !
+    !    
     DO ismear=1,nsmear
     DO ie = 1,ne
          ! GREEN FUNCTION INVERSE
@@ -301,19 +301,20 @@ subroutine compute_spectralf(smear_id,ener,d2,Pi,notransl,spectralf,mass,nat,ne,
          G=G-d2
          ! ADD PROPTO IDENTITY PART
          fact=smear_id(ismear)*(0.0_dp,1.0_dp)
+         w_plus_eta = ener(ie)+fact
          DO n=1,nat3
            G(n,n)=G(n,n)+(ener(ie)+fact)**2
          ENDDO
          ! INVERSE
-         CALL invzmat(nat3, G)
+         CALL invzmat(nat3, G) 
          IF ( notransl ) THEN
-           CALL eliminate_transl(G,mass,nat)
-         END IF
+           CALL eliminate_transl(G,mass,nat)      
+         END IF        
          DO n=1,nat3
-           spectralf(ie,ismear)=spectralf(ie,ismear)-2*DIMAG(G(n,n))*ener(ie)/twopi
-         END DO
+           spectralf(ie,ismear)=spectralf(ie,ismear)-2*DIMAG(G(n,n)*w_plus_eta)/twopi
+         END DO         
     ENDDO
-    ENDDO
+    ENDDO    
     !
 end subroutine compute_spectralf
 !
@@ -324,7 +325,7 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
     real(kind=dp),parameter      :: pi = 3.141592653589793_dp
     !
     real(kind=dp), intent(in)    :: ener(ne)
-    real(kind=dp), intent(in)    :: smear_id(nsmear)
+    real(kind=dp), intent(in)    :: smear_id(nsmear)    
     integer, intent(in)          :: ne,nsmear,nat
     real(kind=dp), intent(in)    :: d2_freq(3*nat)
     complex(kind=dp), intent(in) :: selfnrg(ne,nsmear,3*nat)
@@ -342,12 +343,16 @@ subroutine compute_spectralf_diag(smear_id,ener,d2_freq,selfnrg,nat,ne,nsmear,sp
         DO ie = 1, ne
 
           a = ener(ie)**2-smear_id(ismear)**2-d2_freq(mu)**2-DBLE(selfnrg(ie,ismear,mu))
-          b = 2*smear_id(ismear)*ener(ie)-DIMAG(selfnrg(ie,ismear,mu))
-
+          b = 2*smear_id(ismear)*ener(ie)-DIMAG(selfnrg(ie,ismear,mu))          
+          
           !
-          ! (w/2pi)(-2Im [1/a+ib])= (w/pi) b/(a**2+b**2)
+          ! (w/2pi)(-2Im [1/a+ib])= (w/pi) b/(a**2+b**2) 
           !
-          num   = ener(ie)*b
+          ! If w -> w + i eta, then we must add also
+          ! - (eta/pi) a / (a**2+b**2)
+          !
+          num = ener(ie)*b
+          num = num -smear_id(ismear)*a
           denom = (a**2+b**2)*pi
           !
           IF(ABS(denom)/=0._dp)THEN
@@ -366,17 +371,17 @@ end subroutine compute_spectralf_diag
 subroutine Lambda(T,w_q2,w_q3,Lambda_out)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    REAL(kind=DP),intent(out) :: lambda_out
+    REAL(kind=DP),intent(out) :: lambda_out 
     real(kind=DP), intent(in) :: T,w_q2(3),w_q3(3)
     real(kind=DP) :: w2,w3,n2,n3,w2m1,w3m1
     real(kind=DP) :: bose_P, bose_M, omega_P, omega_M, ctm_P, ctm_M
-            !
+            !  
             w2=w_q2(1)
-            w3=w_q3(1)
+            w3=w_q3(1)            
             w2m1=w_q2(2)
             w3m1=w_q3(2)
             n2=w_q2(3)
-            n3=w_q3(3)
+            n3=w_q3(3)            
             !
             bose_P   = 1 + n2 + n3
             omega_P  = w3+w2
@@ -409,23 +414,23 @@ end subroutine Lambda
 subroutine Lambda_dynamic(ne,energies,nsigma,sigma,T,static_limit,w_q2,w_q3,Lambda_out)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    complex(kind=DP), intent(out) :: Lambda_out(ne,nsigma)
+    complex(kind=DP), intent(out) :: Lambda_out(ne,nsigma)    
     integer, intent(in)       :: ne,nsigma
     logical, intent(in)       :: static_limit
-    real(kind=DP), intent(in) :: energies(ne), sigma(nsigma)
+    real(kind=DP), intent(in) :: energies(ne), sigma(nsigma)    
     real(kind=DP), intent(in) :: T,w_q2(3),w_q3(3)
     real(kind=DP) :: w2,w3,n2,n3,w2m1,w3m1
     real(kind=DP) :: bose_P, bose_M, omega_P, omega_P2 ,&
                      omega_M,omega_M2
     complex(kind=DP) :: reg, ctm_P, ctm_M, ctm(ne,nsigma)
     integer       :: ie, isigma
-            !
+            !  
             w2=w_q2(1)
-            w3=w_q3(1)
+            w3=w_q3(1)            
             w2m1=w_q2(2)
             w3m1=w_q3(2)
             n2=w_q2(3)
-            n3=w_q3(3)
+            n3=w_q3(3)            
             !
             bose_P    = 1 + n2 + n3
             omega_P   = w3+w2
@@ -461,7 +466,7 @@ subroutine Lambda_dynamic(ne,energies,nsigma,sigma,T,static_limit,w_q2,w_q3,Lamb
                     ctm_P = bose_P *omega_P/(omega_P2-reg)
                     ctm_M = bose_M *omega_M/(omega_M2-reg)
                     ctm(ie,isigma) = ctm_P - ctm_M
-                END DO
+                END DO              
                 END DO
             END IF
             !
@@ -474,22 +479,22 @@ end subroutine Lambda_dynamic
 subroutine Lambda_dynamic_value(n_mod,value,nsigma,sigma,T,w_q2,w_q3,Lambda_out)
     implicit none
     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
-    complex(kind=DP), intent(out) :: Lambda_out(n_mod,nsigma)
+    complex(kind=DP), intent(out) :: Lambda_out(n_mod,nsigma)    
     integer, intent(in)       :: nsigma,n_mod
-    real(kind=DP), intent(in) :: sigma(nsigma),value(n_mod)
+    real(kind=DP), intent(in) :: sigma(nsigma),value(n_mod)    
     real(kind=DP), intent(in) :: T,w_q2(3),w_q3(3)
     real(kind=DP) :: w2,w3,n2,n3,w2m1,w3m1
     real(kind=DP) :: bose_P, bose_M, omega_P, omega_P2 ,&
                      omega_M,omega_M2
     complex(kind=DP) :: reg, ctm_P, ctm_M, ctm(n_mod,nsigma)
     integer       :: ie, isigma,mu
-            !
+            !  
             w2=w_q2(1)
-            w3=w_q3(1)
+            w3=w_q3(1)            
             w2m1=w_q2(2)
             w3m1=w_q3(2)
             n2=w_q2(3)
-            n3=w_q3(3)
+            n3=w_q3(3)            
             !
             bose_P    = 1 + n2 + n3
             omega_P   = w3+w2
@@ -505,7 +510,7 @@ subroutine Lambda_dynamic_value(n_mod,value,nsigma,sigma,T,w_q2,w_q3,Lambda_out)
                     ctm_P = bose_P *omega_P/(omega_P2-reg)
                     ctm_M = bose_M *omega_M/(omega_M2-reg)
                     ctm(mu,isigma) = ctm_P - ctm_M
-            END DO
+            END DO       
             END DO
             !
             lambda_out=-ctm * w2m1*w3m1/4.0_dp
@@ -546,7 +551,7 @@ ELEMENTAL FUNCTION f_bose(freq,T) ! bose (freq,T)
     !
     REAL(DP),INTENT(in) :: freq,T
     !
-    REAL(DP), parameter :: K_BOLTZMANN_RY= 1.3806504E-23_DP /(4.35974394E-18_DP/2) !K_BOLTZMANN_SI / (HARTREE_SI/2)
+    REAL(DP), parameter :: K_BOLTZMANN_RY= 1.3806504E-23_DP /(4.35974394E-18_DP/2) !K_BOLTZMANN_SI / (HARTREE_SI/2)    
     REAL(DP) :: Tm1
     !
     Tm1 = 1/(T*K_BOLTZMANN_RY)
@@ -576,7 +581,7 @@ SUBROUTINE invzmat (n, a)
     ! computes the inverse "a_inv" of matrix "a", both dimensioned (n,n)
     !
     IMPLICIT NONE
-    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+    INTEGER, PARAMETER :: DP = selected_real_kind(14,200)    
     INTEGER,INTENT(in) :: n
     COMPLEX(DP),INTENT(inout) :: a(n,n)
     !
@@ -584,7 +589,7 @@ SUBROUTINE invzmat (n, a)
     ! info=0: inversion was successful
     ! lda   : leading dimension (the same as n)
     ! ipiv  : work space for pivoting (assumed of length lwork=n)
-    COMPLEX(DP),ALLOCATABLE :: work(:)
+    COMPLEX(DP),ALLOCATABLE :: work(:) 
     INTEGER,EXTERNAL :: ILAENV
     ! more work space
     !
@@ -605,7 +610,7 @@ SUBROUTINE invzmat (n, a)
   SUBROUTINE eliminate_transl(A,mass,nat)
      !
      IMPLICIT NONE
-     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)
+     INTEGER, PARAMETER :: DP = selected_real_kind(14,200)         
      INTEGER,     intent(in)     :: nat
      COMPLEX(DP), intent(inout)  :: A(3*nat,3*nat)
      real(kind=dp), intent(in)   :: mass(nat)
@@ -618,7 +623,7 @@ SUBROUTINE invzmat (n, a)
      ! DEFINE Q=1-P, P is TRANSLATION PROJECTOR
      QAUX=(0.0_DP,0.0_DP)
      ! build -P
-     Mtot=SUM(mass)
+     Mtot=SUM(mass) 
      DO i=1,nat
      DO j=1,nat
        mj=mass(j)
@@ -633,7 +638,7 @@ SUBROUTINE invzmat (n, a)
       DO alpha=1,3
         QAUX(alpha,alpha,i,i)=1.0_dp+QAUX(alpha,alpha,i,i)
       END DO
-     END DO
+     END DO  
      !
      DO j=1, nat
      DO i=1, nat
@@ -642,9 +647,9 @@ SUBROUTINE invzmat (n, a)
           Q(3*(i-1)+alpha,3*(j-1)+beta)=QAUX(alpha,beta,i,j)
         END DO
         END DO
-     END DO
-     END DO
-     ! PROJECT
+     END DO      
+     END DO 
+     ! PROJECT   
      A=matmul(A,Q)
      !
   END SUBROUTINE eliminate_transl

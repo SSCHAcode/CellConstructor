@@ -230,7 +230,7 @@ class QE_Symmetry:
 
 
             
-    def SetupQStar(self, q_tot, supergroup = False):
+    def SetupQStar(self, q_tot, supergroup = False, verbose = False):
         """
         DIVIDE THE Q POINTS IN STARS
         ============================
@@ -244,6 +244,8 @@ class QE_Symmetry:
                 List of q vectors to be divided into stars
             supergroup : bool
                 If true then assume we have initialized a supercell bigger
+            verbose : bool
+                If true, print a lot of debugging stuff
         Results
         -------
             q_stars : list of lists
@@ -259,6 +261,9 @@ class QE_Symmetry:
         # Lets copy the q list (we are going to pop items from it)
         q_list = q_tot[:]
         q_stars = []
+
+        if verbose:
+            print("[SetupQStar] Number of q points: {}".format(len(q_tot)))
         
         count_qstar = 0
         count_q = 0
@@ -270,6 +275,9 @@ class QE_Symmetry:
         
             nq_new, sxq, isq, imq = symph.star_q(_q_, self.QE_at, self.QE_bg, 
                                                  self.QE_nsym, self.QE_s, self.QE_invs, 0)
+
+            if verbose:
+                print("[SetupQStar] Q point {} in the star has {} elements".format(q, nq_new))
         
             # print ("START WITH Q:", q)
             # print ("FOUND STAR:")
@@ -299,15 +307,50 @@ class QE_Symmetry:
                     q_star.append(-q)
 
                     
+            if verbose:
+                print("[SetupQStar] Q star: {}".format(q_star))
 
             q_stars.append(q_star)
             
             # Pop out the q_star from the q_list
             for jq, q_instar in enumerate(q_star):
                 # Look for the q point in the star and pop them
-                #print("q_instar:", q_instar)
+                if verbose:
+                    print("[SetupQStar] q_instar:", q_instar)
                 q_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
                                                          np.array(q_instar), q_point) for q_point in q_list]
+                if verbose:
+                    print("[SetupQStar] We have still {} points to assign".format( len(q_list)))
+                    print("[SetupQStar] q_list:", q_list)
+                    print("[SetupQStar] q_dist:", q_dist)
+
+                if np.abs(np.min(q_dist)) > 1e-5:
+                    q_all_dist = [Methods.get_min_dist_into_cell(self.QE_bg.transpose(), 
+                                                         np.array(q_instar), q_point) for q_point in q_tot]
+
+                    ERR_MSG = """
+Error, the q point is not in the star
+   q_point: {}
+   generated_star: {}
+   all_others_q_points: {}
+   bravais lattice: {}
+
+   all_distances_with_q: {}
+
+
+This error may be caused by a mismatch between the q-vectors and the bravais lattice.
+This may be coming from a different definition of the bravais lattice in the QE input file.
+
+To solve the error, you can try to fix the q-points automatically by calling
+
+```
+dyn.FixQPoints()
+```
+
+After loading the dynamical matrix (where dyn is the Phonon object)
+""".format(q_star[0], q_instar, q_tot, self.QE_bg.transpose(), q_all_dist)
+
+                    raise ValueError(ERR_MSG)
                 
                 pop_index = np.argmin(q_dist)            
                 q_list.pop(pop_index)

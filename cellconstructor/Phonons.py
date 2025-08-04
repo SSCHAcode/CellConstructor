@@ -1286,6 +1286,7 @@ class Phonons:
 
 
         """
+        raise NotImplementedError("This subroutine to save in phonopy format is broken. Use CC.Methods.tensor2_to_phonopy_fc2 instead.")
         if supercell_size is None:
             supercell_size = self.GetSupercell()
 
@@ -1377,6 +1378,7 @@ class Phonons:
                 Path to the FORCE_CONSTANTS file. If None, a file called FORCE_CONSTANTS in the same directory
                 as phonopy.yaml will be looked for.
         """
+        raise NotImplementedError("Error, this subroutine contains bugs. Use CC.Methods.phonopy_fc2_to_tensor2 instead")
         warnings.warn("This subroutine is not tested yet, use it with care.")
 
         unit_cell = np.zeros((3,3), dtype = np.double)
@@ -1885,7 +1887,7 @@ class Phonons:
 
 
 
-    def GenerateSupercellDyn(self, supercell_size, img_thr = 1e-6):
+    def GenerateSupercellDyn(self, supercell_size=None, img_thr = 1e-6):
         """
         GENERATE SUPERCEL DYN
         =====================
@@ -1899,7 +1901,7 @@ class Phonons:
         ----------
             supercell_size : array int (size=3)
                 the dimension of the cell on which you want to generate the new
-                Phonon
+                Phonon. If None, it is inferred from the q points.
 
         Results
         -------
@@ -1907,6 +1909,10 @@ class Phonons:
                 A Phonons class of the supercell
 
         """
+        if supercell_size is None:
+            supercell_size = self.GetSupercell()
+
+
         # First check if the q vectors are compatible with the supercell
         if not symmetries.CheckSupercellQ(self.structure.unit_cell, supercell_size, self.q_tot):
             print("Q points:", self.q_tot)
@@ -1916,9 +1922,30 @@ class Phonons:
 
         super_struct = self.structure.generate_supercell(supercell_size)
 
+        nat = self.structure.N_atoms
+        nat_sc = super_struct.N_atoms
+
         dyn_supercell = Phonons(super_struct, nqirr = 1, force_real = True)
 
         dyn_supercell.dynmats[0] = self.GetRealSpaceFC(supercell_size, img_thr = img_thr)
+
+        # Check also effective charges and dielectric tensor
+        if self.dielectric_tensor is not None:
+            dyn_supercell.dielectric_tensor = self.dielectric_tensor
+        if self.effective_charges is not None:
+            itau = super_struct.get_itau(self.structure) - 1
+            dyn_supercell.effective_charges = np.zeros((nat_sc, 3, 3), dtype = np.double)
+            for i in range(nat_sc):
+                i_uc = itau[i]
+                dyn_supercell.effective_charges[i, :, :] = self.effective_charges[i_uc, :, :]
+        if self.raman_tensor is not None:
+            itau = super_struct.get_itau(self.structure) - 1
+            dyn_supercell.raman_tensor = np.zeros((3, 3, 3*nat_sc), dtype = np.double)
+            for i in range(3 * nat_sc):
+                i_at = i // 3
+                j_coord = i % 3
+                i_uc = itau[i_at]
+                dyn_supercell.raman_tensor[:, :, i] = self.raman_tensor[:, :, i_uc + j_coord]
 
         return dyn_supercell
 
@@ -2866,6 +2893,7 @@ class Phonons:
         current_mesh = self.GetSupercell()
         t2 = ForceTensor.Tensor2(self.structure, self.structure.generate_supercell(current_mesh), current_mesh)
         t2.SetupFromPhonons(self)
+        t2.Center()
 
         out_dyn = t2.GeneratePhonons(mesh_dim, lo_to_splitting=lo_to_splitting)
         return out_dyn
@@ -3780,9 +3808,61 @@ WARNING: Effective charges are not accounted by this method
         return w_array, e_pols_sc
 
 
+    def FixQPoints(self, threshold = 1e-1):
+        """
+        FIX Q POINTS
+        ============
+
+        This method fixes the q points in the phonon object. 
+        It is useful when the q points are slightly displaced from the exact position.
+        The displacement could come from a numerical truncation when writing the dynamical matrix on a file.
 
 
-    def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True):
+        If a point is further than an actual crystal coordinate by more than the threshold, then raise an error.
+        """
+        
+        # Get the reciprocal vectors
+        bg = self.structure.get_reciprocal_vectors() / (2*np.pi)
+
+        supercell = np.array(self.GetSupercell())
+
+        # Get the fractional coordinates of each q point
+        q_cryst = Methods.covariant_coordinates(bg, np.array(self.q_tot))
+        q_cryst_new = np.zeros_like(q_cryst)
+
+
+        for i in range(len(self.q_tot)):
+            # Get the integer representation
+            q_int = q_cryst[i, :] * supercell
+
+            # Round to the closest integer (even negative)
+            q_int = np.round(q_int)
+
+            # Get the fractional coordinates back
+            q_cryst_new[i, :] = q_int / supercell
+
+            # Get the distance between the two
+            if np.linalg.norm(q_cryst_new[i, :] - q_cryst[i, :]) > threshold:
+                error_msg = """
+Error, the q point {} is too far from the exact position.
+    Old fractional coords: {}
+    New fractional coords: {}
+""".format(self.q_tot[i], q_cryst[i, :], q_cryst_new[i, :])
+                raise ValueError(error_msg)
+
+        # Update the q points
+        new_q_tot = Methods.cryst_to_cart(bg, q_cryst_new)
+        for i in range(len(self.q_tot)):
+            self.q_tot[i] = new_q_tot[i, :]
+
+        
+        # Update the q stars
+        self.AdjustQStar()
+
+            
+
+
+    def ReadInfoFromESPRESSO(self, filename, read_dielectric_tensor = True, read_eff_charges = True, read_raman_tensor = True, avoid_check_atoms=False):
         """
         READ INFO FROM ESPRESSO
         =======================
@@ -3803,6 +3883,9 @@ WARNING: Effective charges are not accounted by this method
                 If False, the effective charges will be ignored
             read_raman_tensor : bool
                 If False, the Raman tensor will be ignored.
+            avoid_check_atoms : bool
+                If False, does not check the correspondence with the atomic type.
+                Useful if you employed isotopes with a different atomic name.
         """
 
         if not os.path.exists(filename):
@@ -3879,11 +3962,14 @@ WARNING: Effective charges are not accounted by this method
                     # Check the consistency of the atom type
                     atm_type = data[2]
                     if self.structure.atoms[reading_atom] != atm_type:
-                        error = """
+                        if not avoid_check_atoms:
+                            error = """
 Error while reading {}:
     atom index {} shoud be {}, while it is {} (index {})
+
+To avoid this error, set avoid_check_atoms = True in the ReadInfoFromESPRESSO method.
 """.format(filename, reading_atom, self.structure.atoms[reading_atom], atm_type, reading_atom+1)
-                        raise ValueError(error)
+                            raise ValueError(error)
                 if len(data) == 6 and data[0][0] == 'E':
                     self.effective_charges[reading_atom, reading_index, :] = [float(x) for x in data[2:5]]
                     reading_index += 1
@@ -4075,7 +4161,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     #print "Imaginary:", np.sqrt(np.sum(np.imag(fc)**2))
 
     # Check the imaginary part
-    imag = np.sqrt(np.sum(np.imag(fc)**2))
+    imag = np.max(np.abs(np.imag(fc)))
     ASSERT_ERROR = """
     Error, the imaginary part of the real space force constant
     is not zero. IMAG={}

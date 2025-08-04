@@ -66,10 +66,22 @@ def get_energy_forces(calculator, structure):
     else:
         raise ValueError("Error, unknown calculator type")
 
-def get_results(calculator, structure, get_stress = True):
+def get_results(calculator, structure, get_stress = True, recompute=True):
     """
     Accepts both an ASE calculator and a Calculator from Cellconstructor
     and computes all the implemented properties (energy, forces and stress tensor).
+
+    Parameters
+    ----------
+        calculator : ase.calculators.calculator.Calculator or Calculator
+            The calculator to use for the calculation
+        structure : CC.Structure.Structure
+            The structure to compute
+        get_stress : bool
+            If true, the stress tensor is computed
+        recompute : bool
+            If true, the calculation is recomputed.
+            If false, the results are taken from the calculator object
     """
 
     results = {}
@@ -81,7 +93,8 @@ def get_results(calculator, structure, get_stress = True):
         if get_stress:
             results["stress"] = atm.get_stress(voigt = False)
     elif isinstance(calculator, Calculator):
-        calculator.calculate(structure)
+        if recompute:
+            calculator.calculate(structure)
         results =  calculator.results
         if get_stress:
             results["stress"] = CC.Methods.transform_voigt(results["stress"], voigt_to_mat = True)

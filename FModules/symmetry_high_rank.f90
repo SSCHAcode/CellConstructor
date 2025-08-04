@@ -16,7 +16,7 @@ subroutine get_tau_sc_latvec ( tau_sc, latvec, at_sc, tau_sc_latvec, nat_sc, nr 
   double precision, dimension(3) :: diff
   double precision, dimension(27,3) :: superlatvec
   double precision :: prec
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
    
   integer :: ka, i, j, k, r
 
@@ -178,7 +178,7 @@ subroutine trans_v2 ( v2, tau_sc_latvec, nat_sc, nr )
   
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3) :: mat_aux
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   !nat    = size(tau(1,:))
   !nat_sc = size(tau_sc(1,:))
@@ -236,7 +236,7 @@ subroutine trans_v3 ( v3, tau_sc_latvec, nat_sc, nr)!tau, tau_sc, itau, at_sc, n
   !logical, dimension(:), allocatable :: assigned
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3,3) :: mat_aux
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   prec = 1.0d-6
 
@@ -326,7 +326,7 @@ subroutine trans_v4 ( v4, tau_sc_latvec, nat_sc, nr )
   logical, dimension(:), allocatable :: assigned
   integer :: ka, i, j, k, l, r, is, js, la, r1, r2
   double precision, dimension(3,3,3,3) :: mat_aux
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   prec = 1.0d-6
 
@@ -403,7 +403,7 @@ subroutine sym_v2 ( v2, at_sc, bg_sc, s, irt, nsym, nat_sc)
   !double precision, dimension(3,3) :: bg_sc
 
   integer :: iq, i, j, k, alpha, beta, gamm
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   if (debug) then
     print *, "=== DEBUG SYM_V2 ==="
@@ -754,7 +754,7 @@ subroutine sym_v4 ( v4, at_sc, s, irt, nsym, nat_sc )
   integer :: nat_sc
 
   integer :: iq, i, j, k, l, alpha, beta, gamm, delt 
-  logical, parameter :: debug = .true.
+  logical, parameter :: debug = .false.
 
   ! Extract integers
 
