@@ -14,9 +14,9 @@ python_installation = python.find_installation()
 
 # Defines the Python dependencies that numpy.distutils used to handle.
 # Meson will look for them in the current Python environment.
-numpy_dep = python_installation.dependency('numpy', required: true)
-ase_dep = python_installation.dependency('ase', required: true)
-scipy_dep = python_installation.dependency('scipy', required: true)
+numpy_dep = python_installation.dependency(module: 'numpy', required: true)
+ase_dep = python_installation.dependency(module: 'ase', required: true)
+scipy_dep = python_installation.dependency(module: 'scipy', required: true)
 
 # Searches the system for the BLAS and LAPACK libraries.
 # Meson can find implementations such as OpenBLAS, BLIS, Intel MKL, or generic ones.
