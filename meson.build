@@ -11,6 +11,10 @@ project('CellConstructor', 'fortran', 'c',
 # Imports the Meson Python module to handle extensions and Python installation.
 python = import('python')
 python_installation = python.find_installation()
+numpy_incdir = run_command(
+  py_installation, '-c', 'import numpy; print(numpy.get_include())',
+  check: true
+).stdout().strip()
 
 # Defines the Python dependencies that numpy.distutils used to handle.
 # Meson will look for them in the current Python environment.
@@ -55,6 +59,7 @@ py_symph_ext = python_installation.extension_module(
   # Compilation arguments specific to these Fortran sources.
   # -cpp is already defined in default_options, but can be added here if needed.
   # fortran_args: ['-cpp'],
+  include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
 )
 
@@ -68,6 +73,7 @@ py_secondorder_ext = python_installation.extension_module(
   secondorder_sources,
   # fortran_args: ['-cpp'],
   install: true,
+  include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
 )
 
@@ -83,6 +89,7 @@ py_thirdorder_ext = python_installation.extension_module(
   thirdorder_sources,
   # fortran_args: ['-cpp'],
   install: true,
+  include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
 )
 
@@ -100,6 +107,7 @@ py_cond_ext = python_installation.extension_module(
   # "-O2" is already in default_options.
   fortran_args: ['-fopenmp'],
   install: true,
+  include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep, openmp_dep]
 )
 
@@ -116,6 +124,7 @@ cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
 py_cc_linalg_ext = python_installation.extension_module(
   'cc_linalg',
   cc_modules_sources,
+  include_directories: include_directories(numpy_incdir),
   install: true
 # I assume cc_linalg also needs numpy, if not it can be removed.
   #dependencies: [numpy_dep]
