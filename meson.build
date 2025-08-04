@@ -51,6 +51,7 @@ symph_sources = files(
 py_symph_ext = python_installation.extension_module(
   'symph', # Name of the resulting module (e.g. symph.cpython-310-x86_64-linux-gnu.so)
   symph_sources,
+  install: true,
   # Compilation arguments specific to these Fortran sources.
   # -cpp is already defined in default_options, but can be added here if needed.
   # fortran_args: ['-cpp'],
@@ -66,6 +67,7 @@ py_secondorder_ext = python_installation.extension_module(
   'secondorder',
   secondorder_sources,
   # fortran_args: ['-cpp'],
+  install: true,
   dependencies: [lapack_dep, blas_dep]
 )
 
@@ -80,6 +82,7 @@ py_thirdorder_ext = python_installation.extension_module(
   'thirdorder',
   thirdorder_sources,
   # fortran_args: ['-cpp'],
+  install: true,
   dependencies: [lapack_dep, blas_dep]
 )
 
@@ -96,6 +99,7 @@ py_cond_ext = python_installation.extension_module(
   # '-fopenmp' is explicitly added here for this specific extension.
   # "-O2" is already in default_options.
   fortran_args: ['-fopenmp'],
+  install: true,
   dependencies: [lapack_dep, blas_dep, openmp_dep]
 )
 
@@ -112,6 +116,7 @@ cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
 py_cc_linalg_ext = python_installation.extension_module(
   'cc_linalg',
   cc_modules_sources,
+  install: true
 # I assume cc_linalg also needs numpy, if not it can be removed.
   #dependencies: [numpy_dep]
 )
@@ -119,11 +124,11 @@ py_cc_linalg_ext = python_installation.extension_module(
 # --- Installing Extension Modules ---
 # Register each extension module so Meson knows to install them
 # in the Python site-packages directory.
-python_installation.install_extmod(py_symph_ext)
-python_installation.install_extmod(py_secondorder_ext)
-python_installation.install_extmod(py_thirdorder_ext)
-python_installation.install_extmod(py_cond_ext)
-python_installation.install_extmod(py_cc_linalg_ext)
+#python_installation.install_extmod(py_symph_ext)
+#python_installation.install_extmod(py_secondorder_ext)
+#python_installation.install_extmod(py_thirdorder_ext)
+#python_installation.install_extmod(py_cond_ext)
+#python_installation.install_extmod(py_cc_linalg_ext)
 
 
 # --- Installing the Python package 'cellconstructor' ---
