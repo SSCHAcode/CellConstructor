@@ -66,7 +66,7 @@ py_secondorder_ext = python_installation.extension_module(
   'secondorder',
   secondorder_sources,
   # fortran_args: ['-cpp'],
-  dependencies: [numpy_dep, lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep]
 )
 
 # Extensión 'thirdorder'
@@ -80,7 +80,7 @@ py_thirdorder_ext = python_installation.extension_module(
   'thirdorder',
   thirdorder_sources,
   # fortran_args: ['-cpp'],
-  dependencies: [numpy_dep, lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep]
 )
 
 # Extensión 'thermal_conductivity'
@@ -96,7 +96,7 @@ py_cond_ext = python_installation.extension_module(
   # '-fopenmp' is explicitly added here for this specific extension.
   # "-O2" is already in default_options.
   fortran_args: ['-fopenmp'],
-  dependencies: [numpy_dep, lapack_dep, blas_dep, openmp_dep]
+  dependencies: [lapack_dep, blas_dep, openmp_dep]
 )
 
 # --- Definition of the C Extension 'cc_linalg' ---
@@ -113,7 +113,7 @@ py_cc_linalg_ext = python_installation.extension_module(
   'cc_linalg',
   cc_modules_sources,
 # I assume cc_linalg also needs numpy, if not it can be removed.
-  dependencies: [numpy_dep]
+  #dependencies: [numpy_dep]
 )
 
 # --- Installing Extension Modules ---
