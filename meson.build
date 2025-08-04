@@ -54,7 +54,7 @@ py_symph_ext = python_installation.extension_module(
   # Compilation arguments specific to these Fortran sources.
   # -cpp is already defined in default_options, but can be added here if needed.
   # fortran_args: ['-cpp'],
-  dependencies: [numpy_dep, lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep]
 )
 
 # Extensión 'secondorder'
