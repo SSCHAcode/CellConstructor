@@ -161,8 +161,16 @@ install_data(
 
 # Installing package data (.dat files)
 # They are installed in the 'cellconstructor/SymData' directory in the site-packages.
-install_data('cellconstructor/SymData/gamma_symm_op.dat',
-             'cellconstructor/SymData/space_groups_crystal.dat',
+install_data(
+#'cellconstructor/SymData/gamma_symm_op.dat',
+             #'cellconstructor/SymData/space_groups_crystal.dat',
+             'cellconstructor/SymData/15.dat',
+             'cellconstructor/SymData/36_red.dat',
+             'cellconstructor/SymData/36.dat',
+             'cellconstructor/SymData/60.dat',
+             'cellconstructor/SymData/64.bcs',
+             'cellconstructor/SymData/64.dat',
+             'cellconstructor/SymData/convert_sym.py',
              install_dir: python_installation.get_install_dir() / 'cellconstructor' / 'SymData')
 
 # --- Installing the executable scripts ---
