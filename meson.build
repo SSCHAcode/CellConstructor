@@ -12,7 +12,7 @@ project('CellConstructor', 'fortran', 'c',
 python = import('python')
 python_installation = python.find_installation()
 numpy_incdir = run_command(
-  py_installation, '-c', 'import numpy; print(numpy.get_include())',
+  python_installation, '-c', 'import numpy; print(numpy.get_include())',
   check: true
 ).stdout().strip()
 
