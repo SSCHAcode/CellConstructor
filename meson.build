@@ -58,7 +58,7 @@ py_symph_ext = python_installation.extension_module(
   install: true,
   # Compilation arguments specific to these Fortran sources.
   # -cpp is already defined in default_options, but can be added here if needed.
-  # fortran_args: ['-cpp'],
+  fortran_args: ['-cpp'],
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
 )
@@ -71,7 +71,7 @@ secondorder_sources = files(
 py_secondorder_ext = python_installation.extension_module(
   'secondorder',
   secondorder_sources,
-  # fortran_args: ['-cpp'],
+  fortran_args: ['-cpp'],
   install: true,
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
@@ -87,7 +87,7 @@ thirdorder_sources = files(
 py_thirdorder_ext = python_installation.extension_module(
   'thirdorder',
   thirdorder_sources,
-  # fortran_args: ['-cpp'],
+  fortran_args: ['-cpp'],
   install: true,
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep]
