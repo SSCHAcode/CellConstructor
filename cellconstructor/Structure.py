@@ -370,8 +370,6 @@ Error, to compute the volume the structure must have a unit cell initialized:
                         # print("celldm = ", celldm)
                         # print("ibrav = ", ibrav)
 
-                        celldm[0] = alat
-
                         cell = Methods.get_unit_cell_from_ibrav(ibrav, celldm)
                         cell_present = True
                     #assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
