@@ -196,3 +196,5 @@ install_data([
 ],
 install_dir: get_option('bindir')
 )
+
+test('pytest', find_program('pytest'), args : ['-v', '-m', 'not release', 'tests'])
