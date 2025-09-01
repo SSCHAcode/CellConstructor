@@ -339,13 +339,19 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         # First read
         read_cell = False
+        cell_present = False
         cell_index = 0
         read_atoms = True
+        ibrav = 0
+        cell = np.zeros((3,3), dtype = np.float64)
+        nat = -1
         if read_espresso:
             read_atoms = False
 
             # Get the alat from the input file
             espresso_dict = Methods.read_namelist(lines)
+
+            nat = espresso_dict["system"]["nat"]
             if "system" in espresso_dict:
                 if "alat" in espresso_dict["system"]:
                     alat = espresso_dict["system"]["alat"]*BOHR_TO_ANGSTROM
@@ -353,17 +359,29 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     alat = espresso_dict["system"]["celldm(1)"]*BOHR_TO_ANGSTROM
 
                 if "ibrav" in espresso_dict["system"]:
-                    assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
+                    ibrav = espresso_dict["system"]["ibrav"]
+                    if ibrav != 0:
+                        # Get the celldm vector
+                        celldm = np.zeros(6)
+                        for i in range(5):
+                            stringvalue = "celldm({:d})".format(i+1)
+                            if stringvalue in espresso_dict["system"]:
+                                celldm[i] = espresso_dict["system"][stringvalue]
+                        # print("celldm = ", celldm)
+                        # print("ibrav = ", ibrav)
+
+                        cell = Methods.get_unit_cell_from_ibrav(ibrav, celldm)
+                        cell_present = True
+                    #assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
             
-        cell_present = False
         
         read_crystal = False
         
         #print "ALAT:", alat
         
         #atom_index = 0
-        cell = np.zeros((3,3), dtype = np.float64)
         tmp_coords = []
+        nat_count = 0
         for line in lines:
             line = line.strip()
 
@@ -405,6 +423,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
                 read_cell = False
 
             if read_atoms:
+
                 self.atoms.append(values[0])
                 if not read_crystal:
                     tmp_coords.append([np.float64(v)*alat for v in values[1:4]])
@@ -413,6 +432,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     tmp_coords.append([np.float64(v) for v in values[1:4]])
 
                 n_atoms += 1
+
+                if nat > 0 and n_atoms >= nat:
+                    read_atoms = False
         
             
             
