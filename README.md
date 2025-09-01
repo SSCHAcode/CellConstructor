@@ -144,19 +144,65 @@ make html
 inside the UserGuide directory. It will generate a build directory that contains the html version of the full documentation.
 
 ## Installation using 'Meson'
-Create a new directory to compile:
-'''bash
-mkdir builddir
-'''
-Use Meson to try to autoconfigure the build.
-'''bash
+
+### Compiling with Meson
+
+To compile and install CellConstructor with Meson, follow these typical steps:
+
+### 1. Change to the Source Directory
+
+First, open a terminal and navigate to the root directory of the project source code. This is where the `meson.build` file is located.
+
+```bash
+cd /path/to/source/root/cellconstructor
+```
+
+
+### 2. Configure the Build Directory
+
+Create and configure a build directory by running:
+
+```bash
 meson setup builddir
-'''
-Compile the code.
-'''bash
-meson compile -C builddir
-'''
-Option: install the compilation.
-'''bash
-meson install -C builddir
-'''
+```
+
+This command sets up a separate build directory (`builddir`) where all compiled files and build artifacts will be placed, keeping the source directory clean. After this, change into the build directory:
+
+```bash
+cd builddir
+```
+
+
+### 3. Compile the Project
+
+Once inside the build directory, compile the project using:
+
+```bash
+meson compile
+```
+
+This will compile the source code according to the configuration from the previous step.
+
+### 4. Run Tests (Optional)
+
+If the project includes tests, you can run them with:
+
+```bash
+meson test
+```
+
+This step helps verify that the build works correctly.
+
+### 5. Install the Project (Optional)
+
+To install the compiled binaries, libraries, and other files system-wide (or to a custom location), run:
+
+```bash
+sudo meson install
+```
+
+You may need superuser privileges (hence `sudo`) to install to system directories.
+
+***
+
+Following these steps will help you successfully compile, test, and install SSCHA with Meson as their build system.
