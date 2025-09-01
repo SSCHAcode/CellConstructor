@@ -197,5 +197,6 @@ install_data([
 install_dir: get_option('bindir')
 )
 
+# Set the tests by pytest. (Needs pytest installed)
 # pytest_exe = find_program('pytest')
 # test('pytest', pytest_exe, args : ['-v', '-m', 'not release', 'tests'])
