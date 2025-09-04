@@ -574,18 +574,18 @@ Error, to compute the volume the structure must have a unit cell initialized:
         Note, it will not affect the current structure, 
         but it returns a new strained strcture. 
 
-        Note: in the voigt representation, the off-diagonal terms of the strain tensor are intended as the sum
-        of the two symmetric components of the tensor.
+        Note: in the voigt representation, the off-diagonal terms of the strain tensor are provided
+        so that the euclidean modulus of the resulting strain matrix is uniform across all components:
 
         .. math ::
 
             \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\
-            2\epsilon_4 \\ 2\epsilon_5 \\ 2\epsilon_6 \end{pmatrix} = 
-            \begin{pmatrix} \epsilon_1 & \epsilon_6 & \epsilon_5 \\
-            \epsilon_6 & \epsilon_2 & \epsilon_4 \\
-            \epsilon_5 & \epsilon_4 & \epsilon_3 \end{pmatrix}
+            \epsilon_4 \\ \epsilon_5 \\ \epsilon_6 \end{pmatrix} = 
+            \begin{pmatrix} \epsilon_1 & \frac{1}{\sqrt 2}\epsilon_6 & \frac{1}{\sqrt 2}\epsilon_5 \\
+            \frac{1}{\sqrt 2}\epsilon_6 & \epsilon_2 & \frac{1}{\sqrt 2}\epsilon_4 \\
+            \frac{1}{\sqrt 2}\epsilon_5 & \frac{1}{\sqrt 2}\epsilon_4 & \epsilon_3 \end{pmatrix}
 
-
+        This is the correct convention to compute the elastic constant from finite difference without any rescaling
 
         Parameters
         ----------
@@ -606,7 +606,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
 
         if voigt:
-            strain_tensor[3:] /= 2
+            strain_tensor[3:] /= np.sqrt(2)
             strain_tensor = Methods.transform_voigt(strain_tensor, voigt_to_mat = True)
 
         
