@@ -196,6 +196,8 @@ install_data([
 ],
 install_dir: get_option('bindir')
 )
+# python_installation.install_sources(['scripts/symmetrize_dynmat.py',
+#  'scripts/cellconstructor_test.py','scripts/view_scf_atoms.py'])
 
 # Set the tests by pytest. (Needs pytest installed)
 pytest_exe = find_program('pytest', required: false)
