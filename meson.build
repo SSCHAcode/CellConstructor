@@ -207,12 +207,12 @@ pytest_exe = find_program('pytest', required: false)
 
 if pytest_exe.found()
   test('pytest', pytest_exe,
-       args : ['-v', '-m', 'not release',
-       join_paths(meson.source_root(), 'tests')
-#       'tests'
-       ]
-#       ,
-#       workdir : meson.source_root()
+       args : ['-v',
+#       '-m', 'not release',
+#       join_paths(meson.source_root(), 'tests')
+       'tests'
+       ],
+       workdir : meson.source_root()
        )
 else
   message('pytest no encontrado; se omiten tests con pytest.')
