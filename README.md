@@ -166,6 +166,11 @@ Create and configure a build directory by running:
 meson setup builddir
 ```
 
+or if you are in a conda env (the best option for a local installation):
+```bash
+meson setup builddir --prefix=$CONDA_PREFIX
+```
+
 This command sets up a separate build directory (`builddir`) where all compiled files and build artifacts will be placed, keeping the source directory clean. After this, change into the build directory:
 
 ```bash

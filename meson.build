@@ -60,7 +60,8 @@ py_symph_ext = python_installation.extension_module(
   # -cpp is already defined in default_options, but can be added here if needed.
   fortran_args: ['-cpp'],
   include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep],
+  install_rpath: '$ORIGIN/..'
 )
 
 # Extensión 'secondorder'
@@ -74,7 +75,8 @@ py_secondorder_ext = python_installation.extension_module(
   fortran_args: ['-cpp'],
   install: true,
   include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep],
+  install_rpath: '$ORIGIN/..'
 )
 
 # Extensión 'thirdorder'
@@ -90,7 +92,8 @@ py_thirdorder_ext = python_installation.extension_module(
   fortran_args: ['-cpp'],
   install: true,
   include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep]
+  dependencies: [lapack_dep, blas_dep],
+  install_rpath: '$ORIGIN/..'
 )
 
 # Extensión 'thermal_conductivity'
@@ -108,7 +111,8 @@ py_cond_ext = python_installation.extension_module(
   fortran_args: ['-fopenmp'],
   install: true,
   include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep, openmp_dep]
+  dependencies: [lapack_dep, blas_dep, openmp_dep],
+  install_rpath: '$ORIGIN/..'
 )
 
 # --- Definition of the C Extension 'cc_linalg' ---
@@ -127,7 +131,8 @@ py_cc_linalg_ext = python_installation.extension_module(
   include_directories: include_directories(numpy_incdir),
   install: true
 # I assume cc_linalg also needs numpy, if not it can be removed.
-  #dependencies: [numpy_dep]
+  #dependencies: [numpy_dep],
+  install_rpath: '$ORIGIN/..'  
 )
 
 # --- Installing Extension Modules ---
@@ -212,7 +217,7 @@ if pytest_exe.found()
 #       join_paths(meson.source_root(), 'tests')
 #       'tests'
        ],
-       workdir : meson.source_root()
+       workdir : meson.project_source_root()
        )
 else
   message('pytest no encontrado; se omiten tests con pytest.')
