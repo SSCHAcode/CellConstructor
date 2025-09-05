@@ -61,7 +61,7 @@ py_symph_ext = python_installation.extension_module(
   fortran_args: ['-cpp'],
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep],
-  install_rpath: '$ORIGIN/..'
+  install_rpath: true,
 )
 
 # Extensión 'secondorder'
@@ -76,7 +76,7 @@ py_secondorder_ext = python_installation.extension_module(
   install: true,
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep],
-  install_rpath: '$ORIGIN/..'
+  install_rpath: true,
 )
 
 # Extensión 'thirdorder'
@@ -93,7 +93,7 @@ py_thirdorder_ext = python_installation.extension_module(
   install: true,
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep],
-  install_rpath: '$ORIGIN/..'
+  install_rpath: true,
 )
 
 # Extensión 'thermal_conductivity'
@@ -112,7 +112,7 @@ py_cond_ext = python_installation.extension_module(
   install: true,
   include_directories: include_directories(numpy_incdir),
   dependencies: [lapack_dep, blas_dep, openmp_dep],
-  install_rpath: '$ORIGIN/..'
+  install_rpath: true,
 )
 
 # --- Definition of the C Extension 'cc_linalg' ---
@@ -132,7 +132,7 @@ py_cc_linalg_ext = python_installation.extension_module(
   install: true
 # I assume cc_linalg also needs numpy, if not it can be removed.
   #dependencies: [numpy_dep],
-  install_rpath: '$ORIGIN/..'  
+  install_rpath: true,
 )
 
 # --- Installing Extension Modules ---
