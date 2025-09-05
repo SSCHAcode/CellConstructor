@@ -210,7 +210,7 @@ if pytest_exe.found()
        args : ['-v',
 #       '-m', 'not release',
 #       join_paths(meson.source_root(), 'tests')
-       'tests'
+#       'tests'
        ],
        workdir : meson.source_root()
        )
