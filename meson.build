@@ -35,14 +35,15 @@ openmp_dep = dependency('openmp', required: true)
 # --- Definition of Fortran Extensions ---
 
 # Use fpm to build and install your Fortran sources
-run_command(
-    fpm_exe,
-    'install',
-    '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
-    '--name', 'symph',
-    '--prefix', fpm_build_dir,
-    check : true
-)
+# NOTE: The fpm call has been moved to a `custom_target` for each extension.
+#run_command(
+#    fpm_exe,
+#    'install',
+#    '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
+#    '--name', 'symph',
+#    '--prefix', fpm_build_dir,
+#    check : true
+#)
 
 # Extensión 'symph'
 symph_sources = files(
@@ -64,12 +65,22 @@ symph_sources = files(
 )
 # Create a Python extension module using the Fortran sources and dependencies.
 
-# --- The symph extension ---
-# This is the Fortran source file that will be wrapped by f2py
-symph_fortran_src = files(
-    'FModules/symdynph_gq_new.f90', 'FModules/symm_base.f90',
-    'FModules/sgam_ph.f90', 'FModules/invmat.f90', 'FModules/set_asr.f90',
-    # ... [All your symph source files] ...
+# NEW: Use custom_target to compile the Fortran sources into a static library with fpm.
+# This ensures the library exists before we try to link it.
+symph_fortran_lib = custom_target(
+    'symph_fortran_lib',
+    output: 'libsymph.a',
+    command: [
+        fpm_exe,
+        'build',
+        '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
+        '--name', 'symph',
+        '--chdir', meson.source_root(), # <-- Crucial: fpm runs from the source root
+        '--prefix', meson.current_build_dir(),
+        '--install' # <-- Ensures fpm installs the library for Meson to find
+    ],
+    input: symph_sources,
+    build_by_default: true
 )
 
 # Use f2py to create the C wrapper
@@ -92,11 +103,11 @@ py_symph_ext = python_installation.extension_module(
     'symph', # Name of the resulting module
     # We now pass the generated C wrapper and the static library from fpm
     symph_wrapper,
-    fpm_build_dir / 'lib' / 'libsymph.a',
+    symph_fortran_lib, # Use the target object directly
     install: true,
     include_directories: [
         include_directories(numpy_incdir),
-        fpm_build_dir / 'include' # Include directory for Fortran modules
+        meson.current_build_dir() / 'fpm_build' / 'include' # Path to fpm-generated module files
     ],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     link_args: ['-fopenmp'],
@@ -116,6 +127,7 @@ py_symph_ext = python_installation.extension_module(
 #)
 
 # Extensión 'secondorder'
+# NOTE: It will need to apply the same logic as above for this and other extensions
 secondorder_sources = files(
   'FModules/second_order_centering.f90',
   'FModules/second_order_ASR.f90'
