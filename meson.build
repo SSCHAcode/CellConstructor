@@ -18,7 +18,7 @@ numpy_incdir = run_command(
 
 # Find the fpm and f2py programs
 fpm_exe = find_program('fpm', required: true)
-f2py_exe = python.find_installation().find_program('f2py', required: true)
+f2py_exe = python_installation.find_installation().find_program('f2py', required: true)
 
 # Define the build directory for fpm
 fpm_build_dir = meson.build_root() / 'fpm_build'
