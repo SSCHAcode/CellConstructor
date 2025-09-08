@@ -39,6 +39,7 @@ run_command(
     fpm_exe,
     'install',
     '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
+    '--name', 'symph',
     '--prefix', fpm_build_dir,
     check : true
 )
