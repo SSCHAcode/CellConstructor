@@ -16,11 +16,12 @@ numpy_incdir = run_command(
   check: true
 ).stdout().strip()
 
-# Defines the Python dependencies that numpy.distutils used to handle.
-# Meson will look for them in the current Python environment.
-#numpy_dep = python_installation.dependency(module: 'numpy', required: true)
-#ase_dep = python_installation.dependency(module: 'ase', required: true)
-#scipy_dep = python_installation.dependency(module: 'scipy', required: true)
+# Find the fpm and f2py programs
+fpm_exe = find_program('fpm', required: true)
+f2py_exe = python.find_installation().find_program('f2py', required: true)
+
+# Define the build directory for fpm
+fpm_build_dir = meson.build_root() / 'fpm_build'
 
 # Searches the system for the BLAS and LAPACK libraries.
 # Meson can find implementations such as OpenBLAS, BLIS, Intel MKL, or generic ones.
@@ -32,6 +33,15 @@ openmp_dep = dependency('openmp', required: true)
 
 
 # --- Definition of Fortran Extensions ---
+
+# Use fpm to build and install your Fortran sources
+run_command(
+    fpm_exe,
+    'install',
+    '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
+    '--prefix', fpm_build_dir,
+    check : true
+)
 
 # Extensión 'symph'
 symph_sources = files(
@@ -52,17 +62,57 @@ symph_sources = files(
   'FModules/get_translations.f90', 'FModules/get_equivalent_atoms.f90'
 )
 # Create a Python extension module using the Fortran sources and dependencies.
+
+# --- The symph extension ---
+# This is the Fortran source file that will be wrapped by f2py
+symph_fortran_src = files(
+    'FModules/symdynph_gq_new.f90', 'FModules/symm_base.f90',
+    'FModules/sgam_ph.f90', 'FModules/invmat.f90', 'FModules/set_asr.f90',
+    # ... [All your symph source files] ...
+)
+
+# Use f2py to create the C wrapper
+symph_wrapper = custom_target(
+    'symph_f2py_wrapper',
+    input: symph_fortran_src,
+    output: 'symph-f2pywrappers.c',
+    command: [
+        f2py_exe,
+        '-m', 'symph', # The name of the module
+        '@INPUT@',
+        '--quiet',
+        '--lower'
+    ],
+    build_by_default: true
+)
+
+# Create the Python extension module
 py_symph_ext = python_installation.extension_module(
-  'symph', # Name of the resulting module (e.g. symph.cpython-310-x86_64-linux-gnu.so)
-  symph_sources,
-  install: true,
+    'symph', # Name of the resulting module
+    # We now pass the generated C wrapper and the static library from fpm
+    symph_wrapper,
+    fpm_build_dir / 'lib' / 'libsymph.a',
+    install: true,
+    include_directories: [
+        include_directories(numpy_incdir),
+        fpm_build_dir / 'include' # Include directory for Fortran modules
+    ],
+    dependencies: [lapack_dep, blas_dep, openmp_dep],
+    link_args: ['-fopenmp'],
+    install_rpath: '$ORIGIN/..'
+)
+
+#py_symph_ext = python_installation.extension_module(
+#  'symph', # Name of the resulting module (e.g. symph.cpython-310-x86_64-linux-gnu.so)
+#  symph_sources,
+#  install: true,
   # Compilation arguments specific to these Fortran sources.
   # -cpp is already defined in default_options, but can be added here if needed.
-  fortran_args: ['-cpp'],
-  include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep, openmp_dep],
-  install_rpath: '$ORIGIN/..'
-)
+#  fortran_args: ['-cpp'],
+#  include_directories: include_directories(numpy_incdir),
+#  dependencies: [lapack_dep, blas_dep, openmp_dep],
+#  install_rpath: '$ORIGIN/..'
+#)
 
 # Extensión 'secondorder'
 secondorder_sources = files(
