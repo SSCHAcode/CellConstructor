@@ -86,7 +86,7 @@ symph_fortran_lib = custom_target(
 # Use f2py to create the C wrapper
 symph_wrapper = custom_target(
     'symph_f2py_wrapper',
-    input: symph_fortran_src,
+    input: symph_sources,
     output: 'symph-f2pywrappers.c',
     command: [
         f2py_exe,
