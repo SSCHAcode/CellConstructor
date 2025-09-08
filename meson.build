@@ -60,7 +60,7 @@ py_symph_ext = python_installation.extension_module(
   # -cpp is already defined in default_options, but can be added here if needed.
   fortran_args: ['-cpp'],
   include_directories: include_directories(numpy_incdir),
-  dependencies: [lapack_dep, blas_dep],
+  dependencies: [lapack_dep, blas_dep, openmp_dep],
   install_rpath: '$ORIGIN/..'
 )
 
