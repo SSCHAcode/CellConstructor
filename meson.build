@@ -23,40 +23,6 @@ lapack_dep = dependency('lapack', required: true)
 blas_dep = dependency('blas', required: true)
 openmp_dep = dependency('openmp', required: true)
 
-/*# --- PASO 1: Compilar e instalar todas las librerías de Fortran con fpm ---
-# Usamos un custom_target para que Meson sepa que se generarán los archivos.
-fpm_install_target = custom_target(
-  'fpm_install',
-  # Las salidas se declaran sin la ruta del directorio, Meson las espera en el directorio de compilación del target.
-  output: [
-    'libsymph.a',
-    'libsecondorder.a',
-    'libthirdorder.a',
-    'libthermal_conductivity.a',
-  ],
-  command: [
-    fpm_exe,
-    'install',
-    '--prefix', fpm_build_dir,
-    '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
-  ],
-  # No lo instalamos, ya que las librerías generadas se moverán más tarde.
-  install: false,
-  # Asegura que el target se ejecute cada vez para regenerar las librerías.
-  build_always_stale: true,
-)
-
-# --- PASO 2: Definir cada extensión de Python (Fortran) ---
-# Cada extensión ahora tiene su propio bloque de compilación.
-# Obtener la lista de outputs primero
-fpm_outputs = fpm_install_target.output()
-
-# Obtener la ruta completa para cada librería
-libsymph_path = fpm_install_target.full_path(fpm_outputs[0])
-libsecondorder_path = fpm_install_target.full_path(fpm_outputs[1])
-libthirdorder_path = fpm_install_target.full_path(fpm_outputs[2])
-libthermal_path = fpm_install_target.full_path(fpm_outputs[3])*/
-
 # --- Definición de cada extensión de Python (Fortran) ---
 # Cada extensión ahora tiene su propio bloque de compilación, lo que es más robusto.
 
