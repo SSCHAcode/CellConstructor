@@ -75,7 +75,7 @@ symph_wrapper = custom_target(
 py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs()[0]),
+    fpm_install_target.full_path(fpm_install_target.outputs[0]),
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
@@ -97,7 +97,7 @@ secondorder_wrapper = custom_target(
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs()[1]),
+    fpm_install_target.full_path(fpm_install_target.outputs[1]),
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -119,7 +119,7 @@ thirdorder_wrapper = custom_target(
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs()[2]),
+    fpm_install_target.full_path(fpm_install_target.outputs[2]),
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -141,7 +141,7 @@ cond_wrapper = custom_target(
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs()[3]),
+    fpm_install_target.full_path(fpm_install_target.outputs[3]),
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
