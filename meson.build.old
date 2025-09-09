@@ -21,7 +21,7 @@ fpm_exe = find_program('fpm', required: true)
 f2py_exe = find_program('f2py', required: true)
 
 # Define the build directory for fpm
-fpm_build_dir = meson.build_root() / 'fpm_build'
+fpm_build_dir = meson.project_build_root() / 'fpm_build'
 
 # Searches the system for the BLAS and LAPACK libraries.
 # Meson can find implementations such as OpenBLAS, BLIS, Intel MKL, or generic ones.

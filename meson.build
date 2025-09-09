@@ -16,7 +16,7 @@ fpm_exe = find_program('fpm', required: true)
 f2py_exe = find_program('f2py', required: true)
 
 # Define el directorio de compilación para fpm
-fpm_build_dir = meson.build_root() / 'fpm_build'
+fpm_build_dir = meson.project_build_root() / 'fpm_build'
 
 # Busca las librerías de sistema BLAS, LAPACK y OpenMP
 lapack_dep = dependency('lapack', required: true)
@@ -25,9 +25,12 @@ openmp_dep = dependency('openmp', required: true)
 
 # --- PASO 1: Compilar todas las librerías de Fortran con fpm ---
 # Este comando usa fpm.toml para saber qué librerías compilar y dónde colocarlas.
+#fflags = '-g -fPIC -funroll-loops -fstack-arrays -Ofast -frepack-arrays -faggressive-function-elimination -fopenmp'
+#cflags = '-fPIC'
 run_command(
     fpm_exe,
     'install',
+#    '--profile', 'release',
     '--prefix', fpm_build_dir,
     '--flag', ['-g', '-fPIC', '-O2', '-fopenmp'],
     check : true
