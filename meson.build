@@ -48,6 +48,14 @@ fpm_install_target = custom_target(
 
 # --- PASO 2: Definir cada extensión de Python (Fortran) ---
 # Cada extensión ahora tiene su propio bloque de compilación.
+# Obtener la lista de outputs primero
+fpm_outputs = fpm_install_target.outputs
+
+# Obtener la ruta completa para cada librería
+libsymph_path = fpm_install_target.full_path(fpm_outputs[0])
+libsecondorder_path = fpm_install_target.full_path(fpm_outputs[1])
+libthirdorder_path = fpm_install_target.full_path(fpm_outputs[2])
+libthermal_path = fpm_install_target.full_path(fpm_outputs[3])
 
 # Extensión 'symph'
 symph_fortran_src = files(
@@ -72,7 +80,7 @@ symph_wrapper = custom_target(
     command: [f2py_exe, '-m', 'symph', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
-libsymph_path = fpm_install_target.full_path(fpm_install_target.outputs[0])
+
 py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
@@ -95,7 +103,7 @@ secondorder_wrapper = custom_target(
     command: [f2py_exe, '-m', 'secondorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
-libsecondorder_path = fpm_install_target.full_path(fpm_install_target.outputs[1])
+
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
@@ -118,7 +126,7 @@ thirdorder_wrapper = custom_target(
     command: [f2py_exe, '-m', 'thirdorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
-libthirdorder_path = fpm_install_target.full_path(fpm_install_target.outputs[2])
+
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
@@ -141,7 +149,7 @@ cond_wrapper = custom_target(
     command: [f2py_exe, '-m', 'thermal_conductivity', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
-libthermal_conductivity_path = fpm_install_target.full_path(fpm_install_target.outputs[3])
+
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
