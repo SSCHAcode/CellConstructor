@@ -72,10 +72,11 @@ symph_wrapper = custom_target(
     command: [f2py_exe, '-m', 'symph', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
+libsymph_path = fpm_install_target.full_path(fpm_install_target.outputs[0])
 py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs[0]),
+    libsymph_path,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
@@ -94,10 +95,11 @@ secondorder_wrapper = custom_target(
     command: [f2py_exe, '-m', 'secondorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
+libsecondorder_path = fpm_install_target.full_path(fpm_install_target.outputs[1])
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs[1]),
+    libsecondorder_path,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -116,10 +118,11 @@ thirdorder_wrapper = custom_target(
     command: [f2py_exe, '-m', 'thirdorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
+libthirdorder_path = fpm_install_target.full_path(fpm_install_target.outputs[2])
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs[2]),
+    libthirdorder_path,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -138,10 +141,11 @@ cond_wrapper = custom_target(
     command: [f2py_exe, '-m', 'thermal_conductivity', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
+libthermal_conductivity_path = fpm_install_target.full_path(fpm_install_target.outputs[3])
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
-    fpm_install_target.full_path(fpm_install_target.outputs[3]),
+    libthermal_conductivity_path,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
