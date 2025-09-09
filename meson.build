@@ -49,7 +49,7 @@ fpm_install_target = custom_target(
 # --- PASO 2: Definir cada extensión de Python (Fortran) ---
 # Cada extensión ahora tiene su propio bloque de compilación.
 # Obtener la lista de outputs primero
-fpm_outputs = fpm_install_target.outputs()
+fpm_outputs = fpm_install_target.output()
 
 # Obtener la ruta completa para cada librería
 libsymph_path = fpm_install_target.full_path(fpm_outputs[0])
