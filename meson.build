@@ -23,7 +23,7 @@ lapack_dep = dependency('lapack', required: true)
 blas_dep = dependency('blas', required: true)
 openmp_dep = dependency('openmp', required: true)
 
-# --- PASO 1: Compilar e instalar todas las librerías de Fortran con fpm ---
+/*# --- PASO 1: Compilar e instalar todas las librerías de Fortran con fpm ---
 # Usamos un custom_target para que Meson sepa que se generarán los archivos.
 fpm_install_target = custom_target(
   'fpm_install',
@@ -55,7 +55,10 @@ fpm_outputs = fpm_install_target.output()
 libsymph_path = fpm_install_target.full_path(fpm_outputs[0])
 libsecondorder_path = fpm_install_target.full_path(fpm_outputs[1])
 libthirdorder_path = fpm_install_target.full_path(fpm_outputs[2])
-libthermal_path = fpm_install_target.full_path(fpm_outputs[3])
+libthermal_path = fpm_install_target.full_path(fpm_outputs[3])*/
+
+# --- Definición de cada extensión de Python (Fortran) ---
+# Cada extensión ahora tiene su propio bloque de compilación, lo que es más robusto.
 
 # Extensión 'symph'
 symph_fortran_src = files(
@@ -73,6 +76,22 @@ symph_fortran_src = files(
     'FModules/eff_charge_interp.f90', 'FModules/get_translations.f90',
     'FModules/get_equivalent_atoms.f90'
 )
+
+# Creamos un custom_target solo para la librería symph.
+symph_fortran_lib = custom_target(
+    'symph_fortran_lib',
+    output: 'libsymph.a',
+    command: [
+        fpm_exe,
+        'install',
+        '--prefix', fpm_build_dir,
+        '--name', 'symph',
+        '--flag', ['-g', '-fPIC', '-O2', '-fopenmp']
+    ],
+    input: symph_fortran_src,
+    build_by_default: true
+)
+
 symph_wrapper = custom_target(
     'symph_f2py_wrapper',
     input: symph_fortran_src,
@@ -84,7 +103,7 @@ symph_wrapper = custom_target(
 py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
-    libsymph_path,
+    symph_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
@@ -95,6 +114,19 @@ py_symph_ext = python_installation.extension_module(
 # Extensión 'secondorder'
 secondorder_fortran_src = files(
     'FModules/second_order_centering.f90', 'FModules/second_order_ASR.f90'
+)
+secondorder_fortran_lib = custom_target(
+    'secondorder_fortran_lib',
+    output: 'libsecondorder.a',
+    command: [
+        fpm_exe,
+        'install',
+        '--prefix', fpm_build_dir,
+        '--name', 'secondorder',
+        '--flag', ['-g', '-fPIC', '-O2', '-fopenmp']
+    ],
+    input: secondorder_fortran_src,
+    build_by_default: true
 )
 secondorder_wrapper = custom_target(
     'secondorder_f2py_wrapper',
@@ -107,7 +139,7 @@ secondorder_wrapper = custom_target(
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
-    libsecondorder_path,
+    secondorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -118,6 +150,19 @@ py_secondorder_ext = python_installation.extension_module(
 thirdorder_fortran_src = files(
     'FModules/third_order_centering.f90', 'FModules/third_order_ASR.f90',
     'FModules/third_order_interpol.f90', 'FModules/third_order_dynbubble.f90'
+)
+thirdorder_fortran_lib = custom_target(
+    'thirdorder_fortran_lib',
+    output: 'libthirdorder.a',
+    command: [
+        fpm_exe,
+        'install',
+        '--prefix', fpm_build_dir,
+        '--name', 'thirdorder',
+        '--flag', ['-g', '-fPIC', '-O2', '-fopenmp']
+    ],
+    input: thirdorder_fortran_src,
+    build_by_default: true
 )
 thirdorder_wrapper = custom_target(
     'thirdorder_f2py_wrapper',
@@ -130,7 +175,7 @@ thirdorder_wrapper = custom_target(
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
-    libthirdorder_path,
+    thirdorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -138,13 +183,26 @@ py_thirdorder_ext = python_installation.extension_module(
 )
 
 # Extensión 'thermal_conductivity'
-cond_fortran_src = files(
+thermal_conductivity_fortran_src = files(
     'FModules/get_scattering_q_grid.f90', 'FModules/third_order_cond.f90',
     'FModules/third_order_cond_centering.f90', 'FModules/get_lf.f90'
 )
+thermal_conductivity_fortran_lib = custom_target(
+    'thermal_conductivity_fortran_lib',
+    output: 'libthermal_conductivity.a',
+    command: [
+        fpm_exe,
+        'install',
+        '--prefix', fpm_build_dir,
+        '--name', 'thermal_conductivity',
+        '--flag', ['-g', '-fPIC', '-O2', '-fopenmp']
+    ],
+    input: thermal_conductivity_fortran_src,
+    build_by_default: true
+)
 cond_wrapper = custom_target(
     'thermal_conductivity_f2py_wrapper',
-    input: cond_fortran_src,
+    input: thermal_conductivity_fortran_src,
     output: 'thermal_conductivity-f2pywrappers.c',
     command: [f2py_exe, '-m', 'thermal_conductivity', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
@@ -153,7 +211,7 @@ cond_wrapper = custom_target(
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
-    libthermal_conductivity_path,
+    thirdorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
