@@ -50,7 +50,11 @@ fpm_inc = include_directories('fpm_build/include')
 
 # Luego usa las variables en las extensiones
 include_dirs = [numpy_inc, fpm_inc]
-
+# Ruta absoluta de includes generados
+fpm_include_dir = meson.project_build_root() / 'fpm_build' / 'include'
+# Argumentos para el compilador
+cpp_inc_args = ['-I' + fpm_include_dir.to_string(), '-I' + numpy_incdir]
+fortran_inc_args = ['-I' + fpm_include_dir.to_string()]
 # Creamos un custom_target solo para la librería symph.
 symph_fortran_lib = custom_target(
     'symph_fortran_lib',
@@ -79,7 +83,9 @@ py_symph_ext = python_installation.extension_module(
     symph_wrapper,
     link_with: symph_fortran_lib,
     install: true,
-    include_directories: include_dirs,
+    #include_directories: include_dirs,
+    cpp_args: cpp_inc_args,
+    fortran_args: fortran_inc_args,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     link_args: ['-fopenmp'],
     install_rpath: '$ORIGIN/..'
@@ -115,7 +121,9 @@ py_secondorder_ext = python_installation.extension_module(
     secondorder_wrapper,
     link_with: secondorder_fortran_lib,
     install: true,
-    include_directories: include_dirs,
+    #include_directories: include_dirs,
+    cpp_args: cpp_inc_args,
+    fortran_args: fortran_inc_args,
     dependencies: [lapack_dep, blas_dep],
     install_rpath: '$ORIGIN/..'
 )
@@ -151,7 +159,9 @@ py_thirdorder_ext = python_installation.extension_module(
     thirdorder_wrapper,
     link_with: thirdorder_fortran_lib,
     install: true,
-    include_directories: include_dirs,
+    #include_directories: include_dirs,
+    cpp_args: cpp_inc_args,
+    fortran_args: fortran_inc_args,
     dependencies: [lapack_dep, blas_dep],
     install_rpath: '$ORIGIN/..'
 )
@@ -187,7 +197,9 @@ py_cond_ext = python_installation.extension_module(
     cond_wrapper,
     link_with: thirdorder_fortran_lib,
     install: true,
-    include_directories: include_dirs,
+    #include_directories: include_dirs,
+    cpp_args: cpp_inc_args,
+    fortran_args: fortran_inc_args,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     link_args: ['-fopenmp'],
     install_rpath: '$ORIGIN/..'
