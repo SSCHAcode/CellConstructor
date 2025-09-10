@@ -53,8 +53,8 @@ numpy_inc = include_directories(numpy_incdir)
 # Ruta absoluta de includes generados
 fpm_include_dir = meson.project_build_root() / 'fpm_build' / 'include'
 # Argumentos para el compilador
-cpp_inc_args = ['-I' + fpm_include_dir.to_string(), '-I' + numpy_incdir]
-fortran_inc_args = ['-I' + fpm_include_dir.to_string()]
+cpp_inc_args = ['-I' + fpm_include_dir, '-I' + numpy_incdir]
+fortran_inc_args = ['-I' + fpm_include_dir]
 # Creamos un custom_target solo para la librería symph.
 symph_fortran_lib = custom_target(
     'symph_fortran_lib',
