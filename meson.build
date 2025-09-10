@@ -11,6 +11,7 @@ numpy_incdir = run_command(
   python_installation, '-c', 'import numpy; print(numpy.get_include())',
   check: true
 ).stdout().strip()
+# quizás usar dependency('numpy'), por ahora funciona así porque Meson aún no ha implementado f2py desde dependency('numpy'), pero es recomendable usar dependency en general.
 
 fpm_exe = find_program('fpm', required: true)
 f2py_exe = find_program('f2py', required: true)
@@ -69,7 +70,7 @@ symph_wrapper = custom_target(
 py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
-    symph_fortran_lib,
+    link_with: symph_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
@@ -105,7 +106,7 @@ secondorder_wrapper = custom_target(
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
-    secondorder_fortran_lib,
+    link_with: secondorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -141,7 +142,7 @@ thirdorder_wrapper = custom_target(
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
-    thirdorder_fortran_lib,
+    link_with: thirdorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep],
@@ -177,7 +178,7 @@ cond_wrapper = custom_target(
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
-    thirdorder_fortran_lib,
+    link_with: thirdorder_fortran_lib,
     install: true,
     include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
     dependencies: [lapack_dep, blas_dep, openmp_dep],
