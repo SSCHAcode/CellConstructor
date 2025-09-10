@@ -45,8 +45,8 @@ symph_fortran_src = files(
 )
 # Creamos las direcciones de numpy y fpm para ser usadas luego
 numpy_inc = include_directories(numpy_incdir)
-#fpm_inc = include_directories(fpm_build_dir / 'include')
-fpm_inc = include_directories('fpm_build/include')
+fpm_inc = include_directories(fpm_build_dir / 'include')
+#fpm_inc = include_directories('fpm_build/include')
 
 # Luego usa las variables en las extensiones
 include_dirs = [numpy_inc, fpm_inc]
