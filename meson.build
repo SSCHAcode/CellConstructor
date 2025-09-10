@@ -195,7 +195,7 @@ cond_wrapper = custom_target(
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
-    link_with: thirdorder_fortran_lib,
+    link_with: thermal_conductivity_fortran_lib,
     install: true,
     #include_directories: include_dirs,
     cpp_args: cpp_inc_args,
