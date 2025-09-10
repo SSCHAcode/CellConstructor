@@ -43,6 +43,12 @@ symph_fortran_src = files(
     'FModules/eff_charge_interp.f90', 'FModules/get_translations.f90',
     'FModules/get_equivalent_atoms.f90'
 )
+# Creamos las direcciones de numpy y fpm para ser usadas luego
+numpy_inc = include_directories(numpy_incdir)
+fpm_inc = include_directories(fpm_build_dir / 'include')
+
+# Luego usa las variables en las extensiones
+include_dirs = [numpy_inc, fpm_inc]
 
 # Creamos un custom_target solo para la librería symph.
 symph_fortran_lib = custom_target(
@@ -72,7 +78,7 @@ py_symph_ext = python_installation.extension_module(
     symph_wrapper,
     link_with: symph_fortran_lib,
     install: true,
-    include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     link_args: ['-fopenmp'],
     install_rpath: '$ORIGIN/..'
@@ -108,7 +114,7 @@ py_secondorder_ext = python_installation.extension_module(
     secondorder_wrapper,
     link_with: secondorder_fortran_lib,
     install: true,
-    include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
     install_rpath: '$ORIGIN/..'
 )
@@ -144,7 +150,7 @@ py_thirdorder_ext = python_installation.extension_module(
     thirdorder_wrapper,
     link_with: thirdorder_fortran_lib,
     install: true,
-    include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
     install_rpath: '$ORIGIN/..'
 )
@@ -180,7 +186,7 @@ py_cond_ext = python_installation.extension_module(
     cond_wrapper,
     link_with: thirdorder_fortran_lib,
     install: true,
-    include_directories: [include_directories(numpy_incdir), fpm_build_dir / 'include'],
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     link_args: ['-fopenmp'],
     install_rpath: '$ORIGIN/..'
