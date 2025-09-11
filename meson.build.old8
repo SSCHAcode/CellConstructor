@@ -19,7 +19,6 @@ blas_dep = dependency('blas', required: true)
 openmp_dep = dependency('openmp', required: true)
 
 # --- Definición de cada extensión de Python (Fortran) ---
-# Hemos vuelto a una estructura más simple y robusta.
 
 # Extensión 'symph'
 symph_fortran_src = files(
@@ -38,6 +37,17 @@ symph_fortran_src = files(
     'FModules/get_equivalent_atoms.f90'
 )
 
+# Compila el código Fortran en una librería compartida.
+symph_lib = shared_library(
+  'symph_lib',
+  symph_fortran_src,
+  dependencies: [lapack_dep, blas_dep, openmp_dep],
+  fortran_args: ['-cpp', '-fopenmp'],
+  link_args: ['-fopenmp'],
+  install: false, # No la instalamos, solo se usa para el enlace.
+)
+
+# Crea el wrapper de C.
 symph_wrapper = custom_target(
     'symph_f2py_wrapper',
     input: symph_fortran_src,
@@ -52,14 +62,14 @@ symph_wrapper = custom_target(
     build_by_default: true
 )
 
+# Crea el módulo de extensión de Python enlazando el wrapper y la librería.
 py_symph_ext = python_installation.extension_module(
     'symph',
-    [symph_wrapper, symph_fortran_src],
+    symph_wrapper,
+    link_with: symph_lib,
+    dependencies: [],
+    include_directories: include_directories(numpy_incdir),
     install: true,
-    dependencies: [lapack_dep, blas_dep, openmp_dep],
-    include_directories: include_directories(numpy_incdir, meson.current_build_dir()),
-    link_args: ['-fopenmp'],
-    fortran_args: ['-cpp', '-fopenmp'],
     install_rpath: '$ORIGIN/..'
 )
 
@@ -68,6 +78,14 @@ py_symph_ext = python_installation.extension_module(
 # Extensión 'secondorder'
 secondorder_fortran_src = files(
     'FModules/second_order_centering.f90', 'FModules/second_order_ASR.f90'
+)
+
+secondorder_lib = shared_library(
+  'secondorder_lib',
+  secondorder_fortran_src,
+  dependencies: [lapack_dep, blas_dep],
+  fortran_args: ['-cpp'],
+  install: false,
 )
 
 secondorder_wrapper = custom_target(
@@ -80,11 +98,11 @@ secondorder_wrapper = custom_target(
 
 py_secondorder_ext = python_installation.extension_module(
     'secondorder',
-    [secondorder_wrapper, secondorder_fortran_src],
+    secondorder_wrapper,
+    link_with: secondorder_lib,
+    dependencies: [],
+    include_directories: include_directories(numpy_incdir),
     install: true,
-    dependencies: [lapack_dep, blas_dep],
-    include_directories: include_directories(numpy_incdir, meson.current_build_dir()),
-    fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
 )
 
@@ -94,6 +112,14 @@ py_secondorder_ext = python_installation.extension_module(
 thirdorder_fortran_src = files(
     'FModules/third_order_centering.f90', 'FModules/third_order_ASR.f90',
     'FModules/third_order_interpol.f90', 'FModules/third_order_dynbubble.f90'
+)
+
+thirdorder_lib = shared_library(
+  'thirdorder_lib',
+  thirdorder_fortran_src,
+  dependencies: [lapack_dep, blas_dep],
+  fortran_args: ['-cpp'],
+  install: false,
 )
 
 thirdorder_wrapper = custom_target(
@@ -106,11 +132,11 @@ thirdorder_wrapper = custom_target(
 
 py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
-    [thirdorder_wrapper, thirdorder_fortran_src],
+    thirdorder_wrapper,
+    link_with: thirdorder_lib,
+    dependencies: [],
+    include_directories: include_directories(numpy_incdir),
     install: true,
-    dependencies: [lapack_dep, blas_dep],
-    include_directories: include_directories(numpy_incdir, meson.current_build_dir()),
-    fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
 )
 
@@ -120,6 +146,15 @@ py_thirdorder_ext = python_installation.extension_module(
 cond_fortran_src = files(
     'FModules/get_scattering_q_grid.f90', 'FModules/third_order_cond.f90',
     'FModules/third_order_cond_centering.f90', 'FModules/get_lf.f90'
+)
+
+cond_lib = shared_library(
+  'cond_lib',
+  cond_fortran_src,
+  dependencies: [lapack_dep, blas_dep, openmp_dep],
+  fortran_args: ['-cpp', '-fopenmp'],
+  link_args: ['-fopenmp'],
+  install: false,
 )
 
 cond_wrapper = custom_target(
@@ -132,11 +167,10 @@ cond_wrapper = custom_target(
 
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
-    [cond_wrapper, cond_fortran_src],
-    dependencies: [lapack_dep, blas_dep, openmp_dep],
-    include_directories: include_directories(numpy_incdir, meson.current_build_dir()),
-    link_args: ['-fopenmp'],
-    fortran_args: ['-cpp', '-fopenmp'],
+    cond_wrapper,
+    link_with: cond_lib,
+    dependencies: [],
+    include_directories: include_directories(numpy_incdir),
     install: true,
     install_rpath: '$ORIGIN/..'
 )
@@ -153,6 +187,7 @@ cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
 py_cc_linalg_ext = python_installation.extension_module(
   'cc_linalg',
   cc_modules_sources,
+  dependencies: [],
   include_directories: include_directories(numpy_incdir),
   install: true,
   install_rpath: '$ORIGIN/..'
