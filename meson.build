@@ -18,7 +18,13 @@ numpy_parent_incdir = run_command(
   check: true
 ).stdout().strip()
 
-include_dirs = include_directories(numpy_incdir, numpy_parent_incdir, '.')
+# Obtenemos la ruta específica para los headers de f2py
+f2py_incdir = run_command(
+  python_installation, '-c', 'import os, numpy.f2py; print(os.path.join(os.path.dirname(numpy.f2py.__file__), "src"))',
+  check: true
+).stdout().strip()
+
+include_dirs = include_directories(numpy_incdir, numpy_parent_incdir, f2py_incdir, '.')
 
 f2py_exe = find_program('f2py', required: true)
 
