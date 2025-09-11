@@ -73,7 +73,7 @@ py_symph_ext = python_installation.extension_module(
     install_rpath: '$ORIGIN/..'
 )
 
----
+# ---
 
 # Extensión 'secondorder'
 secondorder_fortran_src = files(
@@ -106,7 +106,7 @@ py_secondorder_ext = python_installation.extension_module(
     install_rpath: '$ORIGIN/..'
 )
 
----
+# ---
 
 # Extensión 'thirdorder'
 thirdorder_fortran_src = files(
@@ -140,7 +140,7 @@ py_thirdorder_ext = python_installation.extension_module(
     install_rpath: '$ORIGIN/..'
 )
 
----
+# ---
 
 # Extensión 'thermal_conductivity'
 cond_fortran_src = files(
