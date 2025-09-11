@@ -1,0 +1,115 @@
+project('CellConstructor', 'fortran', 'c',
+  version: '1.5.0',
+  license: 'GPL',
+  default_options: ['fortran_args=-cpp', 'fortran_args=-O2']
+)
+
+# --- System and Python Dependencies ---
+python = import('python')
+python_installation = python.find_installation()
+
+# Obtener ruta común de includes: numpy.get_include() y su padre para fortranobject.h
+numpy_incdir = run_command(
+  python_installation, '-c', 'import numpy; print(numpy.get_include())',
+  check: true
+).stdout().strip()
+
+numpy_parent_incdir = run_command(
+  python_installation, '-c', 'import os, numpy; print(os.path.dirname(numpy.get_include()))',
+  check: true
+).stdout().strip()
+
+f2py_exe = find_program('f2py', required: true)
+
+# Dependencias de sistema
+lapack_dep = dependency('lapack', required: true)
+blas_dep = dependency('blas', required: true)
+openmp_dep = dependency('openmp', required: true)
+
+# --- Definición de extensiones Python (Fortran) ---
+
+# Ejemplo para la extensión symph
+symph_fortran_src = files(
+  'FModules/symdynph_gq_new.f90', 'FModules/symm_base.f90', 'FModules/sgam_ph.f90',
+  'FModules/invmat.f90', 'FModules/set_asr.f90', 'FModules/error_handler.f90',
+  'FModules/io_global.f90', 'FModules/flush_unit.f90', 'FModules/symvector.f90',
+  'FModules/fc_supercell_from_dyn.f90', 'FModules/set_tau.f90',
+  'FModules/cryst_to_car.f90', 'FModules/recips.f90', 'FModules/q2qstar_out.f90',
+  'FModules/rotate_and_add_dyn.f90', 'FModules/trntnsc.f90', 'FModules/star_q.f90',
+  'FModules/eqvect.f90', 'FModules/symm_matrix.f90', 'FModules/from_matdyn.f90',
+  'FModules/interp.f90', 'FModules/q_gen.f90', 'FModules/smallgq.f90',
+  'FModules/symmetry_high_rank.f90', 'FModules/unwrap_tensors.f90',
+  'FModules/get_latvec.f90', 'FModules/contract_two_phonon_propagator.f90',
+  'FModules/get_q_grid_fast.f90', 'FModules/kind.f90', 'FModules/constants.f90',
+  'FModules/eff_charge_interp.f90', 'FModules/get_translations.f90',
+  'FModules/get_equivalent_atoms.f90'
+)
+
+symph_wrapper = custom_target(
+  'symph_f2py_wrapper',
+  input: symph_fortran_src,
+  output: 'symphmodule.c',
+  command: [f2py_exe, '-m', 'symph', '@INPUT@', '--quiet', '--lower'],
+  build_by_default: true
+)
+
+# Define los includes agrupados con ambos directorios
+numpy_includes = include_directories(numpy_incdir, numpy_parent_incdir, '.')
+
+py_symph_ext = python_installation.extension_module(
+  'symph',
+  [symph_wrapper, symph_fortran_src],
+  install: true,
+  include_directories: numpy_includes,
+  dependencies: [lapack_dep, blas_dep, openmp_dep],
+  link_args: ['-fopenmp'],
+  fortran_args: ['-cpp', '-fopenmp'],
+  install_rpath: '$ORIGIN/..'
+)
+
+# Repite patrón análogo para las demás extensiones ...
+
+# Ejemplo para la extensión secondorder
+secondorder_fortran_src = files(
+  'FModules/second_order_centering.f90', 'FModules/second_order_ASR.f90'
+)
+secondorder_wrapper = custom_target(
+  'secondorder_f2py_wrapper',
+  input: secondorder_fortran_src,
+  output: 'secondordermodule.c',
+  command: [f2py_exe, '-m', 'secondorder', '@INPUT@', '--quiet', '--lower'],
+  build_by_default: true
+)
+
+py_secondorder_ext = python_installation.extension_module(
+  'secondorder',
+  [secondorder_wrapper, secondorder_fortran_src],
+  install: true,
+  include_directories: numpy_includes,
+  dependencies: [lapack_dep, blas_dep],
+  fortran_args: ['-cpp'],
+  install_rpath: '$ORIGIN/..'
+)
+
+# (Y así sucesivamente para thirdorder y thermal_conductivity...)
+
+# --- Definición de la extensión C 'cc_linalg' ---
+
+wrapper_file = ''
+if python_installation.version().version_compare('<3.0')
+  wrapper_file = 'CModules/wrapper.c'
+else
+  wrapper_file = 'CModules/wrapper3.c'
+endif
+
+cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
+
+py_cc_linalg_ext = python_installation.extension_module(
+  'cc_linalg',
+  cc_modules_sources,
+  include_directories: numpy_includes,
+  install: true,
+  install_rpath: '$ORIGIN/..'
+)
+
+# Luego continúa la sección de install_data y tests según tus necesidades

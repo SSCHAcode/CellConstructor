@@ -67,7 +67,7 @@ py_symph_ext = python_installation.extension_module(
     install: true,
     include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
-    include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
+    #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
     fortran_args: ['-cpp', '-fopenmp'],
     install_rpath: '$ORIGIN/..'
@@ -94,7 +94,7 @@ py_secondorder_ext = python_installation.extension_module(
     install: true,
     include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
-    include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
+    #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
 )
@@ -121,7 +121,7 @@ py_thirdorder_ext = python_installation.extension_module(
     install: true,
     include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
-    include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
+    #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
 )
@@ -147,7 +147,7 @@ py_cond_ext = python_installation.extension_module(
     [cond_wrapper, cond_fortran_src],
     include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
-    include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
+    #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
     fortran_args: ['-cpp', '-fopenmp'],
     install: true,
