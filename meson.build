@@ -18,6 +18,8 @@ numpy_parent_incdir = run_command(
   check: true
 ).stdout().strip()
 
+include_dirs = include_directories(numpy_incdir, numpy_parent_incdir, '.')
+
 f2py_exe = find_program('f2py', required: true)
 
 # Busca las librerías de sistema BLAS, LAPACK y OpenMP
@@ -63,6 +65,7 @@ py_symph_ext = python_installation.extension_module(
     'symph',
     [symph_wrapper, symph_fortran_src],
     install: true,
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
@@ -89,6 +92,7 @@ py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     [secondorder_wrapper, secondorder_fortran_src],
     install: true,
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
     include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
@@ -115,6 +119,7 @@ py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     [thirdorder_wrapper, thirdorder_fortran_src],
     install: true,
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep],
     include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
@@ -140,6 +145,7 @@ cond_wrapper = custom_target(
 py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     [cond_wrapper, cond_fortran_src],
+    include_directories: include_dirs,
     dependencies: [lapack_dep, blas_dep, openmp_dep],
     include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
