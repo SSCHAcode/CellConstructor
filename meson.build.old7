@@ -67,8 +67,7 @@ py_symph_ext = python_installation.extension_module(
     'symph',
     symph_wrapper,
     link_with: symph_lib,
-    dependencies: [],
-    include_directories: include_directories(numpy_incdir),
+    dependencies: [numpy_incdir],
     install: true,
     install_rpath: '$ORIGIN/..'
 )
@@ -100,8 +99,7 @@ py_secondorder_ext = python_installation.extension_module(
     'secondorder',
     secondorder_wrapper,
     link_with: secondorder_lib,
-    dependencies: [],
-    include_directories: include_directories(numpy_incdir),
+    dependencies: [numpy_incdir],
     install: true,
     install_rpath: '$ORIGIN/..'
 )
@@ -134,8 +132,7 @@ py_thirdorder_ext = python_installation.extension_module(
     'thirdorder',
     thirdorder_wrapper,
     link_with: thirdorder_lib,
-    dependencies: [],
-    include_directories: include_directories(numpy_incdir),
+    dependencies: [numpy_incdir],
     install: true,
     install_rpath: '$ORIGIN/..'
 )
@@ -169,8 +166,7 @@ py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     cond_wrapper,
     link_with: cond_lib,
-    dependencies: [],
-    include_directories: include_directories(numpy_incdir),
+    dependencies: [numpy_incdir],
     install: true,
     install_rpath: '$ORIGIN/..'
 )
@@ -187,7 +183,6 @@ cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
 py_cc_linalg_ext = python_installation.extension_module(
   'cc_linalg',
   cc_modules_sources,
-  dependencies: [],
   include_directories: include_directories(numpy_incdir),
   install: true,
   install_rpath: '$ORIGIN/..'
