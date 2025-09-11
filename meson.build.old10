@@ -41,7 +41,7 @@ symph_fortran_src = files(
 symph_wrapper = custom_target(
     'symph_f2py_wrapper',
     input: symph_fortran_src,
-    output: 'symphmodule.c',
+    output: 'symph-f2pywrappers.c',
     command: [
         f2py_exe,
         '-m', 'symph',
@@ -73,7 +73,7 @@ secondorder_fortran_src = files(
 secondorder_wrapper = custom_target(
     'secondorder_f2py_wrapper',
     input: secondorder_fortran_src,
-    output: 'secondordermodule.c',
+    output: 'secondorder-f2pywrappers.c',
     command: [f2py_exe, '-m', 'secondorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
@@ -99,7 +99,7 @@ thirdorder_fortran_src = files(
 thirdorder_wrapper = custom_target(
     'thirdorder_f2py_wrapper',
     input: thirdorder_fortran_src,
-    output: 'thirdordermodule.c',
+    output: 'thirdorder-f2pywrappers.c',
     command: [f2py_exe, '-m', 'thirdorder', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
@@ -125,7 +125,7 @@ cond_fortran_src = files(
 cond_wrapper = custom_target(
     'thermal_conductivity_f2py_wrapper',
     input: cond_fortran_src,
-    output: 'thermal_conductivitymodule.c',
+    output: 'thermal_conductivity-f2pywrappers.c',
     command: [f2py_exe, '-m', 'thermal_conductivity', '@INPUT@', '--quiet', '--lower'],
     build_by_default: true
 )
