@@ -7,6 +7,8 @@ project('CellConstructor', 'fortran', 'c',
 # --- System and Python Dependencies ---
 python = import('python')
 python_installation = python.find_installation()
+py_dep = dependency('python3', required: true)
+
 numpy_incdir = run_command(
   python_installation, '-c', 'import numpy; print(numpy.get_include())',
   check: true
@@ -72,7 +74,7 @@ py_symph_ext = python_installation.extension_module(
     [symph_wrapper, symph_fortran_src],
     install: true,
     include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, openmp_dep],
+    dependencies: [lapack_dep, blas_dep, openmp_dep, py_dep],
     #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
     fortran_args: ['-cpp', '-fopenmp'],
@@ -99,7 +101,7 @@ py_secondorder_ext = python_installation.extension_module(
     [secondorder_wrapper, secondorder_fortran_src],
     install: true,
     include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep],
+    dependencies: [lapack_dep, blas_dep, py_dep],
     #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
@@ -126,7 +128,7 @@ py_thirdorder_ext = python_installation.extension_module(
     [thirdorder_wrapper, thirdorder_fortran_src],
     install: true,
     include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep],
+    dependencies: [lapack_dep, blas_dep, py_dep],
     #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     fortran_args: ['-cpp'],
     install_rpath: '$ORIGIN/..'
@@ -152,7 +154,7 @@ py_cond_ext = python_installation.extension_module(
     'thermal_conductivity',
     [cond_wrapper, cond_fortran_src],
     include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, openmp_dep],
+    dependencies: [lapack_dep, blas_dep, openmp_dep, py_dep],
     #include_directories: include_directories(numpy_incdir, numpy_parent_incdir, '.'),
     link_args: ['-fopenmp'],
     fortran_args: ['-cpp', '-fopenmp'],
