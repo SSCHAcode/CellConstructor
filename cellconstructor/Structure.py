@@ -33,7 +33,7 @@ import cellconstructor.Timer as Timer
 
 import symph
 import warnings
-
+import difflib
 
 
 
@@ -339,19 +339,49 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         # First read
         read_cell = False
+        cell_present = False
         cell_index = 0
         read_atoms = True
+        ibrav = 0
+        cell = np.zeros((3,3), dtype = np.float64)
+        nat = -1
         if read_espresso:
             read_atoms = False
-        cell_present = False
+
+            # Get the alat from the input file
+            espresso_dict = Methods.read_namelist(lines)
+
+            nat = espresso_dict["system"]["nat"]
+            if "system" in espresso_dict:
+                if "alat" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["alat"]*BOHR_TO_ANGSTROM
+                elif "celldm(1)" in espresso_dict["system"]:
+                    alat = espresso_dict["system"]["celldm(1)"]*BOHR_TO_ANGSTROM
+
+                if "ibrav" in espresso_dict["system"]:
+                    ibrav = espresso_dict["system"]["ibrav"]
+                    if ibrav != 0:
+                        # Get the celldm vector
+                        celldm = np.zeros(6)
+                        for i in range(5):
+                            stringvalue = "celldm({:d})".format(i+1)
+                            if stringvalue in espresso_dict["system"]:
+                                celldm[i] = espresso_dict["system"][stringvalue]
+                        # print("celldm = ", celldm)
+                        # print("ibrav = ", ibrav)
+
+                        cell = Methods.get_unit_cell_from_ibrav(ibrav, celldm)
+                        cell_present = True
+                    #assert espresso_dict["system"]["ibrav"] == 0, "ibrav != 0 not supported yet"
+            
         
         read_crystal = False
         
         #print "ALAT:", alat
         
         #atom_index = 0
-        cell = np.zeros((3,3), dtype = np.float64)
         tmp_coords = []
+        nat_count = 0
         for line in lines:
             line = line.strip()
 
@@ -393,6 +423,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
                 read_cell = False
 
             if read_atoms:
+
                 self.atoms.append(values[0])
                 if not read_crystal:
                     tmp_coords.append([np.float64(v)*alat for v in values[1:4]])
@@ -401,6 +432,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
                     tmp_coords.append([np.float64(v) for v in values[1:4]])
 
                 n_atoms += 1
+
+                if nat > 0 and n_atoms >= nat:
+                    read_atoms = False
         
             
             
@@ -540,18 +574,18 @@ Error, to compute the volume the structure must have a unit cell initialized:
         Note, it will not affect the current structure, 
         but it returns a new strained strcture. 
 
-        Note: in the voigt representation, the off-diagonal terms of the strain tensor are intended as the sum
-        of the two symmetric components of the tensor.
+        Note: in the voigt representation, the off-diagonal terms of the strain tensor are provided
+        so that the derivative are correctly computed.
 
         .. math ::
 
             \begin{pmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\
-            2\epsilon_4 \\ 2\epsilon_5 \\ 2\epsilon_6 \end{pmatrix} = 
-            \begin{pmatrix} \epsilon_1 & \epsilon_6 & \epsilon_5 \\
-            \epsilon_6 & \epsilon_2 & \epsilon_4 \\
-            \epsilon_5 & \epsilon_4 & \epsilon_3 \end{pmatrix}
+            \epsilon_4 \\ \epsilon_5 \\ \epsilon_6 \end{pmatrix} = 
+            \begin{pmatrix} \epsilon_1 & \frac{1}{2}\epsilon_6 & \frac{1}{2}\epsilon_5 \\
+            \frac{1}{2}\epsilon_6 & \epsilon_2 & \frac{1}{2}\epsilon_4 \\
+            \frac{1}{2}\epsilon_5 & \frac{1}{2}\epsilon_4 & \epsilon_3 \end{pmatrix}
 
-
+        This is the correct convention to compute the elastic constant from finite difference without any rescaling
 
         Parameters
         ----------
@@ -964,7 +998,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
             
             #print "Max distance:", np.max(effective_distances)
 
-            assert all(eq_atm == equiv_atoms)  
+            assert all(np.array(eq_atm) == np.array(equiv_atoms))  
+            eq_atm = equiv_atoms
 
             if return_distances:
                 return equiv_atoms, effective_distances
@@ -1336,6 +1371,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
         """
         This method returns the ase atoms structure, ready for computations.
 
+        This function automatically transform isotopes like deuterium 'D' in 'H' atoms,
+        otherwise ase crashes.
+
         Results
         -------
             - atoms : ase.Atoms()
@@ -1349,7 +1387,10 @@ Error, to compute the volume the structure must have a unit cell initialized:
         # Get thee atom list
         atm_list = []
         for i in range(self.N_atoms):
-            atm_list.append(ase.Atom(self.atoms[i], self.coords[i,:]))
+            atm_lbl = self.atoms[i]
+            if atm_lbl == "D":
+                atm_lbl = "H"
+            atm_list.append(ase.Atom(atm_lbl, self.coords[i,:]))
 
         atm = ase.Atoms(atm_list)
         

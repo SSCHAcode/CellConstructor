@@ -52,20 +52,36 @@ def get_energy_forces(calculator, structure):
     if isinstance(calculator, ase.calculators.calculator.Calculator):
         atm = structure.get_ase_atoms()
         atm.set_calculator(calculator)
+
         energy = atm.get_total_energy()
+
         if isinstance(energy, np.ndarray):
             energy = energy[0]
-        return energy, atm.get_forces()
+
+        forces = atm.get_forces()
+        return energy, forces
     elif isinstance(calculator, Calculator):
         calculator.calculate(structure)
         return calculator.results["energy"], calculator.results["forces"]
     else:
         raise ValueError("Error, unknown calculator type")
 
-def get_results(calculator, structure, get_stress = True):
+def get_results(calculator, structure, get_stress = True, recompute=True):
     """
     Accepts both an ASE calculator and a Calculator from Cellconstructor
     and computes all the implemented properties (energy, forces and stress tensor).
+
+    Parameters
+    ----------
+        calculator : ase.calculators.calculator.Calculator or Calculator
+            The calculator to use for the calculation
+        structure : CC.Structure.Structure
+            The structure to compute
+        get_stress : bool
+            If true, the stress tensor is computed
+        recompute : bool
+            If true, the calculation is recomputed.
+            If false, the results are taken from the calculator object
     """
 
     results = {}
@@ -77,7 +93,8 @@ def get_results(calculator, structure, get_stress = True):
         if get_stress:
             results["stress"] = atm.get_stress(voigt = False)
     elif isinstance(calculator, Calculator):
-        calculator.calculate(structure)
+        if recompute:
+            calculator.calculate(structure)
         results =  calculator.results
         if get_stress:
             results["stress"] = CC.Methods.transform_voigt(results["stress"], voigt_to_mat = True)
@@ -226,6 +243,8 @@ class Espresso(FileIOCalculator):
 ATOMIC_SPECIES
 """
         for atm in typs:
+            if not atm in self.pseudopotentials:
+                raise ValueError(f"Error, the key {atm} is not a valid atom specified in the pseudopotentials: {list(self.pseudopotentials)}")
             scf_text += "{}  {}   {}\n".format(atm, self.masses[atm], self.pseudopotentials[atm])
         
         if isinstance(self.kpts, str):

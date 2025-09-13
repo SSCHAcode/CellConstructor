@@ -408,7 +408,8 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
             nq2=self.supercell_size[2]
             
             # by default no maximum distances
-            dist_range=np.ones((self.nat))*np.infty
+            #dist_range=np.ones((self.nat))*np.infty
+            dist_range=np.ones((self.nat))*np.inf
             #
             if nneigh!=None:
             # =======================================================================
@@ -769,7 +770,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
 
         # If effective charges are present, then add the nonanalitic part
         if self.effective_charges is not None:
-            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex, order = "F")
+            dynq = np.zeros((3,3,self.nat, self.nat), dtype = np.complex128, order = "F")
             for i in range(self.nat):
                 for j in range(self.nat):
                     dynq[:,:, i, j] = final_fc[3*i : 3*i+3, 3*j:3*j+3]
@@ -1127,8 +1128,14 @@ class Tensor3():
     This class defines the 3rank tensors, like 3rd force constants.
     """
 
-    def __init__(self, unitcell_structure, supercell_structure, supercell_size):
+    def __init__(self, unitcell_structure=None, supercell_structure=None, supercell_size=None,dyn=None):
         #GenericTensor.__init__(self, *args, **kwargs)
+        
+        if dyn != None:
+            unitcell_structure=dyn.structure
+            supercell_size=dyn.GetSupercell()
+            supercell_structure=dyn.structure.generate_supercell(supercell_size)
+        
         
         n_sup = np.prod(supercell_size)
         nat = unitcell_structure.N_atoms
@@ -1144,7 +1151,7 @@ class Tensor3():
         self.supercell_size = supercell_size
         
         
-        # Cartesian lattice vectors
+        # Cartesian lattice vectors (in Angstrom)
         self.r_vector2 = np.zeros((3, n_R), dtype = np.double, order = "F")
         self.r_vector3 = np.zeros((3, n_R), dtype = np.double, order = "F")
         
@@ -1376,7 +1383,16 @@ class Tensor3():
 
         Save the tensor on a file.
 
-        The file format is the same as phono3py or D3Q       
+        The file format is the same as phono3py or D3Q.
+        The unit of measures are those in which the tensor is stored.
+        If readed from the result of get_free_energy_hessian, they are in Ry/Bohr^3.
+
+        To convert the units to eV/A^3 (used in phono3py, for example), you need to change them as:
+        >>> my_tensor3.tensor *= CC.Units.RY_TO_EV / CC.Units.BOHR_TO_ANGSTROM**3
+        >>> my_tensor3.WriteOnFile("FORCE_CONSTANTS_3RD", file_format="phonopy")
+
+        However, remember to change back in Ry/Bohr^3 if you want to further process this tensor within Cellconstructor
+        (For example to compute )
 
         Parameters
         ----------
@@ -1405,9 +1421,10 @@ class Tensor3():
                     for nat1 in range(self.nat):
                         for nat2 in range(self.nat):
                             for nat3 in range(self.nat):
+                                f.write("\n")
                                 f.write("{:d}\n".format(i_block))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector2[:, r_block])))
-                                f.write("{:16.8e} {:16.8e} {:16.8e}\n".format(*list(self.r_vector3[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector2[:, r_block])))
+                                f.write("{:16.8f} {:16.8f} {:16.8f}\n".format(*list(self.r_vector3[:, r_block])))
                                 f.write("{:>6d} {:>6d} {:>6d}\n".format(nat1+1, nat2+1, nat3+1))
                                 i_block += 1
                                 #
@@ -1415,7 +1432,7 @@ class Tensor3():
                                     z = xyz % 3
                                     y = (xyz %9)//3
                                     x = xyz // 9
-                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10e}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
+                                    f.write("{:>2d} {:>2d} {:>2d} {:>20.10f}\n".format(x+1,y+1,z+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y, 3*nat3 + z]))            
         
         
         elif file_format.upper() == 'D3Q':
@@ -1504,7 +1521,8 @@ class Tensor3():
             nq2=self.supercell_size[2]
             
             # by default no maximum distances
-            dist_range=np.ones((self.nat))*np.infty
+            #dist_range=np.ones((self.nat))*np.infty
+            dist_range=np.ones((self.nat))*np.inf
             #
             if nneigh!=None:
             # =======================================================================

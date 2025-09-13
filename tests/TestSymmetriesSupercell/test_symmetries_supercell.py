@@ -37,7 +37,7 @@ def test_symmetries_supercell(FILDYN, NQIRR):
 
 
     after_sym = fc_dynmat_start.copy()
-    qe_sym.SymmetrizeFCQ(after_sym, np.array(dynmat.q_stars), verbose = True)
+    qe_sym.SymmetrizeFCQ(after_sym, dynmat.q_stars, verbose = True)
     for i,q in enumerate(dynmat.q_tot):
         dynmat.dynmats[i] = after_sym[i,:,:]
 

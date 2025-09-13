@@ -1,5 +1,5 @@
-setuptools
+setuptools<=73
 numpy
 scipy
 ase
-spglib
+spglib<=2.2
