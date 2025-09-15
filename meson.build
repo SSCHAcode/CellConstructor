@@ -75,8 +75,9 @@ if openblas_dep.found()
   message('openblas environment detected correctly.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep]
 else
-  list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep]
   warning('No openblas found.')
+  list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep]
+endif
 # --- Definición de cada extensión de Python (Fortran) ---
 
 # Extensión 'symph'
