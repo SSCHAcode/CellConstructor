@@ -1,193 +1,162 @@
-project('CellConstructor', 'fortran', 'c',
+project('CellConstructor',
+  ['c','fortran'],
   version: '1.5.0',
   license: 'GPL',
-  default_options: ['fortran_args=-O2']
-)
+  default_options : [
+        'warning_level=1',
+        'buildtype=release',
+        'fortran_args=-O2',
+        'fortran_args=-cpp'
+    ]
+    )
 
 # --- System and Python Dependencies ---
-python = import('python')
-python_installation = python.find_installation()
-py_dep = dependency('python3', required: true)
+# Encuentra las instalaciones necesarias
+py = import('python').find_installation(pure: false)
+py_dep = py.dependency()
+fc = meson.get_compiler('fortran')
 
-# Obtenemos la ruta principal de los headers de numpy
-numpy_incdir = run_command(
-  python_installation, '-c', 'import numpy; print(numpy.get_include())',
-  check: true
+# Dependencias adicionales
+mpi_dep = dependency('mpi')
+# Busca la librería quadmath, si está disponible
+quadmath_dep = fc.find_library('quadmath', required: false)
+
+# --- CONFIGURACIÓN DE NUMPY ---
+# Obtiene la ruta de los directorios de cabecera de NumPy y f2py usando el comando de Python
+incdir_numpy = run_command(py,
+    ['-c', 'import numpy; print(numpy.get_include())'],
+    check : true
 ).stdout().strip()
 
-# Obtenemos la ruta padre para incluir los headers de numpy anidados
-numpy_parent_incdir = run_command(
-  python_installation, '-c', 'import os, numpy; print(os.path.dirname(numpy.get_include()))',
-  check: true
+# f2py también requiere la cabecera fortranobject.h
+incdir_f2py = run_command(py,
+    ['-c', 'import numpy.f2py; print(numpy.f2py.get_include())'],
+    check : true
 ).stdout().strip()
 
-# Obtenemos la ruta específica para los headers de f2py
-f2py_incdir = run_command(
-  python_installation, '-c', 'import os, numpy.f2py; print(os.path.join(os.path.dirname(numpy.f2py.__file__), "src"))',
-  check: true
-).stdout().strip()
-
-# Creamos una lista de directorios de inclusión para usar en todas las extensiones
-include_dirs = include_directories(numpy_incdir, numpy_parent_incdir, f2py_incdir, '.')
-
-# Obtenemos la ruta de la biblioteca de f2py para la vinculación
-f2py_libdir = run_command(
-    python_installation, '-c', 'import os, numpy.f2py; print(os.path.join(os.path.dirname(os.path.dirname(numpy.f2py.__file__)), "core", "lib"))',
-    check: true
-).stdout().strip()
-# Obtenemos la ruta del directorio de bibliotecas de Python
-py_libdir = python_installation.get_install_dir() / 'lib'
-
-f2py_exe = find_program('f2py', required: true)
-
-# Busca las librerías de sistema BLAS, LAPACK y OpenMP
-lapack_dep = dependency('lapack', required: true)
-blas_dep = dependency('blas', required: true)
-openmp_dep = dependency('openmp', required: true)
+inc_np = include_directories(incdir_numpy, incdir_f2py)
+# --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
 
 # --- Definición de cada extensión de Python (Fortran) ---
 
 # Extensión 'symph'
-symph_fortran_src = files(
-    'FModules/symdynph_gq_new.f90', 'FModules/symm_base.f90', 'FModules/sgam_ph.f90',
-    'FModules/invmat.f90', 'FModules/set_asr.f90', 'FModules/error_handler.f90',
-    'FModules/io_global.f90', 'FModules/flush_unit.f90', 'FModules/symvector.f90',
-    'FModules/fc_supercell_from_dyn.f90', 'FModules/set_tau.f90',
-    'FModules/cryst_to_car.f90', 'FModules/recips.f90', 'FModules/q2qstar_out.f90',
-    'FModules/rotate_and_add_dyn.f90', 'FModules/trntnsc.f90', 'FModules/star_q.f90',
-    'FModules/eqvect.f90', 'FModules/symm_matrix.f90', 'FModules/from_matdyn.f90',
-    'FModules/interp.f90', 'FModules/q_gen.f90', 'FModules/smallgq.f90',
-    'FModules/symmetry_high_rank.f90', 'FModules/unwrap_tensors.f90',
-    'FModules/get_latvec.f90', 'FModules/contract_two_phonon_propagator.f90',
-    'FModules/get_q_grid_fast.f90', 'FModules/kind.f90', 'FModules/constants.f90',
-    'FModules/eff_charge_interp.f90', 'FModules/get_translations.f90',
-    'FModules/get_equivalent_atoms.f90'
-)
 
-symph_wrapper = custom_target(
-    'symph_f2py_wrapper',
-    input: symph_fortran_src,
-    output: 'symphmodule.c',
-    command: [
-        f2py_exe,
-        '-m', 'symph',
-        '@INPUT@',
-        '--quiet',
-        '--lower'
-    ],
-    build_by_default: true
-)
+# Compilación del módulo Fortran: symph
+fortran_sources_symph = [
+    'FModules/constants.f90',
+    'FModules/error_handler.f90',
+    'FModules/get_latvec.f90',
+    'FModules/io_global.f90',
+    'FModules/rotate_and_add_dyn.f90',
+    'FModules/smallgq.f90',
+    'FModules/symm_matrix.f90',
+    'FModules/contract_two_phonon_propagator.f90',
+    'FModules/fc_supercell_from_dyn.f90',
+    'FModules/get_q_grid_fast.f90',
+    'FModules/kind.f90',
+    'FModules/star_q.f90',
+    'FModules/symvector.f90',
+    'FModules/cryst_to_car.f90',
+    'FModules/flush_unit.f90',
+    'FModules/get_translations.f90',
+    'FModules/q2qstar_out.f90',
+    'FModules/set_asr.f90',
+    'FModules/symdynph_gq_new.f90',
+    'FModules/trntnsc.f90',
+    'FModules/eff_charge_interp.f90',
+    'FModules/from_matdyn.f90',
+    'FModules/interp.f90',
+    'FModules/q_gen.f90',
+    'FModules/set_tau.f90',
+    'FModules/symm_base.f90',
+    'FModules/unwrap_tensors.f90',
+    'FModules/eqvect.f90',
+    'FModules/get_equivalent_atoms.f90',
+    'FModules/invmat.f90',
+    'FModules/recips.f90',
+    'FModules/sgam_ph.f90',
+    'FModules/symmetry_high_rank.f90'
+]
 
-py_symph_ext = python_installation.extension_module(
-    'symph',
-    [symph_wrapper, symph_fortran_src],
-    install: true,
-    include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, openmp_dep, py_dep],
-    link_args: ['-fopenmp'],
-    #link_args: ['-fopenmp', '-L' + py_libdir, '-lnpy-c-api'],
-    fortran_args: ['-cpp', '-fopenmp'],
-    install_rpath: '$ORIGIN/..'
+py.extension_module('symph',
+    fortran_sources_symph,
+    include_directories: inc_np,
+    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    install: true
 )
-
-# ---
 
 # Extensión 'secondorder'
-secondorder_fortran_src = files(
-    'FModules/second_order_centering.f90', 'FModules/second_order_ASR.f90'
-)
 
-secondorder_wrapper = custom_target(
-    'secondorder_f2py_wrapper',
-    input: secondorder_fortran_src,
-    output: 'secondordermodule.c',
-    command: [f2py_exe, '-m', 'secondorder', '@INPUT@', '--quiet', '--lower'],
-    build_by_default: true
-)
+# Compilación del módulo Fortran: secondorder
+fortran_sources_secondorder = [
+    'FModules/second_order_centering.f90',
+    'FModules/second_order_ASR.f90'
+]
 
-py_secondorder_ext = python_installation.extension_module(
-    'secondorder',
-    [secondorder_wrapper, secondorder_fortran_src],
-    install: true,
-    include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, py_dep],
-    #link_args: ['-L' + py_libdir, '-lnpy-c-api'],
-    fortran_args: ['-cpp'],
-    install_rpath: '$ORIGIN/..'
+py.extension_module('secondorder',
+    fortran_sources_secondorder,
+    include_directories: inc_np,
+    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    install: true
 )
-
-# ---
 
 # Extensión 'thirdorder'
-thirdorder_fortran_src = files(
-    'FModules/third_order_centering.f90', 'FModules/third_order_ASR.f90',
-    'FModules/third_order_interpol.f90', 'FModules/third_order_dynbubble.f90'
-)
 
-thirdorder_wrapper = custom_target(
-    'thirdorder_f2py_wrapper',
-    input: thirdorder_fortran_src,
-    output: 'thirdordermodule.c',
-    command: [f2py_exe, '-m', 'thirdorder', '@INPUT@', '--quiet', '--lower'],
-    build_by_default: true
-)
+# Compilación del módulo Fortran: thirdorder
 
-py_thirdorder_ext = python_installation.extension_module(
-    'thirdorder',
-    [thirdorder_wrapper, thirdorder_fortran_src],
-    install: true,
-    include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, py_dep],
-    #link_args: ['-L' + py_libdir, '-lnpy-c-api'],
-    fortran_args: ['-cpp'],
-    install_rpath: '$ORIGIN/..'
-)
+fortran_sources_thirdorder = [
+    'FModules/third_order_ASR.f90',
+    'FModules/third_order_centering.f90',
+    'FModules/third_order_cond_centering.f90',
+    'FModules/third_order_cond.f90',
+    'FModules/third_order_dynbubble.f90',
+    'FModules/third_order_interpol.f90'
+]
 
-# ---
+py.extension_module('thirdorder',
+    fortran_sources_thirdorder,
+    include_directories: inc_np,
+    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    install: true
+)
 
 # Extensión 'thermal_conductivity'
-cond_fortran_src = files(
-    'FModules/get_scattering_q_grid.f90', 'FModules/third_order_cond.f90',
-    'FModules/third_order_cond_centering.f90', 'FModules/get_lf.f90'
+
+thermal_conductivity_fortran_src = files(
+'FModules/get_scattering_q_grid.f90',
+'FModules/third_order_cond.f90',
+'FModules/third_order_cond_centering.f90',
+'FModules/get_lf.f90'
 )
 
-cond_wrapper = custom_target(
-    'thermal_conductivity_f2py_wrapper',
-    input: cond_fortran_src,
-    output: 'thermal_conductivitymodule.c',
-    command: [f2py_exe, '-m', 'thermal_conductivity', '@INPUT@', '--quiet', '--lower'],
-    build_by_default: true
-)
-
-py_cond_ext = python_installation.extension_module(
-    'thermal_conductivity',
-    [cond_wrapper, cond_fortran_src],
-    include_directories: include_dirs,
-    dependencies: [lapack_dep, blas_dep, openmp_dep, py_dep],
-    link_args: ['-fopenmp'],
-    #link_args: ['-fopenmp', '-L' + py_libdir, '-lnpy-c-api'],
-    fortran_args: ['-cpp', '-fopenmp'],
-    install: true,
-    install_rpath: '$ORIGIN/..'
+py.extension_module('thermal_conductivity',
+    thermal_conductivity_fortran_src,
+    include_directories: inc_np,
+    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    install: true
 )
 
 # --- Definición de la extensión C 'cc_linalg' ---
 wrapper_file = ''
-if python_installation.version().version_compare('<3.0')
+if py.version().version_compare('<3.0')
   wrapper_file = 'CModules/wrapper.c'
 else
   wrapper_file = 'CModules/wrapper3.c'
 endif
 
-cc_modules_sources = files('CModules/LinAlg.c', wrapper_file)
-py_cc_linalg_ext = python_installation.extension_module(
-  'cc_linalg',
-  cc_modules_sources,
-  include_directories: include_directories(numpy_incdir, numpy_parent_incdir),
-  install: true,
-  dependencies: [py_dep],
-  install_rpath: '$ORIGIN/..'
+# Compilación del módulo C: cc_linalg
+c_linalg_sources = [
+    'CModules/LinAlg.c',
+    wrapper_file
+]
+
+py.extension_module('cc_linalg',
+    c_linalg_sources,
+    include_directories: inc_np, # Se añade la cabecera de NumPy para el módulo de C
+    dependencies: py_dep,
+    install: true
 )
+
 
 # --- Instalación del paquete de Python 'cellconstructor' ---
 install_data(
@@ -197,18 +166,18 @@ install_data(
   'cellconstructor/ForceTensor.py', 'cellconstructor/Manipulate.py', 'cellconstructor/Moro_object.py',
   'cellconstructor/Settings.py', 'cellconstructor/Structure.py', 'cellconstructor/symmetries.py',
   'cellconstructor/Timer.py',
-  install_dir: python_installation.get_install_dir() / 'cellconstructor',
+  install_dir: py.get_install_dir() / 'cellconstructor',
 )
 
 install_data(
   'cellconstructor/SymData/15.dat', 'cellconstructor/SymData/36_red.dat', 'cellconstructor/SymData/36.dat',
   'cellconstructor/SymData/60.dat', 'cellconstructor/SymData/64.bcs', 'cellconstructor/SymData/64.dat',
   'cellconstructor/SymData/convert_sym.py',
-  install_dir: python_installation.get_install_dir() / 'cellconstructor' / 'SymData'
+  install_dir: py.get_install_dir() / 'cellconstructor' / 'SymData'
 )
 
 # --- Instalación de los scripts ejecutables ---
-python_installation.install_sources([
+py.install_sources([
   'scripts/symmetrize_dynmat.py',
   'scripts/cellconstructor_test.py',
   'scripts/view_scf_atoms.py'
