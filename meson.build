@@ -21,7 +21,7 @@ fc = meson.get_compiler('fortran')
 # Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
 lapack_dep = dependency('lapack')
 blas_dep = dependency('blas')
-openblas_dep = dependency('openblas')
+openblas_dep = dependency('openblas', required: false)
 
 # --- MPI Detection ---
 # This overrides the logic in os.environ["MPICC"] and os.popen("%s -show" % mpicc).
@@ -71,7 +71,12 @@ incdir_f2py = run_command(py,
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 # --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
-
+if openblas_dep.found()
+  message('openblas environment detected correctly.')
+  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep]
+else
+  list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep]
+  warning('No openblas found.')
 # --- Definición de cada extensión de Python (Fortran) ---
 
 # Extensión 'symph'
@@ -116,7 +121,7 @@ fortran_sources_symph = [
 py.extension_module('symph',
     fortran_sources_symph,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
+    dependencies: list_dep,
     install: true
 )
 
@@ -131,7 +136,7 @@ fortran_sources_secondorder = [
 py.extension_module('secondorder',
     fortran_sources_secondorder,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
+    dependencies: list_dep,
     install: true
 )
 
@@ -151,7 +156,7 @@ fortran_sources_thirdorder = [
 py.extension_module('thirdorder',
     fortran_sources_thirdorder,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
+    dependencies: list_dep,
     install: true
 )
 
@@ -167,7 +172,7 @@ thermal_conductivity_fortran_src = files(
 py.extension_module('thermal_conductivity',
     thermal_conductivity_fortran_src,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
+    dependencies: list_dep,
     install: true
 )
 
