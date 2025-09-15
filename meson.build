@@ -21,6 +21,7 @@ fc = meson.get_compiler('fortran')
 # Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
 lapack_dep = dependency('lapack')
 blas_dep = dependency('blas')
+openblas_dep = dependency('openblas')
 
 # --- MPI Detection ---
 # This overrides the logic in os.environ["MPICC"] and os.popen("%s -show" % mpicc).
