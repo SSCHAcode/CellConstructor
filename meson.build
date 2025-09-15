@@ -71,13 +71,13 @@ incdir_f2py = run_command(py,
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 # --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
-if openblas_dep.found()
-  message('openblas environment detected correctly.')
-  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep]
-else
-  warning('No openblas found.')
+#if openblas_dep.found()
+#  message('openblas environment detected correctly.')
+#  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep]
+#else
+#  warning('No openblas found.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep]
-endif
+#endif
 # --- Definición de cada extensión de Python (Fortran) ---
 
 # Extensión 'symph'
