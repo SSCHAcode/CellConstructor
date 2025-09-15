@@ -115,7 +115,7 @@ fortran_sources_symph = [
 py.extension_module('symph',
     fortran_sources_symph,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
     install: true
 )
 
@@ -130,7 +130,7 @@ fortran_sources_secondorder = [
 py.extension_module('secondorder',
     fortran_sources_secondorder,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
     install: true
 )
 
@@ -150,7 +150,7 @@ fortran_sources_thirdorder = [
 py.extension_module('thirdorder',
     fortran_sources_thirdorder,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
     install: true
 )
 
@@ -166,7 +166,7 @@ thermal_conductivity_fortran_src = files(
 py.extension_module('thermal_conductivity',
     thermal_conductivity_fortran_src,
     include_directories: inc_np,
-    dependencies: [py_dep, mpi_dep, quadmath_dep],
+    dependencies: [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep],
     install: true
 )
 
