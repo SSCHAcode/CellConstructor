@@ -17,7 +17,37 @@ py_dep = py.dependency()
 fc = meson.get_compiler('fortran')
 
 # Dependencias adicionales
-mpi_dep = dependency('mpi')
+#mpi_dep = dependency('mpi')
+# --- MPI Detection ---
+# This overrides the logic in os.environ["MPICC"] and os.popen("%s -show" % mpicc).
+# Meson has a built-in MPI module.
+mpi_args = []
+mpi_link_args = []
+mpi_compile_args = []
+has_mpi = false
+
+# Attempts to find the MPI dependency.
+# You can specify a specific MPI compiler with the 'mpi_compiler' parameter
+# or, if you want, a specific Fortran compiler with 'mpi_fortran_compiler'.
+# For OpenMPI, IntelMPI, MPICH, etc., Meson usually finds it automatically.
+#mpi_dep = dependency('mpi', required: false, language: ['c', 'fortran'])
+mpi_dep = dependency('mpi', required: false)
+
+if mpi_dep.found()
+  message('MPI environment detected correctly.')
+  has_mpi = true
+  # Meson handles adding appropriate flags. We just add the define.
+  # If you need specific MPI flags beyond what Meson adds automatically,
+  # you can get them via mpi_dep.get_compile_args() and mpi_dep.get_link_args()
+  # and add them to extra_compile_args/extra_link_args.
+  mpi_compile_args += ['-D_MPI']
+else
+  # Here you can add warning logic if MPI is not found.
+  # Meson prints a warning if required: true and it is not found.
+  # For required: false, you can print your own warning.
+  warning('No MPI compiler found, please ensure MPI is installed and configured.')
+  warning('If you wish to activate MPI acceleration, consider setting MPICC environment variable or providing Meson with appropriate flags.')
+endif
 # Busca la librería quadmath, si está disponible
 quadmath_dep = fc.find_library('quadmath', required: false)
 
