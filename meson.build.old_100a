@@ -1,0 +1,266 @@
+project('CellConstructor',
+  ['c','fortran'],
+  version: '1.5.0',
+  license: 'GPL',
+  default_options : [
+        'warning_level=1',
+        'buildtype=release',
+        'fortran_args=-O2',
+        'fortran_args=-cpp'
+    ]
+    )
+
+# --- System and Python Dependencies ---
+# Encuentra las instalaciones necesarias
+py = import('python').find_installation(pure: false)
+py_dep = py.dependency()
+fc = meson.get_compiler('fortran')
+
+# Dependencias adicionales
+#mpi_dep = dependency('mpi')
+# Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
+lapack_dep = dependency('lapack')
+blas_dep = dependency('blas')
+openblas_dep = dependency('openblas')
+
+# --- MPI Detection ---
+# This overrides the logic in os.environ["MPICC"] and os.popen("%s -show" % mpicc).
+# Meson has a built-in MPI module.
+mpi_args = []
+mpi_link_args = []
+mpi_compile_args = []
+has_mpi = false
+
+# Attempts to find the MPI dependency.
+# You can specify a specific MPI compiler with the 'mpi_compiler' parameter
+# or, if you want, a specific Fortran compiler with 'mpi_fortran_compiler'.
+# For OpenMPI, IntelMPI, MPICH, etc., Meson usually finds it automatically.
+#mpi_dep = dependency('mpi', required: false, language: ['c', 'fortran'])
+mpi_dep = dependency('mpi', required: false)
+
+if mpi_dep.found()
+  message('MPI environment detected correctly.')
+  has_mpi = true
+  # Meson handles adding appropriate flags. We just add the define.
+  # If you need specific MPI flags beyond what Meson adds automatically,
+  # you can get them via mpi_dep.get_compile_args() and mpi_dep.get_link_args()
+  # and add them to extra_compile_args/extra_link_args.
+  mpi_compile_args += ['-D_MPI']
+else
+  # Here you can add warning logic if MPI is not found.
+  # Meson prints a warning if required: true and it is not found.
+  # For required: false, you can print your own warning.
+  warning('No MPI compiler found, please ensure MPI is installed and configured.')
+  warning('If you wish to activate MPI acceleration, consider setting MPICC environment variable or providing Meson with appropriate flags.')
+endif
+# Busca la librería quadmath, si está disponible
+quadmath_dep = fc.find_library('quadmath', required: false)
+
+# --- CONFIGURACIÓN DE NUMPY ---
+# Obtiene la ruta de los directorios de cabecera de NumPy y f2py usando el comando de Python
+#incdir_numpy = run_command(py,
+#    ['-c', 'import numpy; print(numpy.get_include())'],
+#    check : true
+#).stdout().strip()
+
+# f2py también requiere la cabecera fortranobject.h
+#incdir_f2py = run_command(py,
+#    ['-c', 'import numpy.f2py; print(numpy.f2py.get_include())'],
+#    check : true
+#).stdout().strip()
+# We need numpy's include directory for both C and Fortran modules
+incdir_numpy = run_command(py, ['-c', 'import os; import numpy; print(os.path.join(os.path.dirname(numpy.__file__), "core", "include"))'], check : true).stdout().strip()
+incdir_numpy_f2py = run_command(py, ['-c', 'import os; import numpy.f2py; print(os.path.join(os.path.dirname(numpy.f2py.__file__), "src"))'], check : true).stdout().strip()
+incdirs = [incdir_numpy, incdir_numpy_f2py]
+inc_np = include_directories(incdir_numpy)
+
+# --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
+
+# --- Definición de cada extensión de Python (Fortran) ---
+
+## symph module
+#fortran_sources_symph = files(
+#    'FModules/constants.f90', 'FModules/error_handler.f90', 'FModules/get_latvec.f90',
+#    'FModules/io_global.f90', 'FModules/rotate_and_add_dyn.f90', 'FModules/smallgq.f90',
+#    'FModules/symm_matrix.f90', 'FModules/contract_two_phonon_propagator.f90',
+#    'FModules/fc_supercell_from_dyn.f90', 'FModules/get_q_grid_fast.f90', 'FModules/kind.f90',
+#    'FModules/star_q.f90', 'FModules/symvector.f90', 'FModules/cryst_to_car.f90',
+#    'FModules/flush_unit.f90', 'FModules/get_translations.f90', 'FModules/q2qstar_out.f90',
+#    'FModules/set_asr.f90', 'FModules/symdynph_gq_new.f90', 'FModules/trntnsc.f90',
+#    'FModules/eff_charge_interp.f90', 'FModules/from_matdyn.f90', 'FModules/interp.f90',
+#    'FModules/q_gen.f90', 'FModules/set_tau.f90', 'FModules/symm_base.f90',
+#    'FModules/unwrap_tensors.f90', 'FModules/eqvect.f90',
+#    'FModules/get_equivalent_atoms.f90', 'FModules/invmat.f90', 'FModules/recips.f90',
+#    'FModules/sgam_ph.f90', 'FModules/symmetry_high_rank.f90'
+#)
+#
+#f2py_symph_target = custom_target('symph-f2py-wrapper',
+#    input: fortran_sources_symph,
+#    output: 'symph-f2py.c',
+#    command: [
+#        py.full_path(), '-m', 'numpy.f2py',
+#        '--backend', 'meson',
+#        '--dep', 'mpi',
+#        '--quiet',
+#        '-c',
+#        '@INPUT0@',
+#        '-m', 'symph'
+#    ],
+#    install: false
+#)
+#
+#symph_module = py.extension_module('symph',
+#    fortran_sources_symph, f2py_symph_target,
+#    include_directories: incdirs,
+#    dependencies: [py_dep, mpi_dep, openblas_dep, lapack_dep],
+#    install: true
+#)
+
+# secondorder module
+fortran_sources_secondorder = files(
+    'FModules/second_order_centering.f90', 'FModules/second_order_ASR.f90'
+)
+
+f2py_secondorder_target = custom_target('secondorder-f2py-wrapper',
+    input: fortran_sources_secondorder,
+    output: 'secondorder-f2py.c',
+    command: [
+        py.full_path(), '-m', 'numpy.f2py',
+        '--backend', 'meson',
+        '--dep', 'mpi',
+        '--quiet',
+        '-c',
+        '@INPUT0@',
+        '-m', 'secondorder'
+    ],
+    install: false
+)
+
+secondorder_module = py.extension_module('secondorder',
+    fortran_sources_secondorder, f2py_secondorder_target,
+    include_directories: incdirs,
+    dependencies: [py_dep, mpi_dep, openblas_dep, lapack_dep],
+    install: true
+)
+
+# #thirdorder module
+#fortran_sources_thirdorder = files(
+#    'FModules/third_order_ASR.f90', 'FModules/third_order_centering.f90',
+#    'FModules/third_order_cond_centering.f90', 'FModules/third_order_cond.f90',
+#    'FModules/third_order_dynbubble.f90', 'FModules/third_order_interpol.f90'
+#)
+#
+## Generate the C wrapper with f2py using a custom target
+#f2py_thirdorder_target = custom_target('thirdorder-f2py-wrapper',
+#    input: fortran_sources_thirdorder,
+#    output: 'thirdorder-f2py.c',
+#    command: [
+#        py.full_path(), '-m', 'numpy.f2py',
+#        '--backend', 'meson',
+#        '--dep', 'mpi',
+#        '--quiet',
+#        '-c',
+#        '@INPUT0@',
+#        '-m', 'thirdorder'
+#    ],
+#    install: false
+#)
+#
+## Compile the module with the generated C wrapper and Fortran sources
+#thirdorder_module = py.extension_module('thirdorder',
+#    fortran_sources_thirdorder, f2py_thirdorder_target,
+#    include_directories: incdirs,
+#    dependencies: [py_dep, mpi_dep, openblas_dep, lapack_dep],
+#    install: true
+#)
+
+
+## thermal_conductivity module
+#fortran_sources_thermal_conductivity = files(
+#    'FModules/get_scattering_q_grid.f90',
+#    'FModules/third_order_cond.f90',
+#    'FModules/third_order_cond_centering.f90',
+#    'FModules/get_lf.f90'
+#)
+#
+#f2py_thermal_conductivity_target = custom_target('thermal_conductivity-f2py-wrapper',
+#    input: fortran_sources_thermal_conductivity,
+#    output: 'thermal_conductivity-f2py.c',
+#    command: [
+#        py.full_path(), '-m', 'numpy.f2py',
+#        '--backend', 'meson',
+#        '--dep', 'mpi',
+#        '--quiet',
+#        '-c',
+#        '@INPUT0@',
+#        '-m', 'thermal_conductivity'
+#    ],
+#    install: false
+#)
+#
+#thermal_conductivity_module = py.extension_module('thermal_conductivity',
+#    fortran_sources_thermal_conductivity, f2py_thermal_conductivity_target,
+#    include_directories: incdirs,
+#    dependencies: [py_dep, mpi_dep, openblas_dep, lapack_dep],
+#    install: true
+#)
+
+
+# --- Definición de la extensión C 'cc_linalg' ---
+wrapper_file = ''
+if py.version().version_compare('<3.0')
+  wrapper_file = 'CModules/wrapper.c'
+else
+  wrapper_file = 'CModules/wrapper3.c'
+endif
+
+# Compilación del módulo C: cc_linalg
+c_linalg_sources = [
+    'CModules/LinAlg.c',
+    wrapper_file
+]
+
+py.extension_module('cc_linalg',
+    c_linalg_sources,
+    include_directories: inc_np, # Se añade la cabecera de NumPy para el módulo de C
+    dependencies: py_dep,
+    install: true
+)
+
+
+# --- Instalación del paquete de Python 'cellconstructor' ---
+install_data(
+  'cellconstructor/__init__.py', 'cellconstructor/AnharmonicForceFields.py', 'cellconstructor/calculators.py',
+  'cellconstructor/Methods.py', 'cellconstructor/Phonons.py', 'cellconstructor/Spectral.py',
+  'cellconstructor/ThermalConductivity.py', 'cellconstructor/Units.py', 'cellconstructor/Bands.py',
+  'cellconstructor/ForceTensor.py', 'cellconstructor/Manipulate.py', 'cellconstructor/Moro_object.py',
+  'cellconstructor/Settings.py', 'cellconstructor/Structure.py', 'cellconstructor/symmetries.py',
+  'cellconstructor/Timer.py',
+  install_dir: py.get_install_dir() / 'cellconstructor',
+)
+
+install_data(
+  'cellconstructor/SymData/15.dat', 'cellconstructor/SymData/36_red.dat', 'cellconstructor/SymData/36.dat',
+  'cellconstructor/SymData/60.dat', 'cellconstructor/SymData/64.bcs', 'cellconstructor/SymData/64.dat',
+  'cellconstructor/SymData/convert_sym.py',
+  install_dir: py.get_install_dir() / 'cellconstructor' / 'SymData'
+)
+
+# --- Instalación de los scripts ejecutables ---
+py.install_sources([
+  'scripts/symmetrize_dynmat.py',
+  'scripts/cellconstructor_test.py',
+  'scripts/view_scf_atoms.py'
+])
+
+# Set the tests by pytest.
+pytest_exe = find_program('pytest', required: false)
+
+if pytest_exe.found()
+  test('pytest', pytest_exe,
+    args : ['-v'],
+    workdir : meson.project_source_root()
+  )
+else
+  message('pytest no encontrado; se omiten tests con pytest.')
+endif
