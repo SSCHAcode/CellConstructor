@@ -133,6 +133,7 @@ fortran_sources_symph = [
 py.extension_module('symph',
     fortran_sources_symph,
     f2py_c_source, # <- Cambio aplicado
+    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -149,6 +150,7 @@ fortran_sources_secondorder = [
 py.extension_module('secondorder',
     fortran_sources_secondorder,
     f2py_c_source, # <- Cambio aplicado
+    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -170,6 +172,7 @@ fortran_sources_thirdorder = [
 py.extension_module('thirdorder',
     fortran_sources_thirdorder,
     f2py_c_source, # <- Cambio aplicado
+    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -187,6 +190,7 @@ thermal_conductivity_fortran_src = files(
 py.extension_module('thermal_conductivity',
     thermal_conductivity_fortran_src,
     f2py_c_source, # <- Cambio aplicado
+    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
