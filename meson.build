@@ -10,6 +10,9 @@ project('CellConstructor',
     ]
     )
 
+# --- Opciones de compilación ---
+use_mkl = get_option('use_mkl')
+
 # --- System and Python Dependencies ---
 # Encuentra las instalaciones necesarias
 py = import('python').find_installation(pure: false)
@@ -19,9 +22,17 @@ fc = meson.get_compiler('fortran')
 # Dependencias adicionales
 
 # Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
-lapack_dep = dependency('lapack')
-blas_dep = dependency('blas')
+#lapack_dep = dependency('lapack')
+#blas_dep = dependency('blas')
 openblas_dep = dependency('openblas', required: false)
+if use_mkl
+  mkl_dep = dependency('mkl', required: true)
+  blas_dep = mkl_dep
+  lapack_dep = mkl_dep
+else
+  lapack_dep = dependency('lapack', required: true)
+  blas_dep = dependency('blas', required: true)
+endif
 
 # La dependencia openmp es necesaria para thermal_transport
 openmp_dep = dependency('openmp', required: true)
