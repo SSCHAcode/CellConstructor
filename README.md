@@ -171,6 +171,11 @@ or if you are in a conda env (the best option for a local installation):
 meson setup builddir --prefix=$CONDA_PREFIX
 ```
 
+if you want to use Intel MKL:
+```bash
+setup builddir -Duse_mkl=true
+```
+
 This command sets up a separate build directory (`builddir`) where all compiled files and build artifacts will be placed, keeping the source directory clean. After this, change into the build directory:
 
 ```bash
