@@ -73,18 +73,18 @@ inc_np = include_directories(incdir_numpy, incdir_f2py)
 
 # ===== INICIO DE LA SOLUCIÓN (VERSIÓN MODERNA) =====
 # Obtenemos la ruta base de la instalación de NumPy
-numpy_path = run_command(py,
-    ['-c', 'import numpy; print(numpy.__path__[0])'],
-    check: true
-).stdout().strip()
+#numpy_path = run_command(py,
+#    ['-c', 'import numpy; print(numpy.__path__[0])'],
+#    check: true
+#).stdout().strip()
 # Construimos la ruta completa al archivo fuente de f2py
-f2py_c_source = join_paths(numpy_path, 'f2py', 'src', 'fortranobject.c')
+#f2py_c_source = join_paths(numpy_path, 'f2py', 'src', 'fortranobject.c')
 # ===== FIN DE LA SOLUCIÓN =====
 
 # --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
 #if openblas_dep.found()
 #  message('openblas environment detected correctly.')
-#  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep]
+#  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep, blas_dep]
 #else
 #  warning('No openblas found.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep, blas_dep]
@@ -132,8 +132,8 @@ fortran_sources_symph = [
 
 py.extension_module('symph',
     fortran_sources_symph,
-    f2py_c_source, # <- Cambio aplicado
-    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
+#    f2py_c_source, # <- Cambio aplicado
+#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -149,8 +149,8 @@ fortran_sources_secondorder = [
 
 py.extension_module('secondorder',
     fortran_sources_secondorder,
-    f2py_c_source, # <- Cambio aplicado
-    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
+#    f2py_c_source, # <- Cambio aplicado
+#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -171,8 +171,8 @@ fortran_sources_thirdorder = [
 
 py.extension_module('thirdorder',
     fortran_sources_thirdorder,
-    f2py_c_source, # <- Cambio aplicado
-    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
+#    f2py_c_source, # <- Cambio aplicado
+#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
@@ -189,8 +189,8 @@ thermal_conductivity_fortran_src = files(
 
 py.extension_module('thermal_conductivity',
     thermal_conductivity_fortran_src,
-    f2py_c_source, # <- Cambio aplicado
-    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
+#    f2py_c_source, # <- Cambio aplicado
+#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
