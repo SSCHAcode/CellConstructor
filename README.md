@@ -207,6 +207,13 @@ This step helps verify that the build works correctly.
 
 To install the compiled binaries, libraries, and other files system-wide (or to a custom location), run:
 
+
+```bash
+meson install
+```
+
+or
+
 ```bash
 sudo meson install
 ```
