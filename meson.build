@@ -17,11 +17,14 @@ py_dep = py.dependency()
 fc = meson.get_compiler('fortran')
 
 # Dependencias adicionales
-#mpi_dep = dependency('mpi')
+
 # Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
 lapack_dep = dependency('lapack')
 blas_dep = dependency('blas')
 openblas_dep = dependency('openblas', required: false)
+
+# La dependencia openmp es necesaria para thermal_transport
+openmp_dep = dependency('openmp', required: true)
 
 # --- MPI Detection ---
 # This overrides the logic in os.environ["MPICC"] and os.popen("%s -show" % mpicc).
