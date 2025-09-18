@@ -147,16 +147,10 @@ fortran_sources_symph = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_symph_target = custom_target('symph-f2py-wrapper',
 #    input: fortran_sources_symph,
-#    output: ['symph-f2py.c','symph-f2py-wrapper.f'],
-#    command: [
-#        py.full_path(), '-m', 'numpy.f2py',
-#        '--backend', 'meson',
-#        '--dep', 'mpi',
-#        '--quiet',
-#        '-c',
-#        '@INPUT0@',
-#        '-m', 'symph'
-#    ],
+#    output: ['symphmodule.c','symph-f2pywrappers2.f90'],
+##    command: [py.full_path(), '-m', 'numpy.f2py', '--backend', 'meson',
+##        '--dep', 'mpi', '--quiet', '-c', '@INPUT0@', '-m', 'symph'],
+#     command : [py, '-m', 'numpy.f2py', '@INPUT@', '-m', 'symph', '--lower'],
 #    install: false
 #)
 py.extension_module('symph',
@@ -180,16 +174,10 @@ fortran_sources_secondorder = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_secondorder_target = custom_target('secondorder-f2py-wrapper',
 #    input: fortran_sources_secondorder,
-#    output: ['secondorder-f2py.c','secondorder-f2py-wrapper.f'],
-#    command: [
-#        py.full_path(), '-m', 'numpy.f2py',
-#        '--backend', 'meson',
-#        '--dep', 'mpi',
-#        '--quiet',
-#        '-c',
-#        '@INPUT0@',
-#        '-m', 'secondorder'
-#    ],
+#    output: ['secondordermodule.c','secondorder-f2pywrappers2.f90'],
+##    command: [py.full_path(), '-m', 'numpy.f2py', '--backend', 'meson',
+##        '--dep', 'mpi', '--quiet', '-c', '@INPUT0@', '-m', 'secondorder'],
+#    command : [py, '-m', 'numpy.f2py', '@INPUT@', '-m', 'secondorder', '--lower'],
 #    install: false
 #)
 py.extension_module('secondorder',
@@ -218,16 +206,10 @@ fortran_sources_thirdorder = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_thirdorder_target = custom_target('thirdorder-f2py-wrapper',
 #    input: fortran_sources_thirdorder,
-#    output: ['thirdorder-f2py.c','thirdorder-f2py-wrapper.f'],
-#    command: [
-#        py.full_path(), '-m', 'numpy.f2py',
-#        '--backend', 'meson',
-#        '--dep', 'mpi',
-#        '--quiet',
-#        '-c',
-#        '@INPUT0@',
-#        '-m', 'thirdorder'
-#    ],
+#    output: ['thirdordermodule.c','thirdorder-f2pywrappers2.f90'],
+##    command: [py.full_path(), '-m', 'numpy.f2py', '--backend', 'meson',
+##        '--dep', 'mpi', '--quiet', '-c', '@INPUT0@', '-m', 'thirdorder'],
+#    command : [py, '-m', 'numpy.f2py', '@INPUT@', '-m', 'thirdorder', '--lower'],
 #    install: false
 #)
 py.extension_module('thirdorder',
@@ -252,16 +234,10 @@ fortran_sources_thermal_conductivity = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_thermal_conductivity_target = custom_target('thermal_conductivity-f2py-wrapper',
 #    input: fortran_sources_thermal_conductivity,
-#    output: ['thermal_conductivity-f2py.c','thermal_conductivity-f2py-wrapper.f'],
-#    command: [
-#        py.full_path(), '-m', 'numpy.f2py',
-#        '--backend', 'meson',
-#        '--dep', 'mpi',
-#        '--quiet',
-#        '-c',
-#        '@INPUT0@',
-#        '-m', 'thermal_conductivity'
-#    ],
+#    output: ['thermal_conductivitymodule.c','thermal_conductivity-f2pywrappers2.f90'],
+##    command: [py.full_path(), '-m', 'numpy.f2py', '--backend', 'meson',
+##        '--dep', 'mpi', '--quiet', '-c', '@INPUT0@', '-m', 'thermal_conductivity'],
+#    command : [py, '-m', 'numpy.f2py', '@INPUT@', '-m', 'thermal_conductivity', '--lower'],
 #    install: false
 #)
 py.extension_module('thermal_conductivity',
