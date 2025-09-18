@@ -147,7 +147,7 @@ fortran_sources_symph = [
 ## Generate the C wrapper with f2py using a custom target
 f2py_symph_target = custom_target('symph-f2py-wrapper',
     input: fortran_sources_symph,
-    output: ['symphmodule.c','symph-f2pywrappers2.f90'],
+    output: ['symphmodule.c','symph-f2pywrappers.f','symph-f2pywrappers2.f90'],
 #    command: [py.full_path(), '-m', 'numpy.f2py', '--backend', 'meson',
 #        '--dep', 'mpi', '--quiet', '-c', '@INPUT0@', '-m', 'symph'],
      command : [py, '-m', 'numpy.f2py', '@INPUT@', '-m', 'symph', '--lower'],
