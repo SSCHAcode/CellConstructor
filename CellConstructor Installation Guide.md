@@ -25,13 +25,13 @@ First, we will create a dedicated Conda environment to ensure all dependencies a
 1. Create a new Conda environment:  
    We will name the environment sscha\_env and use Python 3.10. You can choose a different Python version if needed (the project requires \>=3.8).
    ```bash  
-   conda create \-n sscha\_env python=3.10
+   conda create -n sscha_env python=3.10
    ```
 
 2. Activate the environment:  
    You must activate the environment before proceeding with the installation.
    ```bash  
-   conda activate sscha\_env
+   conda activate sscha_env
    ```
 
 ## **Step 2: Install Dependencies**
@@ -41,22 +41,22 @@ Now we will install the necessary build tools, libraries, and Python packages in
 1. Install system and build dependencies with Conda:  
    This command installs the core libraries needed for compilation (BLAS, LAPACK, MPI) and the build system itself (Meson, Ninja).
    ```bash  
-   conda install \-c conda-forge openblas lapack openmpi meson ninja
+   conda install -c conda-forge openblas lapack openmpi meson ninja
    ```
 
    *Note: openblas provides optimized implementations for blas and lapack.*  
 2. Install Python dependencies with pip:  
    Use pip to install the Python packages listed in requirements.txt.
    ```bash  
-   pip install \-r requirements.txt
+   pip install -r requirements.txt
    ```
 
 ## **Step 3: Clone the Repository**
 
 If you haven't already, clone the project repository from its source.
 ```bash
-git clone \<URL\_OF\_YOUR\_REPOSITORY\>  
-cd CellConstructor  \# Or your repository's root directory
+git clone <URL_OF_REPOSITORY>  
+cd CellConstructor  # Or your repository's root directory
 ```
 
 ## **Step 4: Compile and Install the Project**
@@ -67,7 +67,7 @@ With the environment set up and all dependencies installed, you can now build an
 
 An "editable" install is highly recommended for developers. It allows you to modify the source code and have the changes reflected immediately without needing to reinstall.
 ```bash  
-pip install \-e .
+pip install -e .
 ```
 
 ### **Standard Method: Regular Install**
@@ -95,12 +95,12 @@ If you have the Intel Math Kernel Library (MKL) installed and wish to use it for
 2. Install the project passing the use\_mkl option:  
    You can pass Meson options through pip's \--config-settings flag.  
    ```bash
-   pip install . \--config-settings=--setup-args=-Duse\_mkl=true
+   pip install . --config-settings=--setup-args=-Duse_mkl=true
    ```
 
    Or for an editable install:  
    ```bash
-   pip install \-e . \--config-settings=--setup-args=-Duse\_mkl=true
+   pip install -e . --config-settings=--setup-args=-Duse_mkl=true
    ```
 
 ## **How to Verify the Installation**
@@ -109,13 +109,13 @@ After the installation is complete, you can verify that the modules were built c
 ```bash  
 python
 
-\>\>\> import cellconstructor  
-\>\>\> import cc\_linalg  
-\>\>\> import symph  
-\>\>\> import secondorder  
-\>\>\> import thirdorder
+>>> import cellconstructor  
+>>> import cc_linalg  
+>>> import symph  
+>>> import secondorder  
+>>> import thirdorder
 
-\>\>\> print("Successfully imported all CellConstructor modules\!")
+>>> print("Successfully imported all CellConstructor modules\!")
 ```
 
 If no ImportError messages appear, the installation was successful.
