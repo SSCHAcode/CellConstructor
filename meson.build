@@ -2,6 +2,7 @@ project('CellConstructor',
   ['c','fortran'],
   version: '1.5.0',
   license: 'GPL',
+  meson_version: '>= 1.1.0',
   default_options : [
         'warning_level=1',
         'buildtype=release',
@@ -229,7 +230,7 @@ fortran_sources_thirdorder = [
 #)
 py.extension_module('thirdorder',
     fortran_sources_thirdorder,
-  #  f2py_thirdorder_target
+  #  f2py_thirdorder_target,
 #    f2py_c_source, # <- Cambio aplicado
 #    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
