@@ -2,7 +2,7 @@ project('CellConstructor',
   ['c','fortran'],
   version: '1.5.0',
   license: 'GPL',
-  meson_version: '>= 1.1.0',
+  meson_version: '>= 1.1.0', # <- set min version of meson.
   default_options : [
         'warning_level=1',
         'buildtype=release',
@@ -147,7 +147,7 @@ fortran_sources_symph = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_symph_target = custom_target('symph-f2py-wrapper',
 #    input: fortran_sources_symph,
-#    output: 'symph-f2py.c',
+#    output: ['symph-f2py.c','symph-f2py-wrapper.f'],
 #    command: [
 #        py.full_path(), '-m', 'numpy.f2py',
 #        '--backend', 'meson',
@@ -160,8 +160,9 @@ fortran_sources_symph = [
 #    install: false
 #)
 py.extension_module('symph',
+  # [
     fortran_sources_symph,
-  #  f2py_symph_target,
+  #  f2py_symph_target],
 #    f2py_c_source, # <- Cambio aplicado
 #    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
@@ -179,7 +180,7 @@ fortran_sources_secondorder = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_secondorder_target = custom_target('secondorder-f2py-wrapper',
 #    input: fortran_sources_secondorder,
-#    output: 'secondorder-f2py.c',
+#    output: ['secondorder-f2py.c','secondorder-f2py-wrapper.f'],
 #    command: [
 #        py.full_path(), '-m', 'numpy.f2py',
 #        '--backend', 'meson',
@@ -192,8 +193,9 @@ fortran_sources_secondorder = [
 #    install: false
 #)
 py.extension_module('secondorder',
+  # [
     fortran_sources_secondorder,
-  #  f2py_secondorder_target,
+  #  f2py_secondorder_target],
 #    f2py_c_source, # <- Cambio aplicado
 #    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
@@ -216,7 +218,7 @@ fortran_sources_thirdorder = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_thirdorder_target = custom_target('thirdorder-f2py-wrapper',
 #    input: fortran_sources_thirdorder,
-#    output: 'thirdorder-f2py.c',
+#    output: ['thirdorder-f2py.c','thirdorder-f2py-wrapper.f'],
 #    command: [
 #        py.full_path(), '-m', 'numpy.f2py',
 #        '--backend', 'meson',
@@ -229,8 +231,9 @@ fortran_sources_thirdorder = [
 #    install: false
 #)
 py.extension_module('thirdorder',
+  #  [
     fortran_sources_thirdorder,
-  #  f2py_thirdorder_target,
+  #  f2py_thirdorder_target],
 #    f2py_c_source, # <- Cambio aplicado
 #    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
@@ -249,7 +252,7 @@ fortran_sources_thermal_conductivity = [
 ## Generate the C wrapper with f2py using a custom target
 #f2py_thermal_conductivity_target = custom_target('thermal_conductivity-f2py-wrapper',
 #    input: fortran_sources_thermal_conductivity,
-#    output: 'thermal_conductivity-f2py.c',
+#    output: ['thermal_conductivity-f2py.c','thermal_conductivity-f2py-wrapper.f'],
 #    command: [
 #        py.full_path(), '-m', 'numpy.f2py',
 #        '--backend', 'meson',
@@ -262,8 +265,9 @@ fortran_sources_thermal_conductivity = [
 #    install: false
 #)
 py.extension_module('thermal_conductivity',
+  # [
     fortran_sources_thermal_conductivity,
-  #  f2py_thermal_conductivity_target,
+  #  f2py_thermal_conductivity_target],
 #    f2py_c_source, # <- Cambio aplicado
 #    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
