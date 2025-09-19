@@ -5,7 +5,7 @@
 # 'meson-python' is the backend that translates pip calls to Meson.
 # 'meson' is the actual build tool.
 # 'ninja' is the low-level build system that Meson uses by default for rapid compilation.
-requires = ["meson-python>=0.13.0", "meson>=1.0.0", "ninja>=1.10", "meson-python"]
+requires = ["meson-python>=0.13.0", "meson>=1.1.0", "ninja>=1.10", "meson-python"."numpy>=1.20.0"]
 build-backend = "mesonpy"
 
 [project]
