@@ -153,6 +153,7 @@ py.extension_module('symph',
     f2py_symph_target, fortranobject_c],
     include_directories: inc_np,
     dependencies: list_dep,
+#    link_args: ['-L' + py.get_install_dir() / 'numpy' / 'f2py' / 'src' / 'fortranobject.c', '-lfortranobject'],
     install: true
 )
 
@@ -178,6 +179,7 @@ py.extension_module('secondorder',
     f2py_secondorder_target, fortranobject_c],
     include_directories: inc_np,
     dependencies: list_dep,
+#    link_args: ['-L' + py.get_install_dir() / 'numpy' / 'f2py' / 'src' / 'fortranobject.c', '-lfortranobject'],
     install: true
 )
 
@@ -208,6 +210,7 @@ py.extension_module('thirdorder',
     f2py_thirdorder_target, fortranobject_c],
     include_directories: inc_np,
     dependencies: list_dep,
+#    link_args: ['-L' + py.get_install_dir() / 'numpy' / 'f2py' / 'src' / 'fortranobject.c', '-lfortranobject'],
     install: true
 )
 
@@ -233,7 +236,8 @@ py.extension_module('thermal_conductivity',
     fortran_sources_thermal_conductivity,
     f2py_thermal_conductivity_target, fortranobject_c],
     include_directories: inc_np,
-    dependencies: list_dep,
+    dependencies: [list_dep, openmp_dep],
+#    link_args: ['-L' + py.get_install_dir() / 'numpy' / 'f2py' / 'src' / 'fortranobject.c', '-lfortranobject'],
     install: true
 )
 
