@@ -86,24 +86,14 @@ incdir_f2py = run_command(py,
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 
-# ===== INICIO DE LA SOLUCIÓN (VERSIÓN MODERNA) =====
-# Obtenemos la ruta base de la instalación de NumPy
-#numpy_path = run_command(py,
-#    ['-c', 'import numpy; print(numpy.__path__[0])'],
-#    check: true
-#).stdout().strip()
-# Construimos la ruta completa al archivo fuente de f2py
-#f2py_c_source = join_paths(numpy_path, 'f2py', 'src', 'fortranobject.c')
-# ===== FIN DE LA SOLUCIÓN =====
-
 # --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
-#if openblas_dep.found()
-#  message('openblas environment detected correctly.')
-#  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep, blas_dep]
-#else
-#  warning('No openblas found.')
+if openblas_dep.found()
+  message('openblas environment detected correctly.')
+  list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep, blas_dep]
+else
+  warning('No openblas found.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep, blas_dep]
-#endif
+endif
 # --- Definición de cada extensión de Python (Fortran) ---
 
 # Extensión 'symph'
