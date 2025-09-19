@@ -11,18 +11,18 @@ project('CellConstructor',
     ]
     )
 
-# --- Opciones de compilación ---
+# --- Compilation options ---
 use_mkl = get_option('use_mkl')
 
 # --- System and Python Dependencies ---
-# Encuentra las instalaciones necesarias
+# Find the necessary installations
 py = import('python').find_installation(pure: false)
 py_dep = py.dependency()
 fc = meson.get_compiler('fortran')
 
-# Dependencias adicionales
+# Additional dependencies
 
-# Las librerías LAPACK y BLAS son esenciales para las operaciones matriciales de Fortran.
+# The LAPACK and BLAS libraries are essential for Fortran matrix operations.
 #lapack_dep = dependency('lapack')
 #blas_dep = dependency('blas')
 openblas_dep = dependency('openblas', required: false)
@@ -35,7 +35,7 @@ else
   blas_dep = dependency('blas', required: true)
 endif
 
-# La dependencia openmp es necesaria para thermal_transport
+# The openmp dependency is necessary for thermal_transport
 openmp_dep = dependency('openmp', required: true)
 
 # --- MPI Detection ---
@@ -68,17 +68,17 @@ else
   warning('No MPI compiler found, please ensure MPI is installed and configured.')
   warning('If you wish to activate MPI acceleration, consider setting MPICC environment variable or providing Meson with appropriate flags.')
 endif
-# Busca la librería quadmath, si está disponible
+# Find the quadmath library, if available
 quadmath_dep = fc.find_library('quadmath', required: false)
 
-# --- CONFIGURACIÓN DE NUMPY ---
-# Obtiene la ruta de los directorios de cabecera de NumPy y f2py usando el comando de Python
+# --- NUMPY CONFIGURATION ---
+# Gets the path to the NumPy and f2py header directories using the Python command
 incdir_numpy = run_command(py,
     ['-c', 'import numpy; print(numpy.get_include())'],
     check : true
 ).stdout().strip()
 
-# f2py también requiere la cabecera fortranobject.h
+# f2py also requires the fortranobject.h header
 incdir_f2py = run_command(py,
     ['-c', 'import numpy.f2py; print(numpy.f2py.get_include())'],
     check : true
@@ -86,7 +86,7 @@ incdir_f2py = run_command(py,
 
 inc_np = include_directories(incdir_numpy, incdir_f2py)
 
-# --- FIN DE LA CONFIGURACIÓN DE NUMPY ---
+# --- END OF NUMPY CONFIGURATION ---
 if openblas_dep.found()
   message('openblas environment detected correctly.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, openblas_dep, lapack_dep, blas_dep]
@@ -94,11 +94,11 @@ else
   warning('No openblas found.')
   list_dep = [py_dep, mpi_dep, quadmath_dep, lapack_dep, blas_dep]
 endif
-# --- Definición de cada extensión de Python (Fortran) ---
+# --- Definition of each Python extension (Fortran) ---
 
-# Extensión 'symph'
+# 'symph' extension
 
-# Compilación del módulo Fortran: symph
+# Compilation of the Fortran module: symph
 fortran_sources_symph = [
     'FModules/constants.f90',
     'FModules/error_handler.f90',
@@ -147,16 +147,14 @@ py.extension_module('symph',
    [
     fortran_sources_symph,
     f2py_symph_target],
-#    f2py_c_source, # <- Cambio aplicado
-#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
 )
 
-# Extensión 'secondorder'
+# 'secondorder' extension
 
-# Compilación del módulo Fortran: secondorder
+# Compilation of the Fortran module: secondorder
 fortran_sources_secondorder = [
     'FModules/second_order_centering.f90',
     'FModules/second_order_ASR.f90'
@@ -174,16 +172,14 @@ py.extension_module('secondorder',
    [
     fortran_sources_secondorder,
     f2py_secondorder_target],
-#    f2py_c_source, # <- Cambio aplicado
-#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
 )
 
-# Extensión 'thirdorder'
+# 'thirdorder' extension
 
-# Compilación del módulo Fortran: thirdorder
+# Compilation of the Fortran module: thirdorder
 
 fortran_sources_thirdorder = [
     'FModules/third_order_ASR.f90',
@@ -206,14 +202,12 @@ py.extension_module('thirdorder',
     [
     fortran_sources_thirdorder,
     f2py_thirdorder_target],
-#    f2py_c_source, # <- Cambio aplicado
-#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
 )
 
-# Extensión 'thermal_conductivity'
+# 'thermal_conductivity' extension
 
 fortran_sources_thermal_conductivity = [
 'FModules/get_scattering_q_grid.f90',
@@ -234,14 +228,12 @@ py.extension_module('thermal_conductivity',
    [
     fortran_sources_thermal_conductivity,
     f2py_thermal_conductivity_target],
-#    f2py_c_source, # <- Cambio aplicado
-#    c_args: ['-DF2PY_SETUP_RUN'], # <--- Solucinar "_npy_f2py_ARRAY_API"
     include_directories: inc_np,
     dependencies: list_dep,
     install: true
 )
 
-# --- Definición de la extensión C 'cc_linalg' ---
+# --- Definition of the 'cc_linalg' C extension ---
 wrapper_file = ''
 if py.version().version_compare('<3.0')
   wrapper_file = 'CModules/wrapper.c'
@@ -249,7 +241,7 @@ else
   wrapper_file = 'CModules/wrapper3.c'
 endif
 
-# Compilación del módulo C: cc_linalg
+# Compilation of the C module: cc_linalg
 c_linalg_sources = [
     'CModules/LinAlg.c',
     wrapper_file
@@ -257,13 +249,13 @@ c_linalg_sources = [
 
 py.extension_module('cc_linalg',
     c_linalg_sources,
-    include_directories: inc_np, # Se añade la cabecera de NumPy para el módulo de C
+    include_directories: inc_np, # Add the NumPy header for the C module
     dependencies: py_dep,
     install: true
 )
 
 
-# --- Instalación del paquete de Python 'cellconstructor' ---
+# --- Installation of the 'cellconstructor' Python package ---
 install_data(
   'cellconstructor/__init__.py', 'cellconstructor/AnharmonicForceFields.py', 'cellconstructor/calculators.py',
   'cellconstructor/Methods.py', 'cellconstructor/Phonons.py', 'cellconstructor/Spectral.py',
@@ -281,7 +273,7 @@ install_data(
   install_dir: py.get_install_dir() / 'cellconstructor' / 'SymData'
 )
 
-# --- Instalación de los scripts ejecutables ---
+# --- Installation of executable scripts ---
 py.install_sources([
   'scripts/symmetrize_dynmat.py',
   'scripts/cellconstructor_test.py',
@@ -297,5 +289,5 @@ if pytest_exe.found()
     workdir : meson.project_source_root()
   )
 else
-  message('pytest no encontrado; se omiten tests con pytest.')
+  message('pytest not found; pytest tests are skipped.')
 endif
