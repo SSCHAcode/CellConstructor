@@ -37,7 +37,7 @@ jobs:
     - name: Install the package
       run: |
         # python setup.py install --user
-        pip install -e .
+        pip install .
     - name: Test with pytest
       run: |
         pip install pytest
