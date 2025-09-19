@@ -36,7 +36,8 @@ jobs:
         sudo apt-get install gfortran libblas-dev liblapack-dev
     - name: Install the package
       run: |
-        python setup.py install --user
+        # python setup.py install --user
+        meson install -C builddir
     - name: Test with pytest
       run: |
         pip install pytest
