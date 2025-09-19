@@ -14,12 +14,12 @@ py_dep = py.dependency()
 incdir_numpy = run_command(py,
   ['-c', 'import os; os.chdir(".."); import numpy; print(numpy.get_include())'],
   check : true
-).stdout().strip()
+).stdout().strip()  # -> /home/diego/miniforge3/envs/sscha_env/lib/python3.13/site-packages/numpy/_core/include
 
 incdir_f2py = run_command(py,
     ['-c', 'import os; os.chdir(".."); import numpy.f2py; print(numpy.f2py.get_include())'],
     check : true
-).stdout().strip()
+).stdout().strip()  # -> /home/diego/miniforge3/envs/sscha_env/lib/python3.13/site-packages/numpy/f2py/src
 
 inc_np = include_directories(incdir_numpy)
 np_dep = declare_dependency(include_directories: inc_np)
