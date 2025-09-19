@@ -256,14 +256,42 @@ py.extension_module('cc_linalg',
 
 
 # --- Installation of the 'cellconstructor' Python package ---
-install_data(
-  'cellconstructor/__init__.py', 'cellconstructor/AnharmonicForceFields.py', 'cellconstructor/calculators.py',
-  'cellconstructor/Methods.py', 'cellconstructor/Phonons.py', 'cellconstructor/Spectral.py',
-  'cellconstructor/ThermalConductivity.py', 'cellconstructor/Units.py', 'cellconstructor/Bands.py',
-  'cellconstructor/ForceTensor.py', 'cellconstructor/Manipulate.py', 'cellconstructor/Moro_object.py',
-  'cellconstructor/Settings.py', 'cellconstructor/Structure.py', 'cellconstructor/symmetries.py',
-  'cellconstructor/Timer.py',
-  install_dir: py.get_install_dir() / 'cellconstructor',
+#install_data(
+#  'cellconstructor/__init__.py', 'cellconstructor/AnharmonicForceFields.py', 'cellconstructor/calculators.py',
+#  'cellconstructor/Methods.py', 'cellconstructor/Phonons.py', 'cellconstructor/Spectral.py',
+#  'cellconstructor/ThermalConductivity.py', 'cellconstructor/Units.py', 'cellconstructor/Bands.py',
+#  'cellconstructor/ForceTensor.py', 'cellconstructor/Manipulate.py', 'cellconstructor/Moro_object.py',
+#  'cellconstructor/Settings.py', 'cellconstructor/Structure.py', 'cellconstructor/symmetries.py',
+#  'cellconstructor/Timer.py',
+#  install_dir: py.get_install_dir() / 'cellconstructor',
+#)
+py.install_sources(
+    [
+        'cellconstructor/__init__.py',
+        'cellconstructor/AnharmonicForceFields.py',
+        'cellconstructor/Bands.py',
+        'cellconstructor/calculators.py',
+        'cellconstructor/ForceTensor.py',
+        'cellconstructor/Manipulate.py',
+        'cellconstructor/Methods.py',
+        'cellconstructor/Moro_object.py',
+        'cellconstructor/Phonons.py',
+        'cellconstructor/Settings.py',
+        'cellconstructor/Spectral.py',
+        'cellconstructor/Structure.py',
+        'cellconstructor/symmetries.py',
+        'cellconstructor/SymData/15.dat',
+        'cellconstructor/SymData/36_red.dat',
+        'cellconstructor/SymData/36.dat',
+        'cellconstructor/SymData/60.dat',
+        'cellconstructor/SymData/64.bcs',
+        'cellconstructor/SymData/64.dat',
+        'cellconstructor/SymData/convert_sym.py',
+        'cellconstructor/ThermalConductivity.py',
+        'cellconstructor/Timer.py',
+        'cellconstructor/Units.py'
+    ],
+    subdir: 'cellconstructor'
 )
 
 install_data(
