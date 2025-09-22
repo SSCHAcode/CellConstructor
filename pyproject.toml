@@ -39,9 +39,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://sscha.eu/"
-Repository = "https://github.com/mesonepigreco/CellConstructor" # Puede ser el mismo que Homepage
+Repository = "https://github.com/SSCHAcode/CellConstructor" # Puede ser el mismo que Homepage
 # Documentation = "https://documentacion.readthedocs.io/"
-# Issues = "https://github.com/mesonepigreco/CellConstructor/issues"
+Issues = "https://github.com/SSCHAcode/CellConstructor/issues"
 
 
 # --- Meson-python specific configuration (Optional but useful) ---
