@@ -120,6 +120,96 @@ python
 
 If no ImportError messages appear, the installation was successful.
 
+### How to Install with a Specific Compiler Path
+
+This guide explains how to compile and install this Meson-based Python project when you need to use specific C, C++, or Fortran compilers that are not the default ones in your system's PATH.
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+*    Python 3.8+ and pip
+
+*    The build dependencies for this project, which can be installed via pip:
+
+```bash
+    pip install meson ninja
+```
+
+*    The C, C++, and Fortran compilers you intend to use.
+
+## Method 1: Using Environment Variables (Recommended for most cases)
+
+Meson automatically detects compilers using standard environment variables. You can set these variables before running the installation command. This is the simplest way to specify a compiler for a single build.
+
+The key variables are:
+
+```bash
+    CC: Specifies the C compiler executable.
+
+    CXX: Specifies the C++ compiler executable.
+
+    FC: Specifies the Fortran compiler executable.
+```
+
+# Step-by-Step Instructions
+
+1.    Open your terminal. All commands must be run in the same session, as environment variables are typically not permanent.
+
+2.    Set the environment variables to point to your desired compilers.
+
+    Example for C (using a specific gcc):
+
+```bash
+    export CC=/path/to/my/custom/gcc
+```
+
+    Example for Fortran (using a specific gfortran):
+
+```bash
+    export FC=/path/to/my/custom/gfortran
+```
+
+3.    Combine them as needed. For this project, you will likely need to set CC and FC.
+
+```bash
+    # Example using compilers from a specific toolchain
+    export CC=/usr/local/bin/gcc-11
+    export FC=/usr/local/bin/gfortran-11
+```
+
+4.    Run the pip installation. With the variables set, run pip install from the project's root directory. pip will pass the environment variables down to Meson.
+
+```bash
+    # Ensure you are in the project's root directory (where pyproject.toml is)
+    pip install .
+```
+
+## Method 2: Using a Meson Cross File (Advanced & Reproducible)
+
+For a more permanent or reproducible setup (e.g., in CI/CD pipelines or complex environments), a Meson "cross file" is the best practice. This file explicitly defines the toolchain.
+
+# Step-by-Step Instructions
+
+1.    Create a cross file. In your project's root directory, create a file named native-toolchain.ini.
+
+2.    Edit the file to specify the paths to your compilers in the [binaries] section.
+
+    Example native-toolchain.ini:
+
+```bash
+    # native-toolchain.ini
+    [binaries]
+    c = '/path/to/my/custom/gcc'
+    fortran = '/path/to/my/custom/gfortran'
+```
+
+3.    Run the pip installation with meson-args.
+
+```bash
+    pip install . --config-settings=meson-args="--native-file=native-toolchain.ini"
+```
+
+
 ### Advanced Configuration: Using Meson Build Options
 
 Meson allows you to configure the build using options, which act like on/off switches or settings. You can pass these options during installation using the same --config-settings flag. This is useful for enabling features or changing the build type.
