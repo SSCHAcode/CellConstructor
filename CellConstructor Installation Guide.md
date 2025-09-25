@@ -119,3 +119,56 @@ python
 ```
 
 If no ImportError messages appear, the installation was successful.
+
+### Advanced Configuration: Using Meson Build Options
+
+Meson allows you to configure the build using options, which act like on/off switches or settings. You can pass these options during installation using the same --config-settings flag. This is useful for enabling features or changing the build type.
+
+The general syntax is -D<option_name>=<value>.
+
+# Example 1: Creating a Debug Build
+
+By default, the project is built in release mode for performance. To build with debugging symbols and fewer optimizations (useful for development), you can change the built-in buildtype option.
+
+```bash
+pip install . --config-settings=meson-args="-Dbuildtype=debug"
+```
+
+# Example 2: Enabling Project-Specific Features (like MKL)
+
+This project has an option to use Intel's Math Kernel Library (MKL) instead of standard BLAS/LAPACK. This is controlled by the use_mkl option defined in meson.options.
+
+To enable it, set it to true during installation:
+
+```bash
+pip install . --config-settings=meson-args="-Duse_mkl=true"
+```
+
+## Combining Multiple Options
+
+You can combine multiple Meson arguments by separating them with commas inside the string.
+
+# Example: A debug build using MKL:
+
+```bash
+pip install . --config-settings=meson-args="-Dbuildtype=debug,-Duse_mkl=true"
+```
+
+# Important: Reconfiguring a Build
+
+If you have already built the project and want to change a configuration option, pip might not automatically rebuild it. It is best practice to first clean any previous build artifacts.
+
+You can force a clean rebuild by uninstalling the package and manually deleting the build directory before running the new install command.
+
+1. Uninstall the package
+```bash
+pip uninstall CellConstructor
+```
+2. (Optional but recommended) Remove the build directory
+```bash
+rm -rf build/
+```
+3. Reinstall with the new options
+```bash
+pip install . --config-settings=meson-args="-Dnew_option=value"
+```
