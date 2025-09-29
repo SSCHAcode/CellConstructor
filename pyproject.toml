@@ -1,0 +1,54 @@
+# pyproject.toml
+
+[build-system]
+# Declare the build backends and their dependencies that pip needs to build the project.
+# 'meson-python' is the backend that translates pip calls to Meson.
+# 'meson' is the actual build tool.
+# 'ninja' is the low-level build system that Meson uses by default for rapid compilation.
+requires = ["meson-python>=0.13.0", "meson>=1.1.0", "ninja>=1.10", "meson-python", "numpy>=1.20.0"]
+build-backend = "mesonpy"
+
+[project]
+# Project metadata, which was previously in the `setup()` call of setup.py.
+name = "CellConstructor"
+version = "1.5.0" # Make sure this version matches meson.build
+description = "Python utilities interfaced with ASE for atomic crystal analysis"
+authors = [{name = "Lorenzo Monacelli"}]
+readme = "README.md"
+requires-python = ">=3.8" # The minimum version of Python supported by your project
+license = { text = "GPL" }
+
+keywords = [ # Optional keywords to describe your package
+    "crystallography",
+    "phonons",
+    "materials science",
+    "quantum espresso",
+    "ab initio"
+]
+
+# Project runtime dependencies.
+# These are the dependencies that will be installed when someone runs `pip install cellconstructor`.
+dependencies = [
+    "numpy",
+    "ase",
+    "scipy",
+    # If any of your Python extensions had an *additional* dependency
+    # other than numpy, ase, or scipy (and not a system library like BLAS/LAPACK),
+    # it would go here.
+]
+
+[project.urls]
+Homepage = "https://sscha.eu/"
+Repository = "https://github.com/SSCHAcode/CellConstructor" # Puede ser el mismo que Homepage
+# Documentation = "https://documentacion.readthedocs.io/"
+Issues = "https://github.com/SSCHAcode/CellConstructor/issues"
+
+
+# --- Meson-python specific configuration (Optional but useful) ---
+[tool.meson-python]
+# Here you can pass options to Meson that control the build process.
+# For example, to enable debugging or specify a different installation path.
+# By default, meson-python takes care of using the virtual environment if it exists.
+
+# build-args = ["-Dbuildtype=debug"] # Uncomment for a debug build
+# setup-args = ["--prefix=/opt/cellconstructor"] # For a non-standard installation

@@ -29,20 +29,20 @@ To correnctly install and use the package, you need to have
 5. A fortran compiler
 6. Lapack
 
-The fortran compiler is required to compile the fortran libraries 
+The fortran compiler is required to compile the fortran libraries
 from Quantum ESPRESSO.
 
-Suggested, but not required, is the installation of ASE and spglib. 
-The presence of a valid ASE installation will enable some more features, 
-like the possibility to load structures by any ASE supported file format, 
+Suggested, but not required, is the installation of ASE and spglib.
+The presence of a valid ASE installation will enable some more features,
+like the possibility to load structures by any ASE supported file format,
 or the possibility to export the structures into a valid ASE Atoms class.
-This library is able to compute symmetries from the structure, 
-and inside the symmetry module there is a convertor to let CellConstructure 
-dealing with symmetries extracted with spglib. 
+This library is able to compute symmetries from the structure,
+and inside the symmetry module there is a convertor to let CellConstructure
+dealing with symmetries extracted with spglib.
 However, for a more carefull symmetry analisys, we suggest the use of external tools like ISOTROPY.
 This package can generate ISOTROPY input files for more advanced symmetry detection.
 
-Please, note that some fortran libraries are needed to be compiled, therefore the Python header files should be localized by the compiling process. 
+Please, note that some fortran libraries are needed to be compiled, therefore the Python header files should be localized by the compiling process.
 This requires the python distutils and developing tools to be properly installed.
 On ubuntu this can be achieved by running:
 ```bash
@@ -100,15 +100,15 @@ conda install clangxx_osx-64
 
 NOTE:
 If you want to install the package into a system python distribution, the
-installation commands should be executed as a superuser. 
-Otherwise, append the --user flag to either the setup.py or the pip installation. 
+installation commands should be executed as a superuser.
+Otherwise, append the --user flag to either the setup.py or the pip installation.
 In this way no administrator privileges is required, but the installation will be effective only for the current user.
 Note that some python distribution, like anaconda, does not need the superuser, as it has an installation path inside the HOME directory.
 
 You can install also using the intel compiler.
 In this case, you must edit the setup.py script so that:
 - remove the lapack and blas as extra library for the SCHAModules extension.
-- add a new flag: 'extra_link_args = ["-mkl"]' to the extension. 
+- add a new flag: 'extra_link_args = ["-mkl"]' to the extension.
 
 Remember to specify the intel compiler both to the compilation and for the running:
 CC="icc"
@@ -118,7 +118,7 @@ otherwise the C module will give an error when loaded reguarding some "_fast_mem
 
 ## GO!
 
-To test if the installation runned properly, run the examples reported 
+To test if the installation runned properly, run the examples reported
 in the test directory. The python code in these tests should be
 almost self explaining and introduce you to the potentiality of this library.
 
@@ -142,3 +142,84 @@ For example, if you want the html version run:
 make html
 ```
 inside the UserGuide directory. It will generate a build directory that contains the html version of the full documentation.
+
+## Installation using 'Meson'
+
+### Compiling with Meson
+
+To compile and install CellConstructor with Meson, follow these typical steps:
+
+### 1. Change to the Source Directory
+
+First, open a terminal and navigate to the root directory of the project source code. This is where the `meson.build` file is located.
+
+```bash
+cd /path/to/source/root/cellconstructor
+```
+
+
+### 2. Configure the Build Directory
+
+Create and configure a build directory by running:
+
+```bash
+meson setup builddir
+```
+
+or if you are in a conda env (the best option for a local installation):
+```bash
+meson setup builddir --prefix=$CONDA_PREFIX
+```
+
+if you want to use Intel MKL:
+```bash
+setup builddir -Duse_mkl=true
+```
+
+This command sets up a separate build directory (`builddir`) where all compiled files and build artifacts will be placed, keeping the source directory clean. After this, change into the build directory:
+
+```bash
+cd builddir
+```
+
+
+### 3. Compile the Project
+
+Once inside the build directory, compile the project using:
+
+```bash
+meson compile
+```
+
+This will compile the source code according to the configuration from the previous step.
+
+### 4. Run Tests (Optional)
+
+The project includes tests, you need to install pytest to work. You can run them with:
+
+```bash
+meson test
+```
+
+This step helps verify that the build works correctly.
+
+### 5. Install the Project (Optional)
+
+To install the compiled binaries, libraries, and other files system-wide (or to a custom location), run:
+
+
+```bash
+meson install
+```
+
+or
+
+```bash
+sudo meson install
+```
+
+You may need superuser privileges (hence `sudo`) to install to system directories.
+
+***
+
+Following these steps will help you successfully compile, test, and install SSCHA with Meson as their build system.

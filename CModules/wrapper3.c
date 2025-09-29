@@ -45,13 +45,15 @@ static PyObject * gram_schmidt(PyObject* self, PyObject* args) {
     int NewDim;
 
     PyObject * npy_vectors;
-    
+
     // Get the path dir
     if (!PyArg_ParseTuple(args, "Oii", &npy_vectors, &N_vectors, &N_dim))
         return NULL;
 
     // Get the C pointers to the data of the numpy ndarray
-    vectors = (double*) PyArray_DATA(npy_vectors);
+    //vectors = (double*) PyArray_DATA(npy_vectors);
+    // Fix for new version of numpy and python
+    vectors = (double*) PyArray_DATA((PyArrayObject*) npy_vectors);
 
     NewDim = GramSchmidt(vectors, N_dim, N_vectors);
 

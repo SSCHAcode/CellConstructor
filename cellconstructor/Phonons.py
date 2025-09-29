@@ -2875,7 +2875,7 @@ class Phonons:
         INTERPOLATE THE DYNAMICAL MATRIX IN A FINER Q MESH
         ==================================================
 
-        This method employs the Tensor2 interpolateion functions
+        This method employs the Tensor2 interpolation functions
         from the ForceTensor module to perform the interpolation.
 
         Parameters
