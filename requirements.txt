@@ -1,5 +1,3 @@
-setuptools<=73
 numpy
 scipy
-ase
 spglib<=2.2
