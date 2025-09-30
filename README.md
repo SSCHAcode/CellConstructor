@@ -3,126 +3,67 @@
 Welcome to the CellConstructor python package!
 
 ## What is CellConstructor?
-CellConstructor is a python library that allows to easily manipulate crystal structures and phonon dynamical matrices.
-It is based on quantum espresso, and wraps in python many of the utilities available in the PHonon package as post-processing tools.
-It is also interfaced with ASE for I/O of common file formats (.cif, input of common calculators, etc.) and to SPGLIB for a more stable tool for symmetry identification (also the Quantum Espresso symmetry library is available).
+CellConstructor is a Python library that allows for easy manipulation of crystal structures and phonon dynamical matrices.
+It is based on Quantum Espresso and wraps many of the utilities available in the Phonon package in Python for post-processing tools.
+It is also interfaced with ASE for I/O of standard file formats (.cif, input for common calculators, etc.) and with SPGLIB for a more stable tool for symmetry identification (the Quantum Espresso symmetry library is also available).
 
 
 ## What can I do with CellConstructor?
-CellConstructor is a general purpouse library. Some of the things you can do with one single command:
+CellConstructor is a general-purpose library. Some of the things you can do with one single command:
 
 1. Compute Quasi-Harmonic free energies from a dynamical matrix at any temperature.
 2. Impose symmetries on a structure, or on a dynamical matrix.
 3. Impose the acoustic sum rule on a dynamical matrix
 4. Compute the phonon dispersion along high-symmetry paths
-5. Extract harmonic randomly displaced configurations according to the dynamical matrix.
+5. Extract harmonic, randomly displaced configurations according to the dynamical matrix.
 
-And also many others cool features!
+And also many other cool features!
 
 ## Requirements
 
-To correnctly install and use the package, you need to have
-1. python >= 2.7
-2. ASE : Atomic Simulation Environment (suggested but not mandatory)
+To correctly install and use the package, you need to have
+1. python >= 3.8
+2. ASE: Atomic Simulation Environment (suggested but not mandatory)
 3. numpy
 4. scipy
-5. A fortran compiler
-6. Lapack
-
-The fortran compiler is required to compile the fortran libraries
-from Quantum ESPRESSO.
+5. A FORTRAN compiler
+6. Lapack and BLAS
 
 Suggested, but not required, is the installation of ASE and spglib.
 The presence of a valid ASE installation will enable some more features,
-like the possibility to load structures by any ASE supported file format,
+like the possibility to load structures by any ASE-supported file format,
 or the possibility to export the structures into a valid ASE Atoms class.
-This library is able to compute symmetries from the structure,
-and inside the symmetry module there is a convertor to let CellConstructure
-dealing with symmetries extracted with spglib.
-However, for a more carefull symmetry analisys, we suggest the use of external tools like ISOTROPY.
-This package can generate ISOTROPY input files for more advanced symmetry detection.
 
-Please, note that some fortran libraries are needed to be compiled, therefore the Python header files should be localized by the compiling process.
-This requires the python distutils and developing tools to be properly installed.
-On ubuntu this can be achieved by running:
-```bash
-sudo apt-get install python-dev
+Please note that some Fortran libraries require compilation; therefore, the Python header files should be localized during the compilation process. Starting from version 1.5, the compilation is handled by meson and can be performed automatically using `pip`.
+
+For example, using mamba (or conda), you can install all the binary dependencies with:
+
 ```
-
-If you are using anaconda or pip, it should be automatically installed.
-
+mamba install -c conda-forge python=3.12 ase spglib=2.2 gfortran libblas lapack openmpi openmpi-mpicc pip numpy scipy
+```
+To use conda, just replace `mamba` with `conda`. Note that `conda` may take a long time to resolve the environment; therefore, mamba or micromamba are recommended.
 
 ## Installation
 
-To install prerequisites you can use the pip installation:
-```bash
-pip install -r requirements.txt
+The code can be compiled and installed from the PyPi repository with
+
 ```
-If you are running python2, then ase will fail the installation probably (as it requires python3).
-To solve the issue, you can replace the ase line inside requirements.txt with:
-ase==3.16.0
-This will make it work also with python2.
-
-Be sure you have also python-dev package, otherwise you will experience error while importing Python.h.
-Also, you need gfortran and lapack, blas libraries installed.
-
-Once you make sure to have all the required packages installed on your system
-and working, just type on the terminal
-
-```bash
-python setup.py install
-```
-
-while you are located in the same directory as the setup.py script is.
-
-This program is also distributed upon PyPI. You can install it by typing
-
-```bash
 pip install CellConstructor
 ```
-In this way you will not install the last developing version.
 
-<!--
+Or, alternatively, directly by downloading the GitHub repository and running the following command in the directory containing the code
 
-If the compilation of the modules fails and you are using
-an anaconda module on a 64bit machine, you have to install the conda gcc version.
-You can do this by typing (on Linux):
-
-```bash
-conda install gxx_linux-64
 ```
-or (on MacOS):
-```bash
-conda install clangxx_osx-64
+pip install .
 ```
--->
 
+This will start the automatic compilation. If some libraries or compilers aren't found, please take a look at the next section.
 
-NOTE:
-If you want to install the package into a system python distribution, the
-installation commands should be executed as a superuser.
-Otherwise, append the --user flag to either the setup.py or the pip installation.
-In this way no administrator privileges is required, but the installation will be effective only for the current user.
-Note that some python distribution, like anaconda, does not need the superuser, as it has an installation path inside the HOME directory.
+To test if the installation runs properly, you can just run the examples reported
+in the test directory. The Python code in these tests should be
+almost self-explanatory and introduce you to the potential of this library.
 
-You can install also using the intel compiler.
-In this case, you must edit the setup.py script so that:
-- remove the lapack and blas as extra library for the SCHAModules extension.
-- add a new flag: 'extra_link_args = ["-mkl"]' to the extension.
-
-Remember to specify the intel compiler both to the compilation and for the running:
-CC="icc"
-LDSHARED="icc -shared"
-otherwise the C module will give an error when loaded reguarding some "_fast_memcpy_" linking.
-
-
-## GO!
-
-To test if the installation runned properly, run the examples reported
-in the test directory. The python code in these tests should be
-almost self explaining and introduce you to the potentiality of this library.
-
-Please, note that all the functions of the library have a proper numpy style
+Please note that all the functions of the library have a proper numpy style
 docstring.
 
 You can test the installation using the script:
@@ -130,20 +71,23 @@ You can test the installation using the script:
 cellconstructor_test.py
 ```
 
-To run the complete testsuite, you can use the pytest, running the following command:
+To run the complete testsuite, you can use pytest, running the following command:
 ```bash
 pytest
 ```
 
-For a full API documentation, you can compile the documentation inside the UserGuide directory.  
-To compile it simply use the make utility followed by the frontend.
-For example, if you want the html version run:
+For a complete API documentation, you can compile the documentation inside the UserGuide directory.  
+To compile it, use the make utility followed by the frontend.
+For example, if you want the HTML version, run:
 ```bash
 make html
 ```
-inside the UserGuide directory. It will generate a build directory that contains the html version of the full documentation.
+Inside the UserGuide directory. It will generate a build directory that contains the HTML version of the complete documentation.
 
 ## Installation using 'Meson'
+
+Here, we follow the manual step to compile the code using `meson`. These steps are required if you 
+want to compute the code on an HPC by exploiting the fast optimized libraries of the HPC nodes.
 
 ### Compiling with Meson
 
@@ -218,8 +162,8 @@ or
 sudo meson install
 ```
 
-You may need superuser privileges (hence `sudo`) to install to system directories.
+You may need superuser privileges (hence `sudo`) to install into system directories.
 
 ***
 
-Following these steps will help you successfully compile, test, and install SSCHA with Meson as their build system.
+Following these steps will help you successfully compile, test, and install SSCHA with Meson as its build system.
