@@ -4102,6 +4102,7 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
         itau : Ndarray(nat_sc) , optional
             the correspondance between the supercell atoms and the unit cell one.
             If None is recomputed
+        img_thr: 1e-5 def
     Returns
     -------
         fc_supercell : ndarray 3nat_sc x 3nat_sc
@@ -4164,9 +4165,9 @@ def GetSupercellFCFromDyn(dynmat, q_tot, unit_cell_structure, supercell_structur
     imag = np.max(np.abs(np.imag(fc)))
     ASSERT_ERROR = """
     Error, the imaginary part of the real space force constant
-    is not zero. IMAG={}
+    is not zero. IMAG={} imthr={}
     """
-    assert imag < img_thr, ASSERT_ERROR.format(imag)
+    assert imag < img_thr, ASSERT_ERROR.format(imag, img_thr)
 
     # Remove anyway the imaginary part
     return fc - 1j*np.imag(fc)
@@ -4377,8 +4378,10 @@ def InterpolateDynFC(starting_fc, coarse_grid, unit_cell_structure, super_cell_s
     natsc = np.shape(starting_fc)[0]  // 3
     nat = natsc // supercell_size
 
-    #print "nat:", nat
-    #print "natsc:", natsc
+    print('shape',starting_fc.shape)
+    print('sc',natsc)
+    print('uc',nat)
+    
 
 
     # Get the force constant in an appropriate supercell
