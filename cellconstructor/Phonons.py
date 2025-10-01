@@ -604,7 +604,8 @@ class Phonons:
 
         super_struct = self.structure.generate_supercell(self.GetSupercell())
         t3 = time.time()
-        trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
+        trans_mask = super_struct.get_asr_modes(pols)
+        # trans_mask = Methods.get_translations(pols, super_struct.get_masses_array())
 
         t4 = time.time()
         if verbose:
@@ -807,8 +808,10 @@ class Phonons:
         w0, pols0 = dyn0.DyagDinQ(0)
 
         # Remove translations (acustic modes in gamma)
-        tmask1 = Methods.get_translations(pols1, self.structure.get_masses_array())
-        tmask0 = Methods.get_translations(pols0, dyn0.structure.get_masses_array())
+        tmask1 = self.structure.get_asr_modes(pols1)
+        tmask0 = dyn0.structure.get_asr_modes(pols0)
+        # tmask1 = Methods.get_translations(pols1, self.structure.get_masses_array())
+        # tmask0 = Methods.get_translations(pols0, dyn0.structure.get_masses_array())
 
 
         w1 = w1[  ~tmask1 ]
@@ -1698,7 +1701,8 @@ class Phonons:
             _m_[ 3*i : 3*i + 3] = self.structure.masses[ self.structure.atoms[i]]
 
         # Apply translation
-        trans = Methods.get_translations(pol_vects, self.structure.get_masses_array())
+        trans = self.structure.get_asr_modes(pol_vects)
+        # trans = Methods.get_translations(pol_vects, self.structure.get_masses_array())
         pol_vects[:, trans] = 0
 
         # The super sum
@@ -2044,7 +2048,8 @@ class Phonons:
 
 
         # Remove translations
-        trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
+        trans_mask = super_structure.get_asr_modes(pol_vects)
+        # trans_mask = Methods.get_translations(pol_vects, super_structure.get_masses_array())
 
         # Exclude also other w = 0 modes
         if lock_low_w:
@@ -2175,7 +2180,8 @@ class Phonons:
             pols = w_pols[1].copy()
 
         # Remove translations
-        tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+        tmask = self.structure.generate_supercell(self.GetSupercell()).get_asr_modes(pols)
+        # tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
 
         # Exclude also other w = 0 modes (good for rotations)
         locked_original = np.abs(w) < __EPSILON__
@@ -2230,7 +2236,8 @@ class Phonons:
             w, pols = w_pols
 
         # Remove translations
-        tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+        tmask = self.structure.generate_supercell(self.GetSupercell()).get_asr_modes(pols)
+        # tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
 
         # Exclude also other w = 0 modes (good for rotations)
         locked_original = np.abs(w) < __EPSILON_W__
@@ -2300,7 +2307,8 @@ class Phonons:
             w, pols = w_pols
 
         # Remove translations
-        tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+        tmask = self.structure.generate_supercell(self.GetSupercell()).get_asr_modes(pols)
+        # tmask = Methods.get_translations(pols, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
 
         # Exclude also other w = 0 modes (good for rotations)
         locked_original = np.abs(w) < __EPSILON_W__
@@ -2362,7 +2370,8 @@ class Phonons:
         dos = np.zeros(np.shape(w_array), dtype = np.float64)
         if w_pols is None:
             w, p = self.DiagonalizeSupercell()
-            trans = Methods.get_translations(p, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+            trans = self.structure.generate_supercell(self.GetSupercell()).get_asr_modes(p)
+            # trans = Methods.get_translations(p, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
             w = w[~trans]
         else:
             w, p = w_pols
@@ -2442,9 +2451,12 @@ class Phonons:
             _wnu_, _pnu_ = self.DyagDinQ(k2_i)
             _wnu2_, _pnu2_ = self.DyagDinQ(k2p_i)
 
-            trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
-            trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
-            trans3 = Methods.get_translations(_pnu2_, self.structure.get_masses_array())
+            trans1 = self.structure.get_asr_modes(_pmu_)
+            trans2 = self.structure.get_asr_modes(_pnu_)
+            trans3 = self.structure.get_asr_modes(_pnu2_)
+            # trans1 = Methods.get_translations(_pmu_, self.structure.get_masses_array())
+            # trans2 = Methods.get_translations(_pnu_, self.structure.get_masses_array())
+            # trans3 = Methods.get_translations(_pnu2_, self.structure.get_masses_array())
 
             # Sum over mu nu
             for mu in range(3*nat):
@@ -2516,11 +2528,13 @@ class Phonons:
             w, pols = self.DiagonalizeSupercell()
 
             super_struct = self.structure.generate_supercell(self.GetSupercell())
-            trans = Methods.get_translations(pols, super_struct.get_masses_array())
+            trans = super_struct.get_asr_modes(pols)
+            # trans = Methods.get_translations(pols, super_struct.get_masses_array())
             nat = super_struct.N_atoms
         else:
             w, pols = self.DyagDinQ(0)
-            trans = Methods.get_translations(pols, self.structure.get_masses_array())
+            trans = self.structure.get_asr_modes(pols)
+            # trans = Methods.get_translations(pols, self.structure.get_masses_array())
             nat = self.structure.N_atoms
 
         G_final = np.zeros( (3*nat, 3*nat, len(w_array)), dtype = np.complex128)
@@ -2578,7 +2592,8 @@ class Phonons:
         _w_, _p_ = self.DiagonalizeSupercell()
 
         # Get the translational vectors
-        trans = Methods.get_translations(_p_, self.structure.generate_supercell(self.GetSupercell()).get_masses_array())
+        trans = self.structure.generate_supercell(self.GetSupercell()).get_asr_modes(_p_)
+        # trans = methods.get_translations(_p_, self.structure.generate_supercell(self.getsupercell()).get_masses_array())
 
         _w_ = _w_[~trans]
         _p_ = _p_[~trans]
@@ -3213,7 +3228,7 @@ WARNING: Effective charges are not accounted by this method
         if not self.raman_tensor is None:
             qe_sym.ApplySymmetryToRamanTensor(self.raman_tensor)
 
-    def Symmetrize(self, verbose = False, asr = "custom", use_spglib = False):
+    def Symmetrize(self, verbose = False, asr = "custom", use_spglib = False, timer = None):
         """
         SYMMETRIZE THE DYNAMICAL MATRIX
         ===============================
@@ -3233,11 +3248,34 @@ WARNING: Effective charges are not accounted by this method
         """
 
         if use_spglib:
-            self.SymmetrizeSupercell()
+            if timer:
+                timer.execute_timed_function(self.SymmetrizeSupercell)
+            else:
+                self.SymmetrizeSupercell()
         else:
             qe_sym = symmetries.QE_Symmetry(self.structure)
+
+            # Impose the symmetries on the structure
+            # (This is very important in the case of ibrav-0
+            # where the threshold for detecting symmetries can be too shallow
+            # to actually compute correctly the dynamical matrix
+            qe_sym.SetupQPoint()
+            syms = qe_sym.GetSymmetries()
+
+            if timer:
+                timer.execute_timed_function(self.structure.impose_symmetries, syms)
+            else:
+                self.structure.impose_symmetries(syms)
+
+            # Re-initialize the symmetrization
+            qe_sym = symmetries.QE_Symmetry(self.structure)
+
             fcq = np.array(self.dynmats, dtype = np.complex128)
-            qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
+
+            if timer:
+                timer.execute_timed_function(qe_sym.SymmetrizeFCQ, fcq, self.q_stars, asr = asr, verbose = verbose)
+            else:
+                qe_sym.SymmetrizeFCQ(fcq, self.q_stars, asr = asr, verbose = verbose)
 
             for iq,q in enumerate(self.q_tot):
                 self.dynmats[iq] = fcq[iq, :, :]

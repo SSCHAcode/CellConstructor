@@ -967,7 +967,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
 
         
         
-    def SymmetrizeFCQ(self, fcq, q_stars, verbose = False, asr = "simple"):
+    def SymmetrizeFCQ(self, fcq, q_stars, verbose = False, asr = "custom"):
         """
         Use the current structure to impose symmetries on a complete dynamical matrix
         in q space. Also the simple sum rule at Gamma is imposed
@@ -1060,7 +1060,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         symph.symm_base.set_accep_threshold(self.threshold)
         
         
-    def ImposeSumRule(self, force_constant, asr = "simple", axis = 1, zeu = None):
+    def ImposeSumRule(self, force_constant, asr = "custom", axis = 1, zeu = None):
         """
         QE SUM RULE
         ===========
@@ -1118,7 +1118,13 @@ After loading the dynamical matrix (where dyn is the Phonon object)
                 for nb in range(self.QE_nat):
                     force_constant[3 * na : 3* na + 3, 3*nb: 3 * nb + 3] = QE_fc[:,:, na, nb]
         else:
-            CustomASR(force_constant)
+            if self.structure.one_dim_axis is not None:
+                apply_asr_1d(force_constant,
+                             self.structure,
+                             self.structure.one_dim_axis)
+            else:
+                CustomASR(force_constant)
+
         
     
     
@@ -1555,6 +1561,8 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         # USE THE QE library to perform the symmetrization
         symph.symdynph_gq_new( xq, QE_dyn, self.QE_s, self.QE_invs, self.QE_rtau, 
                               self.QE_irt, self.QE_irotmq, self.QE_minus_q, self.QE_nsymq, self.QE_nat)
+
+        # TODO: Error while applying the symmetry
         
         # Return to cartesian coordinates
         for na in range(self.QE_nat):
@@ -1842,8 +1850,52 @@ def CustomASR(fc_matrix):
         trans -= np.outer(v1, v1)
         
     #print trans
-
     fc_matrix[:,:] = trans.dot(fc_matrix.dot(trans))
+
+
+def apply_asr_1d(fc_matrix : np.ndarray, structure,
+                 rot_axis : int):
+    """
+    Apply the ASR in 1D materials
+
+
+    Parameters
+    ----------
+    
+    - fc_matrix : ndarray(3*nat, 3*nat)
+        The force constant matrix
+    - structure : Structure()
+        The atomic structure
+    - rot_axis : int
+        The axis around which the system is periodic
+    
+    """
+
+    # Apply the standard asr
+    CustomASR(fc_matrix)
+
+    # Get the center of mass
+    center = np.mean(structure.coords, axis=0)
+    delta = structure.coords - center
+
+    axmask = np.zeros(3, dtype=bool)
+    axmask[rot_axis] = True
+
+    # Extract the coordinates on the plane perpendicular
+    vector = np.zeros(3, dtype=np.double)
+    vector[rot_axis] = 1.0
+    
+    d = np.cross(delta, vector).flatten()
+    norm = np.linalg.norm(d)
+    if norm > 1e-5:
+        d /= norm
+
+        # Remove the rotation
+        proj = np.eye(len(d)) - np.outer(d,d)
+        fc_matrix[:, :] = proj.dot(fc_matrix.dot(proj))
+
+    return fc_matrix
+
     
 
 def ExcludeRotations(fc_matrix, structure):

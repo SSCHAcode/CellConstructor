@@ -50,6 +50,7 @@ class Structure(object):
         self.has_unit_cell = False
         self.masses = {}
         self.ita = 0 # Symmetry group in ITA standard
+        self.one_dim_axis = None # If an axis between 0,1,2, it is the periodic 1d dimension
 
         # Setup the attribute control
         self.__total_attributes__ = [item for item in self.__dict__.keys()]
@@ -156,6 +157,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         aux.atoms = [atm for atm in self.atoms]
         aux.unit_cell = self.unit_cell.copy()
         aux.has_unit_cell = self.has_unit_cell
+        aux.one_dim_axis = self.one_dim_axis
 
         # Deep copy of the masses
         aux.masses = {}
@@ -165,6 +167,65 @@ Error, to compute the volume the structure must have a unit cell initialized:
         aux.ita = self.ita
         return aux
         
+    def get_asr_modes(self, pols):
+        """
+        GET THE ASR MODES
+        =================
+
+        Return a mask that identifies the modes to be treated as acoustic sum rule.
+
+        Parameters
+        ----------
+            pols : ndarray(size=(3*nat, nmodes))
+                polarization vectors
+
+        Results
+        -------
+            mask : ndarray(size=3*nat)
+                The mask of the polarization modes to be treated as acoustic sum rule.
+        """
+
+        if self.one_dim_axis is not None:
+            _m_ = self.get_masses_array()
+            _m_ = np.tile(_m_, (3,1)).T.ravel()
+
+            new_pols = np.einsum("ab, a -> ab", pols, 1/np.sqrt(_m_))
+            new_pols = np.einsum("ab, b ->ab", new_pols, 1/np.linalg.norm(new_pols, axis=0))
+
+            # Get the translational vectors
+            pt1 = np.zeros_like(self.coords)
+            pt2 = np.zeros_like(self.coords)
+            pt3 = np.zeros_like(self.coords)
+
+            pt1[:, 0] = 1 / np.sqrt(self.N_atoms)
+            pt2[:, 1] = 1 / np.sqrt(self.N_atoms)
+            pt3[:, 2] = 1 / np.sqrt(self.N_atoms)
+
+            # Create the rotation vector
+            vaxis = np.zeros_like(self.coords[0,:])
+            vaxis[self.one_dim_axis] = 1
+
+            delta = self.coords - np.mean(self.coords, axis=0)
+            rot = np.cross(delta, vaxis)
+            norm = np.linalg.norm(rot)
+            if norm > 1e-5:
+                rot /= norm
+            else:
+                rot *= 0
+
+            my = np.zeros((4, len(pt1.flatten())), dtype = np.double)
+            my[0,:] = pt1.flatten()
+            my[1,:] = pt2.flatten()
+            my[2,:] = pt3.flatten()
+            my[3,:] = rot.flatten()
+
+            coeffs = my.dot(new_pols)
+            perc = np.sqrt(np.sum(coeffs**2, axis=0))
+
+            return perc > 0.95
+        else:
+            return Methods.get_translations(pols, self.get_masses_array())
+
     def set_masses(self, masses):
         """
         This method set up the masses of the system. It requires a dictionary containing the
@@ -863,7 +924,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
 
         if (progress_bar): print()
 
-    def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = True):
+    def impose_symmetries(self, symmetries, threshold = 1.0e-6, verbose = False):
         """
         This methods impose the list of symmetries found in the given filename.
         It solves a self-consistente equation: Sx = x. If this equation is not satisfied at precision
@@ -891,7 +952,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         index = 0
         while running:
             old_coords = np.zeros( np.shape(self.coords))
-            
+
             for sym in symmetries:
                 aux_struct = self.copy()
                 aux_struct.apply_symmetry(sym, delete_original = True)
@@ -1582,6 +1643,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         supercell.N_atoms = new_N_atoms
         supercell.atoms = atoms
         supercell.masses = self.masses.copy()
+        supercell.one_dim_axis = self.one_dim_axis
         
         # Define the supercell
         supercell.has_unit_cell = True
