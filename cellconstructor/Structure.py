@@ -791,11 +791,9 @@ Error, to compute the volume the structure must have a unit cell initialized:
             new_coords += np.tile( sym_mat[:, 3], (self.N_atoms, 1))
 
             # Compute the old origin
-            old_origin = np.sum(self.coords, axis=0)
             self.coords = new_coords.dot(self.unit_cell)
 
             # Shift the origin for comparison.
-            new_origin = np.sum(self.coords, axis=0)
             #self.coords[:,:] += old_origin - new_origin
 
             timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)

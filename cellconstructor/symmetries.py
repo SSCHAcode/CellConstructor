@@ -1335,7 +1335,6 @@ After loading the dynamical matrix (where dyn is the Phonon object)
             irt = GetIRT(self.structure, sym)
             self.QE_translations_irt[:, i] = irt + 1
             self.QE_translations[:, i] = sym[:,3]
-            self.QE_ft[:, i] = -sym[:,3]
 
         # For each symmetry operation, assign the inverse
         self.QE_invs[:] = get_invs(self.QE_s, self.QE_nsym)
