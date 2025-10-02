@@ -790,11 +790,17 @@ Error, to compute the volume the structure must have a unit cell initialized:
             new_coords = sym_mat[:, :3].dot(old_coords.T).T
             new_coords += np.tile( sym_mat[:, 3], (self.N_atoms, 1))
 
+            # Compute the old origin
+            old_origin = np.sum(self.coords, axis=0)
             self.coords = new_coords.dot(self.unit_cell)
+
+            # Shift the origin for comparison.
+            new_origin = np.sum(self.coords, axis=0)
+            #self.coords[:,:] += old_origin - new_origin
 
             timer.execute_timed_function(self.fix_coords_in_unit_cell, delete_copies = False)
         else:
-
+            new_atoms = np.zeros( (self.N_atoms*2, 3))
 
             for i in range(self.N_atoms):
                 # Convert the coordinates into covariant
@@ -817,6 +823,8 @@ Error, to compute the volume the structure must have a unit cell initialized:
             self.N_atoms *= 2
             self.coords = np.concatenate( (self.coords, new_atoms), axis = 0)
             self.delete_copies(verbose = False, minimum_dist = thr)
+
+        
 
     def check_symmetry(self, sym_mat, thr = 1e-6):
         """

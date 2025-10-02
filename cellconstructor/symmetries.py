@@ -1335,6 +1335,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
             irt = GetIRT(self.structure, sym)
             self.QE_translations_irt[:, i] = irt + 1
             self.QE_translations[:, i] = sym[:,3]
+            self.QE_ft[:, i] = -sym[:,3]
 
         # For each symmetry operation, assign the inverse
         self.QE_invs[:] = get_invs(self.QE_s, self.QE_nsym)
@@ -1383,6 +1384,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         TODO: add the q_point preparation by limitng the symmetries only to 
               those that satisfies the specified q_point
         """
+        raise NotImplementedError("Error, function not implemented and dangerous for symmetries with translations")
         
         nsym = len(symmetries)
         
@@ -1438,6 +1440,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         the ones elaborated here.
         
         
+        
         Parameters
         ----------
             get_irt : bool
@@ -1457,7 +1460,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
         for i in range(self.QE_nsym):
             s_rot = np.zeros( (3, 4))
             s_rot[:, :3] = np.transpose(self.QE_s[:, :, i])
-            s_rot[:, 3] = self.QE_ft[:, i]
+            s_rot[:, 3] = -self.QE_ft[:, i]
             
             syms.append(s_rot)
         
