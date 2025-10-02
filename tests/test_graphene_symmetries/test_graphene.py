@@ -1,8 +1,6 @@
 import cellconstructor as CC
 import cellconstructor.Phonons
 
-import sscha, sscha.Ensemble, sscha.SchaMinimizer
-
 import numpy as np
 import sys, os
 
