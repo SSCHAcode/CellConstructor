@@ -31,7 +31,7 @@ def test_double_symmetrization(verbose = False):
     nat = ss.N_atoms
 
     # Get the simmetries
-    spglib_syms = spglib.get_symmetry(ss.get_ase_atoms())
+    spglib_syms = spglib.get_symmetry(ss.get_spglib_cell())
     syms = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_syms)
     
     m = np.tile(ss.get_masses_array(), (3,1)).T.ravel()

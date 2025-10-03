@@ -20,9 +20,9 @@ def test_qstar_with_spglib():
     print("The total number of q:")
     print(len(cmca_dyn.q_tot))
 
-    print("Space group:", spglib.get_spacegroup(cmca_dyn.structure.get_ase_atoms()))
+    print("Space group:", spglib.get_spacegroup(cmca_dyn.structure.get_spglib_cell()))
     print("Number of symmetries:")
-    syms = spglib.get_symmetry(cmca_dyn.structure.get_ase_atoms())
+    syms = spglib.get_symmetry(cmca_dyn.structure.get_spglib_cell())
     print(len(syms["rotations"]))
 
     assert len(cmca_dyn.q_stars) == 8

@@ -29,7 +29,7 @@ def test_diag_symmetries():
 
     # Get the symmetries
     supercell_s = dyn.structure.generate_supercell(dyn.GetSupercell())
-    spglib_syms = spglib.get_symmetry(dyn.structure.get_ase_atoms())
+    spglib_syms = spglib.get_symmetry(dyn.structure.get_spglib_cell())
     syms = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_syms)
 
     # Get the symmetries on the polarization vectors

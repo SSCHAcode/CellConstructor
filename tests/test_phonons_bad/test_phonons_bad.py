@@ -14,7 +14,7 @@ def test_phonons_bad(verbose=False):
 
     # Symmetrize using spglib
     ase.visualize.view(dyn.structure.get_ase_atoms())
-    syms = CC.symmetries.GetSymmetriesFromSPGLIB(spglib.get_symmetry(dyn.structure.get_ase_atoms(), 0.05))
+    syms = CC.symmetries.GetSymmetriesFromSPGLIB(spglib.get_symmetry(dyn.structure.get_spglib_cell(), 0.05))
     dyn.structure.impose_symmetries(syms)
 
     dyn.FixQPoints()

@@ -309,20 +309,20 @@ This tutorial requires spglib and the ASE packages installed.
    struct.has_unit_cell = True # periodic boundary conditions on
 
    # Lets see the symmetries that prints spglib
-   print("Original space group: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+   print("Original space group: ", spglib.get_spacegroup(struct.get_spglib_cell()))
 
    # The previous command should print
    # Original space group: Im-3m (299)
 
    # Lets store the symmetries and convert from spglib to the CellConstructor
-   syms = spglib.get_symmetry(struct.get_ase_atoms())
+   syms = spglib.get_symmetry(struct.get_spglib_cell())
    cc_syms = CC.symmetries.GetSymmetriesFromSPGLIB(syms)
 
    # We can add a random noise on the atoms
    struct.coords += np.random.normal(0, 0.01, size = (2, 3))
 
    # Let us print again the symmetry group
-   print("Space group with noise: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+   print("Space group with noise: ", spglib.get_spacegroup(struct.get_spglib_cell()))
 
    # This time the code will print
    # Space group with noise: P-1 (2)
@@ -333,7 +333,7 @@ This tutorial requires spglib and the ASE packages installed.
    struct.impose_symmetries(cc_syms)
 
    # The previous command will print details on the symmetrization iterations
-   print("Final group: ", spglib.get_spacegroup(struct.get_ase_atoms()))
+   print("Final group: ", spglib.get_spacegroup(struct.get_spglib_cell()))
    # Now the structure will be again in the Im-3m group.
 
 You can pass to all spglib commands a threshold for the symmetrization. In this case you can also use a large threshold and get the symmetries of the closest larger space group. You can use them to constrain the symmetries.
