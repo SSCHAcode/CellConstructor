@@ -286,7 +286,7 @@ class TestStructureMethods(unittest.TestCase):
         self.assertTrue(__ASE__)
 
         if __SPGLIB__ and __ASE__:
-            spacegroup = spglib.get_spacegroup(self.struct_ice.get_ase_atoms())
+            spacegroup = spglib.get_spacegroup(self.struct_ice.get_spglib_cell())
             self.assertEqual(spacegroup, "Cmc2_1 (36)")
 
 
