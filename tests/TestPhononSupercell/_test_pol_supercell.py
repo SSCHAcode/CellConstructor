@@ -79,7 +79,7 @@ except:
     print("Please, install spglib if you want to run the test on the symmetries.")
     exit(0)
 
-spglib_sym = spglib.get_symmetry(dyn_realspace.structure.get_ase_atoms())
+spglib_sym = spglib.get_symmetry(dyn_realspace.structure.get_spglib_cell())
 symmetries = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_sym, False)
 
 

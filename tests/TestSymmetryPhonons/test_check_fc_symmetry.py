@@ -36,11 +36,11 @@ def test_check_fc_symmetry():
     PH = CC.Phonons.Phonons("hydrogen_dyn", nqirr = 1)
 
     print ("Loaded hydrogen_dyn1")
-    print ("Symmetry group:", spglib.get_spacegroup(PH.structure.get_ase_atoms(), 0.01))
+    print ("Symmetry group:", spglib.get_spacegroup(PH.structure.get_spglib_cell(), 0.01))
 
 
     # Get info about the symmetries of the structure
-    symmetries = spglib.get_symmetry(PH.structure.get_ase_atoms(), 0.01)
+    symmetries = spglib.get_symmetry(PH.structure.get_spglib_cell(), 0.01)
     print ("Number of symmetries:", len(symmetries["rotations"]))
 
     # Convert the spglib symmetries into the cellconstructor format

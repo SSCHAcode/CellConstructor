@@ -27,7 +27,7 @@ def test_mode_symmetries(verbose = False):
     ss = dyn.structure.generate_supercell(dyn.GetSupercell())
     
     # Load the symmetries from the structure
-    spglib_sym = spglib.get_symmetry(ss.get_ase_atoms())
+    spglib_sym = spglib.get_symmetry(ss.get_spglib_cell())
     symmetries = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_sym)
 
     # Select only one of the problematic symmetries

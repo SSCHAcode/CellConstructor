@@ -1371,7 +1371,7 @@ class Phonons:
         It needs two files: the file with the structure information,
         and the file with the force constant matrix.
 
-        TODO: Test properly, possible bugs.
+        TODO: Not working!!
 
         Parameters
         ----------
@@ -3214,7 +3214,7 @@ WARNING: Effective charges are not accounted by this method
         #qe_sym.SetupQPoint()
         qe_sym.ApplySymmetriesToV2(superdyn.dynmats[0])
 
-        #spgsym = spglib.get_symmetry(superdyn.structure.get_ase_atoms())
+        #spgsym = spglib.get_symmetry(superdyn.structure.get_spglib_cell())
         #syms = symmetries.GetSymmetriesFromSPGLIB(spgsym, False)
         #superdyn.ForceSymmetries(syms)
 
@@ -4804,7 +4804,7 @@ def compute_phonons_finite_displacements_sym(structure, ase_calculator, epsilon=
 
     #print("DEBUG:", debug)
     # Use spglib to get all the symmetry operations
-    symm = spglib.get_symmetry(super_structure.get_ase_atoms())
+    symm = spglib.get_symmetry(super_structure.get_spglib_cell())
     symm = symmetries.GetSymmetriesFromSPGLIB(symm)
     n_syms = len(symm)
 

@@ -22,11 +22,11 @@ def test_supercell_replica():
     # Generate a supercell
     super_struct = struct.generate_supercell((2,2,1))
     print ("Space group before:")
-    print (spglib.get_spacegroup(super_struct.get_ase_atoms()),)
-    print (len(spglib.get_symmetry(super_struct.get_ase_atoms())["translations"]))
+    print (spglib.get_spacegroup(super_struct.get_spglib_cell()),)
+    print (len(spglib.get_symmetry(super_struct.get_spglib_cell())["translations"]))
 
     # Get the symmetries in the supercell using spglib
-    spglib_syms = spglib.get_symmetry(super_struct.get_ase_atoms())
+    spglib_syms = spglib.get_symmetry(super_struct.get_spglib_cell())
     syms = CC.symmetries.GetSymmetriesFromSPGLIB(spglib_syms, False)
     nsyms = len(syms)
 
@@ -57,8 +57,8 @@ def test_supercell_replica():
 
     # Get again the symmetries
     print ("Symmetries after the sum:")
-    print (spglib.get_spacegroup(new_structure.get_ase_atoms()), )
-    print (len(spglib.get_symmetry(new_structure.get_ase_atoms())["translations"]))
+    print (spglib.get_spacegroup(new_structure.get_spglib_cell()), )
+    print (len(spglib.get_symmetry(new_structure.get_spglib_cell())["translations"]))
 
     # Lets check if the structure is the same as before 
     # Should be 0 only if the symmeties are enaugh to have 0 force.

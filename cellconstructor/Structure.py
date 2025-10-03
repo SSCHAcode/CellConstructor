@@ -1468,6 +1468,36 @@ Error, to compute the volume the structure must have a unit cell initialized:
         
         return atm
 
+    
+    def get_spglib_cell(self):
+        """
+        Convert the current structure in a valid spglib cell 
+        for computing the symmetries.
+
+        The spglib cell is a standard tuple containing lattice, positions and 
+        atomic numbers.
+
+        Results
+        -------
+
+            cell : Tuple
+                the standard tuple containing (lattice, positions, numbers) for
+                spglib.
+
+        """
+
+        lattice = np.copy(self.unit_cell)
+
+        # Positions needs to be in fractional atomic units
+        positions = CC.Methods.coovariant_coordinates(lattice, self.coords)
+
+        # Numbers: convert atomic labels into integers
+        mapping = {}
+        numbers = [mapping.setdefault(s, len(mapping) + 1) for s in self.atoms]
+
+        cell = (lattice, positions, numbers)
+        return cell
+
     def get_phonopy_calculation(self, supercell = [1,1,1]):
         """
         Convert the CellConstructor structure to a phonopy object 

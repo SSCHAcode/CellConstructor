@@ -1277,7 +1277,7 @@ After loading the dynamical matrix (where dyn is the Phonon object)
             raise ImportError("Error, this function works only if spglib is available")
 
         # Get the symmetries
-        spg_syms = spglib.get_symmetry(self.structure.get_ase_atoms(), symprec = self.threshold)
+        spg_syms = spglib.get_symmetry(self.structure.get_spglib_cell(), symprec = self.threshold)
         symmetries = GetSymmetriesFromSPGLIB(spg_syms, regolarize= False)
 
         trans_irt = 0
