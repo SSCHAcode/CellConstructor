@@ -2911,6 +2911,11 @@ class Phonons:
         t2.Center()
 
         out_dyn = t2.GeneratePhonons(mesh_dim, lo_to_splitting=lo_to_splitting)
+
+        # Copy the values of effective charges, raman and dielectric tensor
+        out_dyn.effective_charges = self.effective_charges
+        out_dyn.dielectric_tensor = self.dielectric_tensor
+        out_dyn.raman_tensor = self.raman_tensor
         return out_dyn
 
 
