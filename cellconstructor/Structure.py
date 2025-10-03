@@ -1489,7 +1489,7 @@ Error, to compute the volume the structure must have a unit cell initialized:
         lattice = np.copy(self.unit_cell)
 
         # Positions needs to be in fractional atomic units
-        positions = CC.Methods.coovariant_coordinates(lattice, self.coords)
+        positions = Methods.coovariant_coordinates(lattice, self.coords)
 
         # Numbers: convert atomic labels into integers
         mapping = {}
