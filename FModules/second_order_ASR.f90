@@ -301,20 +301,20 @@ iter=ite*contr
 
 do while (iter < maxite)
 
-    if (verbose) write(*,"(' Iter #' I5 '  ====')") ite
+    if (verbose) write(*,"(' Iter #', I5, '  ====')") ite
     if (verbose) write(*,*) ""
         call impose_ASR_2nd(FC_tmp,pow,SClat,PBC,.false.,FCvar,sum2nd,FC_out ,nat,n_blocks)
-    if (verbose) write(*,"('         Sum on 2nd='  e20.6  '    Imp. ASR on 2nd:  => delta FC=' e20.6)") sum2nd,FCvar
+    if (verbose) write(*,"('         Sum on 2nd=',  e20.6,  '    Imp. ASR on 2nd:  => delta FC=' e20.6)") sum2nd,FCvar
         call impose_perm_sym(FC_out, R2, SClat,PBC,.false.,FCvar,FC_tmp,nat,n_blocks)
-    if (verbose) write(*,"('                    '  20X    '    Imp. permut sym:  => delta FC=' e20.6)") FCvar
+    if (verbose) write(*,"('                    ',  20X,    '    Imp. permut sym:  => delta FC=' e20.6)") FCvar
     if (verbose) write(*,*) ""
 
    !  check converg
    if ( sum2nd < threshold  .and. FCvar < threshold ) then
         write(*,*) " "
-        write(*,"( ' * Convergence reached within threshold:' e20.6 )") threshold
+        write(*,"( ' * Convergence reached within threshold:', e20.6 )") threshold
         write(*,*) " "
-        write(*,"( ' * Total FC relative variation:' e20.6 )") SUM(ABS(FC-FC_out))/ SUM(ABS(FC)) 
+        write(*,"( ' * Total FC relative variation:', e20.6 )") SUM(ABS(FC-FC_out))/ SUM(ABS(FC)) 
         converged = .True.
         EXIT
    end if
