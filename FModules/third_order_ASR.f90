@@ -223,7 +223,7 @@ subroutine impose_perm_sym(FC,R23,SClat,PBC,verbose,FCvar,FC_sym,nat,n_blocks)
 
     if (verbose) then
     write(*, * ) ""
-    write(*,  "(' FC variation due to permut. symm.= 'e20.6)") FCvar
+    write(*,  "(' FC variation due to permut. symm.= ', e20.6)") FCvar
     write(*, * ) ""
     end if
     !
@@ -336,18 +336,18 @@ subroutine impose_ASR_3rd(FC,xR2,xR2list,pow,SClat,PBC,verbose, &
         invpow=1.0_dp/pow
         
         write(*, * ) ""   
-        write(*, "(' ASR imposition on 3rd index with pow= 'f5.3)") pow
-        write(*, "(' Previous values: sum(|sum_3rd phi|)/sum(|phi|)=       'e20.6)" ) sum3rd
-        write(*, "('                  sum(|phi|**pow)**(1/pow)/sum(|phi|)= 'e20.6)" ) d1**invpow/SUM(ABS(FC))
-        write(*, "(' FC relative variation= 'e20.6)" ) FCvar    
+        write(*, "(' ASR imposition on 3rd index with pow= ', f5.3)") pow
+        write(*, "(' Previous values: sum(|sum_3rd phi|)/sum(|phi|)=       ',e20.6)" ) sum3rd
+        write(*, "('                  sum(|phi|**pow)**(1/pow)/sum(|phi|)= ',e20.6)" ) d1**invpow/SUM(ABS(FC))
+        write(*, "(' FC relative variation= ',e20.6)" ) FCvar    
         write(*, * ) "" 
     
     else
 
         write(*, * ) ""   
         write(*, "(' ASR imposition on 3rd index with pow= 0' )") 
-        write(*, "(' Previous value: sum(|sum_3rd phi|)/sum(|phi|)= 'e20.6 )" ) sum3rd
-        write(*, "(' FC relative variation= 'e20.6)" ) FCvar    
+        write(*, "(' Previous value: sum(|sum_3rd phi|)/sum(|phi|)= ',e20.6 )" ) sum3rd
+        write(*, "(' FC relative variation= ',e20.6)" ) FCvar    
         write(*, * ) ""     
     
     
@@ -401,20 +401,20 @@ iter=ite*contr
 
 do while (iter < maxite)
 
-    if (verbose) write(*,"(' Iter #' I5 '  ====')") ite
+    if (verbose) write(*,"(' Iter #', I5, '  ====')") ite
     if (verbose) write(*,*) ""
         call impose_ASR_3rd(FC_tmp,xR2,xR2list,pow,SClat,PBC,.false.,FCvar,sum3rd,FC_out,totnum_R2,nat,n_blocks)
-    if (verbose) write(*,"('         Sum on 3rd='  e20.6  '    Imp. ASR on 3rd:  => delta FC=' e20.6)") sum3rd,FCvar
+    if (verbose) write(*,"('         Sum on 3rd=',  e20.6,  '    Imp. ASR on 3rd:  => delta FC=', e20.6)") sum3rd,FCvar
         call impose_perm_sym(FC_out,R23,SClat,PBC,.false.,FCvar,FC_tmp,nat,n_blocks)
-    if (verbose) write(*,"('                    '  20X    '    Imp. permut sym:  => delta FC=' e20.6)") FCvar
+    if (verbose) write(*,"('                    ',  20X,    '    Imp. permut sym:  => delta FC=', e20.6)") FCvar
     if (verbose) write(*,*) ""
 
    !  check converg
    if ( sum3rd < threshold  .and. FCvar < threshold ) then
         write(*,*) " "
-        write(*,"( ' * Convergence reached within threshold:' e20.6 )") threshold
+        write(*,"( ' * Convergence reached within threshold:', e20.6 )") threshold
         write(*,*) " "
-        write(*,"( ' * Total FC relative variation:' e20.6 )") SUM(ABS(FC-FC_out))/ SUM(ABS(FC)) 
+        write(*,"( ' * Total FC relative variation:', e20.6 )") SUM(ABS(FC-FC_out))/ SUM(ABS(FC)) 
         converged = .True.
         EXIT
    end if
@@ -434,8 +434,8 @@ end do
 
 if (.not. converged ) then
    write(*,*) " "
-   write(*,"( ' Max number of iteration reached ('I6')' )") maxite
-   write(*,"( ' Convergence not reached within threshold:' e20.6 )") threshold
+   write(*,"( ' Max number of iteration reached (', I6 ,')')") maxite
+   write(*,"( ' Convergence not reached within threshold:', e20.6 )") threshold
    write(*,*) " "
 end if   
 

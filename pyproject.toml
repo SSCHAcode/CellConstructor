@@ -11,7 +11,7 @@ build-backend = "mesonpy"
 [project]
 # Project metadata, which was previously in the `setup()` call of setup.py.
 name = "CellConstructor"
-version = "1.5.1" # Make sure this version matches meson.build
+version = "1.5.2" # Make sure this version matches meson.build
 description = "Python utilities interfaced with ASE for atomic crystal analysis"
 authors = [{name = "Lorenzo Monacelli"}]
 readme = "README.md"

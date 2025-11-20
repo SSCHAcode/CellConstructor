@@ -1,6 +1,6 @@
 project('CellConstructor',
   ['c','fortran'],
-  version: '1.5.1',
+  version: '1.5.2',
   license: 'GPL',
   meson_version: '>= 1.1.0', # <- set min version of meson.
   default_options : [
