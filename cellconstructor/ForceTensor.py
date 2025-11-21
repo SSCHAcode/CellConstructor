@@ -678,9 +678,11 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
         ----------
             fname : string
                 Path to the file on which you want to save the tensor.
+            file_format : string
+                The format of the file (case insensitive). Supported formats are phonopy and D3Q.
         """
 
-        if  file_format == 'Phonopy':
+        if  file_format.lower() == 'phonopy':
             
             print("  ")
             print(" Writing FC2 on "+fname )
@@ -708,7 +710,7 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
                                     f.write("{:>2d} {:>2d} {:>20.10e}\n".format(x+1, y+1, self.tensor[r_block, 3*nat1 + x, 3*nat2 + y]))
 
 
-        elif file_format == 'D3Q':
+        elif file_format.upper() == 'D3Q':
             
             print("  ")
             print(" Writing FC2 on "+fname )
@@ -727,6 +729,9 @@ Error, cannot initialize a tensor from a structure with 1 atom with only Gamma
                                         for r_block  in range(self.n_R):
                                             f.write("{:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta]))
                                             
+        else:
+            raise ValueError("Error, file_format %s not recognized. Please, use D3Q or PHONOPY." % file_format.upper())
+
     def Interpolate(self, q2, asr = False, verbose = False, asr_range = None, q_direct = None, lo_to_splitting = True):
         """
         Perform the Fourier interpolation to obtain the force constant matrix at a given q
@@ -1457,7 +1462,7 @@ class Tensor3():
                                             f.write("{:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:>6d} {:16.8e}\n".format(self.x_r_vector2[0, r_block],self.x_r_vector2[1, r_block],self.x_r_vector2[2, r_block],self.x_r_vector3[0, r_block],self.x_r_vector3[1, r_block],self.x_r_vector3[2, r_block], self.tensor[r_block, 3*nat1 + alpha, 3*nat2 + beta, 3*nat3 + gamma]))
 
         else:
-            raise ValueError("File format %s not recognized. Please use either PHONOPY or D3Q.")
+            raise ValueError("File format %s not recognized. Please use either PHONOPY or D3Q." % file_format.upper())
                                             
 
     def Center(self, nneigh=None, Far=2,tol=1.0e-5):
