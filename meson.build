@@ -1,6 +1,6 @@
 project('CellConstructor',
   ['c','fortran'],
-  version: '1.6.0',
+  version: '1.6.1',
   license: 'GPL',
   meson_version: '>= 1.1.0', # <- set min version of meson.
   default_options : [
@@ -31,8 +31,18 @@ if use_mkl
   blas_dep = mkl_dep
   lapack_dep = mkl_dep
 else
-  lapack_dep = dependency('lapack', required: true)
-  blas_dep = dependency('blas', required: true)
+  lapack_dep = dependency('lapack', required: false)
+  blas_dep = dependency('blas', required: false)
+
+  if not lapack_dep.found()
+    lapack_lib = fc.find_library('lapack', required: true)
+    lapack_dep = declare_dependency(dependencies: lapack_lib)
+  endif
+
+  if not blas_dep.found()
+    blas_lib = fc.find_library('blas', required: true)
+    blas_dep = declare_dependency(dependencies: blas_lib)
+  endif
 endif
 
 # The openmp dependency is necessary for thermal_transport
