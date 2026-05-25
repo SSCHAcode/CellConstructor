@@ -4037,7 +4037,7 @@ WARNING: Effective charges are not accounted by this method
                     fc_gamma = t2.Interpolate(np.zeros(3), q_direct= -lo_to_split)
 
                 _m_ = np.tile(self.structure.get_masses_array(), (3,1)).T.ravel()
-                d_gamma = fc_gamma / np.sqrt(np.outer(_m_, _m_))
+                d_gamma = np.real(fc_gamma).astype(np.float64) / np.sqrt(np.outer(_m_, _m_))
                 wq2, eq = np.linalg.eigh(d_gamma)
 
                 wq = np.sqrt(np.abs(wq2)) * np.sign(wq2)
