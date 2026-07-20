@@ -247,6 +247,30 @@ def GoParallel(function, list_of_inputs, reduce_op = None, timer=None):
         computing_list = list_of_inputs[start:end]
         t2 = time.time()
 
+        my_len = len(computing_list)
+        if __PARALLEL_TYPE__ == "mpi4py":
+            comm = mpi4py.MPI.COMM_WORLD
+            min_len = comm.allreduce(my_len, op=mpi4py.MPI.MIN)
+            if min_len == 0:
+                if rank == 0:
+                    raise IndexError(
+                        "Some MPI ranks have no work items "
+                        "(%d inputs across %d ranks). "
+                        "Reduce the number of MPI ranks or increase "
+                        "the number of inputs so every rank has at "
+                        "least one element."
+                        % (len(list_of_inputs), n_proc))
+                comm.Abort(1)
+            elif my_len == 0:
+                raise IndexError("GoParallel rank %d: no work items" % rank)
+        else:
+            if my_len == 0:
+                raise IndexError(
+                    "Rank %d has no work items (%d inputs across %d ranks). "
+                    "Reduce the number of MPI ranks or increase the number "
+                    "of inputs so every rank has at least one element."
+                    % (rank, len(list_of_inputs), n_proc))
+
         if timer is not None:
             timer.add_timer("broadcast", t2 - t1)
 
@@ -393,6 +417,33 @@ def GoParallelTuple(function, list_of_inputs, reduce_op = None):
         for i in range(rank, len(list_of_inputs), n_proc):
             computing_list.append(list_of_inputs[i])
 
+        # Synchronize empty-work check across all MPI ranks so no
+        # rank raises alone (which would hang the others at the
+        # collective call that follows).
+        my_len = len(computing_list)
+        if __PARALLEL_TYPE__ == "mpi4py":
+            comm = mpi4py.MPI.COMM_WORLD
+            min_len = comm.allreduce(my_len, op=mpi4py.MPI.MIN)
+            if min_len == 0:
+                if rank == 0:
+                    raise IndexError(
+                        "Some MPI ranks have no work items "
+                        "(%d inputs across %d ranks). "
+                        "Reduce the number of MPI ranks or increase "
+                        "the number of inputs so every rank has at "
+                        "least one element."
+                        % (len(list_of_inputs), n_proc))
+                comm.Abort(1)
+            elif my_len == 0:
+                raise IndexError("GoParallelTuple rank %d: no work items" % rank)
+        else:
+            if my_len == 0:
+                raise IndexError(
+                    "Rank %d has no work items (%d inputs across %d ranks). "
+                    "Reduce the number of MPI ranks or increase the number "
+                    "of inputs so every rank has at least one element."
+                    % (rank, len(list_of_inputs), n_proc))
+
         #print("Rank {} is computing {} elements".format(rank, len(computing_list)))
         
         # Work! TODO: THIS IS VERY MEMORY HEAVY
@@ -428,17 +479,23 @@ def GoParallelTuple(function, list_of_inputs, reduce_op = None):
                 raise NotImplementedError("Error, not implemented {}".format(__PARALLEL_TYPE__))
 
 
-            result = results[0]
+            # `results` is a list of allgathered lists, one per tuple
+            # element: [[el0_from_rank0, el0_from_rank1, ...],
+            #           [el1_from_rank0, el1_from_rank1, ...], ...].
+            # Reduce each element across ranks and build the final
+            # result list.
+            final_result = []
             for j in range(len(results)):
-                # Perform the last reduction
+                reduced = results[j][0]
                 if reduce_op == "+":
-                    for i in range(1,len(results[j])):
-                        result[j]+= results[j][i]
+                    for i in range(1, len(results[j])):
+                        reduced += results[j][i]
                 elif reduce_op == "*":
-                    for i in range(1,len(results[j])):
-                        result[j]*= results[j][i]
+                    for i in range(1, len(results[j])):
+                        reduced *= results[j][i]
+                final_result.append(reduced)
 
-            return result 
+            return final_result
         else:
             raise NotImplementedError("Error, for now parallelization with MPI implemented only with reduction")
     else:
