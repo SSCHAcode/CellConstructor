@@ -497,6 +497,8 @@ def GoParallelTuple(function, list_of_inputs, reduce_op = None):
 
             return final_result
         else:
+            if __PARALLEL_TYPE__ == "serial":
+                return results
             raise NotImplementedError("Error, for now parallelization with MPI implemented only with reduction")
     else:
         raise NotImplementedError("Something went wrong: {}".format(__PARALLEL_TYPE__))
