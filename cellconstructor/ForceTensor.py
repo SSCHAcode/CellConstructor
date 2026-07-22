@@ -95,6 +95,15 @@ class Tensor2(GenericTensor):
                 The dynamical matrix from which you want to setup the tensor
         """
 
+        # Check if the phonon has been initialized
+        if phonons.structure is None or len(phonons.q_tot) == 0:
+            ERR = """
+Error, the phonon object is not initialized.
+       Please load a dynamical matrix or provide a structure before
+       calling SetupFromPhonons.
+"""
+            raise ValueError(ERR)
+
         # Check if the supercell is correct
         ERR = """
 Error, the supercell of the phonon object is {}.
