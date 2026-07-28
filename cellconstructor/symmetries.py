@@ -420,20 +420,64 @@ After loading the dynamical matrix (where dyn is the Phonon object)
                 the parser to copy the matrix when doing the symmetrization in Fortran.
             initialize_symmetries : bool
                 If True the symmetries will be initialized using spglib. Otherwise
-                the already present symmetries will be use. Use it False at your own risk! 
+                the already present symmetries will be use. Use it False at your own risk!
                 (It can crash with seg fault if symmetries are not properly initialized)
         """
         if initialize_symmetries:
             self.SetupFromSPGLIB()
 
-        # Apply the permutation symmetry
-        symph.permute_v3(v3)
+        nat = self.QE_nat
 
-        # Apply the translational symmetries
-        symph.trans_v3(v3, self.QE_translations_irt)
+        # Apply the permutation symmetry (average over the 6 orderings of
+        # the three indexes, same as permute_v3)
+        b = (v3 + v3.transpose(0, 2, 1) + v3.transpose(1, 0, 2)
+             + v3.transpose(1, 2, 0) + v3.transpose(2, 0, 1)
+             + v3.transpose(2, 1, 0)) / 6.0
 
-        # Apply all the symmetries at gamma
-        symph.sym_v3(v3, self.QE_at, self.QE_s, self.QE_irt, self.QE_nsymq)
+        # Reshape so the three atom indexes come first and the 27 cartesian
+        # components of each atom triple sit together in memory
+        b = b.reshape(nat, 3, nat, 3, nat, 3).transpose(0, 2, 4, 1, 3, 5)
+        b = np.ascontiguousarray(b).reshape(nat, nat, nat, 27)
+
+        # Apply the translational symmetries (same as trans_v3).
+        # After the average over the translations, atoms that are equivalent
+        # by translation carry the same values (with the other two indexes
+        # relabeled), so the average is only computed for the first atom of
+        # each equivalent group and then copied to the others.
+        perms = np.asarray(self.QE_translations_irt, dtype=int).T - 1  # (nr, nat)
+        nr = perms.shape[0]
+        first_equiv = perms.min(axis=0)
+        tr_to_first = perms.argmin(axis=0)
+        firsts = np.unique(first_equiv)
+        acc = np.zeros((len(firsts),) + b.shape[1:], dtype=b.dtype)
+        for p in perms:
+            acc += b[np.ix_(p[firsts], p, p)]
+        acc /= nr
+        for i in range(nat):
+            p = perms[tr_to_first[i]]
+            b[i] = acc[np.searchsorted(firsts, first_equiv[i])][np.ix_(p, p)]
+
+        # Apply all the symmetries at gamma (same operations sym_v3 applied).
+        # For each symmetry: relabel the atoms with irt, then rotate the 27
+        # cartesian components of every atom triple in a single matrix
+        # product.  R is the cartesian rotation matrix of the symmetry,
+        # built from QE_s and the cell vectors, and np.kron(np.kron(R, R), R)
+        # rotates all three indexes at once.
+        at = np.asarray(self.QE_at, dtype=np.double)
+        bg = np.linalg.inv(at.T)
+        s_all = np.asarray(self.QE_s)
+        irt = np.asarray(self.QE_irt, dtype=int)
+        out = np.zeros_like(b)
+        for isym in range(self.QE_nsymq):
+            R = bg @ s_all[:, :, isym] @ at.T
+            R3 = np.kron(np.kron(R, R), R)
+            p = irt[isym, :nat] - 1
+            out += (b[np.ix_(p, p, p)].reshape(-1, 27) @ R3.T).reshape(b.shape)
+        out /= self.QE_nsymq
+
+        # Back to the (3*nat, 3*nat, 3*nat) layout, overwriting v3 in place
+        out = out.reshape(nat, nat, nat, 3, 3, 3).transpose(0, 3, 1, 4, 2, 5)
+        v3[...] = out.reshape(3 * nat, 3 * nat, 3 * nat)
 
     def ApplySymmetryToEffCharge(self, eff_charges):
         """
