@@ -3134,12 +3134,19 @@ WARNING: Effective charges are not accounted by this method
         for iq, q in enumerate(self.q_tot):
             if np.max(np.abs(q)) < __EPSILON__:
                 i_gamma = iq
+                break
+
+        if i_gamma < 0:
+            raise ValueError("Error, no Gamma point found among the q points; cannot reorder the q_tot list.")
 
         if i_gamma != 0:
+            # Swap the Gamma block, not the last q visited by the loop above:
+            # iq keeps its final value from the loop, so using it here moved the
+            # wrong dynamical matrix whenever Gamma was neither first nor last.
             mydyn = self.dynmats[0].copy()
-            self.dynmats[0] = self.dynmats[iq].copy()
-            self.dynmats[iq] = mydyn
-            self.q_tot[iq] = self.q_tot[0].copy()
+            self.dynmats[0] = self.dynmats[i_gamma].copy()
+            self.dynmats[i_gamma] = mydyn
+            self.q_tot[i_gamma] = self.q_tot[0].copy()
             self.q_tot[0][:] = 0
 
 
@@ -3696,10 +3703,25 @@ WARNING: Effective charges are not accounted by this method
                 self.dynmats[iq] = re_part
 
             # Check if this is gamma (to apply the LO-TO splitting)
-            if Methods.get_min_dist_into_cell(bg, q, np.zeros(3)) < 1e-16 and lo_to_split is not None:
-                if self.effective_charges is None:
-                    warnings.warn("WARNING: Requested LO-TO splitting without effective charges. LO-TO ignored.")
-
+            apply_lo_to = Methods.get_min_dist_into_cell(bg, q, np.zeros(3)) < 1e-16 and lo_to_split is not None
+            if apply_lo_to and isinstance(lo_to_split, str) and lo_to_split.lower() != "random":
+                # Validate before the effective-charges check, otherwise a typo in
+                # lo_to_split is silently accepted whenever the charges are missing
+                # (the branch that used to raise is skipped in that case).
+                raise ValueError("Error, lo_to_split argument '%s' not recognized" % lo_to_split)
+            if apply_lo_to and self.effective_charges is None:
+                warnings.warn("WARNING: Requested LO-TO splitting without effective charges. LO-TO ignored.")
+                # Honour the warning instead of running the branch anyway. Without
+                # effective charges ForceTensor.Tensor2.Interpolate returns the plain
+                # short-range Fourier sum -- the whole non-analytic part is guarded by
+                # "if self.effective_charges is not None" -- so this branch rebuilds the
+                # very same dynamical matrix that DyagDinQ already has, after paying for
+                # a full supercell Tensor2: a (3*nat_sc, 3*nat_sc) complex array, hundreds
+                # of MB on a large supercell. Falling through to DyagDinQ gives the same
+                # frequencies and keeps the Gamma polarization gauge consistent with all
+                # the other q points.
+                apply_lo_to = False
+            if apply_lo_to:
                 # TIMER: LO-TO splitting computation
                 t_lo_to_start = time.time()
                 # Initialize the Force Constant
@@ -3887,7 +3909,7 @@ WARNING: Effective charges are not accounted by this method
         return w_array, e_pols_sc
 
 
-    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False, timer=None):
+    def DiagonalizeSupercell(self, verbose = False, lo_to_split = None, return_qmodes = False, timer=None, q_only = False):
         r"""
         DIAGONALIZE THE DYNAMICAL MATRIX IN THE SUPERCELL (FAST VERSION)
         ================================================================
@@ -3908,16 +3930,36 @@ WARNING: Effective charges are not accounted by this method
                 If LO-TO is specified but no effective charges are present, then a warning is print and it is ignored.
             - return_qmodes : bool
                 If true, frequencies and polarizations in q space are returned.
+            - q_only : bool
+                If True the (3N, 3N) supercell polarization matrix is never
+                allocated. The mode selection is performed exactly as in the
+                standard path, but instead of storing the supercell
+                eigenvector of each accepted mode only its origin
+                (iq, band) is recorded, in two O(3N) integer arrays. The
+                returned w_q / pols_q are bitwise identical to the ones
+                obtained with return_qmodes = True.
+                Note that this path also skips the pre-computation of the
+                phase factors (OPTIMIZATION 2 below), recomputing the phase
+                one q at a time instead; the two agree to BLAS rounding
+                (gemv vs gemm) and w_q / pols_q do not depend on it. That
+                table is (3N, nq), i.e. O(N^2/nat), and would dominate the memory
+                budget of a path whose whole point is to stay O(N).
         Results
         -------
             - w_mu : ndarray( size = (n_modes), dtype = np.double)
                 Frequencies in the supercell
             - e_mu : ndarray( size = (3*Nat_sc, n_modes), dtype = np.double, order = "F")
-                Polarization vectors in the supercell
+                Polarization vectors in the supercell (not returned if q_only is True)
+            - mode_iq : ndarray( size = (n_modes), dtype = np.intp)
+                For each sorted supercell mode, the index of the q point it comes
+                from (only if q_only is True)
+            - mode_band : ndarray( size = (n_modes), dtype = np.intp)
+                For each sorted supercell mode, the band index within that q point,
+                so that w_q[mode_band[k], mode_iq[k]] == w_mu[k] (only if q_only is True)
             - w_q : ndarray( size = (3*Nat, nq), dtype = np.double, order = "F")
-                Frequencies in the q space (only if return_qmodes is True)
+                Frequencies in the q space (only if return_qmodes or q_only is True)
             - e_q : ndarray( size = (3*Nat, 3*Nat, nq), dtype = np.complex128, order = "F")
-                Polarization vectors in the q space (only if return_qmodes is True)
+                Polarization vectors in the q space (only if return_qmodes or q_only is True)
         """
 
         supercell_size = len(self.q_tot)
@@ -3927,7 +3969,17 @@ WARNING: Effective charges are not accounted by this method
         nat_sc = nat*supercell_size
 
         w_array = np.zeros( nmodes, dtype = np.double)
-        e_pols_sc = np.zeros( (nmodes, nmodes), dtype = np.double, order = "F")
+        # q_only path: never allocate the (3N, 3N) supercell polarization matrix.
+        # Only the O(3N) index arrays mapping each accepted supercell mode back to
+        # the (iq, band) of the per-q diagonalization that produced it.
+        if q_only:
+            e_pols_sc = None
+            mode_iq = np.full(nmodes, -1, dtype = np.intp)
+            mode_band = np.full(nmodes, -1, dtype = np.intp)
+        else:
+            e_pols_sc = np.zeros( (nmodes, nmodes), dtype = np.double, order = "F")
+            mode_iq = None
+            mode_band = None
 
         nq = len(self.q_tot)
         w_q = np.zeros((3*nat, nq), dtype = np.double, order = "F")
@@ -3993,8 +4045,15 @@ WARNING: Effective charges are not accounted by this method
         # OPTIMIZATION 2: Pre-compute phase factors for all q-points at once
         # TIMER: Phase factor computation
         t_start = time.time()
-        # This avoids computing R_vec.dot(q) repeatedly in the inner loop
-        phase_factors = np.exp(1j * 2 * np.pi * R_vec.dot(q_array.T))  # (nmodes, nq)
+        # This avoids computing R_vec.dot(q) repeatedly in the inner loop.
+        # The table is (nmodes, nq) complex128 = O(N^2/nat): on the q_only path
+        # it would be the single largest allocation of a routine that is meant
+        # to stay O(N), so there the phase is recomputed per q point instead
+        # (one (nmodes,) vector at a time, same numbers).
+        if q_only:
+            phase_factors = None
+        else:
+            phase_factors = np.exp(1j * 2 * np.pi * R_vec.dot(q_array.T))  # (nmodes, nq)
         t_end = time.time()
         if timer is not None:
             timer.add_timer("Compute phase factors", t_end - t_start)
@@ -4008,7 +4067,7 @@ WARNING: Effective charges are not accounted by this method
                 # TIMER: Process skipped q-point
                 t_skip_start = time.time()
                 # Check if we must return anyway the polarization in q space
-                if return_qmodes:
+                if return_qmodes or q_only:
                     if timer is not None:
                         wq, eq = timer.execute_timed_function(self.DyagDinQ, iq)
                     else:
@@ -4038,10 +4097,25 @@ WARNING: Effective charges are not accounted by this method
                 self.dynmats[iq] = re_part
 
             # Check if this is gamma (to apply the LO-TO splitting)
-            if Methods.get_min_dist_into_cell(bg, q, np.zeros(3)) < 1e-16 and lo_to_split is not None:
-                if self.effective_charges is None:
-                    warnings.warn("WARNING: Requested LO-TO splitting without effective charges. LO-TO ignored.")
-
+            apply_lo_to = Methods.get_min_dist_into_cell(bg, q, np.zeros(3)) < 1e-16 and lo_to_split is not None
+            if apply_lo_to and isinstance(lo_to_split, str) and lo_to_split.lower() != "random":
+                # Validate before the effective-charges check, otherwise a typo in
+                # lo_to_split is silently accepted whenever the charges are missing
+                # (the branch that used to raise is skipped in that case).
+                raise ValueError("Error, lo_to_split argument '%s' not recognized" % lo_to_split)
+            if apply_lo_to and self.effective_charges is None:
+                warnings.warn("WARNING: Requested LO-TO splitting without effective charges. LO-TO ignored.")
+                # Honour the warning instead of running the branch anyway. Without
+                # effective charges ForceTensor.Tensor2.Interpolate returns the plain
+                # short-range Fourier sum -- the whole non-analytic part is guarded by
+                # "if self.effective_charges is not None" -- so this branch rebuilds the
+                # very same dynamical matrix that DyagDinQ already has, after paying for
+                # a full supercell Tensor2: a (3*nat_sc, 3*nat_sc) complex array, hundreds
+                # of MB on a large supercell. Falling through to DyagDinQ gives the same
+                # frequencies and keeps the Gamma polarization gauge consistent with all
+                # the other q points.
+                apply_lo_to = False
+            if apply_lo_to:
                 # TIMER: LO-TO splitting computation
                 t_lo_to_start = time.time()
                 # Initialize the Force Constant
@@ -4086,7 +4160,15 @@ WARNING: Effective charges are not accounted by this method
             e_contracted = tilde_e_qnu_all[itau_modes, :]  # (nmodes, nmodes_unit)
             
             # Get phase factors for this q-point
-            phase_q = phase_factors[:, iq]  # (nmodes,)
+            if q_only:
+                # One column at a time instead of the pre-computed table. This
+                # is a gemv where the table is a gemm, so the two agree to BLAS
+                # rounding (~1e-15) rather than bitwise; the mode selection has
+                # a margin of nine orders of magnitude on that, and w_q / pols_q
+                # do not depend on the phase at all.
+                phase_q = np.exp(1j * 2 * np.pi * R_vec.dot(q_array[iq]))  # (nmodes,)
+            else:
+                phase_q = phase_factors[:, iq]  # (nmodes,)
             
             # Broadcast and multiply: e_sc = e_contracted * phase / sqrt(N_q)
             c_e_sc = e_contracted * phase_q[:, np.newaxis] / np.sqrt(supercell_size)
@@ -4137,11 +4219,19 @@ WARNING: Effective charges are not accounted by this method
                 # Add the vectors
                 if add_1:
                     w_array[i_mu] = w_qnu
-                    e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
+                    if q_only:
+                        mode_iq[i_mu] = iq
+                        mode_band[i_mu] = i_qnu
+                    else:
+                        e_pols_sc[:, i_mu] = evec_1 / np.sqrt(norm1)
                     i_mu += 1
                 if add_2:
                     w_array[i_mu] = w_qnu
-                    e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
+                    if q_only:
+                        mode_iq[i_mu] = iq
+                        mode_band[i_mu] = i_qnu
+                    else:
+                        e_pols_sc[:, i_mu] = evec_2 / np.sqrt(norm2)
                     i_mu += 1
 
             t2 = time.time()
@@ -4162,7 +4252,46 @@ WARNING: Effective charges are not accounted by this method
         # Sort the frequencies
         sort_mask = np.argsort(w_array)
         w_array = w_array[sort_mask]
-        e_pols_sc = e_pols_sc[:, sort_mask]
+
+        if q_only:
+            # No (3N, 3N) has ever been allocated on this path: only the O(3N)
+            # index arrays are reordered, so that
+            #     w_q[mode_band[k], mode_iq[k]] == w_array[k]
+            # for every sorted supercell mode k. The normalization assert below
+            # is skipped because it checks e_pols_sc, which does not exist here.
+            # That assert is also the only thing that made a malformed q_tot
+            # (e.g. an exactly duplicated q point) fail loudly on the standard
+            # path; without a check here q_only would return silently with
+            # unassigned modes, i.e. mode_iq = -1 and spurious zero frequencies.
+            assert i_mu == nmodes, "Error, only {} / {} supercell modes were assigned".format(i_mu, nmodes)
+            mode_iq = mode_iq[sort_mask]
+            mode_band = mode_band[sort_mask]
+            t_sort_end = time.time()
+            if timer is not None:
+                timer.add_timer("Sort and validate", t_sort_end - t_sort_start)
+            return w_array, mode_iq, mode_band, w_q, pols_q
+
+        # Sort the supercell polarization columns IN PLACE. Fancy indexing
+        # (e_pols_sc[:, sort_mask]) builds a second (3N, 3N) array while the first
+        # is still alive, doubling the peak of the largest allocation of the
+        # routine. Cycle-following permutation reproducing exactly
+        #     e_pols_sc[:, k] <- e_pols_sc_presort[:, sort_mask[k]]
+        # with a single length-3N temporary column and an O(3N) boolean mask.
+        _tmp_col = np.empty(nmodes, dtype = e_pols_sc.dtype)
+        _done = np.zeros(nmodes, dtype = bool)
+        for _i in range(nmodes):
+            if _done[_i]:
+                continue
+            _j = _i
+            _tmp_col[:] = e_pols_sc[:, _i]
+            while True:
+                _done[_j] = True
+                _src = sort_mask[_j]
+                if _src == _i:
+                    e_pols_sc[:, _j] = _tmp_col
+                    break
+                e_pols_sc[:, _j] = e_pols_sc[:, _src]
+                _j = _src
 
         # Get the check for the polarization vector normalization
         assert np.max(np.abs(np.einsum("ab, ab->b", e_pols_sc, e_pols_sc) - 1)) < __EPSILON__
