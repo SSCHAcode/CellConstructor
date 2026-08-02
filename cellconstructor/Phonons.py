@@ -4271,23 +4271,35 @@ WARNING: Effective charges are not accounted by this method
                 timer.add_timer("Sort and validate", t_sort_end - t_sort_start)
             return w_array, mode_iq, mode_band, w_q, pols_q
 
-        # Sort the supercell polarization columns IN PLACE. Fancy indexing
-        # (e_pols_sc[:, sort_mask]) builds a second (3N, 3N) array while the first
-        # is still alive, doubling the peak of the largest allocation of the
-        # routine. Cycle-following permutation reproducing exactly
-        #     e_pols_sc[:, k] <- e_pols_sc_presort[:, sort_mask[k]]
-        # with a single length-3N temporary column and an O(3N) boolean mask.
+        # Reorder the polarization columns according to sort_mask, in place.
+        #
+        # The result is the same as e_pols_sc[:, sort_mask], i.e. column k of
+        # the sorted matrix is column sort_mask[k] of the original one. Writing
+        # it that way, however, allocates the whole sorted copy while the
+        # original is still alive, so the peak doubles on the largest array of
+        # the routine (2 x (3N)^2 doubles). Doing it in place costs one spare
+        # column instead.
+        #
+        # A permutation decomposes into disjoint cycles, and a cycle can be
+        # applied in place by saving one element and shifting the others onto
+        # it. Starting from a column _i not yet moved, save it in _tmp_col,
+        # then walk the cycle _j -> sort_mask[_j]: each step overwrites the
+        # column _j with the one it must receive. When the walk comes back to
+        # _i its column is no longer in the matrix, so the saved copy is
+        # written there and the cycle is closed. The _done mask marks the
+        # columns already placed, so every cycle is walked exactly once and
+        # each column is written exactly once.
         _tmp_col = np.empty(nmodes, dtype = e_pols_sc.dtype)
         _done = np.zeros(nmodes, dtype = bool)
         for _i in range(nmodes):
             if _done[_i]:
                 continue
             _j = _i
-            _tmp_col[:] = e_pols_sc[:, _i]
+            _tmp_col[:] = e_pols_sc[:, _i]        # save the head of the cycle
             while True:
                 _done[_j] = True
-                _src = sort_mask[_j]
-                if _src == _i:
+                _src = sort_mask[_j]              # column _j must receive _src
+                if _src == _i:                    # back to the head: close it
                     e_pols_sc[:, _j] = _tmp_col
                     break
                 e_pols_sc[:, _j] = e_pols_sc[:, _src]
